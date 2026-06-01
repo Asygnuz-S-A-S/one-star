@@ -1,0 +1,234 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// CATÁLOGO
+// ─────────────────────────────────────────────
+
+enum Gender {
+  UNISEX
+  HOMBRE
+  MUJER
+  NINO
+  NINA
+  INFANTIL
+  BEBE
+}
+
+model Category {
+  id       String    @id @default(cuid())
+  name     String
+  slug     String    @unique
+  products Product[]
+}
+
+model Product {
+  id                  String         @id @default(cuid())
+  slug                String         @unique
+  name                String
+  basePrice           Decimal        @db.Decimal(10, 2)
+  isOnSale            Boolean        @default(false)
+  salePrice           Decimal?       @db.Decimal(10, 2)
+  description         String?
+  brand               String?
+  gender              Gender?
+  metaTitle           String?
+  metaDescription     String?
+  extendedDescription String?
+  videoUrl            String?
+  categoryId          String
+  category            Category       @relation(fields: [categoryId], references: [id])
+  images              ProductImage[]
+  variants            Variant[]
+  cartItems           CartItem[]
+  orderItems          OrderItem[]
+  crossSells          Product[]      @relation("CrossSell")
+  crossSoldBy         Product[]      @relation("CrossSell")
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+}
+
+model ProductImage {
+  id        String  @id @default(cuid())
+  url       String
+  alt       String
+  position  Int     @default(0)
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+// Una Variant = combinación única talla × color con su propio stock y SKU
+model Variant {
+  id        String     @id @default(cuid())
+  sku       String     @unique
+  size      String
+  color     String
+  stock     Int        @default(0)
+  sizeUS    String?
+  sizeCM    String?
+  sizeEUR   String?
+  productId String
+  product   Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  cartItems CartItem[]
+}
+
+// ─────────────────────────────────────────────
+// USUARIOS
+// ─────────────────────────────────────────────
+
+enum AdminRole {
+  SUPER_ADMIN
+  INVENTORY_OPERATOR
+}
+
+model AdminUser {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  role         AdminRole @default(SUPER_ADMIN)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+enum Role {
+  CUSTOMER
+  ADMIN
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(CUSTOMER)
+  cart         Cart?
+  orders       Order[]
+  createdAt    DateTime @default(now())
+}
+
+// ─────────────────────────────────────────────
+// CARRITO
+// ─────────────────────────────────────────────
+
+model Cart {
+  id        String     @id @default(cuid())
+  userId    String     @unique
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     CartItem[]
+  updatedAt DateTime   @updatedAt
+}
+
+model CartItem {
+  id        String  @id @default(cuid())
+  quantity  Int     @default(1)
+  cartId    String
+  cart      Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  variantId String
+  variant   Variant @relation(fields: [variantId], references: [id])
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  @@unique([cartId, variantId])
+}
+
+// ─────────────────────────────────────────────
+// PEDIDOS
+// ─────────────────────────────────────────────
+
+enum OrderStatus {
+  PENDING
+  PAID
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  status          OrderStatus @default(PENDING)
+  total           Decimal     @db.Decimal(10, 2)
+  paymentMethod   String?
+  trackingNumber  String?
+  customerEmail   String?
+  customerName    String?
+  shippingAddress Json?
+  userId          String
+  user            User        @relation(fields: [userId], references: [id])
+  items           OrderItem[]
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+}
+
+// unitPrice se congela al momento de la compra (no varía si el producto cambia de precio)
+model OrderItem {
+  id        String  @id @default(cuid())
+  quantity  Int
+  unitPrice Decimal @db.Decimal(10, 2)
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+}
+
+// ─────────────────────────────────────────────
+// TARJETAS REGALO
+// ─────────────────────────────────────────────
+
+model GiftCard {
+  id       String  @id @default(cuid())
+  code     String  @unique
+  balance  Decimal @db.Decimal(10, 2)
+  isActive Boolean @default(true)
+}
+
+// ─────────────────────────────────────────────
+// MARKETING
+// ─────────────────────────────────────────────
+
+model Banner {
+  id        String    @id @default(cuid())
+  title     String
+  imageUrl  String
+  linkUrl   String?
+  position  Int       @default(0)
+  isActive  Boolean   @default(true)
+  startDate DateTime?
+  endDate   DateTime?
+  createdAt DateTime  @default(now())
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+model Coupon {
+  id             String       @id @default(cuid())
+  code           String       @unique
+  discountType   DiscountType
+  discountValue  Decimal      @db.Decimal(10, 2)
+  minOrderAmount Decimal?     @db.Decimal(10, 2)
+  maxUses        Int?
+  usedCount      Int          @default(0)
+  categoryId     String?
+  validFrom      DateTime
+  validUntil     DateTime
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+}
+
+model AbandonedCart {
+  id          String    @id @default(cuid())
+  email       String
+  cartData    Json
+  userId      String?
+  recoveredAt DateTime?
+  createdAt   DateTime  @default(now())
+}
