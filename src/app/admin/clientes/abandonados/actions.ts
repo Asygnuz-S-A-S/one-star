@@ -1,25 +1,20 @@
 "use server"
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-// NOTE: AbandonedCart model exists in schema.prisma but not yet in the generated Prisma client.
-// Will resolve after `prisma generate`.
-import { prisma } from "@/server/db/prisma"
 import { revalidatePath } from "next/cache"
-
-const db = prisma as any
+import { recoverAbandonedCart } from "@/server/services/abandoned-cart.service"
 
 export async function markCartRecovered(
   cartId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    await db.abandonedCart.update({
-      where: { id: cartId },
-      data: { recoveredAt: new Date() },
-    })
+    await recoverAbandonedCart(cartId)
     revalidatePath("/admin/clientes/abandonados")
     return { success: true }
-  } catch (error) {
-    console.error("[markCartRecovered]", error)
+  } catch (error: unknown) {
+    if (process.env.NODE_ENV === "development") {
+      // eslint-disable-next-line no-console
+      console.error("[markCartRecovered]", error instanceof Error ? error.message : error)
+    }
     return { success: false, error: "No se pudo marcar como recuperado." }
   }
 }

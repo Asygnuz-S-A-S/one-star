@@ -3,6 +3,9 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
+import { useCart } from "@/context/CartContext";
+import CartDrawer from "@/components/cart/CartDrawer";
 
 const NAV_ITEMS = [
   { label: "Lanzamientos", href: "/lanzamientos" },
@@ -100,8 +103,22 @@ function IconUser() {
   );
 }
 
+function UserAvatar({ initial }: { initial: string }) {
+  return (
+    <span className="w-7 h-7 flex items-center justify-center rounded-full bg-[#E31C23] text-white font-barlow font-bold text-xs uppercase select-none">
+      {initial}
+    </span>
+  );
+}
+
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { totalItems, toggleCart } = useCart();
+  const { data: session } = useSession();
+
+  const isCustomer = !!session?.user && session.user.userType === "customer";
+  const userInitial =
+    session?.user?.name?.charAt(0) ?? session?.user?.email?.charAt(0) ?? "U";
 
   return (
     /*
@@ -150,19 +167,24 @@ export default function Header() {
 
           {/* Acciones rápidas */}
           <div className="flex items-center gap-1 text-[#1C1C1C]">
-            <Link
-              href="/carrito"
+            <button
+              onClick={toggleCart}
               aria-label="Carrito de compras"
-              className="p-2 rounded-sm focus-visible:outline-2 focus-visible:outline-[#E31C23]"
+              className="relative p-2 rounded-sm focus-visible:outline-2 focus-visible:outline-[#E31C23]"
             >
               <IconCart />
-            </Link>
+              {totalItems > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 flex items-center justify-center bg-[#E31C23] text-white text-[10px] font-montserrat font-medium rounded-full">
+                  {totalItems}
+                </span>
+              )}
+            </button>
             <Link
-              href="/cuenta"
+              href={isCustomer ? "/cuenta" : "/login"}
               aria-label="Mi cuenta"
               className="p-2 rounded-sm focus-visible:outline-2 focus-visible:outline-[#E31C23]"
             >
-              <IconUser />
+              {isCustomer ? <UserAvatar initial={userInitial} /> : <IconUser />}
             </Link>
           </div>
         </div>
@@ -211,19 +233,24 @@ export default function Header() {
             >
               <IconSearch />
             </button>
-            <Link
-              href="/carrito"
+            <button
+              onClick={toggleCart}
               aria-label="Carrito de compras"
-              className="p-2 rounded-sm hover:text-[#E31C23] transition-colors focus-visible:outline-2 focus-visible:outline-[#E31C23]"
+              className="relative p-2 rounded-sm hover:text-[#E31C23] transition-colors focus-visible:outline-2 focus-visible:outline-[#E31C23]"
             >
               <IconCart />
-            </Link>
+              {totalItems > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 flex items-center justify-center bg-[#E31C23] text-white text-[10px] font-montserrat font-medium rounded-full">
+                  {totalItems}
+                </span>
+              )}
+            </button>
             <Link
-              href="/cuenta"
+              href={isCustomer ? "/cuenta" : "/login"}
               aria-label="Mi cuenta"
               className="p-2 rounded-sm hover:text-[#E31C23] transition-colors focus-visible:outline-2 focus-visible:outline-[#E31C23]"
             >
-              <IconUser />
+              {isCustomer ? <UserAvatar initial={userInitial} /> : <IconUser />}
             </Link>
           </div>
         </div>
@@ -255,11 +282,11 @@ export default function Header() {
             {/* Acciones secundarias en el menú móvil */}
             <div className="flex items-center gap-4 px-6 py-4 border-t border-[#E0E0E0] text-[#4A4A4A]">
               <Link
-                href="/cuenta"
+                href={isCustomer ? "/cuenta" : "/login"}
                 onClick={() => setMenuOpen(false)}
                 className="flex items-center gap-2 font-montserrat text-sm"
               >
-                <IconUser />
+                {isCustomer ? <UserAvatar initial={userInitial} /> : <IconUser />}
                 <span>Mi cuenta</span>
               </Link>
               <Link
@@ -275,5 +302,6 @@ export default function Header() {
         </div>
       )}
     </header>
+    <CartDrawer />
   );
 }

@@ -3,13 +3,9 @@ import { revalidatePath } from "next/cache"
 // TODO: Make announcement bar text dynamic (persist to DB or env)
 // TODO: Make store info dynamic (persist to DB or settings table)
 
-async function saveConfig(formData: FormData): Promise<void> {
+async function saveConfig(_formData: FormData): Promise<void> {
   "use server"
-  // Placeholder: in a real implementation, save to DB or settings file
-  console.log("[saveConfig] announcement:", formData.get("announcement"))
-  console.log("[saveConfig] storeName:", formData.get("storeName"))
-  console.log("[saveConfig] contactEmail:", formData.get("contactEmail"))
-  console.log("[saveConfig] whatsapp:", formData.get("whatsapp"))
+  // TODO: Persistir en tabla StoreSettings (pendiente de implementar)
   revalidatePath("/admin/configuracion")
 }
 

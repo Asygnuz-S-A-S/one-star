@@ -1,9 +1,7 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-// NOTE: Some Product fields (brand, gender, etc.) are in schema.prisma but not
-// yet in the generated Prisma client — will resolve after `prisma generate`.
 import Link from "next/link"
 import Image from "next/image"
-import { prisma } from "@/server/db/prisma"
+import { getProducts } from "@/server/services/product.service"
+import { getCategories } from "@/server/services/category.service"
 
 const PAGE_SIZE = 20
 
@@ -17,51 +15,35 @@ interface Props {
   searchParams: Promise<SearchParams>
 }
 
+function getProductStatus(variants: { stock: number }[], isOnSale: boolean) {
+  const totalStock = variants.reduce((sum, v) => sum + v.stock, 0)
+  if (totalStock === 0) return { label: "AGOTADO", color: "bg-gray-100 text-gray-600" }
+  if (isOnSale) return { label: "SALE", color: "bg-red-100 text-[#E31C23]" }
+  return { label: "ACTIVO", color: "bg-green-100 text-green-700" }
+}
+
 export default async function ProductosPage({ searchParams }: Props) {
   const params = await searchParams
   const page = Math.max(1, parseInt(params.page ?? "1") || 1)
   const q = params.q?.trim() ?? ""
   const categoryFilter = params.category ?? ""
 
-  const where = {
-    ...(q ? { OR: [{ name: { contains: q, mode: "insensitive" as const } }, { brand: { contains: q, mode: "insensitive" as const } }] } : {}),
-    ...(categoryFilter ? { categoryId: categoryFilter } : {}),
-  }
-
-  const db = prisma as any
-
-  const [products, total, categories] = await Promise.all([
-    db.product.findMany({
-      where,
-      take: PAGE_SIZE,
-      skip: (page - 1) * PAGE_SIZE,
-      orderBy: { createdAt: "desc" },
-      include: {
-        category: true,
-        images: {
-          orderBy: { position: "asc" },
-          take: 1,
-        },
-        variants: { select: { stock: true } },
+  const [{ products, total }, categories] = await Promise.all([
+    getProducts(
+      {
+        q: q || undefined,
+        ...(categoryFilter ? { categorySlug: undefined } : {}),
+        page: String(page),
       },
-    }),
-    db.product.count({ where }),
-    db.category.findMany({ orderBy: { name: "asc" } }),
+      PAGE_SIZE
+    ),
+    getCategories(),
   ])
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
-  type ProductRow = any
-  function getStatus(product: ProductRow) {
-    const totalStock = product.variants.reduce((sum: number, v: { stock: number }) => sum + v.stock, 0)
-    if (totalStock === 0) return { label: "AGOTADO", color: "bg-gray-100 text-gray-600" }
-    if (product.isOnSale) return { label: "SALE", color: "bg-red-100 text-[#E31C23]" }
-    return { label: "ACTIVO", color: "bg-green-100 text-green-700" }
-  }
-
   return (
     <div className="p-6 md:p-8">
-      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="font-['Barlow',sans-serif] text-2xl font-bold text-[#1C1C1C]">
           Productos
@@ -75,7 +57,6 @@ export default async function ProductosPage({ searchParams }: Props) {
         </Link>
       </div>
 
-      {/* Filters */}
       <form method="GET" className="flex flex-wrap gap-3 mb-6">
         <input
           type="text"
@@ -90,7 +71,7 @@ export default async function ProductosPage({ searchParams }: Props) {
           className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-[#1C1C1C] bg-white focus:outline-none focus:ring-2 focus:ring-[#E31C23]"
         >
           <option value="">Todas las categorías</option>
-          {(categories as { id: string; name: string }[]).map((cat) => (
+          {categories.map((cat) => (
             <option key={cat.id} value={cat.id}>
               {cat.name}
             </option>
@@ -112,11 +93,12 @@ export default async function ProductosPage({ searchParams }: Props) {
         )}
       </form>
 
-      {/* Empty state */}
       {products.length === 0 ? (
         <div className="bg-white rounded-xl border border-gray-200 p-16 text-center">
           <p className="text-[#4A4A4A] text-lg mb-4">
-            {q || categoryFilter ? "No se encontraron productos con esos filtros." : "Aún no hay productos."}
+            {q || categoryFilter
+              ? "No se encontraron productos con esos filtros."
+              : "Aún no hay productos."}
           </p>
           <Link
             href="/admin/productos/nuevo"
@@ -127,7 +109,6 @@ export default async function ProductosPage({ searchParams }: Props) {
         </div>
       ) : (
         <>
-          {/* Table */}
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -143,8 +124,8 @@ export default async function ProductosPage({ searchParams }: Props) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {(products as ProductRow[]).map((product: ProductRow) => {
-                    const status = getStatus(product)
+                  {products.map((product) => {
+                    const status = getProductStatus(product.variants, product.isOnSale)
                     const firstImage = product.images[0]
                     return (
                       <tr key={product.id} className="hover:bg-gray-50 transition-colors">
@@ -175,15 +156,23 @@ export default async function ProductosPage({ searchParams }: Props) {
                         <td className="px-4 py-3">
                           {product.isOnSale && product.salePrice ? (
                             <div>
-                              <span className="text-[#E31C23] font-semibold">${Number(product.salePrice).toLocaleString("es-CO")}</span>
-                              <span className="text-xs line-through text-gray-400 ml-1">${Number(product.basePrice).toLocaleString("es-CO")}</span>
+                              <span className="text-[#E31C23] font-semibold">
+                                ${product.salePrice.toLocaleString("es-CO")}
+                              </span>
+                              <span className="text-xs line-through text-gray-400 ml-1">
+                                ${product.basePrice.toLocaleString("es-CO")}
+                              </span>
                             </div>
                           ) : (
-                            <span className="font-semibold text-[#1C1C1C]">${Number(product.basePrice).toLocaleString("es-CO")}</span>
+                            <span className="font-semibold text-[#1C1C1C]">
+                              ${product.basePrice.toLocaleString("es-CO")}
+                            </span>
                           )}
                         </td>
                         <td className="px-4 py-3">
-                          <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${status.color}`}>
+                          <span
+                            className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${status.color}`}
+                          >
                             {status.label}
                           </span>
                         </td>
@@ -213,7 +202,6 @@ export default async function ProductosPage({ searchParams }: Props) {
             </div>
           </div>
 
-          {/* Pagination */}
           <div className="flex items-center justify-between mt-4">
             <p className="text-sm text-[#4A4A4A]">
               Página {page} de {totalPages} · {total} productos

@@ -1,12 +1,7 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-// NOTE: Several Order fields (customerEmail, customerName, paymentMethod, etc.)
-// are in schema.prisma but not yet in the generated Prisma client.
-// Will resolve after `prisma generate`.
-import { prisma } from "@/server/db/prisma"
 import Link from "next/link"
+import { getAdminOrders, getOrderTabCounts } from "@/server/services/order.service"
 
 const PAGE_SIZE = 25
-const db = prisma as any
 
 const STATUS_LABELS: Record<string, string> = {
   ALL: "Todos",
@@ -62,27 +57,9 @@ export default async function PedidosPage({ searchParams }: Props) {
     ]
   }
 
-  const tabCounts = await Promise.all(
-    TABS.map((tab) =>
-      db.order.count({
-        where: tab === "ALL" ? {} : { status: tab },
-      })
-    )
-  )
+  const tabCounts = await getOrderTabCounts(TABS)
 
-  const [orders, total] = await Promise.all([
-    db.order.findMany({
-      where: whereBase,
-      take: PAGE_SIZE,
-      skip: (page - 1) * PAGE_SIZE,
-      orderBy: { createdAt: "desc" },
-      include: {
-        items: { include: { product: true } },
-        user: true,
-      },
-    }),
-    db.order.count({ where: whereBase }),
-  ])
+  const { orders, total } = await getAdminOrders(statusFilter, q, page, PAGE_SIZE)
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
@@ -179,7 +156,7 @@ export default async function PedidosPage({ searchParams }: Props) {
                     const badge = STATUS_BADGE[order.status] ?? "bg-gray-100 text-gray-600"
                     const clientName =
                       order.customerName ??
-                      order.user?.email ??
+                      order.userEmail ??
                       order.customerEmail ??
                       "—"
                     return (

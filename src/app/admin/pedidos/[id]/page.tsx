@@ -1,12 +1,6 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-// NOTE: Order fields (customerEmail, customerName, paymentMethod, trackingNumber,
-// shippingAddress) are in schema.prisma but not yet in the generated Prisma client.
-// Will resolve after `prisma generate`.
-import { prisma } from "@/server/db/prisma"
 import { notFound } from "next/navigation"
 import OrderDetailActions from "./OrderDetailActions"
-
-const db = prisma as any
+import { getOrderById } from "@/server/services/order.service"
 
 interface Props {
   params: Promise<{ id: string }>
@@ -43,21 +37,12 @@ export default async function PedidoDetailPage({ params }: Props) {
 
   let order: any = null
   try {
-    order = await db.order.findUnique({
-      where: { id },
-      include: {
-        items: {
-          include: {
-            product: {
-              include: { images: { orderBy: { position: "asc" }, take: 1 } },
-            },
-          },
-        },
-        user: true,
-      },
-    })
+    order = await getOrderById(id)
   } catch (error) {
-    console.error("[PedidoDetail]", error)
+    if (process.env.NODE_ENV === "development") {
+      // eslint-disable-next-line no-console
+      console.error("[PedidoDetail]", error)
+    }
     notFound()
   }
 
@@ -107,16 +92,16 @@ export default async function PedidoDetailPage({ params }: Props) {
               Productos
             </h2>
             <div className="space-y-4">
-              {order.items.map((item: any) => {
-                const img = item.product.images[0]
+              {order.items?.map((item: any) => {
+                const imgUrl = item.productImage
                 return (
                   <div key={item.id} className="flex items-center gap-4">
                     <div className="w-14 h-14 rounded-lg overflow-hidden bg-gray-100 shrink-0">
-                      {img ? (
+                      {imgUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
-                          src={img.url}
-                          alt={img.alt}
+                          src={imgUrl}
+                          alt={item.productName}
                           className="w-full h-full object-cover"
                         />
                       ) : (
@@ -126,7 +111,7 @@ export default async function PedidoDetailPage({ params }: Props) {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-[#1C1C1C] truncate">{item.product.name}</p>
+                      <p className="font-medium text-[#1C1C1C] truncate">{item.productName}</p>
                       <p className="text-xs text-[#4A4A4A]">
                         Cantidad: {item.quantity} · Precio unitario:{" "}
                         {formatCOP(Number(item.unitPrice))}
@@ -152,13 +137,13 @@ export default async function PedidoDetailPage({ params }: Props) {
               <div className="flex gap-2">
                 <span className="text-[#4A4A4A] w-28 shrink-0">Nombre:</span>
                 <span className="text-[#1C1C1C]">
-                  {order.customerName ?? order.user?.email ?? "—"}
+                  {order.customerName ?? order.userEmail ?? "—"}
                 </span>
               </div>
               <div className="flex gap-2">
                 <span className="text-[#4A4A4A] w-28 shrink-0">Email:</span>
                 <span className="text-[#1C1C1C]">
-                  {order.customerEmail ?? order.user?.email ?? "—"}
+                  {order.customerEmail ?? order.userEmail ?? "—"}
                 </span>
               </div>
               {shippingAddress && (

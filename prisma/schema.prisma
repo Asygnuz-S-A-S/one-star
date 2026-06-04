@@ -104,13 +104,20 @@ enum Role {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  role         Role     @default(CUSTOMER)
-  cart         Cart?
-  orders       Order[]
-  createdAt    DateTime @default(now())
+  id             String    @id @default(cuid())
+  email          String    @unique
+  passwordHash   String
+  role           Role      @default(CUSTOMER)
+  name           String?
+  lastName       String?
+  phone          String?
+  cedula         String?
+  birthDate      DateTime?
+  preferredBrand String?
+  gender         String?   // "hombre" | "mujer"
+  cart           Cart?
+  orders         Order[]
+  createdAt      DateTime  @default(now())
 }
 
 // ─────────────────────────────────────────────
@@ -159,8 +166,8 @@ model Order {
   customerEmail   String?
   customerName    String?
   shippingAddress Json?
-  userId          String
-  user            User        @relation(fields: [userId], references: [id])
+  userId          String?
+  user            User?       @relation(fields: [userId], references: [id])
   items           OrderItem[]
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt

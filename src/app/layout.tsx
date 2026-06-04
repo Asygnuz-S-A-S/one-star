@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Barlow, Montserrat } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/Header";
+import Providers from "@/app/providers";
 
 const barlow = Barlow({
   variable: "--font-barlow",
@@ -35,8 +36,10 @@ export default function RootLayout({
     >
       {/* pt compensa el header fijo: 32px barra + 56px nav = 88px móvil / 32px + 64px = 96px desktop */}
       <body className="min-h-full flex flex-col bg-white text-[#1C1C1C] pt-[88px] md:pt-[96px]">
-        <Header />
-        <main className="flex-1">{children}</main>
+        <Providers>
+          <Header />
+          <main className="flex-1">{children}</main>
+        </Providers>
       </body>
     </html>
   );

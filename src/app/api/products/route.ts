@@ -19,10 +19,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const products = await getProducts(parsed.data);
+    const { products } = await getProducts({ categorySlug: parsed.data.category }, parsed.data.take);
     return NextResponse.json(products);
   } catch (error: unknown) {
-    console.error("[GET /api/products]", error);
+    if (process.env.NODE_ENV === "development") {
+      // eslint-disable-next-line no-console
+      console.error("[GET /api/products]", error);
+    }
     return NextResponse.json(
       { error: "Error interno del servidor" },
       { status: 500 }

@@ -1,4 +1,4 @@
-import { prisma } from "@/server/db/prisma"
+import { getCustomerProfile } from "@/server/services/user.service"
 import { notFound } from "next/navigation"
 
 interface Props {
@@ -33,38 +33,7 @@ function formatCOP(value: number) {
 
 export default async function ClienteProfilePage({ params }: Props) {
   const { id } = await params
-
-  let user
-  try {
-    user = await prisma.user.findUnique({
-      where: { id },
-      include: {
-        orders: {
-          orderBy: { createdAt: "desc" },
-          include: {
-            items: {
-              include: { product: true },
-            },
-          },
-        },
-        cart: {
-          include: {
-            items: {
-              include: {
-                product: {
-                  include: { images: { orderBy: { position: "asc" }, take: 1 } },
-                },
-                variant: true,
-              },
-            },
-          },
-        },
-      },
-    })
-  } catch (error) {
-    console.error("[ClienteProfile]", error)
-    notFound()
-  }
+  const user = await getCustomerProfile(id)
 
   if (!user) notFound()
 
@@ -76,7 +45,6 @@ export default async function ClienteProfilePage({ params }: Props) {
 
   return (
     <div className="p-6 md:p-8 max-w-5xl mx-auto">
-      {/* Header */}
       <div className="flex items-center gap-4 mb-6">
         <a href="/admin/clientes" className="text-sm text-[#4A4A4A] hover:text-[#1C1C1C]">
           ← Clientes
@@ -87,7 +55,6 @@ export default async function ClienteProfilePage({ params }: Props) {
       </div>
 
       <div className="space-y-6">
-        {/* Datos personales */}
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <h2 className="font-['Barlow',sans-serif] text-lg font-bold text-[#1C1C1C] mb-4">
             Datos personales
@@ -99,8 +66,11 @@ export default async function ClienteProfilePage({ params }: Props) {
             </div>
             <div>
               <p className="text-[#4A4A4A] mb-0.5">Nombre</p>
-              {/* TODO: User.name field not yet in schema — add after prisma generate */}
-              <p className="text-[#4A4A4A] italic">No registrado</p>
+              {user.name ? (
+                <p className="font-medium text-[#1C1C1C]">{user.name} {user.lastName}</p>
+              ) : (
+                <p className="text-[#4A4A4A] italic">No registrado</p>
+              )}
             </div>
             <div>
               <p className="text-[#4A4A4A] mb-0.5">Fecha de registro</p>
@@ -120,24 +90,33 @@ export default async function ClienteProfilePage({ params }: Props) {
               <p className="text-[#4A4A4A] mb-0.5">LTV (valor de por vida)</p>
               <p className="font-bold text-[#1C1C1C] text-base">{formatCOP(ltv)}</p>
             </div>
-            {/* TODO: Fields cédula, teléfono, fecha de nacimiento, marca preferida
-                pending schema extension — show placeholder for now */}
             <div>
               <p className="text-[#4A4A4A] mb-0.5">Teléfono</p>
-              <p className="text-[#4A4A4A] italic">No registrado</p>
+              {user.phone ? (
+                <p className="font-medium text-[#1C1C1C]">{user.phone}</p>
+              ) : (
+                <p className="text-[#4A4A4A] italic">No registrado</p>
+              )}
             </div>
             <div>
               <p className="text-[#4A4A4A] mb-0.5">Marca preferida</p>
-              <p className="text-[#4A4A4A] italic">No registrado</p>
+              {user.preferredBrand ? (
+                <p className="font-medium text-[#1C1C1C]">{user.preferredBrand}</p>
+              ) : (
+                <p className="text-[#4A4A4A] italic">No registrado</p>
+              )}
             </div>
             <div>
               <p className="text-[#4A4A4A] mb-0.5">Cédula</p>
-              <p className="text-[#4A4A4A] italic">No registrado</p>
+              {user.cedula ? (
+                <p className="font-medium text-[#1C1C1C]">{user.cedula}</p>
+              ) : (
+                <p className="text-[#4A4A4A] italic">No registrado</p>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Historial de pedidos */}
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <h2 className="font-['Barlow',sans-serif] text-lg font-bold text-[#1C1C1C] mb-4">
             Historial de pedidos ({user.orders.length})
@@ -177,7 +156,9 @@ export default async function ClienteProfilePage({ params }: Props) {
                           {formatCOP(Number(order.total))}
                         </td>
                         <td className="px-4 py-2.5">
-                          <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${badge}`}>
+                          <span
+                            className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${badge}`}
+                          >
                             {STATUS_LABELS[order.status] ?? order.status}
                           </span>
                         </td>
@@ -198,7 +179,6 @@ export default async function ClienteProfilePage({ params }: Props) {
           )}
         </div>
 
-        {/* Carrito actual */}
         {hasCart && (
           <div className="bg-white rounded-xl border border-gray-200 p-6">
             <h2 className="font-['Barlow',sans-serif] text-lg font-bold text-[#1C1C1C] mb-4">
@@ -230,7 +210,8 @@ export default async function ClienteProfilePage({ params }: Props) {
                         {item.product.name}
                       </p>
                       <p className="text-xs text-[#4A4A4A]">
-                        Talla: {item.variant.size} · Color: {item.variant.color} · Qty: {item.quantity}
+                        Talla: {item.variant.size} · Color: {item.variant.color} · Qty:{" "}
+                        {item.quantity}
                       </p>
                     </div>
                     <div className="text-right shrink-0">

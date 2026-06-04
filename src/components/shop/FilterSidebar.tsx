@@ -1,0 +1,283 @@
+"use client"
+
+import { useRouter, usePathname } from "next/navigation"
+import { useState } from "react"
+
+interface FilterSidebarProps {
+  brands: string[]
+  sizes: string[]
+  colors: string[]
+  currentParams: URLSearchParams
+}
+
+const COLOR_MAP: Record<string, string> = {
+  Negro: "#1C1C1C",
+  Blanco: "#FFFFFF",
+  Gris: "#9E9E9E",
+  Rojo: "#E31C23",
+  Azul: "#1565C0",
+  Verde: "#2E7D32",
+  Marrón: "#6D4C41",
+  Beige: "#D7CCC8",
+  Naranja: "#E65100",
+}
+
+export default function FilterSidebar({
+  brands,
+  sizes,
+  colors,
+  currentParams,
+}: FilterSidebarProps) {
+  const router = useRouter()
+  const pathname = usePathname()
+  const [isOpen, setIsOpen] = useState(false)
+
+  const [precioMin, setPrecioMin] = useState(currentParams.get("precio_min") ?? "")
+  const [precioMax, setPrecioMax] = useState(currentParams.get("precio_max") ?? "")
+
+  const updateParam = (key: string, value: string) => {
+    const next = new URLSearchParams(currentParams.toString())
+    if (next.get(key) === value) {
+      next.delete(key)
+    } else {
+      next.set(key, value)
+    }
+    next.delete("page")
+    router.push(`${pathname}?${next.toString()}`)
+  }
+
+  const setParam = (key: string, value: string) => {
+    const next = new URLSearchParams(currentParams.toString())
+    if (value) {
+      next.set(key, value)
+    } else {
+      next.delete(key)
+    }
+    next.delete("page")
+    router.push(`${pathname}?${next.toString()}`)
+  }
+
+  const applyPrecio = () => {
+    const next = new URLSearchParams(currentParams.toString())
+    if (precioMin) next.set("precio_min", precioMin); else next.delete("precio_min")
+    if (precioMax) next.set("precio_max", precioMax); else next.delete("precio_max")
+    next.delete("page")
+    router.push(`${pathname}?${next.toString()}`)
+  }
+
+  const clearAll = () => {
+    setPrecioMin("")
+    setPrecioMax("")
+    router.push(pathname)
+  }
+
+  const currentOrden = currentParams.get("orden") ?? "reciente"
+  const currentMarca = currentParams.get("marca") ?? ""
+  const currentTalla = currentParams.get("talla") ?? ""
+  const currentColor = currentParams.get("color") ?? ""
+
+  const allSizes = sizes.length > 0
+    ? sizes
+    : ["36", "37", "38", "39", "40", "41", "42", "43", "44", "45"]
+
+  const allColors = colors.length > 0 ? colors : Object.keys(COLOR_MAP)
+
+  const sidebarContent = (
+    <div className="flex flex-col gap-4">
+      {/* Ordenar por */}
+      <details open>
+        <summary className="cursor-pointer font-[var(--font-barlow)] font-bold uppercase text-xs tracking-widest text-[#1C1C1C] py-3 border-b border-[#E0E0E0] select-none list-none flex justify-between items-center">
+          Ordenar por
+          <span className="text-[#4A4A4A]">▾</span>
+        </summary>
+        <div className="pt-3 flex flex-col gap-2">
+          {[
+            { label: "Más reciente", value: "reciente" },
+            { label: "Precio: menor a mayor", value: "precio_asc" },
+            { label: "Precio: mayor a menor", value: "precio_desc" },
+            { label: "Más antiguo", value: "antiguo" },
+          ].map(({ label, value }) => (
+            <label key={value} className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="orden"
+                value={value}
+                checked={currentOrden === value}
+                onChange={() => setParam("orden", value)}
+                className="accent-[#1C1C1C]"
+              />
+              <span className="font-[var(--font-montserrat)] text-sm text-[#4A4A4A]">
+                {label}
+              </span>
+            </label>
+          ))}
+        </div>
+      </details>
+
+      {/* Precio */}
+      <details open>
+        <summary className="cursor-pointer font-[var(--font-barlow)] font-bold uppercase text-xs tracking-widest text-[#1C1C1C] py-3 border-b border-[#E0E0E0] select-none list-none flex justify-between items-center">
+          Precio
+          <span className="text-[#4A4A4A]">▾</span>
+        </summary>
+        <div className="pt-3 flex flex-col gap-3">
+          {(currentParams.get("precio_min") || currentParams.get("precio_max")) && (
+            <p className="font-[var(--font-montserrat)] text-xs text-[#4A4A4A]">
+              ${currentParams.get("precio_min") ?? "0"} — ${currentParams.get("precio_max") ?? "∞"}
+            </p>
+          )}
+          <div className="flex gap-2">
+            <input
+              type="number"
+              placeholder="Mínimo"
+              value={precioMin}
+              onChange={(e) => setPrecioMin(e.target.value)}
+              className="w-full border border-[#E0E0E0] rounded px-2 py-1.5 text-sm font-[var(--font-montserrat)] focus:outline-none focus:border-[#1C1C1C]"
+            />
+            <input
+              type="number"
+              placeholder="Máximo"
+              value={precioMax}
+              onChange={(e) => setPrecioMax(e.target.value)}
+              className="w-full border border-[#E0E0E0] rounded px-2 py-1.5 text-sm font-[var(--font-montserrat)] focus:outline-none focus:border-[#1C1C1C]"
+            />
+          </div>
+          <button
+            onClick={applyPrecio}
+            className="bg-[#1C1C1C] text-white font-[var(--font-barlow)] font-bold uppercase text-xs tracking-widest py-2 px-4 hover:bg-[#4A4A4A] transition-colors"
+          >
+            Aplicar
+          </button>
+        </div>
+      </details>
+
+      {/* Marca */}
+      {allColors.length > 0 && (
+        <details open>
+          <summary className="cursor-pointer font-[var(--font-barlow)] font-bold uppercase text-xs tracking-widest text-[#1C1C1C] py-3 border-b border-[#E0E0E0] select-none list-none flex justify-between items-center">
+            Marca
+            <span className="text-[#4A4A4A]">▾</span>
+          </summary>
+          <div className="pt-3 flex flex-col gap-2">
+            {brands.map((brand) => (
+              <label key={brand} className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={currentMarca === brand}
+                  onChange={() => updateParam("marca", brand)}
+                  className="accent-[#1C1C1C]"
+                />
+                <span className="font-[var(--font-montserrat)] text-sm text-[#4A4A4A]">
+                  {brand}
+                </span>
+              </label>
+            ))}
+          </div>
+        </details>
+      )}
+
+      {/* Talla */}
+      <details open>
+        <summary className="cursor-pointer font-[var(--font-barlow)] font-bold uppercase text-xs tracking-widest text-[#1C1C1C] py-3 border-b border-[#E0E0E0] select-none list-none flex justify-between items-center">
+          Talla
+          <span className="text-[#4A4A4A]">▾</span>
+        </summary>
+        <div className="pt-3 grid grid-cols-4 gap-2">
+          {allSizes.map((size) => (
+            <button
+              key={size}
+              onClick={() => updateParam("talla", size)}
+              className={`border py-1.5 text-xs font-[var(--font-montserrat)] font-medium transition-colors ${
+                currentTalla === size
+                  ? "bg-[#1C1C1C] text-white border-[#1C1C1C]"
+                  : "border-[#E0E0E0] text-[#4A4A4A] hover:border-[#1C1C1C]"
+              }`}
+            >
+              {size}
+            </button>
+          ))}
+        </div>
+      </details>
+
+      {/* Color */}
+      <details open>
+        <summary className="cursor-pointer font-[var(--font-barlow)] font-bold uppercase text-xs tracking-widest text-[#1C1C1C] py-3 border-b border-[#E0E0E0] select-none list-none flex justify-between items-center">
+          Color
+          <span className="text-[#4A4A4A]">▾</span>
+        </summary>
+        <div className="pt-3 flex flex-wrap gap-3">
+          {allColors.map((color) => {
+            const hex = COLOR_MAP[color] ?? "#9E9E9E"
+            const isActive = currentColor === color
+            return (
+              <button
+                key={color}
+                onClick={() => updateParam("color", color)}
+                title={color}
+                aria-label={color}
+                className={`w-7 h-7 rounded-full transition-all ${
+                  isActive ? "ring-2 ring-offset-1 ring-[#1C1C1C]" : "ring-1 ring-[#E0E0E0]"
+                }`}
+                style={{ backgroundColor: hex }}
+              />
+            )
+          })}
+        </div>
+      </details>
+
+      {/* Limpiar filtros */}
+      <button
+        onClick={clearAll}
+        className="mt-4 text-xs font-[var(--font-montserrat)] text-[#4A4A4A] underline underline-offset-2 hover:text-[#1C1C1C] text-left"
+      >
+        Limpiar filtros
+      </button>
+    </div>
+  )
+
+  return (
+    <>
+      {/* Desktop sidebar: visible desde md, manejado por ShopLayout */}
+      <div className="hidden md:block">{sidebarContent}</div>
+
+      {/* Móvil: botón flotante + drawer */}
+      <div className="md:hidden">
+        <button
+          onClick={() => setIsOpen(true)}
+          className="fixed bottom-4 right-4 z-40 bg-[#E31C23] text-white font-[var(--font-barlow)] font-bold uppercase text-sm tracking-widest px-5 py-3 shadow-lg"
+        >
+          Filtros
+        </button>
+
+        {/* Overlay */}
+        {isOpen && (
+          <div
+            className="fixed inset-0 z-40 bg-black/40"
+            onClick={() => setIsOpen(false)}
+          />
+        )}
+
+        {/* Drawer */}
+        <div
+          className={`fixed top-0 left-0 h-full w-80 bg-white z-50 overflow-y-auto px-5 py-8 transition-transform duration-300 ${
+            isOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
+        >
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="font-[var(--font-barlow)] font-bold uppercase text-base tracking-widest">
+              Filtros
+            </h2>
+            <button
+              onClick={() => setIsOpen(false)}
+              className="text-[#4A4A4A] text-2xl leading-none"
+              aria-label="Cerrar"
+            >
+              ×
+            </button>
+          </div>
+          {sidebarContent}
+        </div>
+      </div>
+    </>
+  )
+}

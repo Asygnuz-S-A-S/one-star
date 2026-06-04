@@ -1,4 +1,4 @@
-import { prisma } from "@/server/db/prisma"
+import { getCustomers } from "@/server/services/user.service"
 import Link from "next/link"
 
 const PAGE_SIZE = 25
@@ -28,34 +28,7 @@ export default async function ClientesPage({ searchParams }: Props) {
   const brand = params.brand ?? ""
   const page = Math.max(1, parseInt(params.page ?? "1") || 1)
 
-  const where = {
-    role: "CUSTOMER" as const,
-    ...(q
-      ? {
-          OR: [
-            { email: { contains: q, mode: "insensitive" as const } },
-          ],
-        }
-      : {}),
-  }
-
-  const [users, total] = await Promise.all([
-    prisma.user.findMany({
-      where,
-      take: PAGE_SIZE,
-      skip: (page - 1) * PAGE_SIZE,
-      orderBy: { createdAt: "desc" },
-      include: {
-        _count: { select: { orders: true } },
-        orders: {
-          where: { status: { not: "CANCELLED" } },
-          select: { total: true },
-        },
-      },
-    }),
-    prisma.user.count({ where }),
-  ])
-
+  const { customers, total } = await getCustomers({ q, page, pageSize: PAGE_SIZE })
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   function buildUrl(overrides: Record<string, string | undefined>) {
@@ -85,7 +58,6 @@ export default async function ClientesPage({ searchParams }: Props) {
         </Link>
       </div>
 
-      {/* Filters */}
       <form method="GET" className="flex flex-wrap gap-3 mb-6">
         <input
           type="text"
@@ -120,7 +92,7 @@ export default async function ClientesPage({ searchParams }: Props) {
         )}
       </form>
 
-      {users.length === 0 ? (
+      {customers.length === 0 ? (
         <div className="bg-white rounded-xl border border-gray-200 p-16 text-center">
           <p className="text-[#4A4A4A] text-lg">No se encontraron clientes.</p>
         </div>
@@ -140,31 +112,27 @@ export default async function ClientesPage({ searchParams }: Props) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {users.map((user) => {
-                    const ltv = user.orders.reduce(
-                      (sum, o) => sum + Number(o.total),
-                      0
-                    )
-                    const initial = user.email.charAt(0).toUpperCase()
+                  {customers.map((customer) => {
+                    const initial = customer.email.charAt(0).toUpperCase()
                     return (
-                      <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                      <tr key={customer.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-full bg-[#E31C23]/10 flex items-center justify-center text-[#E31C23] font-bold text-sm shrink-0">
                               {initial}
                             </div>
                             <span className="font-medium text-[#1C1C1C]">
-                              {user.email.split("@")[0]}
+                              {customer.email.split("@")[0]}
                             </span>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-[#4A4A4A]">{user.email}</td>
-                        <td className="px-4 py-3 text-[#4A4A4A]">{user._count.orders}</td>
+                        <td className="px-4 py-3 text-[#4A4A4A]">{customer.email}</td>
+                        <td className="px-4 py-3 text-[#4A4A4A]">{customer.orderCount}</td>
                         <td className="px-4 py-3 font-semibold text-[#1C1C1C]">
-                          {formatCOP(ltv)}
+                          {formatCOP(customer.ltv)}
                         </td>
                         <td className="px-4 py-3 text-[#4A4A4A] whitespace-nowrap">
-                          {new Date(user.createdAt).toLocaleDateString("es-CO", {
+                          {new Date(customer.createdAt).toLocaleDateString("es-CO", {
                             day: "2-digit",
                             month: "short",
                             year: "numeric",
@@ -172,7 +140,7 @@ export default async function ClientesPage({ searchParams }: Props) {
                         </td>
                         <td className="px-4 py-3 text-right">
                           <Link
-                            href={`/admin/clientes/${user.id}`}
+                            href={`/admin/clientes/${customer.id}`}
                             className="text-xs font-medium text-[#E31C23] hover:underline"
                           >
                             Ver perfil
@@ -186,7 +154,6 @@ export default async function ClientesPage({ searchParams }: Props) {
             </div>
           </div>
 
-          {/* Pagination */}
           <div className="flex items-center justify-between mt-4">
             <p className="text-sm text-[#4A4A4A]">
               Página {page} de {totalPages} · {total} clientes

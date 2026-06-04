@@ -1,8 +1,8 @@
-import { prisma } from "@/server/db/prisma"
+import { getCategories } from "@/server/services/category.service"
 import ProductForm from "@/components/admin/ProductForm"
 
 export default async function NuevoProductoPage() {
-  const categories = await prisma.category.findMany({ orderBy: { name: "asc" } })
+  const categories = await getCategories()
 
   return (
     <div className="p-6 md:p-8">

@@ -20,7 +20,10 @@ export async function GET(
 
     return NextResponse.json(product);
   } catch (error: unknown) {
-    console.error(`[GET /api/products/${slug}]`, error);
+    if (process.env.NODE_ENV === "development") {
+      // eslint-disable-next-line no-console
+      console.error(`[GET /api/products/${slug}]`, error);
+    }
     return NextResponse.json(
       { error: "Error interno del servidor" },
       { status: 500 }

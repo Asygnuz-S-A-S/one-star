@@ -1,12 +1,7 @@
 "use server"
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-// NOTE: OrderStatus enum in schema may differ from generated client.
-// Using string cast for safety until `prisma generate` is run.
-import { prisma } from "@/server/db/prisma"
 import { revalidatePath } from "next/cache"
-
-const db = prisma as any
+import { changeOrderStatusAndTracking } from "@/server/services/order.service"
 
 export async function updateOrderStatus(
   orderId: string,
@@ -14,18 +9,16 @@ export async function updateOrderStatus(
   trackingNumber?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    await db.order.update({
-      where: { id: orderId },
-      data: {
-        status,
-        ...(trackingNumber !== undefined ? { trackingNumber } : {}),
-      },
-    })
+    await changeOrderStatusAndTracking(orderId, status, trackingNumber)
     revalidatePath(`/admin/pedidos/${orderId}`)
     revalidatePath("/admin/pedidos")
     return { success: true }
-  } catch (error) {
-    console.error("[updateOrderStatus]", error)
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Error desconocido"
+    if (process.env.NODE_ENV === "development") {
+      // eslint-disable-next-line no-console
+      console.error("[updateOrderStatus]", message)
+    }
     return { success: false, error: "No se pudo actualizar el pedido." }
   }
 }

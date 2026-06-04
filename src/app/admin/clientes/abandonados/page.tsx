@@ -1,10 +1,6 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-// NOTE: AbandonedCart model exists in schema.prisma but not yet in the generated Prisma client.
-// Will resolve after `prisma generate`.
-import { prisma } from "@/server/db/prisma"
+import { getAbandonedCarts } from "@/server/services/abandoned-cart.service"
 import AbandonedCartRow from "./AbandonedCartRow"
 
-const db = prisma as any
 const PAGE_SIZE = 25
 
 interface SearchParams {
@@ -41,22 +37,7 @@ export default async function AbandonedCartsPage({ searchParams }: Props) {
   const params = await searchParams
   const page = Math.max(1, parseInt(params.page ?? "1") || 1)
 
-  let carts: any[] = []
-  let total = 0
-
-  try {
-    ;[carts, total] = await Promise.all([
-      db.abandonedCart.findMany({
-        orderBy: { createdAt: "desc" },
-        take: PAGE_SIZE,
-        skip: (page - 1) * PAGE_SIZE,
-      }),
-      db.abandonedCart.count(),
-    ])
-  } catch (error) {
-    console.error("[AbandonedCartsPage]", error)
-  }
-
+  const { carts, total } = await getAbandonedCarts(page, PAGE_SIZE)
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   return (
@@ -90,14 +71,14 @@ export default async function AbandonedCartsPage({ searchParams }: Props) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {carts.map((cart: any) => (
+                  {carts.map((cart) => (
                     <AbandonedCartRow
                       key={cart.id}
                       cart={{
                         id: cart.id,
                         email: cart.email,
-                        createdAt: cart.createdAt.toISOString(),
-                        recoveredAt: cart.recoveredAt?.toISOString() ?? null,
+                        createdAt: cart.createdAt,
+                        recoveredAt: cart.recoveredAt,
                         cartValue: cartValue(cart.cartData),
                       }}
                       formatCOP={formatCOP}
@@ -108,7 +89,6 @@ export default async function AbandonedCartsPage({ searchParams }: Props) {
             </div>
           </div>
 
-          {/* Pagination */}
           <div className="flex items-center justify-between mt-4">
             <p className="text-sm text-[#4A4A4A]">
               Página {page} de {totalPages} · {total} registros
