@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import Image from "next/image"
 import Link from "next/link"
+import { motion, AnimatePresence } from "motion/react"
 
 interface Banner {
   id: number
@@ -88,28 +89,45 @@ export default function HeroBanner() {
 
       {/* Content */}
       <div className="relative z-20 h-full flex flex-col justify-end pb-16 px-6 md:px-16 lg:px-24">
-        {/* Badge */}
-        <span className="absolute top-8 left-6 md:left-16 lg:left-24 inline-block bg-[#E31C23] text-white text-xs font-bold font-[var(--font-barlow)] tracking-widest uppercase px-3 py-1">
-          {banner.badge}
-        </span>
+        <AnimatePresence mode="wait">
+          <motion.span
+            key={`badge-${banner.id}`}
+            className="absolute top-8 left-6 md:left-16 lg:left-24 inline-block bg-[#E31C23] text-white text-xs font-bold font-[var(--font-barlow)] tracking-widest uppercase px-3 py-1"
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.3 }}
+          >
+            {banner.badge}
+          </motion.span>
+        </AnimatePresence>
 
-        <div className="max-w-2xl">
-          <h1
-            className="text-white font-[var(--font-barlow)] font-black uppercase text-4xl md:text-6xl lg:text-7xl leading-none tracking-tight mb-4 whitespace-pre-line"
-            style={{ textShadow: "0 2px 20px rgba(0,0,0,0.3)" }}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={`content-${banner.id}`}
+            className="max-w-2xl"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            transition={{ duration: 0.35, ease: "easeOut" }}
           >
-            {banner.title}
-          </h1>
-          <p className="text-white/90 font-[var(--font-montserrat)] text-sm md:text-base mb-8 max-w-md leading-relaxed">
-            {banner.subtitle}
-          </p>
-          <Link
-            href={banner.ctaHref}
-            className="inline-block bg-white text-[#1C1C1C] font-[var(--font-barlow)] font-bold uppercase tracking-widest text-sm px-8 py-4 hover:bg-[#E31C23] hover:text-white transition-colors duration-200"
-          >
-            {banner.ctaText}
-          </Link>
-        </div>
+            <h1
+              className="text-white font-[var(--font-barlow)] font-black uppercase text-4xl md:text-6xl lg:text-7xl leading-none tracking-tight mb-4 whitespace-pre-line"
+              style={{ textShadow: "0 2px 20px rgba(0,0,0,0.3)" }}
+            >
+              {banner.title}
+            </h1>
+            <p className="text-white/90 font-[var(--font-montserrat)] text-sm md:text-base mb-8 max-w-md leading-relaxed">
+              {banner.subtitle}
+            </p>
+            <Link
+              href={banner.ctaHref}
+              className="inline-block bg-white text-[#1C1C1C] font-[var(--font-barlow)] font-bold uppercase tracking-widest text-sm px-8 py-4 hover:bg-[#E31C23] hover:text-white transition-colors duration-200"
+            >
+              {banner.ctaText}
+            </Link>
+          </motion.div>
+        </AnimatePresence>
 
         {/* Dots */}
         <div className="flex gap-2 mt-8">

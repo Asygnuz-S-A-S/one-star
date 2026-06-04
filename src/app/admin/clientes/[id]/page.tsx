@@ -1,5 +1,6 @@
 import { getCustomerProfile } from "@/server/services/user.service"
 import { notFound } from "next/navigation"
+import { formatDate, formatDateLong, formatCurrency } from "@/lib/dates"
 
 interface Props {
   params: Promise<{ id: string }>
@@ -23,13 +24,7 @@ const STATUS_BADGE: Record<string, string> = {
   CANCELLED: "bg-red-100 text-[#E31C23]",
 }
 
-function formatCOP(value: number) {
-  return new Intl.NumberFormat("es-CO", {
-    style: "currency",
-    currency: "COP",
-    maximumFractionDigits: 0,
-  }).format(value)
-}
+
 
 export default async function ClienteProfilePage({ params }: Props) {
   const { id } = await params
@@ -75,11 +70,7 @@ export default async function ClienteProfilePage({ params }: Props) {
             <div>
               <p className="text-[#4A4A4A] mb-0.5">Fecha de registro</p>
               <p className="font-medium text-[#1C1C1C]">
-                {new Date(user.createdAt).toLocaleDateString("es-CO", {
-                  day: "2-digit",
-                  month: "long",
-                  year: "numeric",
-                })}
+                {formatDateLong(user.createdAt)}
               </p>
             </div>
             <div>
@@ -88,7 +79,7 @@ export default async function ClienteProfilePage({ params }: Props) {
             </div>
             <div>
               <p className="text-[#4A4A4A] mb-0.5">LTV (valor de por vida)</p>
-              <p className="font-bold text-[#1C1C1C] text-base">{formatCOP(ltv)}</p>
+              <p className="font-bold text-[#1C1C1C] text-base">{formatCurrency(ltv)}</p>
             </div>
             <div>
               <p className="text-[#4A4A4A] mb-0.5">Teléfono</p>
@@ -145,15 +136,11 @@ export default async function ClienteProfilePage({ params }: Props) {
                           #{order.id.slice(-8).toUpperCase()}
                         </td>
                         <td className="px-4 py-2.5 text-[#4A4A4A] whitespace-nowrap">
-                          {new Date(order.createdAt).toLocaleDateString("es-CO", {
-                            day: "2-digit",
-                            month: "short",
-                            year: "numeric",
-                          })}
+                          {formatDate(order.createdAt)}
                         </td>
                         <td className="px-4 py-2.5 text-[#4A4A4A]">{order.items.length}</td>
                         <td className="px-4 py-2.5 font-semibold text-[#1C1C1C]">
-                          {formatCOP(Number(order.total))}
+                          {formatCurrency(Number(order.total))}
                         </td>
                         <td className="px-4 py-2.5">
                           <span
@@ -216,7 +203,7 @@ export default async function ClienteProfilePage({ params }: Props) {
                     </div>
                     <div className="text-right shrink-0">
                       <p className="font-semibold text-[#1C1C1C] text-sm">
-                        {formatCOP(price * item.quantity)}
+                        {formatCurrency(price * item.quantity)}
                       </p>
                     </div>
                   </div>

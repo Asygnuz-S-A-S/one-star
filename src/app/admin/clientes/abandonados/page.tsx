@@ -11,14 +11,6 @@ interface Props {
   searchParams: Promise<SearchParams>
 }
 
-function formatCOP(value: number) {
-  return new Intl.NumberFormat("es-CO", {
-    style: "currency",
-    currency: "COP",
-    maximumFractionDigits: 0,
-  }).format(value)
-}
-
 function cartValue(cartData: unknown): number {
   if (!cartData || typeof cartData !== "object") return 0
   const data = cartData as Record<string, unknown>
@@ -81,7 +73,6 @@ export default async function AbandonedCartsPage({ searchParams }: Props) {
                         recoveredAt: cart.recoveredAt,
                         cartValue: cartValue(cart.cartData),
                       }}
-                      formatCOP={formatCOP}
                     />
                   ))}
                 </tbody>

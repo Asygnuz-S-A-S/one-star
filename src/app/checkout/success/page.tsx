@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import Link from "next/link"
-import { useCart } from "@/context/CartContext"
+import { useCart } from "@/store"
 import { formatCOP } from "@/lib/shop-utils"
 
 interface SavedItem {

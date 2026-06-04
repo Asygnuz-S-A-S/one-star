@@ -3,12 +3,22 @@
 import { useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { useCart } from "@/context/CartContext"
+import { motion, AnimatePresence } from "motion/react"
+import { useCart } from "@/store"
 import { formatCOP } from "@/lib/shop-utils"
 import { COLOMBIA_DEPARTMENTS } from "@/lib/colombia-departments"
 import CheckoutStepper from "@/components/checkout/CheckoutStepper"
 import OrderSummary from "@/components/checkout/OrderSummary"
 import { createOrder } from "./actions"
+
+const sectionVariants = {
+  hidden: { opacity: 0, y: 18 },
+  visible: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.35, delay: i * 0.08, ease: "easeOut" },
+  }),
+} as const
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -241,7 +251,13 @@ export default function CheckoutPage() {
             <div className="w-full md:w-[55%] space-y-6">
 
               {/* ── Section 1: Contact ── */}
-              <section className="bg-white rounded-lg p-6">
+              <motion.section
+                className="bg-white rounded-lg p-6"
+                variants={sectionVariants}
+                initial="hidden"
+                animate="visible"
+                custom={0}
+              >
                 <h2 className="font-barlow font-bold text-sm uppercase tracking-widest text-[#1C1C1C] mb-4">
                   Información de contacto
                 </h2>
@@ -300,10 +316,16 @@ export default function CheckoutPage() {
                     </label>
                   </div>
                 )}
-              </section>
+              </motion.section>
 
               {/* ── Section 2: Shipping Address ── */}
-              <section className="bg-white rounded-lg p-6">
+              <motion.section
+                className="bg-white rounded-lg p-6"
+                variants={sectionVariants}
+                initial="hidden"
+                animate="visible"
+                custom={1}
+              >
                 <h2 className="font-barlow font-bold text-sm uppercase tracking-widest text-[#1C1C1C] mb-4">
                   Dirección de envío
                 </h2>
@@ -421,10 +443,16 @@ export default function CheckoutPage() {
                     Guardar esta dirección para futuras compras
                   </span>
                 </label>
-              </section>
+              </motion.section>
 
               {/* ── Section 3: Shipping Method ── */}
-              <section className="bg-white rounded-lg p-6">
+              <motion.section
+                className="bg-white rounded-lg p-6"
+                variants={sectionVariants}
+                initial="hidden"
+                animate="visible"
+                custom={2}
+              >
                 <h2 className="font-barlow font-bold text-sm uppercase tracking-widest text-[#1C1C1C] mb-4">
                   Método de envío
                 </h2>
@@ -492,10 +520,16 @@ export default function CheckoutPage() {
                     </span>
                   </label>
                 </div>
-              </section>
+              </motion.section>
 
               {/* ── Section 4: Payment ── */}
-              <section className="bg-white rounded-lg p-6">
+              <motion.section
+                className="bg-white rounded-lg p-6"
+                variants={sectionVariants}
+                initial="hidden"
+                animate="visible"
+                custom={3}
+              >
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="font-barlow font-bold text-sm uppercase tracking-widest text-[#1C1C1C]">
                     Pago seguro
@@ -608,7 +642,7 @@ export default function CheckoutPage() {
                     </p>
                   </div>
                 )}
-              </section>
+              </motion.section>
 
               {/* Server error */}
               {serverError && (

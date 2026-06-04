@@ -15,9 +15,7 @@ const rankColors: Record<number, string> = {
   2: "bg-amber-600 text-amber-100",
 }
 
-function formatCOP(value: number): string {
-  return "$" + value.toLocaleString("es-CO")
-}
+import { formatCurrency } from "@/lib/dates"
 
 export default function TopProducts({ products }: TopProductsProps) {
   return (
@@ -82,7 +80,7 @@ export default function TopProducts({ products }: TopProductsProps) {
                     {product.sold}
                   </td>
                   <td className="px-4 py-3 font-montserrat text-sm text-[#1C1C1C] text-right font-medium">
-                    {formatCOP(product.revenue)}
+                    {formatCurrency(product.revenue)}
                   </td>
                 </tr>
               ))}

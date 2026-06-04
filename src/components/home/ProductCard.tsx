@@ -1,6 +1,7 @@
 "use client"
 
 import Image from "next/image"
+import { motion } from "motion/react"
 
 interface ProductCardProps {
   id: string
@@ -24,7 +25,12 @@ function formatPrice(price: number): string {
 
 export default function ProductCard({ id, name, brand, price, salePrice, imageUrl, isNew, isOnSale }: ProductCardProps) {
   return (
-    <article className="group cursor-pointer" data-product-id={id}>
+    <motion.article
+      className="group cursor-pointer"
+      data-product-id={id}
+      whileHover={{ y: -6 }}
+      transition={{ duration: 0.2, ease: "easeOut" }}
+    >
       {/* Image container */}
       <div className="relative aspect-[3/4] bg-[#E0E0E0] overflow-hidden mb-3">
         {imageUrl ? (
@@ -104,6 +110,6 @@ export default function ProductCard({ id, name, brand, price, salePrice, imageUr
           )}
         </div>
       </div>
-    </article>
+    </motion.article>
   )
 }

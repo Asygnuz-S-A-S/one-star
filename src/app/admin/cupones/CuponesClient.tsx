@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react"
 import CouponForm from "@/components/admin/CouponForm"
 import { toggleCouponActive } from "./actions"
+import { formatDate } from "@/lib/dates"
 
 interface Category {
   id: string
@@ -123,11 +124,7 @@ export default function CuponesClient({ coupons, categories }: Props) {
                       </td>
                       <td className="px-4 py-3 text-[#4A4A4A] whitespace-nowrap">
                         <span className={isExpired ? "text-[#E31C23]" : ""}>
-                          {new Date(coupon.validUntil).toLocaleDateString("es-CO", {
-                            day: "2-digit",
-                            month: "short",
-                            year: "numeric",
-                          })}
+                          {formatDate(coupon.validUntil)}
                         </span>
                       </td>
                       <td className="px-4 py-3">

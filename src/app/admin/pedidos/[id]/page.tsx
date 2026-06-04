@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation"
 import OrderDetailActions from "./OrderDetailActions"
 import { getOrderById } from "@/server/services/order.service"
+import { formatDateTime, formatCurrency } from "@/lib/dates"
 
 interface Props {
   params: Promise<{ id: string }>
@@ -24,13 +25,7 @@ const STATUS_BADGE: Record<string, string> = {
   CANCELLED: "bg-red-100 text-[#E31C23]",
 }
 
-function formatCOP(value: number) {
-  return new Intl.NumberFormat("es-CO", {
-    style: "currency",
-    currency: "COP",
-    maximumFractionDigits: 0,
-  }).format(value)
-}
+
 
 export default async function PedidoDetailPage({ params }: Props) {
   const { id } = await params
@@ -73,13 +68,7 @@ export default async function PedidoDetailPage({ params }: Props) {
           {STATUS_LABELS[order.status] ?? order.status}
         </span>
         <span className="text-sm text-[#4A4A4A] ml-auto">
-          {new Date(order.createdAt).toLocaleDateString("es-CO", {
-            day: "2-digit",
-            month: "long",
-            year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
+          {formatDateTime(order.createdAt)}
         </span>
       </div>
 
@@ -114,12 +103,12 @@ export default async function PedidoDetailPage({ params }: Props) {
                       <p className="font-medium text-[#1C1C1C] truncate">{item.productName}</p>
                       <p className="text-xs text-[#4A4A4A]">
                         Cantidad: {item.quantity} · Precio unitario:{" "}
-                        {formatCOP(Number(item.unitPrice))}
+                        {formatCurrency(Number(item.unitPrice))}
                       </p>
                     </div>
                     <div className="text-right shrink-0">
                       <p className="font-semibold text-[#1C1C1C]">
-                        {formatCOP(Number(item.unitPrice) * item.quantity)}
+                        {formatCurrency(Number(item.unitPrice) * item.quantity)}
                       </p>
                     </div>
                   </div>
@@ -168,7 +157,7 @@ export default async function PedidoDetailPage({ params }: Props) {
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-[#4A4A4A]">Subtotal</span>
-                <span className="text-[#1C1C1C]">{formatCOP(subtotal)}</span>
+                <span className="text-[#1C1C1C]">{formatCurrency(subtotal)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-[#4A4A4A]">Envío</span>
@@ -177,7 +166,7 @@ export default async function PedidoDetailPage({ params }: Props) {
               <div className="flex justify-between pt-2 border-t border-gray-100">
                 <span className="font-semibold text-[#1C1C1C]">Total</span>
                 <span className="font-bold text-[#1C1C1C] text-base">
-                  {formatCOP(Number(order.total))}
+                  {formatCurrency(Number(order.total))}
                 </span>
               </div>
               <div className="flex justify-between pt-1">

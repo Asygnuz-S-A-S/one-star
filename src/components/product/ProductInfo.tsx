@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import type { ProductWithRelations, Variant } from "@/types/shop"
 import SizeGuideModal from "./SizeGuideModal"
 import { formatCOP } from "@/lib/shop-utils"
-import { useCart } from "@/context/CartContext"
+import { useCart } from "@/store"
 import { useToast } from "@/hooks/useToast"
 import ToastContainer from "@/components/ui/ToastContainer"
 

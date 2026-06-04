@@ -1,114 +1,56 @@
-import NextAuth from "next-auth"
-import Credentials from "next-auth/providers/credentials"
-import bcrypt from "bcryptjs"
+import "server-only"
+import { betterAuth } from "better-auth"
+import { prismaAdapter } from "better-auth/adapters/prisma"
 import { prisma } from "@/server/db/prisma"
+import { compareSync } from "bcryptjs"
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
-  secret: process.env.NEXTAUTH_SECRET,
-  session: { strategy: "jwt" },
-  providers: [
-    // ── Admin provider ──────────────────────────────────────────────────
-    Credentials({
-      id: "admin",
-      name: "Admin Login",
-      credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" },
-      },
-      async authorize(credentials) {
-        if (
-          typeof credentials?.email !== "string" ||
-          typeof credentials?.password !== "string"
-        ) {
-          return null
-        }
-
-        const admin = await prisma.adminUser.findUnique({
-          where: { email: credentials.email },
-        })
-
-        if (!admin) return null
-
-        const passwordMatch = await bcrypt.compare(
-          credentials.password,
-          admin.passwordHash
-        )
-
-        if (!passwordMatch) return null
-
-        return {
-          id: admin.id,
-          email: admin.email,
-          name: admin.name,
-          role: admin.role,
-          userType: "admin",
-        }
-      },
-    }),
-
-    // ── Customer provider ───────────────────────────────────────────────
-    Credentials({
-      id: "customer",
-      name: "Customer Login",
-      credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" },
-      },
-      async authorize(credentials) {
-        if (
-          typeof credentials?.email !== "string" ||
-          typeof credentials?.password !== "string"
-        ) {
-          return null
-        }
-
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
-        })
-
-        if (!user) return null
-
-        const passwordMatch = await bcrypt.compare(
-          credentials.password,
-          user.passwordHash
-        )
-
-        if (!passwordMatch) return null
-
-        // TODO: remove cast once prisma generate runs with new fields
-        const u = user as typeof user & { name?: string | null }
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: u.name ?? null,
-          role: "CUSTOMER",
-          userType: "customer",
-        }
-      },
-    }),
-  ],
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        if ("role" in user) {
-          token.role = user.role as string
-        }
-        if ("userType" in user) {
-          token.userType = user.userType as "admin" | "customer"
-        }
-      }
-      return token
+export const auth = betterAuth({
+  secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
+  database: prismaAdapter(prisma, {
+    provider: "postgresql",
+    // Map better-auth's model names to our Auth* Prisma models
+    schema: {
+      user: { modelName: "AuthUser" },
+      session: { modelName: "AuthSession" },
+      account: { modelName: "AuthAccount" },
+      verification: { modelName: "AuthVerification" },
     },
-    async session({ session, token }) {
-      if (token.role) {
-        session.user.role = token.role as string
-      }
-      if (token.userType) {
-        session.user.userType = token.userType as "admin" | "customer"
-      }
-      return session
+  }),
+  emailAndPassword: {
+    enabled: true,
+    // Use bcryptjs to verify the hashes stored in our AdminUser/User tables
+    password: {
+      verify: ({ hash, password }) => Promise.resolve(compareSync(password, hash)),
+      // Hashing is done externally (registration path); BA never re-hashes here
+      hash: (password) => password,
     },
   },
-  pages: { signIn: "/admin/login" },
+  user: {
+    additionalFields: {
+      userType: {
+        type: "string",
+        required: false,
+        defaultValue: "customer",
+        // Not settable via the standard update-user endpoint
+        fieldName: "userType",
+        input: false,
+      },
+    },
+  },
+  session: {
+    expiresIn: 60 * 60 * 24 * 7, // 7 days
+    updateAge: 60 * 60 * 24,      // refresh daily
+    cookieCache: {
+      enabled: true,
+      maxAge: 60 * 5, // 5-minute client-side cache
+    },
+  },
+  // Expose userType in the session object returned to clients
+  advanced: {
+    crossSubDomainCookies: { enabled: false },
+    useSecureCookies: process.env.NODE_ENV === "production",
+  },
 })
+
+export type Session = typeof auth.$Infer.Session
+export type AuthUser = typeof auth.$Infer.Session.user

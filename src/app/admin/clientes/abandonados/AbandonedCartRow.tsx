@@ -2,6 +2,7 @@
 
 import { useTransition } from "react"
 import { markCartRecovered } from "./actions"
+import { formatDate, formatCurrency } from "@/lib/dates"
 
 interface CartData {
   id: string
@@ -13,10 +14,9 @@ interface CartData {
 
 interface Props {
   cart: CartData
-  formatCOP: (value: number) => string
 }
 
-export default function AbandonedCartRow({ cart, formatCOP }: Props) {
+export default function AbandonedCartRow({ cart }: Props) {
   const [isPending, startTransition] = useTransition()
 
   function handleRecover() {
@@ -29,23 +29,15 @@ export default function AbandonedCartRow({ cart, formatCOP }: Props) {
     <tr className="hover:bg-gray-50 transition-colors">
       <td className="px-4 py-3 text-[#1C1C1C]">{cart.email}</td>
       <td className="px-4 py-3 text-[#4A4A4A] whitespace-nowrap">
-        {new Date(cart.createdAt).toLocaleDateString("es-CO", {
-          day: "2-digit",
-          month: "short",
-          year: "numeric",
-        })}
+        {formatDate(cart.createdAt)}
       </td>
       <td className="px-4 py-3 font-semibold text-[#1C1C1C]">
-        {formatCOP(cart.cartValue)}
+        {formatCurrency(cart.cartValue)}
       </td>
       <td className="px-4 py-3">
         {cart.recoveredAt ? (
           <span className="text-green-600 text-xs font-medium">
-            {new Date(cart.recoveredAt).toLocaleDateString("es-CO", {
-              day: "2-digit",
-              month: "short",
-              year: "numeric",
-            })}
+            {formatDate(cart.recoveredAt)}
           </span>
         ) : (
           <span className="text-[#4A4A4A] text-xs">Pendiente</span>

@@ -4,7 +4,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { useCart } from "@/context/CartContext"
+import { useCart } from "@/store"
 import { formatCOP } from "@/lib/shop-utils"
 
 const FREE_SHIPPING_THRESHOLD = 200_000

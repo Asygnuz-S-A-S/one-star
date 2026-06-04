@@ -3,7 +3,8 @@
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { signIn } from "next-auth/react"
+import { prepareCustomerSignIn } from "@/lib/auth-actions"
+import { authClient } from "@/lib/auth-client"
 
 function StarIcon() {
   return (
@@ -58,15 +59,24 @@ export default function LoginPage() {
     setError("")
     setLoading(true)
 
-    const result = await signIn("customer", {
-      email,
-      password,
-      redirect: false,
-    })
+    // Step 1: validate credentials and sync BA records
+    const prep = await prepareCustomerSignIn(email, password)
 
     setLoading(false)
 
-    if (result?.error) {
+    if (!prep.success) {
+      setError(prep.error)
+      return
+    }
+
+    // Step 2: create better-auth session
+    const { error: signInError } = await authClient.signIn.email({
+      email,
+      password,
+      callbackURL: callbackUrl,
+    })
+
+    if (signInError) {
       setError("Email o contraseña incorrectos.")
       return
     }

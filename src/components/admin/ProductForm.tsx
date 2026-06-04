@@ -1,10 +1,12 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useState, useTransition, useCallback, useRef } from "react"
+import { useState, useTransition, useCallback, useRef, useEffect } from "react"
 import type { Category } from "@prisma/client"
 import type { ProductWithRelations } from "@/types/admin"
 import { createProduct, updateProduct, deleteProduct, searchProducts } from "@/app/admin/productos/actions"
+import { draggable, dropTargetForElements, monitorForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
+import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine"
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -86,6 +88,131 @@ function Field({ label, required, children, hint }: { label: string; required?: 
 const inputClass =
   "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-[#1C1C1C] bg-white focus:outline-none focus:ring-2 focus:ring-[#E31C23] placeholder:text-gray-400"
 
+// ─── Image Drag & Drop ─────────────────────────────────────────────────────────
+
+interface ImageDragData {
+  type: "image-card"
+  index: number
+}
+
+function isImageDragData(data: Record<string, unknown>): data is ImageDragData {
+  return data.type === "image-card" && typeof data.index === "number"
+}
+
+interface DraggableImageCardProps {
+  image: ImageRow
+  index: number
+  total: number
+  isDragSource: boolean
+  isDragTarget: boolean
+  onRemove: () => void
+  onMove: (dir: -1 | 1) => void
+  onDragEnter: (index: number) => void
+  onDragLeave: () => void
+}
+
+function DraggableImageCard({
+  image, index, total, isDragSource, isDragTarget,
+  onRemove, onMove, onDragEnter, onDragLeave,
+}: DraggableImageCardProps) {
+  const cardRef = useRef<HTMLDivElement>(null)
+  const handleRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const card = cardRef.current
+    const handle = handleRef.current
+    if (!card || !handle) return
+
+    return combine(
+      draggable({
+        element: card,
+        dragHandle: handle,
+        getInitialData: (): Record<string, unknown> => ({ type: "image-card", index }),
+      }),
+      dropTargetForElements({
+        element: card,
+        canDrop: ({ source }) =>
+          isImageDragData(source.data) && source.data.index !== index,
+        getData: (): Record<string, unknown> => ({ type: "image-card", index }),
+        onDragEnter: () => onDragEnter(index),
+        onDragLeave: () => onDragLeave(),
+      }),
+    )
+  }, [index, onDragEnter, onDragLeave])
+
+  return (
+    <div
+      ref={cardRef}
+      className={`relative group select-none transition-opacity duration-150 ${isDragSource ? "opacity-30" : ""}`}
+    >
+      {/* Drop indicator line */}
+      {isDragTarget && (
+        <span className="pointer-events-none absolute -left-1.5 top-0 bottom-0 w-0.5 rounded-full bg-[#E31C23] z-20" />
+      )}
+
+      {/* Drag handle */}
+      <div
+        ref={handleRef}
+        title="Arrastrar para reordenar"
+        className="absolute top-1 left-1 z-10 p-0.5 bg-black/50 rounded cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity"
+      >
+        <svg className="w-3.5 h-3.5 text-white" fill="currentColor" viewBox="0 0 16 16" aria-hidden>
+          <circle cx="5"  cy="4"  r="1.2" />
+          <circle cx="5"  cy="8"  r="1.2" />
+          <circle cx="5"  cy="12" r="1.2" />
+          <circle cx="11" cy="4"  r="1.2" />
+          <circle cx="11" cy="8"  r="1.2" />
+          <circle cx="11" cy="12" r="1.2" />
+        </svg>
+      </div>
+
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={image.url}
+        alt={image.alt}
+        draggable={false}
+        className={`w-20 h-20 object-cover rounded-lg border transition-all ${
+          isDragTarget ? "border-[#E31C23] shadow-md" : "border-gray-200"
+        }`}
+        onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder-shoe.png" }}
+      />
+
+      {index === 0 && (
+        <span className="absolute top-1 right-1 bg-[#E31C23] text-white text-[10px] px-1 rounded leading-tight">
+          Principal
+        </span>
+      )}
+
+      <div className="absolute inset-0 rounded-lg bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
+        <button
+          type="button"
+          onClick={() => onMove(-1)}
+          disabled={index === 0}
+          className="text-white text-sm disabled:opacity-30"
+          title="Mover izquierda"
+        >←</button>
+        <button
+          type="button"
+          onClick={onRemove}
+          className="text-white text-sm bg-[#E31C23] rounded-full w-5 h-5 flex items-center justify-center"
+          title="Eliminar"
+        >×</button>
+        <button
+          type="button"
+          onClick={() => onMove(1)}
+          disabled={index === total - 1}
+          className="text-white text-sm disabled:opacity-30"
+          title="Mover derecha"
+        >→</button>
+      </div>
+
+      <p className="text-[10px] text-[#4A4A4A] mt-0.5 text-center truncate max-w-[80px]">
+        {image.alt || "sin alt"}
+      </p>
+    </div>
+  )
+}
+
 // ─── Main Component ────────────────────────────────────────────────────────────
 
 export default function ProductForm({ mode, product, categories }: Props) {
@@ -151,6 +278,37 @@ export default function ProductForm({ mode, product, categories }: Props) {
   // Delete dialog
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [isDeleting, startDelete] = useTransition()
+
+  // Drag state
+  const [draggingIdx, setDraggingIdx] = useState<number | null>(null)
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null)
+
+  const handleDragEnterCard = useCallback((idx: number) => setDragOverIdx(idx), [])
+  const handleDragLeaveCard = useCallback(() => setDragOverIdx(null), [])
+
+  useEffect(() => {
+    return monitorForElements({
+      onDragStart: ({ source }) => {
+        if (isImageDragData(source.data)) setDraggingIdx(source.data.index)
+      },
+      onDrop: ({ source, location }) => {
+        setDraggingIdx(null)
+        setDragOverIdx(null)
+        if (!isImageDragData(source.data)) return
+        const [target] = location.current.dropTargets
+        if (!target || !isImageDragData(target.data)) return
+        const from = source.data.index
+        const to = target.data.index
+        if (from === to) return
+        setImages((prev) => {
+          const next = [...prev]
+          const [moved] = next.splice(from, 1)
+          next.splice(to, 0, moved)
+          return next.map((img, i) => ({ ...img, position: i }))
+        })
+      },
+    })
+  }, [])
 
   // ─── Handlers ───────────────────────────────────────────────────────────────
 
@@ -615,49 +773,20 @@ export default function ProductForm({ mode, product, categories }: Props) {
 
         {/* Image list */}
         {images.length > 0 && (
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-4">
             {images.map((img, idx) => (
-              <div key={idx} className="relative group">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={img.url}
-                  alt={img.alt}
-                  className="w-20 h-20 object-cover rounded-lg border border-gray-200"
-                  onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder-shoe.png" }}
-                />
-                {idx === 0 && (
-                  <span className="absolute top-1 left-1 bg-[#E31C23] text-white text-[10px] px-1 rounded">Principal</span>
-                )}
-                <div className="absolute inset-0 rounded-lg bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => moveImage(idx, -1)}
-                    disabled={idx === 0}
-                    className="text-white text-sm disabled:opacity-30"
-                    title="Mover izquierda"
-                  >
-                    ←
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => removeImage(idx)}
-                    className="text-white text-sm bg-[#E31C23] rounded-full w-5 h-5 flex items-center justify-center"
-                    title="Eliminar"
-                  >
-                    ×
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => moveImage(idx, 1)}
-                    disabled={idx === images.length - 1}
-                    className="text-white text-sm disabled:opacity-30"
-                    title="Mover derecha"
-                  >
-                    →
-                  </button>
-                </div>
-                <p className="text-[10px] text-[#4A4A4A] mt-0.5 text-center truncate max-w-[80px]">{img.alt || "sin alt"}</p>
-              </div>
+              <DraggableImageCard
+                key={img.id ?? img.url}
+                image={img}
+                index={idx}
+                total={images.length}
+                isDragSource={draggingIdx === idx}
+                isDragTarget={dragOverIdx === idx && draggingIdx !== idx}
+                onRemove={() => removeImage(idx)}
+                onMove={(dir) => moveImage(idx, dir)}
+                onDragEnter={handleDragEnterCard}
+                onDragLeave={handleDragLeaveCard}
+              />
             ))}
           </div>
         )}

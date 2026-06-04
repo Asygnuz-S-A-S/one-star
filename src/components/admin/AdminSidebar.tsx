@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState } from "react"
-import { signOut } from "next-auth/react"
+import { signOut } from "@/lib/auth-client"
 
 interface AdminSidebarProps {
   userName: string
@@ -212,7 +212,7 @@ export default function AdminSidebar({ userName, userRole }: AdminSidebarProps) 
         <div>
           <button
             type="button"
-            onClick={() => signOut({ callbackUrl: "/admin/login" })}
+            onClick={() => signOut({ fetchOptions: { onSuccess: () => { window.location.href = "/admin/login" } } })}
 
             className="w-full flex items-center gap-2 px-3 py-2 rounded-lg font-montserrat text-sm text-white/70 hover:bg-white/10 hover:text-white transition-colors"
           >

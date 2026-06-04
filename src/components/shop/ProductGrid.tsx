@@ -1,7 +1,7 @@
 import Link from "next/link"
-import ProductCard from "@/components/home/ProductCard"
 import SortBar from "@/components/shop/SortBar"
 import { getProducts } from "@/server/services/product.service"
+import { AnimatedProductGrid } from "@/components/shop/AnimatedProductGrid"
 
 const PAGE_SIZE = 24
 
@@ -150,24 +150,10 @@ export default async function ProductGrid({
           </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 px-4 md:px-8 py-6">
-          {products.map((product) => {
-            const image = product.images[0]
-            return (
-              <Link key={product.id} href={`/producto/${product.slug}`}>
-                <ProductCard
-                  id={product.id}
-                  name={product.name}
-                  brand={product.brand ?? "One Star"} // TODO: brand is optional in schema
-                  price={product.basePrice}
-                  salePrice={product.salePrice ?? undefined}
-                  imageUrl={image?.url}
-                  isOnSale={product.isOnSale}
-                />
-              </Link>
-            )
-          })}
-        </div>
+        <AnimatedProductGrid
+          products={products}
+          animationKey={currentSearch}
+        />
       )}
 
       {/* Pagination */}

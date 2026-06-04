@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { signIn } from "next-auth/react"
+import { prepareCustomerSignIn } from "@/lib/auth-actions"
+import { authClient } from "@/lib/auth-client"
 import { registerCustomer } from "./actions"
 
 const BRANDS = [
@@ -223,16 +224,24 @@ export default function RegistroPage() {
     }
 
     // Auto sign-in after registration
-    const signInResult = await signIn("customer", {
-      email,
-      password,
-      redirect: false,
-    })
+    // Syncs BA records using the hash just created during registration
+    const prep = await prepareCustomerSignIn(email, password)
 
     setLoading(false)
 
-    if (signInResult?.error) {
+    if (!prep.success) {
       setSubmitError("Registro exitoso. Por favor inicia sesión.")
+      router.push("/login")
+      return
+    }
+
+    const { error: signInError } = await authClient.signIn.email({
+      email,
+      password,
+      callbackURL: "/cuenta",
+    })
+
+    if (signInError) {
       router.push("/login")
       return
     }

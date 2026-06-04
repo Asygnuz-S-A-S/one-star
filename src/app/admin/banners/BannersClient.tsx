@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react"
 import BannerForm from "./BannerForm"
 import { deleteBanner, toggleBannerActive } from "./actions"
+import { formatDateShort } from "@/lib/dates"
 
 interface BannerRow {
   id: string
@@ -156,19 +157,9 @@ export default function BannersClient({ banners }: Props) {
                       </button>
                     </td>
                     <td className="px-4 py-3 text-xs text-[#4A4A4A]">
-                      {banner.startDate
-                        ? new Date(banner.startDate).toLocaleDateString("es-CO", {
-                            day: "2-digit",
-                            month: "short",
-                          })
-                        : "—"}{" "}
+                      {banner.startDate ? formatDateShort(banner.startDate) : "—"}{" "}
                       →{" "}
-                      {banner.endDate
-                        ? new Date(banner.endDate).toLocaleDateString("es-CO", {
-                            day: "2-digit",
-                            month: "short",
-                          })
-                        : "∞"}
+                      {banner.endDate ? formatDateShort(banner.endDate) : "∞"}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-3">

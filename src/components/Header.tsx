@@ -3,8 +3,8 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useSession } from "next-auth/react";
-import { useCart } from "@/context/CartContext";
+import { useSession } from "@/lib/auth-client";
+import { useCart } from "@/store";
 import CartDrawer from "@/components/cart/CartDrawer";
 
 const NAV_ITEMS = [

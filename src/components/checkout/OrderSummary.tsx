@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Image from "next/image"
-import { useCart } from "@/context/CartContext"
+import { useCart } from "@/store"
 import { formatCOP } from "@/lib/shop-utils"
 
 interface OrderSummaryProps {
