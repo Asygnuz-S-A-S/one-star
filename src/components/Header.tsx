@@ -121,11 +121,12 @@ export default function Header() {
     session?.user?.name?.charAt(0) ?? session?.user?.email?.charAt(0) ?? "U";
 
   return (
-    /*
+    <>
+    {/*
      * El header ocupa: barra anuncio (~32px) + barra nav (56px móvil / 64px desktop).
      * position: fixed saca el header del flujo; el padding-top del body en layout.tsx compensa.
      * z-50 garantiza que quede sobre banners y contenido de la página.
-     */
+     */}
     <header className="fixed top-0 left-0 right-0 z-50 w-full">
       {/* ── Barra de anuncio ─────────────────────────────────────────── */}
       <div className="bg-[#1C1C1C] text-white text-[11px] tracking-wide text-center py-2 px-4 font-montserrat">
@@ -303,5 +304,6 @@ export default function Header() {
       )}
     </header>
     <CartDrawer />
+    </>
   );
 }

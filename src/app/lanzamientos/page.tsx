@@ -1,10 +1,11 @@
 import ProductGrid from "@/components/shop/ProductGrid"
 import FilterSidebar from "@/components/shop/FilterSidebar"
 import ShopLayout from "@/components/shop/ShopLayout"
-import { getUniqueBrands, getUniqueSizes, getUniqueColors } from "@/lib/shop-utils"
+import { getUniqueBrands } from "@/server/services/product.service"
+import { getUniqueSizes, getUniqueColors } from "@/server/services/variant.service"
 
 interface LanzamientosPageProps {
-  searchParams: {
+  searchParams: Promise<{
     q?: string
     marca?: string
     talla?: string
@@ -13,7 +14,7 @@ interface LanzamientosPageProps {
     precio_max?: string
     orden?: "precio_asc" | "precio_desc" | "reciente" | "antiguo"
     page?: string
-  }
+  }>
 }
 
 export const metadata = {
@@ -22,6 +23,7 @@ export const metadata = {
 }
 
 export default async function LanzamientosPage({ searchParams }: LanzamientosPageProps) {
+  const resolvedSearchParams = await searchParams
   const [brands, sizes, colors] = await Promise.all([
     getUniqueBrands(),
     getUniqueSizes(),
@@ -29,11 +31,11 @@ export default async function LanzamientosPage({ searchParams }: LanzamientosPag
   ])
 
   const currentParams = new URLSearchParams(
-    Object.entries(searchParams).filter(([, v]) => v !== undefined) as [string, string][]
+    Object.entries(resolvedSearchParams).filter(([, v]) => v !== undefined) as [string, string][]
   )
 
   // Default order: reciente (newest first)
-  const params = { ...searchParams, orden: searchParams.orden ?? ("reciente" as const) }
+  const params = { ...resolvedSearchParams, orden: resolvedSearchParams.orden ?? ("reciente" as const) }
 
   return (
     <ShopLayout
@@ -42,7 +44,7 @@ export default async function LanzamientosPage({ searchParams }: LanzamientosPag
           brands={brands}
           sizes={sizes}
           colors={colors}
-          currentParams={currentParams}
+          currentParams={currentParams.toString()}
         />
       }
     >

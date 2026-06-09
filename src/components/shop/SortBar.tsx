@@ -4,12 +4,14 @@ import { useRouter, usePathname } from "next/navigation"
 
 interface SortBarProps {
   total: number
-  currentParams: URLSearchParams
+  currentParams: string
 }
 
-export default function SortBar({ total, currentParams }: SortBarProps) {
+export default function SortBar({ total, currentParams: currentParamsString }: SortBarProps) {
   const router = useRouter()
   const pathname = usePathname()
+
+  const currentParams = new URLSearchParams(currentParamsString)
 
   const handleOrden = (value: string) => {
     const next = new URLSearchParams(currentParams.toString())

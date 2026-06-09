@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth"
 import { NextResponse, type NextRequest } from "next/server"
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { nextUrl } = request
 
   const isAdminRoute = nextUrl.pathname.startsWith("/admin")
@@ -12,10 +12,19 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  const session = await auth.api.getSession({ headers: request.headers })
+  // Skip session check on the login pages themselves to avoid redirect loops
+  if (isAdminLoginPage || nextUrl.pathname === "/login") {
+    return NextResponse.next()
+  }
+
+  let session: Awaited<ReturnType<typeof auth.api.getSession>> | null = null
+  try {
+    session = await auth.api.getSession({ headers: request.headers })
+  } catch {
+    // If session check fails (e.g. misconfigured auth), treat as unauthenticated
+  }
   const userType = session?.user?.userType as string | undefined
 
-  // Protect /admin/* — requires an admin session (userType must be "admin")
   if (isAdminRoute && !isAdminLoginPage) {
     if (!session || userType !== "admin") {
       const loginUrl = new URL("/admin/login", nextUrl.origin)
@@ -24,7 +33,6 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Protect /cuenta/* — requires a customer session
   if (isCuentaRoute) {
     if (!session || userType !== "customer") {
       const loginUrl = new URL("/login", nextUrl.origin)

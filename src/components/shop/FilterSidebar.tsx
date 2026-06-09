@@ -7,7 +7,7 @@ interface FilterSidebarProps {
   brands: string[]
   sizes: string[]
   colors: string[]
-  currentParams: URLSearchParams
+  currentParams: string
 }
 
 const COLOR_MAP: Record<string, string> = {
@@ -26,11 +26,13 @@ export default function FilterSidebar({
   brands,
   sizes,
   colors,
-  currentParams,
+  currentParams: currentParamsString,
 }: FilterSidebarProps) {
   const router = useRouter()
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
+
+  const currentParams = new URLSearchParams(currentParamsString)
 
   const [precioMin, setPrecioMin] = useState(currentParams.get("precio_min") ?? "")
   const [precioMax, setPrecioMax] = useState(currentParams.get("precio_max") ?? "")

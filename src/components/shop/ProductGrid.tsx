@@ -108,7 +108,7 @@ export default async function ProductGrid({
       {/* Sort bar (client) */}
       <SortBar
         total={total}
-        currentParams={new URLSearchParams(currentSearch)}
+        currentParams={currentSearch}
       />
 
       {/* Active filter chips */}

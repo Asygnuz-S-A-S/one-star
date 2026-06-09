@@ -1,10 +1,11 @@
 import ProductGrid from "@/components/shop/ProductGrid"
 import FilterSidebar from "@/components/shop/FilterSidebar"
 import ShopLayout from "@/components/shop/ShopLayout"
-import { getUniqueBrands, getUniqueSizes, getUniqueColors } from "@/lib/shop-utils"
+import { getUniqueBrands } from "@/server/services/product.service"
+import { getUniqueSizes, getUniqueColors } from "@/server/services/variant.service"
 
 interface AccesoriosPageProps {
-  searchParams: {
+  searchParams: Promise<{
     q?: string
     marca?: string
     talla?: string
@@ -13,7 +14,7 @@ interface AccesoriosPageProps {
     precio_max?: string
     orden?: "precio_asc" | "precio_desc" | "reciente" | "antiguo"
     page?: string
-  }
+  }>
 }
 
 export const metadata = {
@@ -22,6 +23,7 @@ export const metadata = {
 }
 
 export default async function AccesoriosPage({ searchParams }: AccesoriosPageProps) {
+  const resolvedSearchParams = await searchParams
   const [brands, sizes, colors] = await Promise.all([
     getUniqueBrands(),
     getUniqueSizes(),
@@ -29,7 +31,7 @@ export default async function AccesoriosPage({ searchParams }: AccesoriosPagePro
   ])
 
   const currentParams = new URLSearchParams(
-    Object.entries(searchParams).filter(([, v]) => v !== undefined) as [string, string][]
+    Object.entries(resolvedSearchParams).filter(([, v]) => v !== undefined) as [string, string][]
   )
 
   return (
@@ -39,12 +41,12 @@ export default async function AccesoriosPage({ searchParams }: AccesoriosPagePro
           brands={brands}
           sizes={sizes}
           colors={colors}
-          currentParams={currentParams}
+          currentParams={currentParams.toString()}
         />
       }
     >
       <ProductGrid
-        searchParams={searchParams}
+        searchParams={resolvedSearchParams}
         categorySlug="accesorios"
         title="ACCESORIOS"
         subtitle="Complementa tu look"
