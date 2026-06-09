@@ -61,7 +61,9 @@
       "Bash(nc -z -w3 localhost 3000)",
       "Bash(python3 -c \"import sys,json; [print\\(json.loads\\(l\\).get\\('message',''\\)[:200]\\) for l in sys.stdin if l.strip\\(\\)]\")",
       "Bash(grep -v \"^--$\")",
-      "Bash(curl -sI --max-time 15 http://localhost:3000/admin/login)"
+      "Bash(curl -sI --max-time 15 http://localhost:3000/admin/login)",
+      "Bash(npx bmad-method@latest --help)",
+      "Bash(npx bmad-method@latest *)"
     ]
   }
 }
