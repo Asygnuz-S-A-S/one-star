@@ -26,7 +26,7 @@ const options: ChartOptions<"line"> = {
   plugins: {
     tooltip: {
       callbacks: {
-        label: (ctx) => formatCurrency(ctx.parsed.y),
+        label: (ctx) => formatCurrency(ctx.parsed.y ?? 0),
       },
       backgroundColor: "#1C1C1C",
       titleColor: "#ffffff",

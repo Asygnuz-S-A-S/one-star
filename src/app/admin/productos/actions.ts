@@ -52,7 +52,7 @@ export async function createProduct(formData: FormData): Promise<ActionResult> {
   const raw = extractFormData(formData)
   const parsed = productFormSchema.safeParse(raw)
   if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0]?.message ?? "Datos inválidos." }
+    return { success: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos." }
   }
 
   const data = parsed.data
@@ -92,7 +92,7 @@ export async function updateProduct(
   const raw = extractFormData(formData)
   const parsed = productFormSchema.safeParse(raw)
   if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0]?.message ?? "Datos inválidos." }
+    return { success: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos." }
   }
 
   const data = parsed.data

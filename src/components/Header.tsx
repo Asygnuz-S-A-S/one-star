@@ -116,7 +116,7 @@ export default function Header() {
   const { totalItems, toggleCart } = useCart();
   const { data: session } = useSession();
 
-  const isCustomer = !!session?.user && session.user.userType === "customer";
+  const isCustomer = !!session?.user && (session.user as { userType?: string }).userType === "customer";
   const userInitial =
     session?.user?.name?.charAt(0) ?? session?.user?.email?.charAt(0) ?? "U";
 

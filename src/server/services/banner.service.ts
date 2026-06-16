@@ -17,6 +17,7 @@ export interface BannerDTO {
   isActive: boolean
   startDate: string | null
   endDate: string | null
+  createdAt: string
 }
 
 export interface BannerInput {
@@ -39,6 +40,7 @@ export function mapToDTO(banner: Banner): BannerDTO {
     isActive: banner.isActive,
     startDate: banner.startDate?.toISOString() ?? null,
     endDate: banner.endDate?.toISOString() ?? null,
+    createdAt: banner.createdAt.toISOString(),
   }
 }
 

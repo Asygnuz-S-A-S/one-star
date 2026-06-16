@@ -93,6 +93,7 @@ const inputClass =
 interface ImageDragData {
   type: "image-card"
   index: number
+  [key: string]: unknown
 }
 
 function isImageDragData(data: Record<string, unknown>): data is ImageDragData {

@@ -23,7 +23,7 @@ export async function proxy(request: NextRequest) {
   } catch {
     // If session check fails (e.g. misconfigured auth), treat as unauthenticated
   }
-  const userType = session?.user?.userType as string | undefined
+  const userType = (session?.user as { userType?: string } | undefined)?.userType
 
   if (isAdminRoute && !isAdminLoginPage) {
     if (!session || userType !== "admin") {

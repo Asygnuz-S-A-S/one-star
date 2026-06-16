@@ -8,24 +8,9 @@ export const auth = betterAuth({
   secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
   database: prismaAdapter(prisma, {
     provider: "postgresql",
-    // Map better-auth's model names to our Auth* Prisma models
-    schema: {
-      user: { modelName: "AuthUser" },
-      session: { modelName: "AuthSession" },
-      account: { modelName: "AuthAccount" },
-      verification: { modelName: "AuthVerification" },
-    },
   }),
-  emailAndPassword: {
-    enabled: true,
-    // Use bcryptjs to verify the hashes stored in our AdminUser/User tables
-    password: {
-      verify: ({ hash, password }) => Promise.resolve(compareSync(password, hash)),
-      // Hashing is done externally (registration path); BA never re-hashes here
-      hash: (password) => password,
-    },
-  },
   user: {
+    modelName: "AuthUser",
     additionalFields: {
       userType: {
         type: "string",
@@ -38,11 +23,27 @@ export const auth = betterAuth({
     },
   },
   session: {
+    modelName: "AuthSession",
     expiresIn: 60 * 60 * 24 * 7, // 7 days
     updateAge: 60 * 60 * 24,      // refresh daily
     cookieCache: {
       enabled: true,
       maxAge: 60 * 5, // 5-minute client-side cache
+    },
+  },
+  account: {
+    modelName: "AuthAccount",
+  },
+  verification: {
+    modelName: "AuthVerification",
+  },
+  emailAndPassword: {
+    enabled: true,
+    // Use bcryptjs to verify the hashes stored in our AdminUser/User tables
+    password: {
+      verify: ({ hash, password }) => Promise.resolve(compareSync(password, hash)),
+      // Hashing is done externally (registration path); BA never re-hashes here
+      hash: (password) => Promise.resolve(password),
     },
   },
   // Expose userType in the session object returned to clients

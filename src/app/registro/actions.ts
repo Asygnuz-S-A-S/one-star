@@ -8,7 +8,7 @@ export async function registerCustomer(
 ): Promise<{ success: boolean; error?: string }> {
   const parsed = createUserSchema.safeParse(data)
   if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0]?.message ?? "Datos inválidos." }
+    return { success: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos." }
   }
 
   const exists = await emailExists(parsed.data.email)

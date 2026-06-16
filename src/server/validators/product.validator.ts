@@ -34,7 +34,7 @@ export const productFormSchema = z.object({
   extendedDescription: z.string().optional().nullable(),
   videoUrl: z.string().url().optional().nullable().or(z.literal("")),
   basePrice: z.coerce
-    .number({ invalid_type_error: "El precio base debe ser un número." })
+    .number({ message: "El precio base debe ser un número." })
     .nonnegative("El precio base no puede ser negativo."),
   isOnSale: z.boolean().default(false),
   salePrice: z.coerce.number().nonnegative().optional().nullable(),
