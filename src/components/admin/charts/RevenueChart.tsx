@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -60,6 +61,11 @@ const options: ChartOptions<"line"> = {
 }
 
 export default function RevenueChart({ data }: RevenueChartProps) {
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
   const labels = data.map((d) => {
     const [, month, day] = d.date.split("-")
     return `${day}/${month}`
@@ -81,6 +87,10 @@ export default function RevenueChart({ data }: RevenueChartProps) {
         tension: 0.4,
       },
     ],
+  }
+
+  if (!mounted) {
+    return <div className="h-full w-full bg-gray-50/50 animate-pulse rounded" />
   }
 
   if (data.length === 0) {

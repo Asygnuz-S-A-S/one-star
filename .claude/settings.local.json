@@ -63,7 +63,16 @@
       "Bash(grep -v \"^--$\")",
       "Bash(curl -sI --max-time 15 http://localhost:3000/admin/login)",
       "Bash(npx bmad-method@latest --help)",
-      "Bash(npx bmad-method@latest *)"
+      "Bash(npx bmad-method@latest *)",
+      "Bash(docker info *)",
+      "Bash(open *)",
+      "Bash(docker compose up *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000 --max-time 5)",
+      "Bash(ps -p 2386 -o pid,etime,command)",
+      "Bash(kill 2386)",
+      "Bash(ps -p 2386 -o pid,command)",
+      "Bash(kill -9 2386)",
+      "Bash(curl *)"
     ]
   }
 }

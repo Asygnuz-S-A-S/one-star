@@ -5,20 +5,9 @@ import DashboardStats from "@/components/admin/DashboardStats"
 import TopProducts from "@/components/admin/TopProducts"
 import LowStockAlerts from "@/components/admin/LowStockAlerts"
 import { getAdminDashboardStats } from "@/server/services/dashboard.service"
-import dynamic from "next/dynamic"
-
-const RevenueChart = dynamic(
-  () => import("@/components/admin/charts/RevenueChart"),
-  { ssr: false }
-)
-const OrdersChart = dynamic(
-  () => import("@/components/admin/charts/OrdersChart"),
-  { ssr: false }
-)
-const TopProductsChart = dynamic(
-  () => import("@/components/admin/charts/TopProductsChart"),
-  { ssr: false }
-)
+import RevenueChart from "@/components/admin/charts/RevenueChart"
+import OrdersChart from "@/components/admin/charts/OrdersChart"
+import TopProductsChart from "@/components/admin/charts/TopProductsChart"
 
 export default async function AdminDashboardPage() {
   const session = await auth.api.getSession({ headers: await headers() })

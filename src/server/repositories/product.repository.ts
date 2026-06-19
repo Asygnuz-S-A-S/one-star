@@ -24,7 +24,7 @@ export async function findManyProducts(
 }
 
 export async function findProductBySlug(slug: string) {
-  return prisma.product.findUnique({
+  return prisma.product.findFirst({
     where: { slug },
     include: {
       ...productInclude,

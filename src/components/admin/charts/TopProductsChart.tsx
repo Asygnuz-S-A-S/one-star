@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import {
   Chart as ChartJS,
   ArcElement,
@@ -52,6 +53,15 @@ const options: ChartOptions<"doughnut"> = {
 }
 
 export default function TopProductsChart({ products }: TopProductsChartProps) {
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted) {
+    return <div className="h-full w-full bg-gray-50/50 animate-pulse rounded" />
+  }
+
   if (products.length === 0) {
     return (
       <div className="flex items-center justify-center h-full text-[#9E9E9E] font-montserrat text-sm">

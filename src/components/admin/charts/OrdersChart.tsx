@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -65,6 +66,15 @@ const options: ChartOptions<"bar"> = {
 }
 
 export default function OrdersChart({ data }: OrdersChartProps) {
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted) {
+    return <div className="h-full w-full bg-gray-50/50 animate-pulse rounded" />
+  }
+
   if (data.length === 0) {
     return (
       <div className="flex items-center justify-center h-full text-[#9E9E9E] font-montserrat text-sm">
