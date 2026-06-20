@@ -4,8 +4,12 @@ import { prismaAdapter } from "better-auth/adapters/prisma"
 import { prisma } from "@/server/db/prisma"
 import { compareSync } from "bcryptjs"
 
+const baseURL =
+  process.env.BETTER_AUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? undefined
+
 export const auth = betterAuth({
   secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
+  baseURL,
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
@@ -49,7 +53,10 @@ export const auth = betterAuth({
   // Expose userType in the session object returned to clients
   advanced: {
     crossSubDomainCookies: { enabled: false },
-    useSecureCookies: process.env.NODE_ENV === "production",
+    // Solo exigir cookies "Secure" cuando se sirve por HTTPS. Sobre
+    // http://localhost (Docker en local) las cookies Secure no se guardan,
+    // lo que rompería el login. Se activa automáticamente en HTTPS.
+    useSecureCookies: (baseURL ?? "").startsWith("https"),
   },
 })
 

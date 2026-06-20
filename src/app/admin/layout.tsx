@@ -4,6 +4,10 @@ import { headers } from "next/headers"
 import AdminSidebar from "@/components/admin/AdminSidebar"
 import AdminHotkeys from "@/components/admin/AdminHotkeys"
 
+// El panel admin depende de la base de datos y de la sesión: nunca debe
+// pre-generarse en build (cuando no hay DB). Forzamos render dinámico.
+export const dynamic = "force-dynamic"
+
 export default async function AdminLayout({
   children,
 }: {

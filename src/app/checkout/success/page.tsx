@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { useCart } from "@/store"
@@ -15,6 +15,14 @@ interface SavedItem {
 }
 
 export default function CheckoutSuccessPage() {
+  return (
+    <Suspense fallback={null}>
+      <CheckoutSuccessContent />
+    </Suspense>
+  )
+}
+
+function CheckoutSuccessContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const { items, subtotal, clearCart } = useCart()
