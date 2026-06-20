@@ -50,6 +50,7 @@ export async function createOrder(data: CheckoutData): Promise<CreateOrderResult
       total: data.total,
       customerEmail: data.email,
       customerName: `${data.name} ${data.lastName}`,
+      paymentMethod: data.paymentMethod,
       shippingAddress: {
         phone: data.phone,
         address: data.address,
@@ -62,6 +63,8 @@ export async function createOrder(data: CheckoutData): Promise<CreateOrderResult
       },
       items: data.items.map((item) => ({
         productId: item.productId,
+        sku: item.sku,
+        productName: item.name,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
       }))

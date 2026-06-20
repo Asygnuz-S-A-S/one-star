@@ -61,7 +61,59 @@ www.tiendaonestar.com[cite: 1]
 * Configuración pasarela de pago epayco o mercadopago[cite: 1]
 * Email personalizado de confirmación de pedido[cite: 1]
 * Garantía 3 meses pos-lanzamiento[cite: 1]
-* Integración con Alegra POS.[cite: 1]
+* Integración con ERP/POS (ver sección D).[cite: 1]
+
+## D. Integración ERP / Sistema de Inventario (Decisión Arquitectónica Tomada)
+
+**Principio fundamental:** La tienda NO puede depender de ningún ERP específico.
+Si se cambia de Alegra a Siigo, World Office, SAP u otro, el código del e-commerce **no debe modificarse**.
+
+### Arquitectura: Ports & Adapters (Hexagonal)
+
+Se implementó una capa de abstracción completa en `src/server/erp/` con el siguiente patrón:
+
+```
+E-Commerce Core → IERPAdapter (interfaz) ← Adaptador concreto (Alegra / Siigo / etc.)
+```
+
+### Contrato de integración (IERPAdapter)
+
+Cualquier ERP que se conecte DEBE implementar los siguientes métodos:
+
+| Método | Dirección | Descripción |
+|---|---|---|
+| `onOrderConfirmed(invoice)` | e-commerce → ERP | Al confirmar un pedido: crear factura + mover inventario |
+| `decrementStock(items)` | e-commerce → ERP | Descontar stock de variantes por SKU |
+| `getStockBySku(sku)` | ERP → e-commerce | Consultar stock de una variante (sincronización bidireccional) |
+| `getBulkStock(skus)` | ERP → e-commerce | Consultar stock de múltiples SKUs (ventas en físico/POS → web) |
+| `upsertCustomer(customer)` | e-commerce → ERP | Sincronizar cliente/contacto |
+| `ping()` | — | Verificar disponibilidad del ERP |
+
+### Modo degradado
+
+Si el ERP no responde, el pedido **siempre se registra en la BD de One Star**. El ERP es notificado en modo fire-and-forget. Nunca se rechaza un pedido por un error del ERP.
+
+### Cómo cambiar de ERP
+
+1. Crear `src/server/erp/adapters/<nuevo-erp>.adapter.ts` implementando `IERPAdapter`
+2. Registrar el case en `src/server/erp/erp.container.ts`
+3. Cambiar `ERP_PROVIDER=<nuevo-erp>` en `.env`
+
+**Cero cambios** en servicios, páginas, checkout o cualquier otra parte del proyecto.
+
+### Estado actual
+
+- `ERP_PROVIDER=null` → Adaptador nulo activo (desarrollo). La tienda funciona sin ERP.
+- Adaptador de **Alegra** implementado y listo para activar con credenciales.
+- La arquitectura soporta cualquier ERP futuro sin refactorizar.
+
+### Variables de entorno ERP
+
+```bash
+ERP_PROVIDER="null"        # "null" | "alegra" | "siigo" | (futuro)
+ALEGRA_EMAIL=""            # Email de la cuenta Alegra
+ALEGRA_API_KEY=""          # API Key de Alegra
+```
 
 ## Referentes de página actuales:[cite: 1]
 1. https://hype.com.co/[cite: 1]

@@ -10,6 +10,7 @@ import {
   getOrderStats,
 } from "../repositories/order.repository"
 import type { Prisma, OrderStatus } from "@prisma/client"
+import { getERPAdapter } from "../erp"
 
 export interface OrderItemDTO {
   id: string
@@ -87,10 +88,21 @@ export async function placeOrder(
   userId: string | null,
   data: {
     total: number
-    items: { productId: string; quantity: number; unitPrice: number }[]
+    /**
+     * items ahora incluye sku y productName para que la capa ERP
+     * pueda sincronizar inventario y factura sin consultas adicionales.
+     */
+    items: {
+      productId: string
+      sku: string
+      productName: string
+      quantity: number
+      unitPrice: number
+    }[]
     shippingAddress?: unknown
     customerName?: string
     customerEmail?: string
+    paymentMethod?: string
   }
 ): Promise<OrderDTO> {
   const orderInput: Prisma.OrderCreateInput = {
@@ -99,6 +111,7 @@ export async function placeOrder(
     shippingAddress: data.shippingAddress as Prisma.InputJsonValue,
     customerName: data.customerName,
     customerEmail: data.customerEmail,
+    paymentMethod: data.paymentMethod,
     items: {
       create: data.items.map((i) => ({
         product: { connect: { id: i.productId } },
@@ -108,7 +121,44 @@ export async function placeOrder(
     },
   }
 
+  // 1. Persiste el pedido en la BD de One Star primero.
+  //    El pedido siempre queda registrado, independientemente del ERP.
   const order = await createOrder(orderInput)
+
+  // 2. Notifica al ERP de forma asincrónica (fire-and-forget con modo degradado).
+  //    Si el ERP falla, el pedido ya está guardado y se puede reintentar luego.
+  const erp = getERPAdapter()
+  erp
+    .onOrderConfirmed({
+      orderId: order.id,
+      customer: {
+        name: data.customerName ?? "Cliente",
+        email: data.customerEmail ?? "",
+      },
+      items: data.items.map((i) => ({
+        sku: i.sku,
+        productName: i.productName,
+        quantity: i.quantity,
+        unitPrice: i.unitPrice,
+      })),
+      total: data.total,
+      paymentMethod: data.paymentMethod ?? "pending",
+      shippingAddress: data.shippingAddress as Record<string, unknown> | undefined,
+    })
+    .then((result) => {
+      if (!result.success) {
+        // TODO: en producción, encolar este reintento en una cola de trabajos
+        // (e.g., BullMQ, pg-boss) para garantizar eventual consistencia.
+        console.error(
+          `[ERP] Sincronización falló para pedido ${order.id}:`,
+          result.error
+        )
+      }
+    })
+    .catch((err) => {
+      console.error(`[ERP] Error inesperado sincronizando pedido ${order.id}:`, err)
+    })
+
   return mapToDTO(order)
 }
 
