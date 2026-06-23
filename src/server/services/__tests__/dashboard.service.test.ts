@@ -43,13 +43,13 @@ describe("getAdminDashboardStats", () => {
   beforeEach(() => vi.clearAllMocks())
 
   it("calcula GMV correctamente", async () => {
-    mockGetData.mockResolvedValue(baseDashboardData)
+    mockGetData.mockResolvedValue(baseDashboardData as never)
     const result = await getAdminDashboardStats()
     expect(result.gmv).toBe(500000)
   })
 
   it("calcula AOV (ticket promedio) dividiendo GMV entre cantidad de pedidos", async () => {
-    mockGetData.mockResolvedValue(baseDashboardData)
+    mockGetData.mockResolvedValue(baseDashboardData as never)
     const result = await getAdminDashboardStats()
     expect(result.aov).toBe(100000) // 500000 / 5
   })
@@ -58,13 +58,13 @@ describe("getAdminDashboardStats", () => {
     mockGetData.mockResolvedValue({
       ...baseDashboardData,
       gmvResult: { _sum: { total: 0 }, _count: { id: 0 } },
-    })
+    } as never)
     const result = await getAdminDashboardStats()
     expect(result.aov).toBe(0)
   })
 
   it("expone totales de productos y clientes", async () => {
-    mockGetData.mockResolvedValue(baseDashboardData)
+    mockGetData.mockResolvedValue(baseDashboardData as never)
     const result = await getAdminDashboardStats()
     expect(result.totalProducts).toBe(120)
     expect(result.totalCustomers).toBe(45)
@@ -72,7 +72,7 @@ describe("getAdminDashboardStats", () => {
   })
 
   it("mapea los top productos con nombre, marca y revenue calculado", async () => {
-    mockGetData.mockResolvedValue(baseDashboardData)
+    mockGetData.mockResolvedValue(baseDashboardData as never)
     const result = await getAdminDashboardStats()
     const nike = result.topProducts.find((p) => p.name === "Nike Air Max")
     expect(nike).toBeDefined()
@@ -85,14 +85,14 @@ describe("getAdminDashboardStats", () => {
     mockGetData.mockResolvedValue({
       ...baseDashboardData,
       topProductsData: [], // sin productos en el mapa
-    })
+    } as never)
     const result = await getAdminDashboardStats()
     expect(result.topProducts[0].name).toBe("Producto eliminado")
     expect(result.topProducts[0].brand).toBe("-")
   })
 
   it("mapea variantes con bajo stock", async () => {
-    mockGetData.mockResolvedValue(baseDashboardData)
+    mockGetData.mockResolvedValue(baseDashboardData as never)
     const result = await getAdminDashboardStats()
     expect(result.lowStockVariants).toHaveLength(1)
     expect(result.lowStockVariants[0].sku).toBe("NK-001")
@@ -100,7 +100,7 @@ describe("getAdminDashboardStats", () => {
   })
 
   it("agrupa revenue por día y ordena cronológicamente", async () => {
-    mockGetData.mockResolvedValue(baseDashboardData)
+    mockGetData.mockResolvedValue(baseDashboardData as never)
     const result = await getAdminDashboardStats()
     expect(result.revenueByDay).toHaveLength(2)
     expect(result.revenueByDay[0].date).toBe("2024-06-01")
@@ -110,7 +110,7 @@ describe("getAdminDashboardStats", () => {
   })
 
   it("traduce los status de pedidos al español", async () => {
-    mockGetData.mockResolvedValue(baseDashboardData)
+    mockGetData.mockResolvedValue(baseDashboardData as never)
     const result = await getAdminDashboardStats()
     const pending = result.ordersByStatus.find((s) => s.status === "Pendiente")
     const shipped = result.ordersByStatus.find((s) => s.status === "Enviado")

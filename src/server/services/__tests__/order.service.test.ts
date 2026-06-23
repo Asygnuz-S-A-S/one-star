@@ -72,6 +72,8 @@ const rawOrder = {
     {
       id: "item-1",
       productId: "prod-1",
+      orderId: "order-1",
+      variantId: null,
       product: { name: "Nike Air Max", images: [{ url: "/nike.jpg" }] },
       quantity: 2,
       unitPrice: makeDecimal(120000),
@@ -93,7 +95,7 @@ describe("placeOrder", () => {
   beforeEach(() => vi.clearAllMocks())
 
   it("persiste el pedido y retorna el DTO", async () => {
-    mockCreate.mockResolvedValue(rawOrder)
+    mockCreate.mockResolvedValue(rawOrder as never)
     const result = await placeOrder("user-1", orderInput)
     expect(result.id).toBe("order-1")
     expect(result.total).toBe(270000)
@@ -101,7 +103,7 @@ describe("placeOrder", () => {
   })
 
   it("mapea los items del pedido correctamente", async () => {
-    mockCreate.mockResolvedValue(rawOrder)
+    mockCreate.mockResolvedValue(rawOrder as never)
     const result = await placeOrder("user-1", orderInput)
     expect(result.items).toHaveLength(1)
     expect(result.items![0].productName).toBe("Nike Air Max")
@@ -109,14 +111,14 @@ describe("placeOrder", () => {
   })
 
   it("funciona para usuario invitado (userId null)", async () => {
-    mockCreate.mockResolvedValue({ ...rawOrder, userId: null, user: null })
+    mockCreate.mockResolvedValue({ ...rawOrder, userId: null, user: null } as never)
     const result = await placeOrder(null, orderInput)
     expect(result.userId).toBeNull()
     expect(result.userEmail).toBeNull()
   })
 
   it("siempre llama a createOrder independientemente del ERP", async () => {
-    mockCreate.mockResolvedValue(rawOrder)
+    mockCreate.mockResolvedValue(rawOrder as never)
     await placeOrder("user-1", orderInput)
     expect(mockCreate).toHaveBeenCalledTimes(1)
   })
@@ -126,7 +128,7 @@ describe("getOrderById", () => {
   beforeEach(() => vi.clearAllMocks())
 
   it("retorna el DTO cuando el pedido existe", async () => {
-    mockFindById.mockResolvedValue(rawOrder)
+    mockFindById.mockResolvedValue(rawOrder as never)
     const result = await getOrderById("order-1")
     expect(result).not.toBeNull()
     expect(result!.customerName).toBe("Juan Pérez")
@@ -141,7 +143,7 @@ describe("getOrderById", () => {
 
 describe("getRecentOrders", () => {
   it("retorna la lista de pedidos recientes", async () => {
-    mockFindMany.mockResolvedValue([rawOrder])
+    mockFindMany.mockResolvedValue([rawOrder] as never)
     const result = await getRecentOrders(10)
     expect(result).toHaveLength(1)
     expect(result[0].id).toBe("order-1")
@@ -150,7 +152,7 @@ describe("getRecentOrders", () => {
 
 describe("getUserOrders", () => {
   it("retorna pedidos del usuario", async () => {
-    mockFindByUser.mockResolvedValue([rawOrder])
+    mockFindByUser.mockResolvedValue([rawOrder] as never)
     const result = await getUserOrders("user-1")
     expect(result).toHaveLength(1)
     expect(result[0].userId).toBe("user-1")
@@ -161,7 +163,7 @@ describe("getAdminOrders", () => {
   beforeEach(() => vi.clearAllMocks())
 
   it("retorna pedidos paginados y total", async () => {
-    mockFindMany.mockResolvedValue([rawOrder])
+    mockFindMany.mockResolvedValue([rawOrder] as never)
     mockCount.mockResolvedValue(1)
     const result = await getAdminOrders("ALL", "", 1, 10)
     expect(result.total).toBe(1)
@@ -246,7 +248,7 @@ describe("placeOrder — validación de stock", () => {
 
   it("crea el pedido cuando hay stock suficiente", async () => {
     mockGetStock.mockResolvedValue([{ id: "var-1", stock: 5, sku: "NK-001" }])
-    mockCreate.mockResolvedValue(rawOrder)
+    mockCreate.mockResolvedValue(rawOrder as never)
     const result = await placeOrder("user-1", inputWithVariant)
     expect(result.id).toBe("order-1")
     expect(mockCreate).toHaveBeenCalledTimes(1)
@@ -269,7 +271,7 @@ describe("placeOrder — validación de stock", () => {
   })
 
   it("no consulta stock si los items no tienen variantId", async () => {
-    mockCreate.mockResolvedValue(rawOrder)
+    mockCreate.mockResolvedValue(rawOrder as never)
     await placeOrder("user-1", orderInput)
     expect(mockGetStock).not.toHaveBeenCalled()
   })
