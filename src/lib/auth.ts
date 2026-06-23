@@ -2,7 +2,7 @@ import "server-only"
 import { betterAuth } from "better-auth"
 import { prismaAdapter } from "better-auth/adapters/prisma"
 import { prisma } from "@/server/db/prisma"
-import { compareSync } from "bcryptjs"
+import { compareSync, hashSync } from "bcryptjs"
 
 const baseURL =
   process.env.BETTER_AUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? undefined
@@ -46,8 +46,11 @@ export const auth = betterAuth({
     // Use bcryptjs to verify the hashes stored in our AdminUser/User tables
     password: {
       verify: ({ hash, password }) => Promise.resolve(compareSync(password, hash)),
-      // Hashing is done externally (registration path); BA never re-hashes here
-      hash: (password) => Promise.resolve(password),
+      // El registro normal hashea por fuera y escribe el hash directamente en
+      // AuthAccount, sin pasar por aquí. Pero si better-auth crea/cambia una
+      // credencial por su cuenta (signUp/changePassword), DEBE hashear con
+      // bcrypt para que `verify` (compareSync) funcione y no quede texto plano.
+      hash: (password) => Promise.resolve(hashSync(password, 10)),
     },
   },
   // Expose userType in the session object returned to clients
