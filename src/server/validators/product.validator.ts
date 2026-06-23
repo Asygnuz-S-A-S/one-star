@@ -32,7 +32,10 @@ export const productFormSchema = z.object({
   categoryId: z.string().min(1, "La categoría es requerida."),
   description: z.string().optional().nullable(),
   extendedDescription: z.string().optional().nullable(),
-  videoUrl: z.string().url().optional().nullable().or(z.literal("")),
+  videoUrl: z.preprocess(
+    (v) => (v === "" ? null : v),
+    z.string().url("URL de video inválida.").optional().nullable()
+  ),
   basePrice: z.coerce
     .number({ message: "El precio base debe ser un número." })
     .nonnegative("El precio base no puede ser negativo."),
