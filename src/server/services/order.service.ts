@@ -8,6 +8,8 @@ import {
   updateOrderStatus,
   updateOrderStatusAndTracking,
   getOrderStats,
+  getVariantsStock,
+  markOrderPaidWithStock,
 } from "../repositories/order.repository"
 import type { Prisma, OrderStatus } from "@prisma/client"
 import { getERPAdapter } from "../erp"
@@ -94,6 +96,7 @@ export async function placeOrder(
      */
     items: {
       productId: string
+      variantId?: string
       sku: string
       productName: string
       quantity: number
@@ -105,6 +108,25 @@ export async function placeOrder(
     paymentMethod?: string
   }
 ): Promise<OrderDTO> {
+  // 0. Valida disponibilidad de stock ANTES de crear el pedido.
+  //    El stock se descuenta luego al marcar el pedido como PAID, pero se
+  //    rechaza de entrada si ya no hay unidades suficientes.
+  const variantIds = data.items
+    .map((i) => i.variantId)
+    .filter((id): id is string => Boolean(id))
+
+  if (variantIds.length > 0) {
+    const stocks = await getVariantsStock(variantIds)
+    const stockMap = new Map(stocks.map((s) => [s.id, s.stock]))
+    for (const item of data.items) {
+      if (!item.variantId) continue
+      const available = stockMap.get(item.variantId) ?? 0
+      if (available < item.quantity) {
+        throw new Error(`Stock insuficiente para "${item.productName}".`)
+      }
+    }
+  }
+
   const orderInput: Prisma.OrderCreateInput = {
     ...(userId ? { user: { connect: { id: userId } } } : {}),
     total: data.total,
@@ -115,6 +137,7 @@ export async function placeOrder(
     items: {
       create: data.items.map((i) => ({
         product: { connect: { id: i.productId } },
+        ...(i.variantId ? { variant: { connect: { id: i.variantId } } } : {}),
         quantity: i.quantity,
         unitPrice: i.unitPrice,
       })),
@@ -212,6 +235,11 @@ export async function changeOrderStatus(
   id: string,
   status: OrderStatus
 ): Promise<void> {
+  // Al pasar a PAID se descuenta el stock de forma transaccional.
+  if (status === "PAID") {
+    await markOrderPaidWithStock(id)
+    return
+  }
   await updateOrderStatus(id, status)
 }
 
@@ -220,6 +248,10 @@ export async function changeOrderStatusAndTracking(
   status: string,
   trackingNumber?: string
 ): Promise<void> {
+  if (status === "PAID") {
+    await markOrderPaidWithStock(id, trackingNumber)
+    return
+  }
   await updateOrderStatusAndTracking(id, status, trackingNumber)
 }
 

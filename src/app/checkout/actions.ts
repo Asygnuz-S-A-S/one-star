@@ -68,6 +68,7 @@ export async function createOrder(data: CheckoutData): Promise<CreateOrderResult
       },
       items: data.items.map((item) => ({
         productId: item.productId,
+        variantId: item.variantId,
         sku: item.sku,
         productName: item.name,
         quantity: item.quantity,
@@ -83,7 +84,13 @@ export async function createOrder(data: CheckoutData): Promise<CreateOrderResult
       // eslint-disable-next-line no-console
       console.error("[createOrder]", message)
     }
-    return { success: false, error: "Error al procesar el pedido" }
+    // Los errores de stock insuficiente sí se muestran al cliente; el resto
+    // se enmascara para no filtrar detalles internos.
+    const isStockError = message.startsWith("Stock insuficiente")
+    return {
+      success: false,
+      error: isStockError ? message : "Error al procesar el pedido",
+    }
   }
 
 }

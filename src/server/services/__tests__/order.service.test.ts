@@ -11,6 +11,8 @@ vi.mock("@/server/repositories/order.repository", () => ({
   updateOrderStatus: vi.fn(),
   updateOrderStatusAndTracking: vi.fn(),
   getOrderStats: vi.fn(),
+  getVariantsStock: vi.fn(),
+  markOrderPaidWithStock: vi.fn(),
 }))
 
 vi.mock("@/server/erp", () => ({
@@ -37,6 +39,8 @@ import {
   countOrders,
   updateOrderStatus,
   updateOrderStatusAndTracking,
+  getVariantsStock,
+  markOrderPaidWithStock,
 } from "@/server/repositories/order.repository"
 
 const mockCreate = vi.mocked(createOrder)
@@ -46,6 +50,8 @@ const mockFindByUser = vi.mocked(findOrdersByUserId)
 const mockCount = vi.mocked(countOrders)
 const mockUpdateStatus = vi.mocked(updateOrderStatus)
 const mockUpdateTracking = vi.mocked(updateOrderStatusAndTracking)
+const mockGetStock = vi.mocked(getVariantsStock)
+const mockMarkPaid = vi.mocked(markOrderPaidWithStock)
 
 const makeDecimal = (n: number) => ({ toNumber: () => n })
 
@@ -202,9 +208,87 @@ describe("changeOrderStatus", () => {
 })
 
 describe("changeOrderStatusAndTracking", () => {
+  beforeEach(() => vi.clearAllMocks())
+
   it("llama al repositorio con id, status y tracking", async () => {
     mockUpdateTracking.mockResolvedValue(undefined as never)
     await changeOrderStatusAndTracking("order-1", "SHIPPED", "TRK123")
     expect(mockUpdateTracking).toHaveBeenCalledWith("order-1", "SHIPPED", "TRK123")
+  })
+
+  it("usa el flujo de descuento de stock al pasar a PAID", async () => {
+    mockMarkPaid.mockResolvedValue(rawOrder as never)
+    await changeOrderStatusAndTracking("order-1", "PAID", "TRK999")
+    expect(mockMarkPaid).toHaveBeenCalledWith("order-1", "TRK999")
+    expect(mockUpdateTracking).not.toHaveBeenCalled()
+  })
+})
+
+describe("placeOrder — validación de stock", () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  const inputWithVariant = {
+    total: 240000,
+    items: [
+      {
+        productId: "prod-1",
+        variantId: "var-1",
+        sku: "NK-001",
+        productName: "Nike Air Max",
+        quantity: 2,
+        unitPrice: 120000,
+      },
+    ],
+    customerName: "Juan Pérez",
+    customerEmail: "test@example.com",
+    paymentMethod: "card",
+  }
+
+  it("crea el pedido cuando hay stock suficiente", async () => {
+    mockGetStock.mockResolvedValue([{ id: "var-1", stock: 5, sku: "NK-001" }])
+    mockCreate.mockResolvedValue(rawOrder)
+    const result = await placeOrder("user-1", inputWithVariant)
+    expect(result.id).toBe("order-1")
+    expect(mockCreate).toHaveBeenCalledTimes(1)
+  })
+
+  it("rechaza el pedido cuando el stock es insuficiente", async () => {
+    mockGetStock.mockResolvedValue([{ id: "var-1", stock: 1, sku: "NK-001" }])
+    await expect(placeOrder("user-1", inputWithVariant)).rejects.toThrow(
+      /stock insuficiente/i
+    )
+    expect(mockCreate).not.toHaveBeenCalled()
+  })
+
+  it("rechaza cuando la variante no existe (stock 0)", async () => {
+    mockGetStock.mockResolvedValue([])
+    await expect(placeOrder("user-1", inputWithVariant)).rejects.toThrow(
+      /stock insuficiente/i
+    )
+    expect(mockCreate).not.toHaveBeenCalled()
+  })
+
+  it("no consulta stock si los items no tienen variantId", async () => {
+    mockCreate.mockResolvedValue(rawOrder)
+    await placeOrder("user-1", orderInput)
+    expect(mockGetStock).not.toHaveBeenCalled()
+  })
+})
+
+describe("changeOrderStatus — PAID descuenta stock", () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it("usa markOrderPaidWithStock al pasar a PAID", async () => {
+    mockMarkPaid.mockResolvedValue(rawOrder as never)
+    await changeOrderStatus("order-1", "PAID")
+    expect(mockMarkPaid).toHaveBeenCalledWith("order-1")
+    expect(mockUpdateStatus).not.toHaveBeenCalled()
+  })
+
+  it("usa updateOrderStatus normal para otros estados", async () => {
+    mockUpdateStatus.mockResolvedValue(undefined as never)
+    await changeOrderStatus("order-1", "DELIVERED")
+    expect(mockUpdateStatus).toHaveBeenCalledWith("order-1", "DELIVERED")
+    expect(mockMarkPaid).not.toHaveBeenCalled()
   })
 })

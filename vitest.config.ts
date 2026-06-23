@@ -6,6 +6,9 @@ export default defineConfig({
   test: {
     environment: "node",
     globals: true,
+    // Solo tests unitarios; los specs E2E (e2e/**) corren con Playwright, no Vitest
+    include: ["src/**/*.{test,spec}.ts"],
+    exclude: ["node_modules", "e2e", ".next"],
     coverage: {
       provider: "v8",
       reporter: ["text", "lcov"],
