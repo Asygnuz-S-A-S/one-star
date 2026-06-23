@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation"
+import Link from "next/link"
 import OrderDetailActions from "./OrderDetailActions"
 import { getOrderById } from "@/server/services/order.service"
 import { formatDateTime, formatCurrency } from "@/lib/dates"
@@ -58,9 +59,9 @@ export default async function PedidoDetailPage({ params }: Props) {
     <div className="p-6 md:p-8 max-w-5xl mx-auto">
       {/* Header */}
       <div className="flex flex-wrap items-center gap-4 mb-6">
-        <a href="/admin/pedidos" className="text-sm text-[#4A4A4A] hover:text-[#1C1C1C]">
+        <Link href="/admin/pedidos" className="text-sm text-[#4A4A4A] hover:text-[#1C1C1C]">
           ← Pedidos
-        </a>
+        </Link>
         <h1 className="font-['Barlow',sans-serif] text-2xl font-bold text-[#1C1C1C]">
           Pedido #{order.id.slice(-8).toUpperCase()}
         </h1>
