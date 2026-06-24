@@ -193,6 +193,13 @@ ALEGRA_API_KEY=""                 # API Key de Alegra
 # Para Siigo u otro ERP, documentar sus variables aquí al agregar el adaptador
 ```
 
+# Sentry (observabilidad — opcionales en desarrollo, requeridas en producción)
+SENTRY_DSN=https://...@o0.ingest.sentry.io/...   # DSN del proyecto Sentry (server)
+NEXT_PUBLIC_SENTRY_DSN=https://...               # DSN público (client bundle)
+SENTRY_ORG=one-star                              # Slug de la organización en Sentry
+SENTRY_PROJECT=one-star-web                      # Slug del proyecto en Sentry
+SENTRY_AUTH_TOKEN=...                            # Token para subir source maps en CI
+
 Variables pendientes de definir:
 - `EPAYCO_PUBLIC_KEY` / `EPAYCO_PRIVATE_KEY`
 - `MERCADOPAGO_ACCESS_TOKEN`
