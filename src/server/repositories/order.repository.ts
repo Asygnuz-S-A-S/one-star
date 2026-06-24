@@ -152,3 +152,7 @@ export async function getOrderStats() {
     revenue: revenueResult._sum.total?.toNumber() ?? 0,
   }
 }
+
+export async function updateOrderPaymentReference(id: string, paymentReference: string) {
+  return prisma.order.update({ where: { id }, data: { paymentReference } })
+}
