@@ -67,6 +67,16 @@ src/
 ├── lib/                          # auth.ts, auth-client.ts, auth-actions.ts, utils.ts, …
 ├── server/
 │   ├── db/prisma.ts              # Singleton de Prisma Client
+│   ├── erp/                      # Capa de integración ERP (agnóstica)
+│   │   ├── ports/
+│   │   │   └── erp.port.ts       # Interfaz IERPAdapter — el único contrato
+│   │   ├── adapters/
+│   │   │   ├── null.adapter.ts   # Adaptador nulo (dev/test/modo degradado)
+│   │   │   ├── alegra.client.ts  # Cliente HTTP de la API de Alegra
+│   │   │   └── alegra.adapter.ts # Implementación para Alegra
+│   │   ├── erp.container.ts      # Selecciona el adaptador según ERP_PROVIDER
+│   │   ├── erp.types.ts          # Tipos compartidos (ERPInvoice, ERPCustomer, …)
+│   │   └── index.ts              # Barrel export — punto de entrada único
 │   ├── repositories/             # Capa de acceso a datos (patrón Repository)
 │   │   ├── admin.repository.ts
 │   │   ├── banner.repository.ts
@@ -136,6 +146,7 @@ src/
 | 5 | **Zustand** para estado del carrito en cliente | Más ligero que Redux; persistencia local con `persist` middleware |
 | 6 | **Docker Compose** con servicio Postgres | Entorno local reproducible; mismo Dockerfile para staging/prod |
 | 7 | **`server-only`** en módulos de servidor | Previene importar código de servidor en componentes de cliente en build time |
+| 8 | **Capa ERP agnóstica (Ports & Adapters)** en `src/server/erp/` | La tienda NO depende de ningún ERP específico. Cambiar de Alegra a otro ERP = solo cambiar `ERP_PROVIDER` en `.env` y crear un adaptador. El core nunca se modifica. Ver `REQUERIMIENTOS.md §D` |
 
 ## Decisiones Arquitectónicas Pendientes
 
@@ -144,7 +155,7 @@ src/
 | P1 | **Pasarela de pago** | ePayco vs MercadoPago — ambas mencionadas; definir SDK y webhook |
 | P2 | **Carga de imágenes** | Almacenamiento local vs Cloudinary vs S3 + Next.js Image |
 | P3 | **Email transaccional** | Resend vs SendGrid vs SMTP propio para confirmaciones de pedido |
-| P4 | **Integración Alegra POS** | REST API de Alegra; definir sincronización (webhook o polling) |
+| P4 | **ERP concreto a conectar** | Arquitectura agnóstica ya construida. Definir qué ERP usar y activar su adaptador |
 | P5 | **WhatsApp Business** | Cloud API Meta vs Twilio; trigger en nuevo pedido |
 | P6 | **Schema.org / SEO estructurado** | Implementar `Product` schema en ficha; `BreadcrumbList` en categorías |
 | P7 | **Tracking** | Meta Conversions API + GA4; configurar eventos de conversión post-checkout |
@@ -166,15 +177,42 @@ Zod valida en la capa de `validators/` antes de llamar servicios. Los errores se
 ## Variables de Entorno Requeridas
 
 ```bash
+# Base de datos
 DATABASE_URL=postgresql://...
-AUTH_SECRET=...                 # Secret para better-auth
-NEXTAUTH_SECRET=...             # Alias soportado por auth.ts
+
+# Autenticación (better-auth)
+AUTH_SECRET=...                   # Secret para firmar sesiones
+BETTER_AUTH_SECRET=...            # Alias soportado por auth.ts
+BETTER_AUTH_URL=http://localhost:3000
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+# Integración ERP (agnóstica — ver src/server/erp/)
+ERP_PROVIDER="null"               # "null" | "alegra" | "siigo" | (futuro)
+ALEGRA_EMAIL=""                   # Email de la cuenta Alegra
+ALEGRA_API_KEY=""                 # API Key de Alegra
+# Para Siigo u otro ERP, documentar sus variables aquí al agregar el adaptador
 ```
 
 Variables pendientes de definir:
 - `EPAYCO_PUBLIC_KEY` / `EPAYCO_PRIVATE_KEY`
 - `MERCADOPAGO_ACCESS_TOKEN`
-- `ALEGRA_API_KEY`
 - `RESEND_API_KEY` (o equivalente de email)
 - `META_PIXEL_ID` / `META_ACCESS_TOKEN`
 - `GA4_MEASUREMENT_ID`
+
+## Capa ERP — Referencia Rápida
+
+```
+src/server/erp/
+├── ports/erp.port.ts        ← IERPAdapter — LEER ANTES de tocar integraciones
+├── adapters/
+│   ├── null.adapter.ts      ← activo en dev (ERP_PROVIDER=null)
+│   ├── alegra.client.ts     ← HTTP client Alegra (no usar directamente)
+│   └── alegra.adapter.ts    ← implementación Alegra
+├── erp.container.ts         ← getERPAdapter() — punto de entrada
+├── erp.types.ts             ← ERPInvoice, ERPCustomer, ERPSyncResult, …
+└── index.ts                 ← barrel: import { getERPAdapter } from "@/server/erp"
+```
+
+**Regla:** El código de negocio SOLO importa desde `@/server/erp` (el barrel).
+Nunca importar adaptadores o clientes directamente.
