@@ -15,6 +15,7 @@ interface ProductosPageProps {
     orden?: "precio_asc" | "precio_desc" | "reciente" | "antiguo"
     page?: string
     genero?: string
+    categoria?: string
   }>
 }
 

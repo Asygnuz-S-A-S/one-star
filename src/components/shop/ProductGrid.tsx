@@ -15,6 +15,7 @@ type SearchParams = {
   orden?: "precio_asc" | "precio_desc" | "reciente" | "antiguo"
   page?: string
   genero?: string
+  categoria?: string
 }
 
 interface ProductGridProps {
@@ -75,7 +76,9 @@ export default async function ProductGrid({
 
   const filterParams = {
     ...searchParams,
-    categorySlug,
+    // La prop categorySlug (rutas /hombre, etc.) tiene prioridad; si no,
+    // se admite el query param ?categoria= usado por el breadcrumb de la ficha.
+    categorySlug: categorySlug ?? searchParams.categoria,
     genderFilter,
     extraGenders,
     isOnSaleOnly,

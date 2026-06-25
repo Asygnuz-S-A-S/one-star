@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation"
+import Link from "next/link"
 import type { Metadata } from "next"
 import { getProductBySlug } from "@/server/services/product.service"
 import ProductGallery from "@/components/product/ProductGallery"
@@ -7,11 +8,13 @@ import CrossSelling from "@/components/product/CrossSelling"
 import RelatedProducts from "@/components/product/RelatedProducts"
 
 interface PageProps {
-  params: { slug: string }
+  // En Next.js 16 params es una Promise — hay que await
+  params: Promise<{ slug: string }>
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const product = await getProductBySlug(params.slug)
+  const { slug } = await params
+  const product = await getProductBySlug(slug)
 
   if (!product) {
     return {
@@ -31,7 +34,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function ProductPage({ params }: PageProps) {
-  const product = await getProductBySlug(params.slug)
+  const { slug } = await params
+  const product = await getProductBySlug(slug)
 
   if (!product) {
     notFound()
@@ -71,18 +75,19 @@ export default async function ProductPage({ params }: PageProps) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Breadcrumb */}
         <nav className="font-[var(--font-montserrat)] text-xs text-[#4A4A4A] mb-6 flex gap-2 items-center">
-          <a href="/" className="hover:text-[#1C1C1C] transition-colors">Inicio</a>
+          <Link href="/" className="hover:text-[#1C1C1C] transition-colors">Inicio</Link>
           <span>/</span>
-          <a href="/productos" className="hover:text-[#1C1C1C] transition-colors">Productos</a>
+          <Link href="/productos" className="hover:text-[#1C1C1C] transition-colors">Productos</Link>
           {product.category && (
             <>
               <span>/</span>
-              <a
-                href={`/categoria/${product.category.slug}`}
+              {/* La categoría se filtra dentro del catálogo (no hay ruta /categoria/[slug]) */}
+              <Link
+                href={`/productos?categoria=${product.category.slug}`}
                 className="hover:text-[#1C1C1C] transition-colors"
               >
                 {product.category.name}
-              </a>
+              </Link>
             </>
           )}
           <span>/</span>
