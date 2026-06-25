@@ -72,7 +72,7 @@ describe("getUserById", () => {
   beforeEach(() => vi.clearAllMocks())
 
   it("retorna el DTO cuando el usuario existe", async () => {
-    mockFindById.mockResolvedValue(rawUser)
+    mockFindById.mockResolvedValue(rawUser as never)
     const result = await getUserById("user-1")
     expect(result).not.toBeNull()
     expect(result!.email).toBe("juan@example.com")
@@ -80,7 +80,7 @@ describe("getUserById", () => {
   })
 
   it("no expone passwordHash en el DTO", async () => {
-    mockFindById.mockResolvedValue(rawUser)
+    mockFindById.mockResolvedValue(rawUser as never)
     const result = await getUserById("user-1")
     expect(result).not.toHaveProperty("passwordHash")
   })
@@ -92,7 +92,7 @@ describe("getUserById", () => {
   })
 
   it("convierte birthDate a ISO string", async () => {
-    mockFindById.mockResolvedValue(rawUser)
+    mockFindById.mockResolvedValue(rawUser as never)
     const result = await getUserById("user-1")
     expect(result!.birthDate).toBe("1990-05-15T00:00:00.000Z")
   })
@@ -108,7 +108,7 @@ describe("getUserByEmail", () => {
 
 describe("emailExists", () => {
   it("retorna true si el email ya está registrado", async () => {
-    mockFindByEmail.mockResolvedValue(rawUser)
+    mockFindByEmail.mockResolvedValue(rawUser as never)
     expect(await emailExists("juan@example.com")).toBe(true)
   })
 
@@ -120,7 +120,7 @@ describe("emailExists", () => {
 
 describe("getUserByEmailForAuth", () => {
   it("incluye passwordHash en el DTO de autenticación", async () => {
-    mockFindByEmail.mockResolvedValue(rawUser)
+    mockFindByEmail.mockResolvedValue(rawUser as never)
     const result = await getUserByEmailForAuth("juan@example.com")
     expect(result).not.toBeNull()
     expect(result!.passwordHash).toBe("hashed_password")
@@ -137,12 +137,14 @@ describe("registerUser", () => {
   beforeEach(() => vi.clearAllMocks())
 
   it("hashea la contraseña antes de guardar", async () => {
-    mockCreate.mockResolvedValue(rawUser)
+    mockCreate.mockResolvedValue(rawUser as never)
     await registerUser({
       email: "nuevo@test.com",
       password: "pass1234",
       name: "Nuevo",
       lastName: "Usuario",
+      phone: "3001234567",
+      cedula: "123456789",
     })
     expect(mockHash).toHaveBeenCalledWith("pass1234", 10)
     expect(mockCreate).toHaveBeenCalledWith(
@@ -151,12 +153,14 @@ describe("registerUser", () => {
   })
 
   it("convierte birthDate string a Date antes de guardar", async () => {
-    mockCreate.mockResolvedValue(rawUser)
+    mockCreate.mockResolvedValue(rawUser as never)
     await registerUser({
       email: "nuevo@test.com",
       password: "pass1234",
       name: "Nuevo",
       lastName: "Usuario",
+      phone: "3001234567",
+      cedula: "123456789",
       birthDate: "1995-08-20",
     })
     expect(mockCreate).toHaveBeenCalledWith(
@@ -165,12 +169,14 @@ describe("registerUser", () => {
   })
 
   it("retorna el DTO del usuario creado sin passwordHash", async () => {
-    mockCreate.mockResolvedValue(rawUser)
+    mockCreate.mockResolvedValue(rawUser as never)
     const result = await registerUser({
       email: "nuevo@test.com",
       password: "pass1234",
       name: "Nuevo",
       lastName: "Usuario",
+      phone: "3001234567",
+      cedula: "123456789",
     })
     expect(result.email).toBe("juan@example.com")
     expect(result).not.toHaveProperty("passwordHash")
@@ -180,7 +186,7 @@ describe("registerUser", () => {
 describe("updateProfile", () => {
   it("actualiza el perfil y retorna el DTO", async () => {
     const updated = { ...rawUser, name: "Juan Actualizado" }
-    mockUpdate.mockResolvedValue(updated)
+    mockUpdate.mockResolvedValue(updated as never)
     const result = await updateProfile("user-1", { name: "Juan Actualizado" })
     expect(result.name).toBe("Juan Actualizado")
   })
@@ -207,7 +213,7 @@ describe("getCustomers", () => {
   }
 
   it("calcula el LTV sumando los totales de pedidos", async () => {
-    mockFindCustomers.mockResolvedValue([rawCustomer])
+    mockFindCustomers.mockResolvedValue([rawCustomer] as never)
     mockCountCustomers.mockResolvedValue(1)
     const { customers } = await getCustomers({})
     expect(customers[0].ltv).toBe(270000)

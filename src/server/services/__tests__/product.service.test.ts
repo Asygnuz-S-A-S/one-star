@@ -71,7 +71,7 @@ describe("getProducts", () => {
   beforeEach(() => vi.clearAllMocks())
 
   it("retorna productos y total correctamente", async () => {
-    mockFindMany.mockResolvedValue([rawProduct])
+    mockFindMany.mockResolvedValue([rawProduct] as never)
     mockCount.mockResolvedValue(1)
 
     const result = await getProducts({})
@@ -81,14 +81,14 @@ describe("getProducts", () => {
   })
 
   it("convierte basePrice a número", async () => {
-    mockFindMany.mockResolvedValue([rawProduct])
+    mockFindMany.mockResolvedValue([rawProduct] as never)
     mockCount.mockResolvedValue(1)
     const { products } = await getProducts({})
     expect(products[0].basePrice).toBe(150000)
   })
 
   it("salePrice es null cuando no hay oferta", async () => {
-    mockFindMany.mockResolvedValue([rawProduct])
+    mockFindMany.mockResolvedValue([rawProduct] as never)
     mockCount.mockResolvedValue(1)
     const { products } = await getProducts({})
     expect(products[0].salePrice).toBeNull()
@@ -124,7 +124,7 @@ describe("getProductBySlug", () => {
   beforeEach(() => vi.clearAllMocks())
 
   it("retorna el DTO cuando el producto existe", async () => {
-    mockFindBySlug.mockResolvedValue(rawProduct)
+    mockFindBySlug.mockResolvedValue(rawProduct as never)
     const result = await getProductBySlug("nike-air-max")
     expect(result).not.toBeNull()
     expect(result!.name).toBe("Nike Air Max")
@@ -137,7 +137,7 @@ describe("getProductBySlug", () => {
   })
 
   it("incluye variantes y la categoría en el DTO", async () => {
-    mockFindBySlug.mockResolvedValue(rawProduct)
+    mockFindBySlug.mockResolvedValue(rawProduct as never)
     const result = await getProductBySlug("nike-air-max")
     expect(result!.variants).toHaveLength(1)
     expect(result!.category.slug).toBe("zapatillas")

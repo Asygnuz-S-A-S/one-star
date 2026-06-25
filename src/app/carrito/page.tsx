@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { useCart } from "@/store"
 import { formatCOP } from "@/lib/shop-utils"
+import { applyCoupon, type ApplyCouponResult } from "./actions"
 
 const FREE_SHIPPING_THRESHOLD = 200_000
 const SHIPPING_COST = 15_000
@@ -51,10 +52,30 @@ function IconCartEmpty() {
 export default function CarritoPage() {
   const { items, removeItem, updateQuantity, subtotal, clearCart } = useCart()
   const router = useRouter()
-  const [coupon, setCoupon] = useState("")
+  const [couponCode, setCouponCode] = useState("")
+  const [couponResult, setCouponResult] = useState<ApplyCouponResult | null>(null)
+  const [couponLoading, setCouponLoading] = useState(false)
+
+  const discount = couponResult?.valid
+    ? couponResult.discountType === "PERCENTAGE"
+      ? Math.round((subtotal * couponResult.discountValue!) / 100)
+      : Math.min(couponResult.discountValue!, subtotal)
+    : 0
 
   const shipping = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_COST
-  const total = subtotal + shipping
+  const total = subtotal + shipping - discount
+
+  async function handleApplyCoupon() {
+    setCouponLoading(true)
+    const result = await applyCoupon(couponCode, subtotal)
+    setCouponResult(result)
+    setCouponLoading(false)
+  }
+
+  function handleRemoveCoupon() {
+    setCouponCode("")
+    setCouponResult(null)
+  }
 
   if (items.length === 0) {
     return (
@@ -192,6 +213,12 @@ export default function CarritoPage() {
                 <span className="text-[#4A4A4A]">Subtotal</span>
                 <span className="font-medium text-[#1C1C1C]">{formatCOP(subtotal)}</span>
               </div>
+              {discount > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-green-600">Descuento ({couponResult!.code})</span>
+                  <span className="font-medium text-green-600">−{formatCOP(discount)}</span>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span className="text-[#4A4A4A]">Envío</span>
                 <span className="font-medium text-[#1C1C1C]">
@@ -235,18 +262,47 @@ export default function CarritoPage() {
               <p className="font-barlow font-semibold text-sm uppercase tracking-wide text-[#1C1C1C] mb-3">
                 ¿Tienes un cupón?
               </p>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={coupon}
-                  onChange={(e) => setCoupon(e.target.value)}
-                  placeholder="Código de descuento"
-                  className="flex-1 border border-[#E0E0E0] px-3 py-2 font-montserrat text-sm text-[#1C1C1C] placeholder:text-[#4A4A4A] focus:outline-none focus:border-[#1C1C1C]"
-                />
-                <button className="bg-[#1C1C1C] text-white font-barlow font-bold text-sm uppercase px-4 py-2 hover:bg-[#333] transition-colors">
-                  Aplicar
-                </button>
-              </div>
+              {couponResult?.valid ? (
+                <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded px-3 py-2">
+                  <span className="font-montserrat text-sm text-green-700 font-medium">
+                    ✓ {couponResult.code} aplicado
+                  </span>
+                  <button
+                    onClick={handleRemoveCoupon}
+                    className="font-montserrat text-xs text-[#4A4A4A] underline hover:text-[#E31C23] ml-2"
+                  >
+                    Quitar
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={couponCode}
+                      onChange={(e) => {
+                        setCouponCode(e.target.value)
+                        if (couponResult) setCouponResult(null)
+                      }}
+                      onKeyDown={(e) => e.key === "Enter" && handleApplyCoupon()}
+                      placeholder="Código de descuento"
+                      className="flex-1 border border-[#E0E0E0] px-3 py-2 font-montserrat text-sm text-[#1C1C1C] placeholder:text-[#4A4A4A] focus:outline-none focus:border-[#1C1C1C]"
+                    />
+                    <button
+                      onClick={handleApplyCoupon}
+                      disabled={couponLoading || !couponCode.trim()}
+                      className="bg-[#1C1C1C] text-white font-barlow font-bold text-sm uppercase px-4 py-2 hover:bg-[#333] transition-colors disabled:opacity-50"
+                    >
+                      {couponLoading ? "..." : "Aplicar"}
+                    </button>
+                  </div>
+                  {couponResult && !couponResult.valid && (
+                    <p className="mt-1.5 font-montserrat text-xs text-[#E31C23]">
+                      {couponResult.error}
+                    </p>
+                  )}
+                </>
+              )}
             </div>
 
             {/* Payment methods */}

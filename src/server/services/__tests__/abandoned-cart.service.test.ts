@@ -22,6 +22,7 @@ const mockRecover = vi.mocked(markAbandonedCartRecovered)
 const rawCart = {
   id: "ac-1",
   email: "cliente@example.com",
+  userId: null,
   createdAt: new Date("2024-05-01T10:00:00Z"),
   recoveredAt: null,
   cartData: { items: [{ productId: "prod-1", quantity: 1 }] },

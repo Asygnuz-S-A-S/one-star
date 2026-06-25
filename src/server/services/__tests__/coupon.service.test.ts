@@ -49,13 +49,14 @@ const activeCoupon = {
   validUntil: tomorrow,
   isActive: true,
   categoryId: null,
+  createdAt: yesterday,
 }
 
 describe("getAllCoupons", () => {
   beforeEach(() => vi.clearAllMocks())
 
   it("retorna la lista mapeada a DTO", async () => {
-    mockFindMany.mockResolvedValue([activeCoupon])
+    mockFindMany.mockResolvedValue([activeCoupon] as never)
     const result = await getAllCoupons()
     expect(result).toHaveLength(1)
     expect(result[0].code).toBe("PROMO20")
@@ -74,7 +75,7 @@ describe("validateCoupon", () => {
   beforeEach(() => vi.clearAllMocks())
 
   it("retorna datos del cupón cuando es válido y activo", async () => {
-    mockFindByCode.mockResolvedValue(activeCoupon)
+    mockFindByCode.mockResolvedValue(activeCoupon as never)
     const result = await validateCoupon("PROMO20")
     expect(result).not.toBeNull()
     expect(result!.discountValue).toBe(20)
@@ -88,19 +89,19 @@ describe("validateCoupon", () => {
   })
 
   it("retorna null cuando el cupón está inactivo", async () => {
-    mockFindByCode.mockResolvedValue({ ...activeCoupon, isActive: false })
+    mockFindByCode.mockResolvedValue({ ...activeCoupon, isActive: false } as never)
     const result = await validateCoupon("PROMO20")
     expect(result).toBeNull()
   })
 
   it("retorna null cuando el cupón ya venció", async () => {
-    mockFindByCode.mockResolvedValue({ ...activeCoupon, validUntil: yesterday })
+    mockFindByCode.mockResolvedValue({ ...activeCoupon, validUntil: yesterday } as never)
     const result = await validateCoupon("PROMO20")
     expect(result).toBeNull()
   })
 
   it("retorna null cuando el cupón aún no inicia", async () => {
-    mockFindByCode.mockResolvedValue({ ...activeCoupon, validFrom: tomorrow })
+    mockFindByCode.mockResolvedValue({ ...activeCoupon, validFrom: tomorrow } as never)
     const result = await validateCoupon("PROMO20")
     expect(result).toBeNull()
   })
@@ -108,7 +109,7 @@ describe("validateCoupon", () => {
 
 describe("couponCodeExists", () => {
   it("retorna true si el código existe", async () => {
-    mockFindByCode.mockResolvedValue(activeCoupon)
+    mockFindByCode.mockResolvedValue(activeCoupon as never)
     expect(await couponCodeExists("PROMO20")).toBe(true)
   })
 

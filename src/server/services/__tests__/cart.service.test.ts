@@ -48,7 +48,7 @@ describe("getUserCart", () => {
   })
 
   it("mapea el carrito con sus items correctamente", async () => {
-    mockFindCart.mockResolvedValue(mockCart)
+    mockFindCart.mockResolvedValue(mockCart as never)
     const result = await getUserCart("user-1")
 
     expect(result).not.toBeNull()
@@ -57,21 +57,21 @@ describe("getUserCart", () => {
   })
 
   it("usa salePrice cuando el producto está en oferta", async () => {
-    mockFindCart.mockResolvedValue(mockCart)
+    mockFindCart.mockResolvedValue(mockCart as never)
     const result = await getUserCart("user-1")
     const polo = result!.items.find((i) => i.productName === "Polo Adidas")
     expect(polo!.price).toBe(60000)
   })
 
   it("usa basePrice cuando el producto NO está en oferta", async () => {
-    mockFindCart.mockResolvedValue(mockCart)
+    mockFindCart.mockResolvedValue(mockCart as never)
     const result = await getUserCart("user-1")
     const zapatilla = result!.items.find((i) => i.productName === "Zapatilla Nike")
     expect(zapatilla!.price).toBe(120000)
   })
 
   it("propaga los datos de variante (size, color)", async () => {
-    mockFindCart.mockResolvedValue(mockCart)
+    mockFindCart.mockResolvedValue(mockCart as never)
     const result = await getUserCart("user-1")
     expect(result!.items[0].size).toBe("42")
     expect(result!.items[0].color).toBe("Negro")
