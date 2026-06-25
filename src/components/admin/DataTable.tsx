@@ -35,6 +35,14 @@ export function DataTable<TData>({
 }: DataTableProps<TData>) {
   const [sorting, setSorting] = useState<SortingState>([])
 
+  // Tailwind v4 solo detecta clases literales; las interpoladas (`text-${x}`)
+  // se purgan del build. Mapeamos a strings completos para que sí se apliquen.
+  const alignClass: Record<string, string> = {
+    left: "text-left",
+    right: "text-right",
+    center: "text-center",
+  }
+
   const table = useReactTable({
     data,
     columns,
@@ -75,7 +83,7 @@ export function DataTable<TData>({
                     return (
                       <th
                         key={header.id}
-                        className={`px-4 py-3 text-[#4A4A4A] font-semibold text-${align} whitespace-nowrap select-none ${
+                        className={`px-4 py-3 text-[#4A4A4A] font-semibold ${alignClass[align] ?? "text-left"} whitespace-nowrap select-none ${
                           canSort
                             ? "cursor-pointer hover:text-[#1C1C1C] transition-colors"
                             : ""
@@ -117,7 +125,7 @@ export function DataTable<TData>({
                     return (
                       <td
                         key={cell.id}
-                        className={`px-4 py-3 text-${align}`}
+                        className={`px-4 py-3 ${alignClass[align] ?? "text-left"}`}
                       >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </td>
