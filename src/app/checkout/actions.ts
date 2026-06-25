@@ -3,10 +3,7 @@
 import { headers } from "next/headers"
 import { auth } from "@/lib/auth"
 import { placeOrder } from "@/server/services/order.service"
-
-// TODO: Integrar ePayco API - https://epayco.com/docs/
-// TODO: Integrar Mercadopago SDK - https://www.mercadopago.com.co/developers/es/docs
-// TODO: Integrar Addi checkout - https://developers.addi.com/
+import type { EpaycoCheckoutData } from "@/components/checkout/EpaycoButton"
 
 interface CheckoutItem {
   productId: string
@@ -38,7 +35,8 @@ export interface CheckoutData {
 interface CreateOrderResult {
   success: boolean
   orderId?: string
-  redirectUrl?: string
+  /** Datos para inicializar el checkout de ePayco en el cliente */
+  epaycoData?: EpaycoCheckoutData
   error?: string
 }
 
@@ -73,24 +71,32 @@ export async function createOrder(data: CheckoutData): Promise<CreateOrderResult
         productName: item.name,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
-      }))
+      })),
     })
 
-    return { success: true, orderId: order.id }
+    const epaycoData: EpaycoCheckoutData = {
+      orderId: order.id,
+      amount: data.total,
+      customerEmail: data.email,
+      customerName: data.name,
+      customerLastName: data.lastName,
+      phone: data.phone,
+      address: data.address,
+      city: data.city,
+      department: data.department,
+    }
+
+    return { success: true, orderId: order.id, epaycoData }
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Error desconocido"
-    // In production replace with structured logger (e.g., pino)
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
       console.error("[createOrder]", message)
     }
-    // Los errores de stock insuficiente sí se muestran al cliente; el resto
-    // se enmascara para no filtrar detalles internos.
     const isStockError = message.startsWith("Stock insuficiente")
     return {
       success: false,
       error: isStockError ? message : "Error al procesar el pedido",
     }
   }
-
 }

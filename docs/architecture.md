@@ -200,8 +200,13 @@ SENTRY_ORG=one-star                              # Slug de la organización en S
 SENTRY_PROJECT=one-star-web                      # Slug del proyecto en Sentry
 SENTRY_AUTH_TOKEN=...                            # Token para subir source maps en CI
 
+# ePayco (pasarela de pagos — integrada)
+NEXT_PUBLIC_EPAYCO_PUBLIC_KEY=...   # Llave pública del dashboard de ePayco
+EPAYCO_PRIVATE_KEY=...              # Llave privada (solo servidor) para firmar webhook
+EPAYCO_CUSTOMER_ID=...              # ID del cliente en ePayco (p_cust_id_cliente)
+NEXT_PUBLIC_EPAYCO_TEST=true        # "true" en staging, "false" en producción
+
 Variables pendientes de definir:
-- `EPAYCO_PUBLIC_KEY` / `EPAYCO_PRIVATE_KEY`
 - `MERCADOPAGO_ACCESS_TOKEN`
 - `RESEND_API_KEY` (o equivalente de email)
 - `META_PIXEL_ID` / `META_ACCESS_TOKEN`

@@ -1,14 +1,14 @@
 "use client"
 
 import { useState, useCallback } from "react"
-import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { motion, AnimatePresence } from "motion/react"
+import { motion } from "motion/react"
 import { useCart } from "@/store"
 import { formatCOP } from "@/lib/shop-utils"
 import { COLOMBIA_DEPARTMENTS } from "@/lib/colombia-departments"
 import CheckoutStepper from "@/components/checkout/CheckoutStepper"
 import OrderSummary from "@/components/checkout/OrderSummary"
+import EpaycoButton, { type EpaycoCheckoutData } from "@/components/checkout/EpaycoButton"
 import { createOrder } from "./actions"
 
 const sectionVariants = {
@@ -20,10 +20,9 @@ const sectionVariants = {
   }),
 } as const
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 type ShippingMethod = "standard" | "express"
-type PaymentMethod = "epayco" | "mercadopago" | "addi"
 
 interface FormValues {
   email: string
@@ -38,11 +37,6 @@ interface FormValues {
   postalCode: string
   saveAddress: boolean
   shippingMethod: ShippingMethod
-  paymentMethod: PaymentMethod
-  cardNumber: string
-  cardName: string
-  cardExpiry: string
-  cardCvv: string
 }
 
 type FormErrors = Partial<Record<keyof FormValues, string>>
@@ -70,31 +64,15 @@ function validatePhone(phone: string): boolean {
 
 function validateForm(values: FormValues): FormErrors {
   const errors: FormErrors = {}
-
-  if (!values.email.trim()) {
-    errors.email = "El email es requerido"
-  } else if (!validateEmail(values.email)) {
-    errors.email = "Ingresa un email válido"
-  }
-
+  if (!values.email.trim()) errors.email = "El email es requerido"
+  else if (!validateEmail(values.email)) errors.email = "Ingresa un email válido"
   if (!values.name.trim()) errors.name = "El nombre es requerido"
   if (!values.lastName.trim()) errors.lastName = "El apellido es requerido"
-  if (!values.phone.trim()) {
-    errors.phone = "El teléfono es requerido"
-  } else if (!validatePhone(values.phone)) {
-    errors.phone = "Ingresa un teléfono válido (solo números)"
-  }
+  if (!values.phone.trim()) errors.phone = "El teléfono es requerido"
+  else if (!validatePhone(values.phone)) errors.phone = "Ingresa un teléfono válido (solo números)"
   if (!values.address.trim()) errors.address = "La dirección es requerida"
   if (!values.city.trim()) errors.city = "La ciudad es requerida"
   if (!values.department) errors.department = "El departamento es requerido"
-
-  if (values.paymentMethod !== "addi") {
-    if (!values.cardNumber.trim()) errors.cardNumber = "El número de tarjeta es requerido"
-    if (!values.cardName.trim()) errors.cardName = "El nombre en la tarjeta es requerido"
-    if (!values.cardExpiry.trim()) errors.cardExpiry = "La fecha de vencimiento es requerida"
-    if (!values.cardCvv.trim()) errors.cardCvv = "El CVV es requerido"
-  }
-
   return errors
 }
 
@@ -115,29 +93,27 @@ function Field({ label, error, required, children }: FieldProps) {
         {required && <span className="text-[#E31C23] ml-0.5">*</span>}
       </label>
       {children}
-      {error && (
-        <p className="mt-1 text-xs text-[#E31C23] font-montserrat">{error}</p>
-      )}
+      {error && <p className="mt-1 text-xs text-[#E31C23] font-montserrat">{error}</p>}
     </div>
   )
 }
 
 const inputClass =
   "w-full border border-[#E0E0E0] rounded px-3 py-2.5 text-sm font-montserrat text-[#1C1C1C] placeholder-[#9E9E9E] bg-white focus:outline-none focus:border-[#1C1C1C] transition-colors"
-
 const inputErrorClass =
   "w-full border border-[#E31C23] rounded px-3 py-2.5 text-sm font-montserrat text-[#1C1C1C] placeholder-[#9E9E9E] bg-white focus:outline-none focus:border-[#E31C23] transition-colors"
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function CheckoutPage() {
-  const router = useRouter()
-  const { items, subtotal, clearCart } = useCart()
+  const { items, subtotal } = useCart()
 
   const [hasAccount, setHasAccount] = useState(false)
   const [errors, setErrors] = useState<FormErrors>({})
   const [submitting, setSubmitting] = useState(false)
   const [serverError, setServerError] = useState("")
+  /** Cuando está definido el pedido ya fue creado; mostramos el botón de pago */
+  const [epaycoData, setEpaycoData] = useState<EpaycoCheckoutData | null>(null)
 
   const [values, setValues] = useState<FormValues>({
     email: "",
@@ -152,28 +128,20 @@ export default function CheckoutPage() {
     postalCode: "",
     saveAddress: false,
     shippingMethod: "standard",
-    paymentMethod: "epayco",
-    cardNumber: "",
-    cardName: "",
-    cardExpiry: "",
-    cardCvv: "",
   })
 
   const shippingCost = getShippingCost(values.shippingMethod, subtotal)
   const total = subtotal + shippingCost
 
-  const set = useCallback(
-    <K extends keyof FormValues>(key: K, value: FormValues[K]) => {
-      setValues((prev) => ({ ...prev, [key]: value }))
-      setErrors((prev) => {
-        if (!prev[key]) return prev
-        const next = { ...prev }
-        delete next[key]
-        return next
-      })
-    },
-    []
-  )
+  const set = useCallback(<K extends keyof FormValues>(key: K, value: FormValues[K]) => {
+    setValues((prev) => ({ ...prev, [key]: value }))
+    setErrors((prev) => {
+      if (!prev[key]) return prev
+      const next = { ...prev }
+      delete next[key]
+      return next
+    })
+  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -182,7 +150,6 @@ export default function CheckoutPage() {
     const validationErrors = validateForm(values)
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors)
-      // Scroll to first error
       const firstErrorKey = Object.keys(validationErrors)[0]
       document.querySelector(`[data-field="${firstErrorKey}"]`)?.scrollIntoView({
         behavior: "smooth",
@@ -209,7 +176,7 @@ export default function CheckoutPage() {
       department: values.department,
       postalCode: values.postalCode || undefined,
       shippingMethod: values.shippingMethod,
-      paymentMethod: values.paymentMethod,
+      paymentMethod: "epayco",
       items: items.map((item) => ({
         productId: item.productId,
         variantId: item.id,
@@ -225,18 +192,67 @@ export default function CheckoutPage() {
 
     setSubmitting(false)
 
-    if (result.success && result.orderId) {
-      clearCart()
-      router.push(`/checkout/success?orderId=${result.orderId}`)
+    if (result.success && result.epaycoData) {
+      // Pedido creado — pasamos al paso de pago
+      setEpaycoData(result.epaycoData)
+      window.scrollTo({ top: 0, behavior: "smooth" })
     } else {
       setServerError(result.error ?? "Error al procesar el pedido")
     }
   }
 
+  // ── Paso 2: pantalla de pago ─────────────────────────────────────────────
+  if (epaycoData) {
+    return (
+      <div className="bg-[#F5F5F5] min-h-screen">
+        <div className="max-w-lg mx-auto px-4 py-12 text-center">
+          <Link href="/" className="font-barlow font-bold text-2xl text-[#1C1C1C] tracking-tight">
+            ONE STAR
+          </Link>
+          <CheckoutStepper currentStep={3} />
+
+          <div className="bg-white rounded-xl p-8 mt-6 shadow-sm">
+            <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round">
+                <path d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h2 className="font-barlow font-bold text-xl text-[#1C1C1C] uppercase tracking-wide mb-1">
+              Pedido creado
+            </h2>
+            <p className="font-montserrat text-sm text-[#4A4A4A] mb-1">
+              Pedido <span className="font-bold text-[#1C1C1C]">
+                #{epaycoData.orderId.slice(-8).toUpperCase()}
+              </span>
+            </p>
+            <p className="font-montserrat text-sm text-[#4A4A4A] mb-6">
+              Total a pagar:{" "}
+              <span className="font-bold text-[#1C1C1C]">{formatCOP(epaycoData.amount)}</span>
+            </p>
+
+            <p className="font-montserrat text-xs text-[#4A4A4A] mb-4">
+              Haz clic en el botón para completar tu pago de forma segura con ePayco.
+              Podrás pagar con tarjeta crédito/débito, PSE o efectivo.
+            </p>
+
+            <EpaycoButton {...epaycoData} />
+
+            <button
+              onClick={() => setEpaycoData(null)}
+              className="mt-4 w-full text-center border border-[#E0E0E0] text-[#4A4A4A] font-montserrat text-sm py-2.5 rounded hover:border-[#1C1C1C] transition-colors"
+            >
+              ← Volver y modificar datos
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Paso 1: formulario ───────────────────────────────────────────────────
   return (
     <div className="bg-[#F5F5F5] min-h-screen">
       <div className="max-w-6xl mx-auto px-4 py-8">
-        {/* Brand + stepper */}
         <div className="text-center mb-6">
           <Link href="/" className="font-barlow font-bold text-2xl text-[#1C1C1C] tracking-tight">
             ONE STAR
@@ -250,34 +266,20 @@ export default function CheckoutPage() {
             {/* ── LEFT: Form ── */}
             <div className="w-full md:w-[55%] space-y-6">
 
-              {/* ── Section 1: Contact ── */}
-              <motion.section
-                className="bg-white rounded-lg p-6"
-                variants={sectionVariants}
-                initial="hidden"
-                animate="visible"
-                custom={0}
-              >
+              {/* Section 1: Contacto */}
+              <motion.section className="bg-white rounded-lg p-6" variants={sectionVariants} initial="hidden" animate="visible" custom={0}>
                 <h2 className="font-barlow font-bold text-sm uppercase tracking-widest text-[#1C1C1C] mb-4">
                   Información de contacto
                 </h2>
-
-                {/* Account toggle */}
                 <div className="flex items-center gap-4 mb-5 text-sm font-montserrat text-[#4A4A4A]">
                   <span>¿Ya tienes cuenta?</span>
-                  <button
-                    type="button"
-                    onClick={() => setHasAccount(true)}
-                    className={`underline hover:text-[#E31C23] transition-colors ${hasAccount ? "text-[#E31C23]" : ""}`}
-                  >
+                  <button type="button" onClick={() => setHasAccount(true)}
+                    className={`underline hover:text-[#E31C23] transition-colors ${hasAccount ? "text-[#E31C23]" : ""}`}>
                     Sí, iniciar sesión
                   </button>
                   <span>·</span>
-                  <button
-                    type="button"
-                    onClick={() => setHasAccount(false)}
-                    className={`underline hover:text-[#1C1C1C] transition-colors ${!hasAccount ? "text-[#1C1C1C] font-medium" : ""}`}
-                  >
+                  <button type="button" onClick={() => setHasAccount(false)}
+                    className={`underline hover:text-[#1C1C1C] transition-colors ${!hasAccount ? "text-[#1C1C1C] font-medium" : ""}`}>
                     No, continuar como invitado
                   </button>
                 </div>
@@ -293,191 +295,99 @@ export default function CheckoutPage() {
                   <div className="space-y-4">
                     <div data-field="email">
                       <Field label="Email" required error={errors.email}>
-                        <input
-                          type="email"
-                          value={values.email}
-                          onChange={(e) => set("email", e.target.value)}
-                          placeholder="hola@ejemplo.com"
-                          className={errors.email ? inputErrorClass : inputClass}
-                          autoComplete="email"
-                        />
+                        <input type="email" value={values.email} onChange={(e) => set("email", e.target.value)}
+                          placeholder="hola@ejemplo.com" className={errors.email ? inputErrorClass : inputClass} autoComplete="email" />
                       </Field>
                     </div>
                     <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={values.newsletter}
-                        onChange={(e) => set("newsletter", e.target.checked)}
-                        className="w-4 h-4 rounded border-[#E0E0E0] accent-[#E31C23]"
-                      />
-                      <span className="text-sm font-montserrat text-[#4A4A4A]">
-                        Recibir novedades y ofertas
-                      </span>
+                      <input type="checkbox" checked={values.newsletter} onChange={(e) => set("newsletter", e.target.checked)}
+                        className="w-4 h-4 rounded border-[#E0E0E0] accent-[#E31C23]" />
+                      <span className="text-sm font-montserrat text-[#4A4A4A]">Recibir novedades y ofertas</span>
                     </label>
                   </div>
                 )}
               </motion.section>
 
-              {/* ── Section 2: Shipping Address ── */}
-              <motion.section
-                className="bg-white rounded-lg p-6"
-                variants={sectionVariants}
-                initial="hidden"
-                animate="visible"
-                custom={1}
-              >
+              {/* Section 2: Dirección de envío */}
+              <motion.section className="bg-white rounded-lg p-6" variants={sectionVariants} initial="hidden" animate="visible" custom={1}>
                 <h2 className="font-barlow font-bold text-sm uppercase tracking-widest text-[#1C1C1C] mb-4">
                   Dirección de envío
                 </h2>
-
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div data-field="name">
                     <Field label="Nombre" required error={errors.name}>
-                      <input
-                        type="text"
-                        value={values.name}
-                        onChange={(e) => set("name", e.target.value)}
-                        placeholder="Juan"
-                        className={errors.name ? inputErrorClass : inputClass}
-                        autoComplete="given-name"
-                      />
+                      <input type="text" value={values.name} onChange={(e) => set("name", e.target.value)}
+                        placeholder="Juan" className={errors.name ? inputErrorClass : inputClass} autoComplete="given-name" />
                     </Field>
                   </div>
                   <div data-field="lastName">
                     <Field label="Apellido" required error={errors.lastName}>
-                      <input
-                        type="text"
-                        value={values.lastName}
-                        onChange={(e) => set("lastName", e.target.value)}
-                        placeholder="Pérez"
-                        className={errors.lastName ? inputErrorClass : inputClass}
-                        autoComplete="family-name"
-                      />
+                      <input type="text" value={values.lastName} onChange={(e) => set("lastName", e.target.value)}
+                        placeholder="Pérez" className={errors.lastName ? inputErrorClass : inputClass} autoComplete="family-name" />
                     </Field>
                   </div>
                   <div data-field="phone" className="sm:col-span-2">
                     <Field label="Teléfono" required error={errors.phone}>
-                      <input
-                        type="tel"
-                        value={values.phone}
-                        onChange={(e) => set("phone", e.target.value)}
-                        placeholder="3001234567"
-                        className={errors.phone ? inputErrorClass : inputClass}
-                        autoComplete="tel"
-                      />
+                      <input type="tel" value={values.phone} onChange={(e) => set("phone", e.target.value)}
+                        placeholder="3001234567" className={errors.phone ? inputErrorClass : inputClass} autoComplete="tel" />
                     </Field>
                   </div>
                   <div data-field="address" className="sm:col-span-2">
                     <Field label="Dirección" required error={errors.address}>
-                      <input
-                        type="text"
-                        value={values.address}
-                        onChange={(e) => set("address", e.target.value)}
-                        placeholder="Calle 123 #45-67"
-                        className={errors.address ? inputErrorClass : inputClass}
-                        autoComplete="street-address"
-                      />
+                      <input type="text" value={values.address} onChange={(e) => set("address", e.target.value)}
+                        placeholder="Calle 123 #45-67" className={errors.address ? inputErrorClass : inputClass} autoComplete="street-address" />
                     </Field>
                   </div>
                   <div className="sm:col-span-2">
                     <Field label="Apartamento / Casa / Oficina">
-                      <input
-                        type="text"
-                        value={values.apartment}
-                        onChange={(e) => set("apartment", e.target.value)}
-                        placeholder="Apto 301 (opcional)"
-                        className={inputClass}
-                      />
+                      <input type="text" value={values.apartment} onChange={(e) => set("apartment", e.target.value)}
+                        placeholder="Apto 301 (opcional)" className={inputClass} />
                     </Field>
                   </div>
                   <div data-field="city">
                     <Field label="Ciudad" required error={errors.city}>
-                      <input
-                        type="text"
-                        value={values.city}
-                        onChange={(e) => set("city", e.target.value)}
-                        placeholder="Medellín"
-                        className={errors.city ? inputErrorClass : inputClass}
-                        autoComplete="address-level2"
-                      />
+                      <input type="text" value={values.city} onChange={(e) => set("city", e.target.value)}
+                        placeholder="Medellín" className={errors.city ? inputErrorClass : inputClass} autoComplete="address-level2" />
                     </Field>
                   </div>
                   <div data-field="department">
                     <Field label="Departamento" required error={errors.department}>
-                      <select
-                        value={values.department}
-                        onChange={(e) => set("department", e.target.value)}
-                        className={`${errors.department ? inputErrorClass : inputClass} cursor-pointer`}
-                      >
+                      <select value={values.department} onChange={(e) => set("department", e.target.value)}
+                        className={`${errors.department ? inputErrorClass : inputClass} cursor-pointer`}>
                         <option value="">Seleccionar...</option>
                         {COLOMBIA_DEPARTMENTS.map((dep) => (
-                          <option key={dep} value={dep}>
-                            {dep}
-                          </option>
+                          <option key={dep} value={dep}>{dep}</option>
                         ))}
                       </select>
                     </Field>
                   </div>
                   <div className="sm:col-span-2">
                     <Field label="Código postal">
-                      <input
-                        type="text"
-                        value={values.postalCode}
-                        onChange={(e) => set("postalCode", e.target.value)}
-                        placeholder="110111 (opcional)"
-                        className={inputClass}
-                        autoComplete="postal-code"
-                      />
+                      <input type="text" value={values.postalCode} onChange={(e) => set("postalCode", e.target.value)}
+                        placeholder="110111 (opcional)" className={inputClass} autoComplete="postal-code" />
                     </Field>
                   </div>
                 </div>
-
                 <label className="flex items-center gap-2 cursor-pointer mt-4">
-                  <input
-                    type="checkbox"
-                    checked={values.saveAddress}
-                    onChange={(e) => set("saveAddress", e.target.checked)}
-                    className="w-4 h-4 rounded border-[#E0E0E0] accent-[#E31C23]"
-                  />
-                  <span className="text-sm font-montserrat text-[#4A4A4A]">
-                    Guardar esta dirección para futuras compras
-                  </span>
+                  <input type="checkbox" checked={values.saveAddress} onChange={(e) => set("saveAddress", e.target.checked)}
+                    className="w-4 h-4 rounded border-[#E0E0E0] accent-[#E31C23]" />
+                  <span className="text-sm font-montserrat text-[#4A4A4A]">Guardar esta dirección para futuras compras</span>
                 </label>
               </motion.section>
 
-              {/* ── Section 3: Shipping Method ── */}
-              <motion.section
-                className="bg-white rounded-lg p-6"
-                variants={sectionVariants}
-                initial="hidden"
-                animate="visible"
-                custom={2}
-              >
+              {/* Section 3: Método de envío */}
+              <motion.section className="bg-white rounded-lg p-6" variants={sectionVariants} initial="hidden" animate="visible" custom={2}>
                 <h2 className="font-barlow font-bold text-sm uppercase tracking-widest text-[#1C1C1C] mb-4">
                   Método de envío
                 </h2>
                 <div className="space-y-3">
-                  {/* Standard */}
-                  <label
-                    className={`flex items-center justify-between p-4 rounded-lg border cursor-pointer transition-colors ${
-                      values.shippingMethod === "standard"
-                        ? "border-[#1C1C1C] bg-[#F5F5F5]"
-                        : "border-[#E0E0E0] hover:border-[#4A4A4A]"
-                    }`}
-                  >
+                  <label className={`flex items-center justify-between p-4 rounded-lg border cursor-pointer transition-colors ${
+                    values.shippingMethod === "standard" ? "border-[#1C1C1C] bg-[#F5F5F5]" : "border-[#E0E0E0] hover:border-[#4A4A4A]"}`}>
                     <div className="flex items-center gap-3">
-                      <input
-                        type="radio"
-                        name="shippingMethod"
-                        value="standard"
-                        checked={values.shippingMethod === "standard"}
-                        onChange={() => set("shippingMethod", "standard")}
-                        className="accent-[#E31C23]"
-                      />
+                      <input type="radio" name="shippingMethod" value="standard" checked={values.shippingMethod === "standard"}
+                        onChange={() => set("shippingMethod", "standard")} className="accent-[#E31C23]" />
                       <div>
-                        <p className="text-sm font-montserrat font-medium text-[#1C1C1C]">
-                          Envío estándar (3-5 días hábiles)
-                        </p>
+                        <p className="text-sm font-montserrat font-medium text-[#1C1C1C]">Envío estándar (3-5 días hábiles)</p>
                         {subtotal >= STANDARD_SHIPPING_THRESHOLD && (
                           <p className="text-xs text-green-600 font-montserrat mt-0.5">
                             ¡Envío gratis por compras mayores a {formatCOP(STANDARD_SHIPPING_THRESHOLD)}!
@@ -486,51 +396,27 @@ export default function CheckoutPage() {
                       </div>
                     </div>
                     <span className="text-sm font-montserrat font-medium text-[#1C1C1C]">
-                      {subtotal >= STANDARD_SHIPPING_THRESHOLD ? (
-                        <span className="text-green-600">Gratis</span>
-                      ) : (
-                        formatCOP(STANDARD_SHIPPING_COST)
-                      )}
+                      {subtotal >= STANDARD_SHIPPING_THRESHOLD
+                        ? <span className="text-green-600">Gratis</span>
+                        : formatCOP(STANDARD_SHIPPING_COST)}
                     </span>
                   </label>
 
-                  {/* Express */}
-                  <label
-                    className={`flex items-center justify-between p-4 rounded-lg border cursor-pointer transition-colors ${
-                      values.shippingMethod === "express"
-                        ? "border-[#1C1C1C] bg-[#F5F5F5]"
-                        : "border-[#E0E0E0] hover:border-[#4A4A4A]"
-                    }`}
-                  >
+                  <label className={`flex items-center justify-between p-4 rounded-lg border cursor-pointer transition-colors ${
+                    values.shippingMethod === "express" ? "border-[#1C1C1C] bg-[#F5F5F5]" : "border-[#E0E0E0] hover:border-[#4A4A4A]"}`}>
                     <div className="flex items-center gap-3">
-                      <input
-                        type="radio"
-                        name="shippingMethod"
-                        value="express"
-                        checked={values.shippingMethod === "express"}
-                        onChange={() => set("shippingMethod", "express")}
-                        className="accent-[#E31C23]"
-                      />
-                      <p className="text-sm font-montserrat font-medium text-[#1C1C1C]">
-                        Envío express (1-2 días hábiles)
-                      </p>
+                      <input type="radio" name="shippingMethod" value="express" checked={values.shippingMethod === "express"}
+                        onChange={() => set("shippingMethod", "express")} className="accent-[#E31C23]" />
+                      <p className="text-sm font-montserrat font-medium text-[#1C1C1C]">Envío express (1-2 días hábiles)</p>
                     </div>
-                    <span className="text-sm font-montserrat font-medium text-[#1C1C1C]">
-                      {formatCOP(EXPRESS_SHIPPING_COST)}
-                    </span>
+                    <span className="text-sm font-montserrat font-medium text-[#1C1C1C]">{formatCOP(EXPRESS_SHIPPING_COST)}</span>
                   </label>
                 </div>
               </motion.section>
 
-              {/* ── Section 4: Payment ── */}
-              <motion.section
-                className="bg-white rounded-lg p-6"
-                variants={sectionVariants}
-                initial="hidden"
-                animate="visible"
-                custom={3}
-              >
-                <div className="flex items-center justify-between mb-4">
+              {/* Section 4: Pago — solo info, el pago ocurre en paso 2 */}
+              <motion.section className="bg-white rounded-lg p-6" variants={sectionVariants} initial="hidden" animate="visible" custom={3}>
+                <div className="flex items-center justify-between mb-3">
                   <h2 className="font-barlow font-bold text-sm uppercase tracking-widest text-[#1C1C1C]">
                     Pago seguro
                   </h2>
@@ -541,117 +427,31 @@ export default function CheckoutPage() {
                     Pago 100% seguro
                   </span>
                 </div>
-
-                <div className="space-y-3">
-                  {/* ePayco */}
-                  <PaymentOption
-                    value="epayco"
-                    current={values.paymentMethod}
-                    onChange={(v) => set("paymentMethod", v as PaymentMethod)}
-                    title="ePayco"
-                    description="Paga con tarjeta crédito/débito, PSE o efectivo"
-                  />
-
-                  {/* Mercadopago */}
-                  <PaymentOption
-                    value="mercadopago"
-                    current={values.paymentMethod}
-                    onChange={(v) => set("paymentMethod", v as PaymentMethod)}
-                    title="Mercadopago"
-                    description="Paga con tarjeta o transferencia"
-                  />
-
-                  {/* Addi */}
-                  <PaymentOption
-                    value="addi"
-                    current={values.paymentMethod}
-                    onChange={(v) => set("paymentMethod", v as PaymentMethod)}
-                    title="Addi"
-                    description="Compra ahora, paga después en cuotas"
-                  />
-                </div>
-
-                {/* Card fields for ePayco / Mercadopago */}
-                {values.paymentMethod !== "addi" && (
-                  <div className="mt-5 border-t border-[#F0F0F0] pt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div data-field="cardNumber" className="sm:col-span-2">
-                      <Field label="Número de tarjeta" required error={errors.cardNumber}>
-                        <input
-                          type="text"
-                          value={values.cardNumber}
-                          onChange={(e) => set("cardNumber", e.target.value.replace(/\D/g, "").slice(0, 16))}
-                          placeholder="1234 5678 9012 3456"
-                          className={errors.cardNumber ? inputErrorClass : inputClass}
-                          inputMode="numeric"
-                          autoComplete="cc-number"
-                        />
-                      </Field>
-                    </div>
-                    <div data-field="cardName" className="sm:col-span-2">
-                      <Field label="Nombre en la tarjeta" required error={errors.cardName}>
-                        <input
-                          type="text"
-                          value={values.cardName}
-                          onChange={(e) => set("cardName", e.target.value.toUpperCase())}
-                          placeholder="JUAN PÉREZ"
-                          className={errors.cardName ? inputErrorClass : inputClass}
-                          autoComplete="cc-name"
-                        />
-                      </Field>
-                    </div>
-                    <div data-field="cardExpiry">
-                      <Field label="Vencimiento" required error={errors.cardExpiry}>
-                        <input
-                          type="text"
-                          value={values.cardExpiry}
-                          onChange={(e) => {
-                            let v = e.target.value.replace(/\D/g, "").slice(0, 4)
-                            if (v.length > 2) v = v.slice(0, 2) + "/" + v.slice(2)
-                            set("cardExpiry", v)
-                          }}
-                          placeholder="MM/AA"
-                          className={errors.cardExpiry ? inputErrorClass : inputClass}
-                          inputMode="numeric"
-                          autoComplete="cc-exp"
-                        />
-                      </Field>
-                    </div>
-                    <div data-field="cardCvv">
-                      <Field label="CVV" required error={errors.cardCvv}>
-                        <input
-                          type="password"
-                          value={values.cardCvv}
-                          onChange={(e) => set("cardCvv", e.target.value.replace(/\D/g, "").slice(0, 4))}
-                          placeholder="•••"
-                          className={errors.cardCvv ? inputErrorClass : inputClass}
-                          inputMode="numeric"
-                          autoComplete="cc-csc"
-                        />
-                      </Field>
-                    </div>
+                <div className="bg-[#F5F5F5] rounded-lg p-4 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-[#E31C23]/10 flex items-center justify-center shrink-0">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E31C23" strokeWidth="2" strokeLinecap="round">
+                      <rect x="2" y="5" width="20" height="14" rx="2" />
+                      <line x1="2" y1="10" x2="22" y2="10" />
+                    </svg>
                   </div>
-                )}
-
-                {/* Addi redirect notice */}
-                {values.paymentMethod === "addi" && (
-                  <div className="mt-5 border-t border-[#F0F0F0] pt-5">
-                    <p className="text-sm font-montserrat text-[#4A4A4A] bg-[#F5F5F5] rounded-md p-3 text-center">
-                      Serás redirigido a{" "}
-                      <span className="font-medium text-[#1C1C1C]">Addi</span> para completar tu
-                      compra en cuotas sin intereses.
+                  <div>
+                    <p className="font-montserrat font-semibold text-sm text-[#1C1C1C]">ePayco</p>
+                    <p className="font-montserrat text-xs text-[#4A4A4A]">
+                      Tarjeta crédito/débito · PSE · Efectivo
                     </p>
                   </div>
-                )}
+                </div>
+                <p className="font-montserrat text-xs text-[#4A4A4A] mt-3">
+                  Al confirmar tus datos se abrirá el portal seguro de ePayco para completar el pago.
+                </p>
               </motion.section>
 
-              {/* Server error */}
               {serverError && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                   <p className="text-sm font-montserrat text-[#E31C23]">{serverError}</p>
                 </div>
               )}
 
-              {/* Submit button */}
               <button
                 type="submit"
                 disabled={submitting}
@@ -668,15 +468,15 @@ export default function CheckoutPage() {
                 ) : (
                   <>
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                     </svg>
-                    Completar pedido — {formatCOP(total)}
+                    Confirmar datos — {formatCOP(total)}
                   </>
                 )}
               </button>
 
               <p className="text-center text-xs font-montserrat text-[#4A4A4A]">
-                Al completar tu pedido aceptas nuestros{" "}
+                Al confirmar aceptas nuestros{" "}
                 <Link href="/terminos" className="underline hover:text-[#1C1C1C]">
                   Términos y condiciones
                 </Link>
@@ -692,40 +492,5 @@ export default function CheckoutPage() {
         </form>
       </div>
     </div>
-  )
-}
-
-// ─── PaymentOption sub-component ─────────────────────────────────────────────
-
-interface PaymentOptionProps {
-  value: string
-  current: string
-  onChange: (value: string) => void
-  title: string
-  description: string
-}
-
-function PaymentOption({ value, current, onChange, title, description }: PaymentOptionProps) {
-  const isSelected = current === value
-
-  return (
-    <label
-      className={`flex items-center gap-3 p-4 rounded-lg border cursor-pointer transition-colors ${
-        isSelected ? "border-[#1C1C1C] bg-[#F5F5F5]" : "border-[#E0E0E0] hover:border-[#4A4A4A]"
-      }`}
-    >
-      <input
-        type="radio"
-        name="paymentMethod"
-        value={value}
-        checked={isSelected}
-        onChange={() => onChange(value)}
-        className="accent-[#E31C23] flex-shrink-0"
-      />
-      <div className="flex-1">
-        <p className="text-sm font-montserrat font-bold text-[#1C1C1C]">{title}</p>
-        <p className="text-xs font-montserrat text-[#4A4A4A] mt-0.5">{description}</p>
-      </div>
-    </label>
   )
 }
