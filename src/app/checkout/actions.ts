@@ -1,5 +1,7 @@
 "use server"
 
+import { headers } from "next/headers"
+import { auth } from "@/lib/auth"
 import { placeOrder } from "@/server/services/order.service"
 
 // TODO: Integrar ePayco API - https://epayco.com/docs/
@@ -46,7 +48,10 @@ export async function createOrder(data: CheckoutData): Promise<CreateOrderResult
   }
 
   try {
-    const order = await placeOrder(null, {
+    const session = await auth.api.getSession({ headers: await headers() })
+    const userId = session?.user?.id ?? null
+
+    const order = await placeOrder(userId, {
       total: data.total,
       customerEmail: data.email,
       customerName: `${data.name} ${data.lastName}`,
