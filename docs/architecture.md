@@ -153,7 +153,7 @@ src/
 | # | Área | Opciones |
 |---|---|---|
 | P1 | **Pasarela de pago** | ePayco vs MercadoPago — ambas mencionadas; definir SDK y webhook |
-| P2 | **Carga de imágenes** | Almacenamiento local vs Cloudinary vs S3 + Next.js Image |
+| P2 | **Carga de imágenes** | ✅ Cloudinary — `POST /api/upload` acepta multipart y retorna `secure_url` |
 | P3 | **Email transaccional** | Resend vs SendGrid vs SMTP propio para confirmaciones de pedido |
 | P4 | **ERP concreto a conectar** | Arquitectura agnóstica ya construida. Definir qué ERP usar y activar su adaptador |
 | P5 | **WhatsApp Business** | Cloud API Meta vs Twilio; trigger en nuevo pedido |
@@ -205,6 +205,11 @@ NEXT_PUBLIC_EPAYCO_PUBLIC_KEY=...   # Llave pública del dashboard de ePayco
 EPAYCO_PRIVATE_KEY=...              # Llave privada (solo servidor) para firmar webhook
 EPAYCO_CUSTOMER_ID=...              # ID del cliente en ePayco (p_cust_id_cliente)
 NEXT_PUBLIC_EPAYCO_TEST=true        # "true" en staging, "false" en producción
+
+# Cloudinary (carga de imágenes de productos — ver src/app/api/upload/route.ts)
+CLOUDINARY_CLOUD_NAME=...        # Nombre del cloud (Dashboard > Settings)
+CLOUDINARY_API_KEY=...           # API Key
+CLOUDINARY_API_SECRET=...        # API Secret (solo servidor)
 
 Variables pendientes de definir:
 - `MERCADOPAGO_ACCESS_TOKEN`
