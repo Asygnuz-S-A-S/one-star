@@ -267,6 +267,8 @@ export default function ProductForm({ mode, product, categories }: Props) {
   const [imageUrlInput, setImageUrlInput] = useState("")
   const [imageAltInput, setImageAltInput] = useState("")
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [uploadingFiles, setUploadingFiles] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
 
   // Cross-sells
   const [crossSells, setCrossSells] = useState<CrossSellItem[]>(
@@ -346,6 +348,42 @@ export default function ProductForm({ mode, product, categories }: Props) {
   function hasDuplicateSkus(): boolean {
     const skus = variants.map((v) => v.sku.trim()).filter(Boolean)
     return new Set(skus).size !== skus.length
+  }
+
+  async function handleFileUpload(files: FileList | null) {
+    if (!files || files.length === 0) return
+    setUploadingFiles(true)
+    setUploadError(null)
+
+    const results: ImageRow[] = []
+    for (const file of Array.from(files)) {
+      const fd = new FormData()
+      fd.append("file", file)
+      try {
+        const res = await fetch("/api/upload", { method: "POST", body: fd })
+        const data = await res.json()
+        if (!res.ok) {
+          setUploadError(data.error ?? "Error al subir imagen")
+          break
+        }
+        results.push({
+          url: data.url,
+          alt: file.name.replace(/\.[^.]+$/, ""),
+          position: 0,
+        })
+      } catch {
+        setUploadError("Error de red al subir imagen")
+        break
+      }
+    }
+
+    if (results.length > 0) {
+      setImages((prev) => {
+        const next = [...prev, ...results]
+        return next.map((img, i) => ({ ...img, position: i }))
+      })
+    }
+    setUploadingFiles(false)
   }
 
   function addImageFromUrl() {
@@ -725,10 +763,14 @@ export default function ProductForm({ mode, product, categories }: Props) {
           )}
         </p>
 
-        {/* TODO: Integrar con S3/Cloudinary para upload real de archivos */}
         <div
-          className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center mb-4 cursor-pointer hover:border-[#E31C23] transition-colors"
-          onClick={() => fileInputRef.current?.click()}
+          className={`border-2 border-dashed rounded-xl p-8 text-center mb-4 cursor-pointer transition-colors ${uploadingFiles ? "border-gray-300 bg-gray-50 cursor-wait" : "border-gray-200 hover:border-[#E31C23]"}`}
+          onClick={() => !uploadingFiles && fileInputRef.current?.click()}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault()
+            void handleFileUpload(e.dataTransfer.files)
+          }}
         >
           <input
             ref={fileInputRef}
@@ -736,16 +778,22 @@ export default function ProductForm({ mode, product, categories }: Props) {
             accept="image/*"
             multiple
             className="hidden"
-            onChange={() => {
-              // TODO: Implementar upload a S3/Cloudinary
-              alert("Upload directo no configurado aún. Usa las URLs externas.")
-            }}
+            onChange={(e) => void handleFileUpload(e.target.files)}
           />
-          <p className="text-[#4A4A4A] text-sm">
-            <span className="font-semibold">Arrastra o haz click</span> — mínimo 5 fotos
-          </p>
-          <p className="text-xs text-gray-400 mt-1">Upload a storage cloud (TODO: S3/Cloudinary)</p>
+          {uploadingFiles ? (
+            <p className="text-[#4A4A4A] text-sm animate-pulse">Subiendo imágenes…</p>
+          ) : (
+            <>
+              <p className="text-[#4A4A4A] text-sm">
+                <span className="font-semibold">Arrastra o haz click</span> — mínimo 5 fotos
+              </p>
+              <p className="text-xs text-gray-400 mt-1">JPG, PNG, WEBP · máx 10 MB por imagen</p>
+            </>
+          )}
         </div>
+        {uploadError && (
+          <p className="text-[#E31C23] text-sm mb-4">{uploadError}</p>
+        )}
 
         {/* URL manual */}
         <div className="flex gap-2 mb-4">

@@ -1,10 +1,12 @@
 "use client"
 
 import Image from "next/image"
+import Link from "next/link"
 import { motion } from "motion/react"
 
 interface ProductCardProps {
   id: string
+  slug?: string
   name: string
   brand: string
   price: number
@@ -23,15 +25,18 @@ function formatPrice(price: number): string {
   }).format(price)
 }
 
-export default function ProductCard({ id, name, brand, price, salePrice, imageUrl, isNew, isOnSale }: ProductCardProps) {
+export default function ProductCard({ id, slug, name, brand, price, salePrice, imageUrl, isNew, isOnSale }: ProductCardProps) {
+  const href = slug ? `/productos/${slug}` : undefined
+
   return (
     <motion.article
-      className="group cursor-pointer"
+      className="group cursor-pointer relative"
       data-product-id={id}
       whileHover={{ y: -6 }}
       transition={{ duration: 0.2, ease: "easeOut" }}
     >
       {/* Image container */}
+      {href && <Link href={href} className="absolute inset-0 z-10" aria-label={name} />}
       <div className="relative aspect-[3/4] bg-[#E0E0E0] overflow-hidden mb-3">
         {imageUrl ? (
           <Image
