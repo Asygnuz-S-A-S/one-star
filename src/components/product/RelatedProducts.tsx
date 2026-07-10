@@ -23,6 +23,7 @@ export default async function RelatedProducts({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {products.map((product) => {
           const image = product.images[0]
+          const secondaryImage = product.images[1]
           return (
             <Link key={product.id} href={`/productos/${product.slug}`}>
               <ProductCard
@@ -32,7 +33,8 @@ export default async function RelatedProducts({
                 price={product.basePrice}
                 salePrice={product.isOnSale && product.salePrice ? product.salePrice : undefined}
                 imageUrl={image?.url}
-                isOnSale={product.isOnSale}
+                secondaryImageUrl={secondaryImage?.url}
+                isOnSale={product.isOnSale} isNew={product.isNew} hasStock={product.hasStock}
               />
             </Link>
           )

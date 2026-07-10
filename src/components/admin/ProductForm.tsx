@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import { useState, useTransition, useCallback, useRef, useEffect } from "react"
-import type { Category } from "@prisma/client"
+import type { Category, StoreLocation } from "@prisma/client"
 import type { ProductWithRelations } from "@/types/admin"
 import { createProduct, updateProduct, deleteProduct, searchProducts } from "@/app/admin/productos/actions"
 import { draggable, dropTargetForElements, monitorForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
@@ -15,7 +15,11 @@ interface VariantRow {
   sku: string
   size: string
   color: string
+  sku: string
+  size: string
+  color: string
   stock: string
+  inventory: Array<{ storeLocationId: string | null; stock: string }>
   sizeUS: string
   sizeCM: string
   sizeEUR: string
@@ -31,13 +35,16 @@ interface ImageRow {
 interface CrossSellItem {
   id: string
   name: string
-  brand: string | null
+  brandId: string | null
+  brandName: string | null
 }
 
 interface Props {
   mode: "create" | "edit"
   product?: ProductWithRelations
   categories: Category[]
+  brands?: { id: string; name: string }[]
+  stores?: StoreLocation[]
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -216,7 +223,7 @@ function DraggableImageCard({
 
 // ─── Main Component ────────────────────────────────────────────────────────────
 
-export default function ProductForm({ mode, product, categories }: Props) {
+export default function ProductForm({ mode, product, categories, brands = [], stores = [] }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -225,12 +232,14 @@ export default function ProductForm({ mode, product, categories }: Props) {
   // Basic fields
   const [name, setName] = useState(product?.name ?? "")
   const [slug, setSlug] = useState(product?.slug ?? "")
-  const [brand, setBrand] = useState(product?.brand ?? "")
+  const [brandId, setBrandId] = useState(product?.brandId ?? "")
   const [gender, setGender] = useState(product?.gender ?? "")
   const [categoryId, setCategoryId] = useState(product?.categoryId ?? "")
   const [description, setDescription] = useState(product?.description ?? "")
   const [extendedDescription, setExtendedDescription] = useState(product?.extendedDescription ?? "")
   const [videoUrl, setVideoUrl] = useState(product?.videoUrl ?? "")
+  const [availableOnline, setAvailableOnline] = useState(product?.availableOnline ?? true)
+  const [availableInStores, setAvailableInStores] = useState(product?.availableInStores ?? true)
 
   // Pricing
   const [basePrice, setBasePrice] = useState(product?.basePrice ? String(Number(product.basePrice)) : "")
@@ -243,16 +252,34 @@ export default function ProductForm({ mode, product, categories }: Props) {
 
   // Variants
   const [variants, setVariants] = useState<VariantRow[]>(
-    product?.variants.map((v) => ({
-      id: v.id,
-      sku: v.sku,
-      size: v.size,
-      color: v.color,
-      stock: String(v.stock),
-      sizeUS: v.sizeUS ?? "",
-      sizeCM: v.sizeCM ?? "",
-      sizeEUR: v.sizeEUR ?? "",
-    })) ?? []
+    product?.variants.map((v) => {
+      // Map existing DB inventory to local string array
+      const mappedInventory = stores.map(store => {
+        const found = v.inventory?.find((i: any) => i.storeLocationId === store.id)
+        return {
+          storeLocationId: store.id,
+          stock: found ? String(found.stock) : "0"
+        }
+      })
+      // Web warehouse (storeLocationId null)
+      const webInventory = v.inventory?.find((i: any) => i.storeLocationId === null)
+      mappedInventory.unshift({
+        storeLocationId: null,
+        stock: webInventory ? String(webInventory.stock) : String(v.stock || 0)
+      })
+
+      return {
+        id: v.id,
+        sku: v.sku,
+        size: v.size,
+        color: v.color,
+        stock: String(v.stock),
+        inventory: mappedInventory,
+        sizeUS: v.sizeUS ?? "",
+        sizeCM: v.sizeCM ?? "",
+        sizeEUR: v.sizeEUR ?? "",
+      }
+    }) ?? []
   )
 
   // Images
@@ -272,7 +299,7 @@ export default function ProductForm({ mode, product, categories }: Props) {
 
   // Cross-sells
   const [crossSells, setCrossSells] = useState<CrossSellItem[]>(
-    product?.crossSells.map((p) => ({ id: p.id, name: p.name, brand: p.brand })) ?? []
+    product?.crossSells.map((p) => ({ id: p.id, name: p.name, brandId: p.brandId ?? null, brandName: p.brandName ?? null })) ?? []
   )
   const [crossSellSearch, setCrossSearch] = useState("")
   const [crossSellResults, setCrossResults] = useState<CrossSellItem[]>([])
@@ -330,6 +357,10 @@ export default function ProductForm({ mode, product, categories }: Props) {
         size: "",
         color: "",
         stock: "0",
+        inventory: [
+          { storeLocationId: null, stock: "0" },
+          ...stores.map(s => ({ storeLocationId: s.id, stock: "0" }))
+        ],
         sizeUS: "",
         sizeCM: "",
         sizeEUR: "",
@@ -339,6 +370,18 @@ export default function ProductForm({ mode, product, categories }: Props) {
 
   function updateVariant(idx: number, field: keyof VariantRow, value: string) {
     setVariants((prev) => prev.map((v, i) => (i === idx ? { ...v, [field]: value } : v)))
+  }
+
+  function updateVariantInventory(idx: number, storeId: string | null, stockValue: string) {
+    setVariants((prev) => prev.map((v, i) => {
+      if (i !== idx) return v
+      return {
+        ...v,
+        inventory: v.inventory.map(inv => 
+          inv.storeLocationId === storeId ? { ...inv, stock: stockValue } : inv
+        )
+      }
+    }))
   }
 
   function removeVariant(idx: number) {
@@ -417,7 +460,11 @@ export default function ProductForm({ mode, product, categories }: Props) {
     setIsSearching(true)
     try {
       const results = await searchProducts(q, product?.id)
-      setCrossResults(results.filter((r) => !crossSells.some((cs) => cs.id === r.id)))
+      setCrossResults(
+        results
+          .filter((r) => !crossSells.some((cs) => cs.id === r.id))
+          .map((r) => ({ id: r.id, name: r.name, brandId: r.brandId ?? null, brandName: r.brand?.name ?? null }))
+      )
     } finally {
       setIsSearching(false)
     }
@@ -449,7 +496,7 @@ export default function ProductForm({ mode, product, categories }: Props) {
     const formData = new FormData()
     formData.set("name", name)
     formData.set("slug", slug)
-    formData.set("brand", brand)
+    formData.set("brandId", brandId)
     formData.set("gender", gender)
     formData.set("categoryId", categoryId)
     formData.set("description", description)
@@ -460,7 +507,20 @@ export default function ProductForm({ mode, product, categories }: Props) {
     formData.set("salePrice", salePrice)
     formData.set("metaTitle", metaTitle)
     formData.set("metaDescription", metaDescription)
-    formData.set("variants", JSON.stringify(variants))
+    formData.set("availableOnline", String(availableOnline))
+    formData.set("availableInStores", String(availableInStores))
+    
+    // Ensure all variants map their 'inventory' objects correctly with numbers
+    const cleanVariants = variants.map(v => ({
+      ...v,
+      stock: Number(v.stock) || 0,
+      inventory: v.inventory.map(inv => ({
+        storeLocationId: inv.storeLocationId,
+        stock: Number(inv.stock) || 0
+      }))
+    }))
+    
+    formData.set("variants", JSON.stringify(cleanVariants))
     formData.set("images", JSON.stringify(images))
     formData.set("crossSellIds", JSON.stringify(crossSells.map((cs) => cs.id)))
 
@@ -530,13 +590,16 @@ export default function ProductForm({ mode, product, categories }: Props) {
             />
           </Field>
           <Field label="Marca">
-            <input
-              type="text"
-              value={brand}
-              onChange={(e) => setBrand(e.target.value)}
-              placeholder="Nike, New Balance…"
+            <select
+              value={brandId}
+              onChange={(e) => setBrandId(e.target.value)}
               className={inputClass}
-            />
+            >
+              <option value="">Sin marca</option>
+              {brands.map((b) => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
           </Field>
           <Field label="Género">
             <select value={gender} onChange={(e) => setGender(e.target.value)} className={inputClass}>
@@ -588,22 +651,51 @@ export default function ProductForm({ mode, product, categories }: Props) {
             className={inputClass}
           />
         </Field>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 mt-6">
+          <div className="flex items-center gap-3 mb-4">
+            <button
+              type="button"
+              onClick={() => setAvailableOnline((v) => !v)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${availableOnline ? "bg-[#E31C23]" : "bg-gray-200"}`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm ${availableOnline ? "translate-x-6" : "translate-x-1"}`}
+              />
+            </button>
+            <span className="text-sm font-medium text-[#1C1C1C]">Disponible Online (Web)</span>
+          </div>
+          <div className="flex items-center gap-3 mb-4">
+            <button
+              type="button"
+              onClick={() => setAvailableInStores((v) => !v)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${availableInStores ? "bg-[#E31C23]" : "bg-gray-200"}`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm ${availableInStores ? "translate-x-6" : "translate-x-1"}`}
+              />
+            </button>
+            <span className="text-sm font-medium text-[#1C1C1C]">Disponible en Tiendas Físicas</span>
+          </div>
+        </div>
       </Section>
 
       {/* B. Precios */}
       <Section title="Precios">
+        <div className="mb-4 bg-blue-50 border border-blue-200 text-blue-800 text-sm p-3 rounded-lg flex items-start gap-2">
+          <span className="mt-0.5">ℹ️</span>
+          <p>
+            <strong>Solo lectura:</strong> Los precios (base y oferta) se gestionan exclusivamente desde tu sistema ERP (Loggro) para mantener consistencia contable.
+          </p>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
           <Field label="Precio base" required>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#4A4A4A] text-sm">$</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
               <input
                 type="number"
                 value={basePrice}
-                onChange={(e) => setBasePrice(e.target.value)}
-                min="0"
-                step="0.01"
-                placeholder="0.00"
-                className={`${inputClass} pl-7`}
+                disabled
+                className={`${inputClass} pl-7 bg-gray-50 text-gray-500 cursor-not-allowed`}
               />
             </div>
           </Field>
@@ -611,28 +703,25 @@ export default function ProductForm({ mode, product, categories }: Props) {
         <div className="flex items-center gap-3 mb-4">
           <button
             type="button"
-            onClick={() => setIsOnSale((v) => !v)}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isOnSale ? "bg-[#E31C23]" : "bg-gray-200"}`}
+            disabled
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-not-allowed opacity-70 ${isOnSale ? "bg-[#E31C23]" : "bg-gray-200"}`}
           >
             <span
               className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm ${isOnSale ? "translate-x-6" : "translate-x-1"}`}
             />
           </button>
-          <span className="text-sm font-medium text-[#1C1C1C]">¿Está en SALE?</span>
+          <span className="text-sm font-medium text-gray-500 cursor-not-allowed">¿Está en SALE?</span>
         </div>
         {isOnSale && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
             <Field label="Precio de oferta" required>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#4A4A4A] text-sm">$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
                 <input
                   type="number"
                   value={salePrice}
-                  onChange={(e) => setSalePrice(e.target.value)}
-                  min="0"
-                  step="0.01"
-                  placeholder="0.00"
-                  className={`${inputClass} pl-7`}
+                  disabled
+                  className={`${inputClass} pl-7 bg-gray-50 text-gray-500 cursor-not-allowed`}
                 />
               </div>
             </Field>
@@ -679,11 +768,12 @@ export default function ProductForm({ mode, product, categories }: Props) {
 
       {/* D. Variantes */}
       <Section title="Variantes (Color × Talla)">
-        {hasDuplicateSkus() && (
-          <div className="mb-3 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-            Hay SKUs duplicados. Cada variante debe tener un SKU único.
-          </div>
-        )}
+        <div className="mb-4 bg-blue-50 border border-blue-200 text-blue-800 text-sm p-3 rounded-lg flex items-start gap-2">
+          <span className="mt-0.5">ℹ️</span>
+          <p>
+            <strong>Inventario:</strong> El Stock Web, SKU y detalles principales vienen de Loggro (solo lectura). Puedes asignar y modificar libremente el <strong>Stock en Tiendas Físicas</strong> manualmente aquí.
+          </p>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-xs mb-3">
             <thead>
@@ -691,7 +781,12 @@ export default function ProductForm({ mode, product, categories }: Props) {
                 <th className="text-left py-2 pr-2 text-[#4A4A4A] font-semibold min-w-[120px]">SKU</th>
                 <th className="text-left py-2 pr-2 text-[#4A4A4A] font-semibold min-w-[90px]">Color</th>
                 <th className="text-left py-2 pr-2 text-[#4A4A4A] font-semibold min-w-[70px]">Talla</th>
-                <th className="text-left py-2 pr-2 text-[#4A4A4A] font-semibold min-w-[60px]">Stock</th>
+                <th className="text-left py-2 pr-2 text-[#4A4A4A] font-semibold min-w-[60px]">Stock Web</th>
+                {stores.map(store => (
+                  <th key={store.id} className="text-left py-2 pr-2 text-[#4A4A4A] font-semibold min-w-[70px] truncate max-w-[100px]" title={store.name}>
+                    {store.name}
+                  </th>
+                ))}
                 <th className="text-left py-2 pr-2 text-[#4A4A4A] font-semibold min-w-[60px]">US</th>
                 <th className="text-left py-2 pr-2 text-[#4A4A4A] font-semibold min-w-[60px]">CM</th>
                 <th className="text-left py-2 pr-2 text-[#4A4A4A] font-semibold min-w-[60px]">EUR</th>
@@ -701,43 +796,58 @@ export default function ProductForm({ mode, product, categories }: Props) {
             <tbody className="divide-y divide-gray-50">
               {variants.map((v, idx) => {
                 const isDup = variants.some((other, oi) => oi !== idx && other.sku.trim() === v.sku.trim() && v.sku.trim() !== "")
+                const webInv = v.inventory.find(i => i.storeLocationId === null)
                 return (
                   <tr key={idx}>
                     <td className="py-1 pr-2">
                       <input
                         type="text"
                         value={v.sku}
-                        onChange={(e) => updateVariant(idx, "sku", e.target.value)}
-                        className={`${inputClass} text-xs ${isDup ? "border-amber-400 bg-amber-50" : ""}`}
+                        disabled
+                        className={`${inputClass} text-xs bg-gray-50 text-gray-500 cursor-not-allowed`}
                       />
                     </td>
                     <td className="py-1 pr-2">
-                      <input type="text" value={v.color} onChange={(e) => updateVariant(idx, "color", e.target.value)} className={`${inputClass} text-xs`} placeholder="Negro" />
+                      <input type="text" value={v.color} disabled className={`${inputClass} text-xs bg-gray-50 text-gray-500 cursor-not-allowed`} />
                     </td>
                     <td className="py-1 pr-2">
-                      <input type="text" value={v.size} onChange={(e) => updateVariant(idx, "size", e.target.value)} className={`${inputClass} text-xs`} placeholder="42" />
+                      <input type="text" value={v.size} disabled className={`${inputClass} text-xs bg-gray-50 text-gray-500 cursor-not-allowed`} />
                     </td>
                     <td className="py-1 pr-2">
-                      <input type="number" value={v.stock} onChange={(e) => updateVariant(idx, "stock", e.target.value)} min="0" className={`${inputClass} text-xs`} />
+                      <input 
+                        type="number" 
+                        value={webInv?.stock || "0"} 
+                        disabled
+                        className={`${inputClass} text-xs border-blue-200 bg-blue-50/50 text-gray-500 cursor-not-allowed`} 
+                        title="Stock Bodega Web"
+                      />
+                    </td>
+                    {stores.map(store => {
+                      const storeInv = v.inventory.find(i => i.storeLocationId === store.id)
+                      return (
+                        <td key={store.id} className="py-1 pr-2">
+                          <input 
+                            type="number" 
+                            value={storeInv?.stock || "0"} 
+                            onChange={(e) => updateVariantInventory(idx, store.id, e.target.value)} 
+                            min="0" 
+                            className={`${inputClass} text-xs`} 
+                            title={`Stock ${store.name}`}
+                          />
+                        </td>
+                      )
+                    })}
+                    <td className="py-1 pr-2">
+                      <input type="text" value={v.sizeUS} disabled className={`${inputClass} text-xs bg-gray-50 text-gray-500 cursor-not-allowed`} />
                     </td>
                     <td className="py-1 pr-2">
-                      <input type="text" value={v.sizeUS} onChange={(e) => updateVariant(idx, "sizeUS", e.target.value)} className={`${inputClass} text-xs`} placeholder="9" />
+                      <input type="text" value={v.sizeCM} disabled className={`${inputClass} text-xs bg-gray-50 text-gray-500 cursor-not-allowed`} />
                     </td>
                     <td className="py-1 pr-2">
-                      <input type="text" value={v.sizeCM} onChange={(e) => updateVariant(idx, "sizeCM", e.target.value)} className={`${inputClass} text-xs`} placeholder="27" />
-                    </td>
-                    <td className="py-1 pr-2">
-                      <input type="text" value={v.sizeEUR} onChange={(e) => updateVariant(idx, "sizeEUR", e.target.value)} className={`${inputClass} text-xs`} placeholder="42" />
+                      <input type="text" value={v.sizeEUR} disabled className={`${inputClass} text-xs bg-gray-50 text-gray-500 cursor-not-allowed`} />
                     </td>
                     <td className="py-1">
-                      <button
-                        type="button"
-                        onClick={() => removeVariant(idx)}
-                        className="text-gray-400 hover:text-[#E31C23] transition-colors text-base leading-none"
-                        title="Eliminar variante"
-                      >
-                        ×
-                      </button>
+                      {/* Eliminar Variante Button Removed */}
                     </td>
                   </tr>
                 )
@@ -745,13 +855,6 @@ export default function ProductForm({ mode, product, categories }: Props) {
             </tbody>
           </table>
         </div>
-        <button
-          type="button"
-          onClick={addVariant}
-          className="text-sm font-medium text-[#E31C23] border border-[#E31C23] rounded-lg px-4 py-2 hover:bg-red-50 transition-colors"
-        >
-          + Agregar variante
-        </button>
       </Section>
 
       {/* E. Imágenes */}
@@ -864,7 +967,7 @@ export default function ProductForm({ mode, product, categories }: Props) {
                   className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 text-[#1C1C1C] border-b border-gray-50 last:border-0"
                 >
                   <span className="font-medium">{item.name}</span>
-                  {item.brand && <span className="text-[#4A4A4A] ml-1">· {item.brand}</span>}
+                  {item.brandName && <span className="text-[#4A4A4A] ml-1">· {item.brandName}</span>}
                 </button>
               ))}
             </div>
@@ -878,7 +981,7 @@ export default function ProductForm({ mode, product, categories }: Props) {
                 className="flex items-center gap-1 bg-gray-100 text-[#1C1C1C] text-sm px-3 py-1 rounded-full"
               >
                 <span>{cs.name}</span>
-                {cs.brand && <span className="text-[#4A4A4A] text-xs">· {cs.brand}</span>}
+                {cs.brandName && <span className="text-[#4A4A4A] text-xs">· {cs.brandName}</span>}
                 <button
                   type="button"
                   onClick={() => removeCrossSell(cs.id)}

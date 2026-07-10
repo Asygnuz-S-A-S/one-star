@@ -55,9 +55,9 @@ const columns: ColumnDef<ProductDTO, unknown>[] = [
   {
     id: "marca",
     header: "Marca",
-    accessorKey: "brand",
+    accessorKey: "brandName",
     cell: ({ row }) => (
-      <span className="text-[#4A4A4A]">{row.original.brand ?? "—"}</span>
+      <span className="text-[#4A4A4A]">{row.original.brandName ?? "—"}</span>
     ),
   },
   {

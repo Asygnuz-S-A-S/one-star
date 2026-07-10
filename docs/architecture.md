@@ -187,9 +187,11 @@ BETTER_AUTH_URL=http://localhost:3000
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 # Integración ERP (agnóstica — ver src/server/erp/)
-ERP_PROVIDER="null"               # "null" | "alegra" | "siigo" | (futuro)
+ERP_PROVIDER="null"               # "null" | "alegra" | "siigo" | "loggro" | (futuro)
 ALEGRA_EMAIL=""                   # Email de la cuenta Alegra
 ALEGRA_API_KEY=""                 # API Key de Alegra
+LOGGRO_API_TOKEN=""               # Token de conexión para Loggro Pymes
+LOGGRO_BASE_URL=""                # Base URL para Loggro Pymes
 # Para Siigo u otro ERP, documentar sus variables aquí al agregar el adaptador
 ```
 
@@ -225,11 +227,16 @@ src/server/erp/
 ├── adapters/
 │   ├── null.adapter.ts      ← activo en dev (ERP_PROVIDER=null)
 │   ├── alegra.client.ts     ← HTTP client Alegra (no usar directamente)
-│   └── alegra.adapter.ts    ← implementación Alegra
+│   ├── alegra.adapter.ts    ← implementación Alegra
+│   ├── loggro.client.ts     ← HTTP client Loggro (no usar directamente)
+│   └── loggro.adapter.ts    ← implementación Loggro
 ├── erp.container.ts         ← getERPAdapter() — punto de entrada
 ├── erp.types.ts             ← ERPInvoice, ERPCustomer, ERPSyncResult, …
 └── index.ts                 ← barrel: import { getERPAdapter } from "@/server/erp"
 ```
+
+**Documentación Detallada de Integraciones:**
+- [Loggro ERP: Arquitectura de Sincronización y Agrupación de Catálogo](docs/integrations/loggro-erp.md)
 
 **Regla:** El código de negocio SOLO importa desde `@/server/erp` (el barrel).
 Nunca importar adaptadores o clientes directamente.

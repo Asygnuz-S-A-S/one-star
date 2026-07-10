@@ -1,0 +1,76 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]:
+      - text: One Star chanfle ·
+      - link "-" [ref=e4] [cursor=pointer]:
+        - /url: /sale
+    - generic [ref=e6]:
+      - link "One Star — Inicio" [ref=e7] [cursor=pointer]:
+        - /url: /
+        - img "One Star" [ref=e9]
+      - navigation "Menú principal" [ref=e10]:
+        - list [ref=e11]:
+          - listitem [ref=e12]:
+            - link "Mujer" [ref=e13] [cursor=pointer]:
+              - /url: /c/mujer
+          - listitem [ref=e14]:
+            - link "SALE" [ref=e15] [cursor=pointer]:
+              - /url: /sale
+          - listitem [ref=e16]:
+            - link "Tarjeta regalo" [ref=e17] [cursor=pointer]:
+              - /url: /tarjeta-regalo
+          - listitem [ref=e18]:
+            - link "Tiendas" [ref=e19] [cursor=pointer]:
+              - /url: /tiendas
+      - generic [ref=e20]:
+        - button "Buscar" [ref=e21]
+        - button "Carrito de compras" [ref=e25]
+        - link "Mi cuenta" [ref=e29] [cursor=pointer]:
+          - /url: /login
+  - main [ref=e33]:
+    - generic [ref=e34]:
+      - img "Converse" [ref=e36]
+      - generic [ref=e40]:
+        - generic [ref=e41]:
+          - heading "Converse" [level=1] [ref=e42]
+          - link "CTA" [ref=e46] [cursor=pointer]:
+            - /url: /productos
+        - generic [ref=e47]: Scroll
+        - generic [ref=e50]:
+          - button "Ir al banner 1" [ref=e51]
+          - button "Ir al banner 2" [ref=e52]
+      - button "Banner anterior" [ref=e53]
+      - button "Banner siguiente" [ref=e56]
+    - generic [ref=e60]:
+      - heading "Categorias" [level=2] [ref=e61]
+      - paragraph [ref=e63]: Tu estilo
+    - generic [ref=e64]:
+      - heading "Si seño" [level=2] [ref=e66]
+      - generic [ref=e69]:
+        - article [ref=e71] [cursor=pointer]:
+          - link "Nike test" [ref=e72]:
+            - /url: /productos/001
+          - button "Agregar al Carrito" [ref=e78]
+          - generic [ref=e79]:
+            - paragraph
+            - heading "Nike test" [level=3] [ref=e80]
+            - generic [ref=e81]: $ 0
+        - article [ref=e84] [cursor=pointer]:
+          - link "CONVERSE CHUCK TAYLOR LOW TOP BLANCO CLASSIC" [ref=e85]:
+            - /url: /productos/M7652
+          - button "Agregar al Carrito" [ref=e91]
+          - generic [ref=e92]:
+            - paragraph
+            - heading "CONVERSE CHUCK TAYLOR LOW TOP BLANCO CLASSIC" [level=3] [ref=e93]
+            - generic [ref=e94]: $ 126.856
+      - link "Ver Todos los Productos" [ref=e97] [cursor=pointer]:
+        - /url: /productos
+    - generic [ref=e98]: Hola mundo
+  - button "Open Next.js Dev Tools" [ref=e105] [cursor=pointer]:
+    - generic [ref=e108]:
+      - text: Compiling
+      - generic [ref=e109]:
+        - generic [ref=e110]: .
+        - generic [ref=e111]: .
+        - generic [ref=e112]: .
+  - alert [ref=e113]

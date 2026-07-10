@@ -22,6 +22,16 @@ const COLOR_MAP: Record<string, string> = {
   Naranja: "#E65100",
 }
 
+// Clases reutilizables con dark mode
+const sectionSummary =
+  "cursor-pointer font-[var(--font-barlow)] font-bold uppercase text-xs tracking-widest " +
+  "text-[#1C1C1C] dark:text-white/80 py-3 border-b border-[#E0E0E0] dark:border-white/10 " +
+  "select-none list-none flex justify-between items-center"
+
+const chevron = "text-[#4A4A4A] dark:text-white/40"
+
+const optionText = "font-[var(--font-montserrat)] text-sm text-[#4A4A4A] dark:text-white/60"
+
 export default function FilterSidebar({
   brands,
   sizes,
@@ -88,9 +98,9 @@ export default function FilterSidebar({
     <div className="flex flex-col gap-4">
       {/* Ordenar por */}
       <details open>
-        <summary className="cursor-pointer font-[var(--font-barlow)] font-bold uppercase text-xs tracking-widest text-[#1C1C1C] py-3 border-b border-[#E0E0E0] select-none list-none flex justify-between items-center">
+        <summary className={sectionSummary}>
           Ordenar por
-          <span className="text-[#4A4A4A]">▾</span>
+          <span className={chevron}>▾</span>
         </summary>
         <div className="pt-3 flex flex-col gap-2">
           {[
@@ -106,11 +116,9 @@ export default function FilterSidebar({
                 value={value}
                 checked={currentOrden === value}
                 onChange={() => setParam("orden", value)}
-                className="accent-[#1C1C1C]"
+                className="accent-[#1C1C1C] dark:accent-white"
               />
-              <span className="font-[var(--font-montserrat)] text-sm text-[#4A4A4A]">
-                {label}
-              </span>
+              <span className={optionText}>{label}</span>
             </label>
           ))}
         </div>
@@ -118,13 +126,13 @@ export default function FilterSidebar({
 
       {/* Precio */}
       <details open>
-        <summary className="cursor-pointer font-[var(--font-barlow)] font-bold uppercase text-xs tracking-widest text-[#1C1C1C] py-3 border-b border-[#E0E0E0] select-none list-none flex justify-between items-center">
+        <summary className={sectionSummary}>
           Precio
-          <span className="text-[#4A4A4A]">▾</span>
+          <span className={chevron}>▾</span>
         </summary>
         <div className="pt-3 flex flex-col gap-3">
           {(currentParams.get("precio_min") || currentParams.get("precio_max")) && (
-            <p className="font-[var(--font-montserrat)] text-xs text-[#4A4A4A]">
+            <p className={optionText}>
               ${currentParams.get("precio_min") ?? "0"} — ${currentParams.get("precio_max") ?? "∞"}
             </p>
           )}
@@ -134,19 +142,19 @@ export default function FilterSidebar({
               placeholder="Mínimo"
               value={precioMin}
               onChange={(e) => setPrecioMin(e.target.value)}
-              className="w-full border border-[#E0E0E0] rounded px-2 py-1.5 text-sm font-[var(--font-montserrat)] focus:outline-none focus:border-[#1C1C1C]"
+              className="w-full border border-[#E0E0E0] dark:border-white/10 dark:bg-white/5 rounded px-2 py-1.5 text-sm font-[var(--font-montserrat)] focus:outline-none focus:border-[#1C1C1C] dark:focus:border-white/40 dark:text-white/80 dark:placeholder:text-white/30"
             />
             <input
               type="number"
               placeholder="Máximo"
               value={precioMax}
               onChange={(e) => setPrecioMax(e.target.value)}
-              className="w-full border border-[#E0E0E0] rounded px-2 py-1.5 text-sm font-[var(--font-montserrat)] focus:outline-none focus:border-[#1C1C1C]"
+              className="w-full border border-[#E0E0E0] dark:border-white/10 dark:bg-white/5 rounded px-2 py-1.5 text-sm font-[var(--font-montserrat)] focus:outline-none focus:border-[#1C1C1C] dark:focus:border-white/40 dark:text-white/80 dark:placeholder:text-white/30"
             />
           </div>
           <button
             onClick={applyPrecio}
-            className="bg-[#1C1C1C] text-white font-[var(--font-barlow)] font-bold uppercase text-xs tracking-widest py-2 px-4 hover:bg-[#4A4A4A] transition-colors"
+            className="bg-[#1C1C1C] dark:bg-white text-white dark:text-black font-[var(--font-barlow)] font-bold uppercase text-xs tracking-widest py-2 px-4 hover:bg-[#4A4A4A] dark:hover:bg-white/80 transition-colors"
           >
             Aplicar
           </button>
@@ -154,11 +162,11 @@ export default function FilterSidebar({
       </details>
 
       {/* Marca */}
-      {allColors.length > 0 && (
+      {brands.length > 0 && (
         <details open>
-          <summary className="cursor-pointer font-[var(--font-barlow)] font-bold uppercase text-xs tracking-widest text-[#1C1C1C] py-3 border-b border-[#E0E0E0] select-none list-none flex justify-between items-center">
+          <summary className={sectionSummary}>
             Marca
-            <span className="text-[#4A4A4A]">▾</span>
+            <span className={chevron}>▾</span>
           </summary>
           <div className="pt-3 flex flex-col gap-2">
             {brands.map((brand) => (
@@ -167,11 +175,9 @@ export default function FilterSidebar({
                   type="checkbox"
                   checked={currentMarca === brand}
                   onChange={() => updateParam("marca", brand)}
-                  className="accent-[#1C1C1C]"
+                  className="accent-[#1C1C1C] dark:accent-white"
                 />
-                <span className="font-[var(--font-montserrat)] text-sm text-[#4A4A4A]">
-                  {brand}
-                </span>
+                <span className={optionText}>{brand}</span>
               </label>
             ))}
           </div>
@@ -180,9 +186,9 @@ export default function FilterSidebar({
 
       {/* Talla */}
       <details open>
-        <summary className="cursor-pointer font-[var(--font-barlow)] font-bold uppercase text-xs tracking-widest text-[#1C1C1C] py-3 border-b border-[#E0E0E0] select-none list-none flex justify-between items-center">
+        <summary className={sectionSummary}>
           Talla
-          <span className="text-[#4A4A4A]">▾</span>
+          <span className={chevron}>▾</span>
         </summary>
         <div className="pt-3 grid grid-cols-4 gap-2">
           {allSizes.map((size) => (
@@ -191,8 +197,8 @@ export default function FilterSidebar({
               onClick={() => updateParam("talla", size)}
               className={`border py-1.5 text-xs font-[var(--font-montserrat)] font-medium transition-colors ${
                 currentTalla === size
-                  ? "bg-[#1C1C1C] text-white border-[#1C1C1C]"
-                  : "border-[#E0E0E0] text-[#4A4A4A] hover:border-[#1C1C1C]"
+                  ? "bg-[#1C1C1C] dark:bg-white text-white dark:text-black border-[#1C1C1C] dark:border-white"
+                  : "border-[#E0E0E0] dark:border-white/15 text-[#4A4A4A] dark:text-white/55 hover:border-[#1C1C1C] dark:hover:border-white/40"
               }`}
             >
               {size}
@@ -203,9 +209,9 @@ export default function FilterSidebar({
 
       {/* Color */}
       <details open>
-        <summary className="cursor-pointer font-[var(--font-barlow)] font-bold uppercase text-xs tracking-widest text-[#1C1C1C] py-3 border-b border-[#E0E0E0] select-none list-none flex justify-between items-center">
+        <summary className={sectionSummary}>
           Color
-          <span className="text-[#4A4A4A]">▾</span>
+          <span className={chevron}>▾</span>
         </summary>
         <div className="pt-3 flex flex-wrap gap-3">
           {allColors.map((color) => {
@@ -218,7 +224,9 @@ export default function FilterSidebar({
                 title={color}
                 aria-label={color}
                 className={`w-7 h-7 rounded-full transition-all ${
-                  isActive ? "ring-2 ring-offset-1 ring-[#1C1C1C]" : "ring-1 ring-[#E0E0E0]"
+                  isActive
+                    ? "ring-2 ring-offset-1 ring-[#1C1C1C] dark:ring-white dark:ring-offset-black"
+                    : "ring-1 ring-[#E0E0E0] dark:ring-white/20"
                 }`}
                 style={{ backgroundColor: hex }}
               />
@@ -230,7 +238,7 @@ export default function FilterSidebar({
       {/* Limpiar filtros */}
       <button
         onClick={clearAll}
-        className="mt-4 text-xs font-[var(--font-montserrat)] text-[#4A4A4A] underline underline-offset-2 hover:text-[#1C1C1C] text-left"
+        className="mt-4 text-xs font-[var(--font-montserrat)] text-[#4A4A4A] dark:text-white/40 underline underline-offset-2 hover:text-[#1C1C1C] dark:hover:text-white/70 text-left transition-colors"
       >
         Limpiar filtros
       </button>
@@ -239,7 +247,7 @@ export default function FilterSidebar({
 
   return (
     <>
-      {/* Desktop sidebar: visible desde md, manejado por ShopLayout */}
+      {/* Desktop sidebar */}
       <div className="hidden md:block">{sidebarContent}</div>
 
       {/* Móvil: botón flotante + drawer */}
@@ -251,7 +259,6 @@ export default function FilterSidebar({
           Filtros
         </button>
 
-        {/* Overlay */}
         {isOpen && (
           <div
             className="fixed inset-0 z-40 bg-black/40"
@@ -259,19 +266,18 @@ export default function FilterSidebar({
           />
         )}
 
-        {/* Drawer */}
         <div
-          className={`fixed top-0 left-0 h-full w-80 bg-white z-50 overflow-y-auto px-5 py-8 transition-transform duration-300 ${
+          className={`fixed top-0 left-0 h-full w-80 bg-white dark:bg-[#111111] z-50 overflow-y-auto px-5 py-8 transition-transform duration-300 ${
             isOpen ? "translate-x-0" : "-translate-x-full"
           }`}
         >
           <div className="flex justify-between items-center mb-6">
-            <h2 className="font-[var(--font-barlow)] font-bold uppercase text-base tracking-widest">
+            <h2 className="font-[var(--font-barlow)] font-bold uppercase text-base tracking-widest dark:text-white">
               Filtros
             </h2>
             <button
               onClick={() => setIsOpen(false)}
-              className="text-[#4A4A4A] text-2xl leading-none"
+              className="text-[#4A4A4A] dark:text-white/50 text-2xl leading-none"
               aria-label="Cerrar"
             >
               ×

@@ -84,10 +84,15 @@ export async function updateOrderStatusAndTracking(
  * Usado para validar disponibilidad antes de crear un pedido.
  */
 export async function getVariantsStock(variantIds: string[]) {
-  return prisma.variant.findMany({
-    where: { id: { in: variantIds } },
-    select: { id: true, stock: true, sku: true },
+  const inventory = await prisma.inventoryLevel.findMany({
+    where: { variantId: { in: variantIds }, storeLocationId: null },
+    select: { variantId: true, stock: true, variant: { select: { sku: true } } },
   })
+  return inventory.map(inv => ({
+    id: inv.variantId,
+    stock: inv.stock,
+    sku: inv.variant.sku
+  }))
 }
 
 /**
@@ -113,14 +118,16 @@ export async function markOrderPaidWithStock(id: string, trackingNumber?: string
 
     for (const item of order.items) {
       if (!item.variantId) continue
-      const variant = await tx.variant.findUnique({ where: { id: item.variantId } })
-      if (!variant || variant.stock < item.quantity) {
+      const inventory = await tx.inventoryLevel.findFirst({
+        where: { variantId: item.variantId, storeLocationId: null }
+      })
+      if (!inventory || inventory.stock < item.quantity) {
         throw new Error(
-          `Stock insuficiente para completar el pedido (variante ${item.variantId}).`
+          `Stock insuficiente en Bodega Web para completar el pedido (variante ${item.variantId}).`
         )
       }
-      await tx.variant.update({
-        where: { id: item.variantId },
+      await tx.inventoryLevel.update({
+        where: { id: inventory.id },
         data: { stock: { decrement: item.quantity } },
       })
     }

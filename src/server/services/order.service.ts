@@ -122,8 +122,19 @@ export async function placeOrder(
       if (!item.variantId) continue
       const available = stockMap.get(item.variantId) ?? 0
       if (available < item.quantity) {
-        throw new Error(`Stock insuficiente para "${item.productName}".`)
+        throw new Error(`Stock local insuficiente para "${item.productName}".`)
       }
+    }
+  }
+
+  // 0.5 Validación de Stock en Tiempo Real (JIT) contra el ERP
+  const erp = getERPAdapter()
+  if (erp.validateStock) {
+    const erpItemsToValidate = data.items.map(i => ({ sku: i.sku, qty: i.quantity }))
+    const isValidInERP = await erp.validateStock(erpItemsToValidate)
+    
+    if (!isValidInERP) {
+      throw new Error(`Lo sentimos, el stock de uno o más productos se agotó en la tienda principal justo ahora. Por favor actualiza tu carrito.`)
     }
   }
 
@@ -150,7 +161,7 @@ export async function placeOrder(
 
   // 2. Notifica al ERP de forma asincrónica (fire-and-forget con modo degradado).
   //    Si el ERP falla, el pedido ya está guardado y se puede reintentar luego.
-  const erp = getERPAdapter()
+
   erp
     .onOrderConfirmed({
       orderId: order.id,

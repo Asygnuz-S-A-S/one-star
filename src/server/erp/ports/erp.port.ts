@@ -46,6 +46,12 @@ export interface IERPAdapter {
   getStockBySku(sku: string): Promise<number | null>
 
   /**
+   * Valida en tiempo real (Just-In-Time) si hay stock suficiente en el ERP
+   * para los items dados. Se usa justo antes del pago.
+   */
+  validateStock?(items: { sku: string; qty: number }[]): Promise<boolean>
+
+  /**
    * Consulta el stock de múltiples variantes en una sola llamada.
    * Implementación opcional — el adaptador puede devolver [] si no lo soporta.
    */
@@ -62,4 +68,10 @@ export interface IERPAdapter {
    * Se usa en el endpoint /api/health y en diagnósticos.
    */
   ping(): Promise<boolean>
+
+  /**
+   * Obtiene el catálogo completo de productos del ERP.
+   * Útil para traer nuevos productos o actualizar precios mediante un servicio externo.
+   */
+  fetchCatalog?(): Promise<import("../erp.types").ERPProduct[]>
 }

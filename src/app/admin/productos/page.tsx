@@ -55,10 +55,10 @@ export default async function ProductosPage({ searchParams }: Props) {
           <span className="ml-2 text-sm font-normal text-[#4A4A4A]">({total})</span>
         </h1>
         <Link
-          href="/admin/productos/nuevo"
+          href="/admin/integraciones"
           className="bg-[#E31C23] text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
         >
-          + Nuevo producto
+          Sincronizar ERP
         </Link>
       </div>
 
@@ -106,10 +106,10 @@ export default async function ProductosPage({ searchParams }: Props) {
               : "Aún no hay productos."}
           </p>
           <Link
-            href="/admin/productos/nuevo"
+            href="/admin/integraciones"
             className="inline-block bg-[#E31C23] text-white text-sm font-semibold px-5 py-2 rounded-lg hover:bg-red-700 transition-colors"
           >
-            Crear primer producto
+            Sincronizar desde Loggro
           </Link>
         </div>
       ) : (

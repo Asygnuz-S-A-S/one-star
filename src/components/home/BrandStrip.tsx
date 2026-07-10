@@ -1,37 +1,67 @@
-const BRANDS = ["Nike", "New Balance", "Hoka", "Veja", "On Running", "Adidas", "Asics"]
+"use client"
 
-export default function BrandStrip() {
-  const allBrands = [...BRANDS, ...BRANDS]
+import { useRef } from "react"
+import { motion } from "motion/react"
+
+const DEFAULT_BRANDS = ["Nike", "New Balance", "Hoka", "Veja", "On Running", "Adidas", "Asics"]
+
+const FONT_SIZES: Record<string, string> = {
+  xs: "text-xs",
+  sm: "text-sm",
+  base: "text-base",
+  lg: "text-lg",
+  xl: "text-xl",
+}
+
+export default function BrandStrip({ brands = [], config = {} }: { brands?: string[], config?: Record<string, any> }) {
+  const activeBrands = brands.length > 0 ? brands : DEFAULT_BRANDS
+  const allBrands = [...activeBrands, ...activeBrands]
+  
+  // Customization from config
+  const title = config.title as string | undefined
+  const separator = (config.separator as string) || "·"
+  const bgSection = (config.bgSection as string) || "#E0E0E0"
+  const textColor = (config.textColor as string) || "#4A4A4A"
+  const fontSize = (config.fontSize as string) || "sm"
+  
+  const fontSizeClass = FONT_SIZES[fontSize] || "text-sm"
 
   return (
-    <section className="bg-[#E0E0E0] py-6 overflow-hidden">
-      {/* Mobile/tablet: marquee */}
-      <div className="md:hidden relative overflow-hidden">
-        <div className="flex animate-marquee whitespace-nowrap">
-          {allBrands.map((brand, i) => (
+    <section 
+      className="py-8 overflow-hidden relative"
+      style={{ backgroundColor: bgSection }}
+    >
+      {title && (
+        <div className="text-center mb-6">
+          <h2 className="font-[var(--font-barlow)] font-bold uppercase tracking-wider text-sm md:text-base text-[#1C1C1C]">
+            {title}
+          </h2>
+        </div>
+      )}
+      
+      {/* Infinite Marquee using Motion */}
+      <div className="relative flex whitespace-nowrap overflow-hidden">
+        <motion.div
+          className="flex whitespace-nowrap items-center"
+          animate={{ x: ["0%", "-50%"] }}
+          transition={{
+            repeat: Infinity,
+            ease: "linear",
+            duration: 20 // Adjust speed here
+          }}
+        >
+          {/* We repeat the array 4 times to ensure it fills wide screens */}
+          {[...allBrands, ...allBrands].map((brand, i) => (
             <span
               key={i}
-              className="font-[var(--font-barlow)] font-bold uppercase text-[#4A4A4A] text-sm tracking-widest mx-6 shrink-0"
+              className={`font-[var(--font-barlow)] font-bold uppercase tracking-widest mx-8 shrink-0 flex items-center gap-8 ${fontSizeClass}`}
+              style={{ color: textColor }}
             >
-              {brand}
-              <span className="ml-6 text-[#4A4A4A]/40">·</span>
+              <span className="hover:text-[#E31C23] hover:scale-110 transition-all cursor-pointer">{brand}</span>
+              <span style={{ opacity: 0.4 }}>{separator}</span>
             </span>
           ))}
-        </div>
-      </div>
-
-      {/* Desktop: static centered */}
-      <div className="hidden md:flex items-center justify-center gap-8 flex-wrap px-8">
-        {BRANDS.map((brand, i) => (
-          <span key={brand} className="flex items-center gap-8">
-            <span className="font-[var(--font-barlow)] font-bold uppercase text-[#4A4A4A] text-sm tracking-widest hover:text-[#1C1C1C] transition-colors cursor-default">
-              {brand}
-            </span>
-            {i < BRANDS.length - 1 && (
-              <span className="text-[#4A4A4A]/40 font-bold">·</span>
-            )}
-          </span>
-        ))}
+        </motion.div>
       </div>
     </section>
   )

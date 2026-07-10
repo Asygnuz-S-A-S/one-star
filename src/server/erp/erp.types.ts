@@ -53,3 +53,21 @@ export interface ERPStockItem {
   /** Stock actual en el ERP */
   stock: number
 }
+
+export interface ERPProduct {
+  erpId: string
+  sku: string
+  name: string
+  basePrice: number
+  stock: number
+  unitOfMeasure?: string
+  categoryName?: string
+  brandErpId?: string
+}
+
+export interface ERPCatalogSyncResult {
+  success: boolean
+  processedCount: number
+  error?: string
+}
+

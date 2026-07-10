@@ -12,6 +12,7 @@ import ToastContainer from "@/components/ui/ToastContainer"
 
 interface ProductInfoProps {
   product: ProductWithRelations
+  reviewStats?: { avg: number; count: number; distribution: number[] }
 }
 
 function getUniqueColors(variants: Variant[]): string[] {
@@ -48,7 +49,7 @@ function colorToCSS(color: string): string {
   return map[color.toLowerCase()] ?? "#9E9E9E"
 }
 
-export default function ProductInfo({ product }: ProductInfoProps) {
+export default function ProductInfo({ product, reviewStats }: ProductInfoProps) {
   const [selectedColor, setSelectedColor] = useState<string>(
     product.variants[0]?.color ?? ""
   )
@@ -142,21 +143,46 @@ export default function ProductInfo({ product }: ProductInfoProps) {
         )}
 
         {/* Name + badge */}
-        <div className="flex items-start gap-3">
-          <h1 className="font-[var(--font-barlow)] font-bold text-2xl md:text-3xl text-[#1C1C1C] leading-tight flex-1">
+        <div className="flex items-start gap-3 flex-wrap">
+          <h1 className="font-[var(--font-barlow)] font-bold text-2xl md:text-3xl text-[#1C1C1C] dark:text-white leading-tight flex-1">
             {product.name}
           </h1>
           {(product.isOnSale) && (
-            <span className="flex-shrink-0 mt-1 bg-[#E31C23] text-white font-[var(--font-barlow)] font-bold text-[10px] uppercase tracking-widest px-2 py-1">
+            <span className="flex-shrink-0 mt-1 bg-[#E31C23] text-white font-[var(--font-barlow)] font-bold text-[10px] uppercase tracking-widest px-2 py-1 rounded-sm">
               SALE
             </span>
           )}
           {(!product.isOnSale) && (
-            <span className="flex-shrink-0 mt-1 bg-[#1C1C1C] text-white font-[var(--font-barlow)] font-bold text-[10px] uppercase tracking-widest px-2 py-1">
+            <span className="flex-shrink-0 mt-1 bg-[#1C1C1C] dark:bg-white text-white dark:text-black font-[var(--font-barlow)] font-bold text-[10px] uppercase tracking-widest px-2 py-1 rounded-sm">
               NUEVO
             </span>
           )}
+          {product.availableOnline === false && (
+            <span className="flex-shrink-0 mt-1 bg-[#F5C518] text-[#1C1C1C] font-[var(--font-barlow)] font-bold text-[10px] uppercase tracking-widest px-2 py-1 rounded-sm">
+              SÓLO EN TIENDAS
+            </span>
+          )}
         </div>
+
+        {/* Star rating */}
+        {reviewStats && reviewStats.count > 0 && (
+          <div className="flex items-center gap-2">
+            <div className="flex gap-0.5">
+              {[1,2,3,4,5].map(star => (
+                <svg key={star} width="14" height="14" viewBox="0 0 24 24" fill="currentColor"
+                  className={star <= Math.round(reviewStats.avg) ? "text-yellow-400" : "text-gray-200 dark:text-white/10"}>
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                </svg>
+              ))}
+            </div>
+            <span className="font-[var(--font-montserrat)] text-sm font-semibold text-[#1C1C1C] dark:text-white">
+              {reviewStats.avg.toFixed(1)}
+            </span>
+            <span className="font-[var(--font-montserrat)] text-xs text-[#4A4A4A] dark:text-gray-400">
+              ({reviewStats.count} reseña{reviewStats.count !== 1 ? "s" : ""})
+            </span>
+          </div>
+        )}
 
         {/* Price */}
         <div className="flex flex-col gap-1">
@@ -258,28 +284,36 @@ export default function ProductInfo({ product }: ProductInfoProps) {
 
         {/* Action buttons */}
         <div className="flex flex-col gap-3">
-          <button
-            onClick={handleAddToCart}
-            disabled={!canAct}
-            className={`w-full py-4 font-[var(--font-barlow)] font-bold uppercase tracking-widest text-sm transition-all ${
-              canAct
-                ? "bg-[#1C1C1C] text-white hover:bg-[#333]"
-                : "bg-[#1C1C1C] text-white opacity-50 cursor-not-allowed"
-            }`}
-          >
-            Agregar al Carrito
-          </button>
-          <button
-            onClick={handleBuyNow}
-            disabled={!canAct}
-            className={`w-full py-4 font-[var(--font-barlow)] font-bold uppercase tracking-widest text-sm transition-all ${
-              canAct
-                ? "bg-[#E31C23] text-white hover:bg-[#C01920]"
-                : "bg-[#E31C23] text-white opacity-50 cursor-not-allowed"
-            }`}
-          >
-            Comprar Ahora
-          </button>
+          {product.availableOnline === false ? (
+            <div className="w-full py-4 text-center border-2 border-[#1C1C1C] text-[#1C1C1C] font-[var(--font-barlow)] font-bold uppercase tracking-widest text-sm bg-[#F5F5F5]">
+              Producto exclusivo de tiendas físicas
+            </div>
+          ) : (
+            <>
+              <button
+                onClick={handleAddToCart}
+                disabled={!canAct}
+                className={`w-full py-4 font-[var(--font-barlow)] font-bold uppercase tracking-widest text-sm transition-all ${
+                  canAct
+                    ? "bg-[#1C1C1C] text-white hover:bg-[#333]"
+                    : "bg-[#1C1C1C] text-white opacity-50 cursor-not-allowed"
+                }`}
+              >
+                Agregar al Carrito
+              </button>
+              <button
+                onClick={handleBuyNow}
+                disabled={!canAct}
+                className={`w-full py-4 font-[var(--font-barlow)] font-bold uppercase tracking-widest text-sm transition-all ${
+                  canAct
+                    ? "bg-[#E31C23] text-white hover:bg-[#C01920]"
+                    : "bg-[#E31C23] text-white opacity-50 cursor-not-allowed"
+                }`}
+              >
+                Comprar Ahora
+              </button>
+            </>
+          )}
         </div>
 
         {/* Accordion: description, extended description, shipping */}

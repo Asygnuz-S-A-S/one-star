@@ -56,6 +56,27 @@ export function getERPAdapter(): IERPAdapter {
       break
     }
 
+    case "loggro": {
+      const token = process.env.LOGGRO_API_TOKEN
+
+      if (!token) {
+        console.error(
+          "[ERP Container] ERP_PROVIDER=loggro pero falta LOGGRO_API_TOKEN. " +
+          "Usando NullERPAdapter como fallback."
+        )
+        _adapter = new NullERPAdapter()
+        break
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { LoggroERPAdapter } = require("./adapters/loggro.adapter") as {
+        LoggroERPAdapter: new (token: string) => IERPAdapter
+      }
+      _adapter = new LoggroERPAdapter(token)
+      console.info("[ERP Container] Adaptador activo: Loggro ✓")
+      break
+    }
+
     // ── Plantilla para futuros ERPs ───────────────────────────────────────────
     // case "siigo": {
     //   const { SiigoERPAdapter } = require("./adapters/siigo.adapter")

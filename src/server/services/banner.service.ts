@@ -12,6 +12,7 @@ export interface BannerDTO {
   id: string
   title: string
   imageUrl: string
+  mediaType: string
   linkUrl: string | null
   position: number
   isActive: boolean
@@ -23,6 +24,7 @@ export interface BannerDTO {
 export interface BannerInput {
   title: string
   imageUrl: string
+  mediaType?: string
   linkUrl?: string | null
   position?: number
   isActive?: boolean
@@ -35,6 +37,7 @@ export function mapToDTO(banner: Banner): BannerDTO {
     id: banner.id,
     title: banner.title,
     imageUrl: banner.imageUrl,
+    mediaType: banner.mediaType ?? "image",
     linkUrl: banner.linkUrl,
     position: banner.position,
     isActive: banner.isActive,
@@ -58,6 +61,7 @@ export async function createBanner(input: BannerInput): Promise<BannerDTO> {
   const banner = await createBannerRecord({
     title: input.title,
     imageUrl: input.imageUrl,
+    mediaType: input.mediaType ?? "image",
     linkUrl: input.linkUrl ?? null,
     position: input.position ?? 0,
     isActive: input.isActive ?? true,
@@ -71,6 +75,7 @@ export async function updateBanner(id: string, input: BannerInput): Promise<Bann
   const banner = await updateBannerRecord(id, {
     title: input.title,
     imageUrl: input.imageUrl,
+    mediaType: input.mediaType ?? "image",
     linkUrl: input.linkUrl ?? null,
     position: input.position ?? 0,
     isActive: input.isActive ?? true,

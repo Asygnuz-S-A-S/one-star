@@ -4,8 +4,15 @@ import type { Prisma } from "@prisma/client"
 
 export const productInclude = {
   category: true,
+  brand: true,
   images: { orderBy: { position: "asc" as const } },
-  variants: true,
+  variants: {
+    include: {
+      inventory: {
+        include: { storeLocation: true }
+      }
+    }
+  },
 } as const
 
 export async function findManyProducts(
@@ -30,6 +37,7 @@ export async function findProductBySlug(slug: string) {
       ...productInclude,
       crossSells: {
         include: {
+          brand: { select: { id: true, name: true } },
           images: { take: 1, orderBy: { position: "asc" } },
           variants: true,
         },
@@ -47,10 +55,26 @@ export async function findProductByIdForAdmin(id: string) {
     where: { id },
     include: {
       category: true,
+      brand: true,
       images: { orderBy: { position: "asc" } },
-      variants: { orderBy: { sku: "asc" } },
+      variants: { 
+        orderBy: { sku: "asc" },
+        include: {
+          inventory: {
+            include: { storeLocation: true }
+          }
+        }
+      },
       crossSells: {
-        select: { id: true, name: true, brand: true, slug: true, basePrice: true },
+        include: {
+          brand: { select: { id: true, name: true } },
+          images: { take: 1, orderBy: { position: "asc" } },
+          variants: { 
+            include: {
+              inventory: { include: { storeLocation: true } }
+            }
+          },
+        },
       },
     },
   })
@@ -62,13 +86,13 @@ export async function countProducts(
   return prisma.product.count({ where })
 }
 
-export async function getUniqueBrands(): Promise<string[]> {
-  const products = await prisma.product.findMany({
-    select: { brand: true },
-    where: { brand: { not: null } },
-    distinct: ["brand"],
+export async function fetchBrands(): Promise<string[]> {
+  const brands = await prisma.brand.findMany({
+    select: { name: true },
+    where: { isActive: true },
+    orderBy: { name: "asc" }
   })
-  return products.map((p) => p.brand as string).filter(Boolean)
+  return brands.map((b) => b.name)
 }
 
 export async function createProductRecord(data: Prisma.ProductCreateInput) {
@@ -82,8 +106,8 @@ export async function updateProductRecord(
   return prisma.product.update({ where: { id }, data, include: productInclude })
 }
 
-export async function deleteProductRecord(id: string) {
-  return prisma.product.delete({ where: { id } })
+export async function deleteProductRecord(id: string): Promise<void> {
+  await prisma.product.delete({ where: { id } })
 }
 
 export async function deleteVariantsByProduct(productId: string) {
@@ -98,7 +122,7 @@ export async function searchProductsByName(
   q: string,
   excludeId?: string,
   take = 8
-): Promise<{ id: string; name: string; brand: string | null }[]> {
+): Promise<{ id: string; name: string; brandId: string | null; brand: { name: string } | null }[]> {
   return prisma.product.findMany({
     where: {
       AND: [
@@ -106,7 +130,7 @@ export async function searchProductsByName(
         excludeId ? { id: { not: excludeId } } : {},
       ],
     },
-    select: { id: true, name: true, brand: true },
+    select: { id: true, name: true, brandId: true, brand: { select: { name: true } } },
     take,
   })
 }

@@ -1,0 +1,2607 @@
+- generic [ref=e6]:
+  - banner [ref=e7]:
+    - generic [ref=e9]:
+      - generic:
+        - link "Jump to Content":
+          - /url: "#content"
+      - link "api-loggro" [ref=e11] [cursor=pointer]:
+        - /url: https://loggro.com/
+        - img "api-loggro" [ref=e12]
+      - text:     
+      - generic [ref=e13]:
+        - link "Ir a Loggro" [ref=e15] [cursor=pointer]:
+          - /url: https://loggro.com/
+        - text: 
+        - button "Toggle color scheme" [ref=e17] [cursor=pointer]:
+          - img "Toggle color scheme" [ref=e18]
+          - img "Toggle color scheme" [ref=e22]
+          - img "Toggle color scheme" [ref=e25]
+    - generic [ref=e32]:
+      - navigation "Primary navigation" [ref=e33]:
+        - link " Home" [ref=e34] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e35]: 
+          - generic [ref=e36]: Home
+        - link " Guía de uso" [ref=e37] [cursor=pointer]:
+          - /url: /docs
+          - generic [ref=e38]: 
+          - generic [ref=e39]: Guía de uso
+        - link " Documentación" [ref=e40] [cursor=pointer]:
+          - /url: /reference
+          - generic [ref=e41]: 
+          - generic [ref=e42]: Documentación
+      - button "Search ⌘k" [ref=e45] [cursor=pointer]:
+        - generic [ref=e46]: 
+        - generic [ref=e47]: Search
+        - generic [ref=e48]: ⌘K
+  - main [ref=e49]:
+    - navigation "Secondary navigation" [ref=e50]:
+      - button "JUMP TO" [active] [ref=e52] [cursor=pointer]:
+        - text: JUMP TO
+        - generic [ref=e53]: ⌘/
+      - generic [ref=e54]:
+        - generic [ref=e55]:
+          - heading "INICIO" [level=2] [ref=e56]
+          - list [ref=e57]:
+            - listitem [ref=e58]:
+              - link "🔑 Autenticación" [ref=e59] [cursor=pointer]:
+                - /url: /reference/autenticacion
+                - generic [ref=e60]:
+                  - generic [ref=e61]: 🔑
+                  - generic [ref=e62]: Autenticación
+            - listitem [ref=e63]:
+              - link "📖 Guía de uso" [ref=e64] [cursor=pointer]:
+                - /url: https://api-loggro.readme.io/docs
+                - generic [ref=e65]:
+                  - generic [ref=e66]: 📖
+                  - generic [ref=e67]: Guía de uso
+                - img [ref=e69]: 
+        - generic [ref=e70]:
+          - heading "Documentos Electrónicos" [level=2] [ref=e71]
+          - list [ref=e72]:
+            - listitem [ref=e73]:
+              - link "Introducción" [ref=e74] [cursor=pointer]:
+                - /url: /reference/introduccion
+                - generic [ref=e78]: Introducción
+            - listitem [ref=e79]:
+              - link "Autenticación" [ref=e80] [cursor=pointer]:
+                - /url: /reference/autenticacion-documentos-electronicos
+                - generic [ref=e84]: Autenticación
+            - listitem [ref=e85]:
+              - link "Facturación Electrónica Show subpages for Facturación Electrónica" [ref=e86] [cursor=pointer]:
+                - /url: /reference/introduccion-facturacion-electronica
+                - generic [ref=e88]: Facturación Electrónica
+                - button "Show subpages for Facturación Electrónica" [ref=e89]:
+                  - generic [ref=e90]: 
+              - list:
+                - listitem [ref=e91]:
+                  - link "Introducción" [ref=e92] [cursor=pointer]:
+                    - /url: /reference/introduccion-facturacion-electronica
+                    - generic [ref=e96]: Introducción
+                - listitem [ref=e97]:
+                  - link "Autenticación" [ref=e98] [cursor=pointer]:
+                    - /url: /reference/autenticacion-1
+                    - generic [ref=e102]: Autenticación
+                - listitem [ref=e103]:
+                  - link "Consultar información de resolución DIAN post" [ref=e104] [cursor=pointer]:
+                    - /url: /reference/consultarinformacionresoluciondian
+                    - generic [ref=e106]: Consultar información de resolución DIAN
+                    - generic [ref=e108]: post
+                - listitem [ref=e109]:
+                  - link "Generar Documento Electrónico post" [ref=e110] [cursor=pointer]:
+                    - /url: /reference/generardocumentoelectronicoxml
+                    - generic [ref=e112]: Generar Documento Electrónico
+                    - generic [ref=e114]: post
+                - listitem [ref=e115]:
+                  - link "Generar Documentos Electrónicos masivamente post" [ref=e116] [cursor=pointer]:
+                    - /url: /reference/generarlistadocumentoselectronicosxml
+                    - generic [ref=e118]: Generar Documentos Electrónicos masivamente
+                    - generic [ref=e120]: post
+                - listitem [ref=e121]:
+                  - link "Consultar Información Documento Electrónico post" [ref=e122] [cursor=pointer]:
+                    - /url: /reference/consultarinformaciondocumentoelectronico
+                    - generic [ref=e124]: Consultar Información Documento Electrónico
+                    - generic [ref=e126]: post
+                - listitem [ref=e127]:
+                  - link "Consultar Información Documento Electrónico por ID post" [ref=e128] [cursor=pointer]:
+                    - /url: /reference/consultarinformaciondocumentoelectronicobyid
+                    - generic [ref=e130]: Consultar Información Documento Electrónico por ID
+                    - generic [ref=e132]: post
+                - listitem [ref=e133]:
+                  - link "Consultar Información Básica de Documentos Electrónicos masivamente post" [ref=e134] [cursor=pointer]:
+                    - /url: /reference/consultarinformacionbasicalistadocumentoselectronicos
+                    - generic [ref=e136]: Consultar Información Básica de Documentos Electrónicos masivamente
+                    - generic [ref=e138]: post
+                - listitem [ref=e139]:
+                  - link "Consultar Información Básica de Documentos Electrónicos masivamente por ID post" [ref=e140] [cursor=pointer]:
+                    - /url: /reference/consultarinformacionbasicalistadocumentoselectronicosbyid
+                    - generic [ref=e142]: Consultar Información Básica de Documentos Electrónicos masivamente por ID
+                    - generic [ref=e144]: post
+                - listitem [ref=e145]:
+                  - link "Consultar Evento generado por el cliente para Factura a Crédito post" [ref=e146] [cursor=pointer]:
+                    - /url: /reference/consultarinformaciondocumentoelectronicoconinformaciontitulovalor
+                    - generic [ref=e148]: Consultar Evento generado por el cliente para Factura a Crédito
+                    - generic [ref=e150]: post
+                - listitem [ref=e151]:
+                  - link "Consultar Evento generado por el cliente para Factura a Crédito por ID post" [ref=e152] [cursor=pointer]:
+                    - /url: /reference/consultarinformaciondocumentoelectronicoconinformaciontitulovalorbyid
+                    - generic [ref=e154]: Consultar Evento generado por el cliente para Factura a Crédito por ID
+                    - generic [ref=e156]: post
+                - listitem [ref=e157]:
+                  - link "Consultar Estado de notificación a la DIAN de varios documentos electrónicos post" [ref=e158] [cursor=pointer]:
+                    - /url: /reference/consultarestadonotificacionlistadocumentoselectronicos
+                    - generic [ref=e160]: Consultar Estado de notificación a la DIAN de varios documentos electrónicos
+                    - generic [ref=e162]: post
+                - listitem [ref=e163]:
+                  - link "Consultar Estado de notificación a la DIAN de varios documentos electrónicos por ID post" [ref=e164] [cursor=pointer]:
+                    - /url: /reference/consultarestadonotificacionlistadocumentoselectronicosbyid
+                    - generic [ref=e166]: Consultar Estado de notificación a la DIAN de varios documentos electrónicos por ID
+                    - generic [ref=e168]: post
+                - listitem [ref=e169]:
+                  - link "Consultar Evento generado por el cliente para Facturas a Crédito masivamente post" [ref=e170] [cursor=pointer]:
+                    - /url: /reference/consultarestadonotificacionconinformaciontitulovalorlistadocumentoselectronicos
+                    - generic [ref=e172]: Consultar Evento generado por el cliente para Facturas a Crédito masivamente
+                    - generic [ref=e174]: post
+                - listitem [ref=e175]:
+                  - link "Consultar Evento generado por el cliente para Facturas a Crédito por ID masivamente post" [ref=e176] [cursor=pointer]:
+                    - /url: /reference/consultarestadonotificacionconinformaciontitulovalorlistadocumentoselectronicosbyid
+                    - generic [ref=e178]: Consultar Evento generado por el cliente para Facturas a Crédito por ID masivamente
+                    - generic [ref=e180]: post
+                - listitem [ref=e181]:
+                  - link "Enviar Notificación de Documento Electrónico al cliente por ID post" [ref=e182] [cursor=pointer]:
+                    - /url: /reference/iniciarnotificacionclientebyid
+                    - generic [ref=e184]: Enviar Notificación de Documento Electrónico al cliente por ID
+                    - generic [ref=e186]: post
+                - listitem [ref=e187]:
+                  - link "Enviar Notificación de Documento Electrónico al cliente post" [ref=e188] [cursor=pointer]:
+                    - /url: /reference/iniciarnotificacioncliente
+                    - generic [ref=e190]: Enviar Notificación de Documento Electrónico al cliente
+                    - generic [ref=e192]: post
+                - listitem [ref=e193]:
+                  - link "Reenviar Notificación de Documento Electrónico al cliente por ID post" [ref=e194] [cursor=pointer]:
+                    - /url: /reference/reenviarnotificacionclientebyid
+                    - generic [ref=e196]: Reenviar Notificación de Documento Electrónico al cliente por ID
+                    - generic [ref=e198]: post
+                - listitem [ref=e199]:
+                  - link "Reenviar Notificación de Documento Electrónico al cliente post" [ref=e200] [cursor=pointer]:
+                    - /url: /reference/reenviarnotificacioncliente
+                    - generic [ref=e202]: Reenviar Notificación de Documento Electrónico al cliente
+                    - generic [ref=e204]: post
+                - listitem [ref=e205]:
+                  - link "Actualizar correo del cliente masivamente post" [ref=e206] [cursor=pointer]:
+                    - /url: /reference/actualizarcorreoclientelistadocumentos
+                    - generic [ref=e208]: Actualizar correo del cliente masivamente
+                    - generic [ref=e210]: post
+                - listitem [ref=e211]:
+                  - link "Actualizar correo del cliente masivamente por ID post" [ref=e212] [cursor=pointer]:
+                    - /url: /reference/actualizarcorreoclientelistadocumentosbyid
+                    - generic [ref=e214]: Actualizar correo del cliente masivamente por ID
+                    - generic [ref=e216]: post
+                - listitem [ref=e217]:
+                  - link "Consultar si Factura a Crédito cuenta con evento de Aceptación post" [ref=e218] [cursor=pointer]:
+                    - /url: /reference/consultardocumentoyaaceptadodian
+                    - generic [ref=e220]: Consultar si Factura a Crédito cuenta con evento de Aceptación
+                    - generic [ref=e222]: post
+                - listitem [ref=e223]:
+                  - link "Consultar documentos electrónicos recibidos por lote según origen post" [ref=e224] [cursor=pointer]:
+                    - /url: /reference/consultardocumentosrecibidoslotepororigen
+                    - generic [ref=e226]: Consultar documentos electrónicos recibidos por lote según origen
+                    - generic [ref=e228]: post
+                - listitem [ref=e229]:
+                  - link "Confirmar lote de documentos electrónicos recibidos por origen post" [ref=e230] [cursor=pointer]:
+                    - /url: /reference/confirmarlotepororigen
+                    - generic [ref=e232]: Confirmar lote de documentos electrónicos recibidos por origen
+                    - generic [ref=e234]: post
+            - listitem [ref=e235]:
+              - link "Documento Soporte Electrónico Show subpages for Documento Soporte Electrónico" [ref=e236] [cursor=pointer]:
+                - /url: /reference/introducción
+                - generic [ref=e238]: Documento Soporte Electrónico
+                - button "Show subpages for Documento Soporte Electrónico" [ref=e239]:
+                  - generic [ref=e240]: 
+              - list:
+                - listitem [ref=e241]:
+                  - link "Introducción" [ref=e242] [cursor=pointer]:
+                    - /url: /reference/introducción
+                    - generic [ref=e246]: Introducción
+                - listitem [ref=e247]:
+                  - link "Autenticación" [ref=e248] [cursor=pointer]:
+                    - /url: /reference/autenticación
+                    - generic [ref=e252]: Autenticación
+                - listitem [ref=e253]:
+                  - link "Generar Documento Soporte post" [ref=e254] [cursor=pointer]:
+                    - /url: /reference/generardocumentosoporte
+                    - generic [ref=e256]: Generar Documento Soporte
+                    - generic [ref=e258]: post
+                - listitem [ref=e259]:
+                  - link "Generar Documentos Soporte masivamente post" [ref=e260] [cursor=pointer]:
+                    - /url: /reference/generarlistadocumentossoporte
+                    - generic [ref=e262]: Generar Documentos Soporte masivamente
+                    - generic [ref=e264]: post
+                - listitem [ref=e265]:
+                  - link "Consultar Información Documento Soporte post" [ref=e266] [cursor=pointer]:
+                    - /url: /reference/consultarinformaciondocumentosoporte
+                    - generic [ref=e268]: Consultar Información Documento Soporte
+                    - generic [ref=e270]: post
+                - listitem [ref=e271]:
+                  - link "Consultar Información Documento Soporte por ID post" [ref=e272] [cursor=pointer]:
+                    - /url: /reference/consultarinformaciondocumentosoportebyid
+                    - generic [ref=e274]: Consultar Información Documento Soporte por ID
+                    - generic [ref=e276]: post
+                - listitem [ref=e277]:
+                  - link "Consultar Acuse Recibo DIAN Documento Soporte por ID post" [ref=e278] [cursor=pointer]:
+                    - /url: /reference/consultaracuserecibodiandocumentosoportebyid
+                    - generic [ref=e280]: Consultar Acuse Recibo DIAN Documento Soporte por ID
+                    - generic [ref=e282]: post
+                - listitem [ref=e283]:
+                  - link "Consultar XML Acuse Recibo DIAN Documento Soporte por ID post" [ref=e284] [cursor=pointer]:
+                    - /url: /reference/consultarxmlacuserecibodiandocumentosoportebyid
+                    - generic [ref=e286]: Consultar XML Acuse Recibo DIAN Documento Soporte por ID
+                    - generic [ref=e288]: post
+                - listitem [ref=e289]:
+                  - link "Obtener URL para consultar Documento Soporte en la DIAN post" [ref=e290] [cursor=pointer]:
+                    - /url: /reference/consultarinformacionurldocumento
+                    - generic [ref=e292]: Obtener URL para consultar Documento Soporte en la DIAN
+                    - generic [ref=e294]: post
+            - listitem [ref=e295]:
+              - link "Nómina Electrónica Show subpages for Nómina Electrónica" [ref=e296] [cursor=pointer]:
+                - /url: /reference/introducción-1
+                - generic [ref=e298]: Nómina Electrónica
+                - button "Show subpages for Nómina Electrónica" [ref=e299]:
+                  - generic [ref=e300]: 
+              - list:
+                - listitem [ref=e301]:
+                  - link "Introducción" [ref=e302] [cursor=pointer]:
+                    - /url: /reference/introducción-1
+                    - generic [ref=e306]: Introducción
+                - listitem [ref=e307]:
+                  - link "Autenticación post" [ref=e308] [cursor=pointer]:
+                    - /url: /reference/autenticarusuario
+                    - generic [ref=e312]: Autenticación
+                    - generic [ref=e314]: post
+                - listitem [ref=e315]:
+                  - link "Generar comprobante individual de nómina electrónica post" [ref=e316] [cursor=pointer]:
+                    - /url: /reference/post_comprobante
+                    - generic [ref=e318]: Generar comprobante individual de nómina electrónica
+                    - generic [ref=e320]: post
+                - listitem [ref=e321]:
+                  - link "Generar múltiples comprobantes de nómina electrónica post" [ref=e322] [cursor=pointer]:
+                    - /url: /reference/post_comprobantes
+                    - generic [ref=e324]: Generar múltiples comprobantes de nómina electrónica
+                    - generic [ref=e326]: post
+                - listitem [ref=e327]:
+                  - link "Consultar comprobantes generados get" [ref=e328] [cursor=pointer]:
+                    - /url: /reference/get_comprobantes
+                    - generic [ref=e330]: Consultar comprobantes generados
+                    - generic [ref=e332]: get
+                - listitem [ref=e333]:
+                  - link "Consultar XML de acuses de recibo DIAN de un comprobante get" [ref=e334] [cursor=pointer]:
+                    - /url: /reference/get_comprobante-xmlacusesrecibodian
+                    - generic [ref=e336]: Consultar XML de acuses de recibo DIAN de un comprobante
+                    - generic [ref=e338]: get
+                - listitem [ref=e339]:
+                  - link "Consultar historial de procesos de un comprobante get" [ref=e340] [cursor=pointer]:
+                    - /url: /reference/get_comprobante-historial
+                    - generic [ref=e342]: Consultar historial de procesos de un comprobante
+                    - generic [ref=e344]: get
+                - listitem [ref=e345]:
+                  - link "Consultar elementos electrónicos de un comprobante get" [ref=e346] [cursor=pointer]:
+                    - /url: /reference/get_comprobante-elementoselectronicos
+                    - generic [ref=e348]: Consultar elementos electrónicos de un comprobante
+                    - generic [ref=e350]: get
+                - listitem [ref=e351]:
+                  - link "Obtener archivos asociados a un comprobante get" [ref=e352] [cursor=pointer]:
+                    - /url: /reference/get_comprobante-archivos
+                    - generic [ref=e354]: Obtener archivos asociados a un comprobante
+                    - generic [ref=e356]: get
+                - listitem [ref=e357]:
+                  - link "Consultar acuses de recibo DIAN de un comprobante get" [ref=e358] [cursor=pointer]:
+                    - /url: /reference/get_comprobante-acusesrecibodian
+                    - generic [ref=e360]: Consultar acuses de recibo DIAN de un comprobante
+                    - generic [ref=e362]: get
+        - generic [ref=e363]:
+          - heading "Enterprise" [level=2] [ref=e364]
+          - list [ref=e365]:
+            - listitem [ref=e366]:
+              - link "Introducción Enterprise" [ref=e367] [cursor=pointer]:
+                - /url: /reference/introduccion-enterprise
+                - generic [ref=e371]: Introducción Enterprise
+            - listitem [ref=e372]:
+              - link "Autenticación" [ref=e373] [cursor=pointer]:
+                - /url: /reference/autenticacion-enterprise
+                - generic [ref=e377]: Autenticación
+            - listitem [ref=e378]:
+              - link "Contabilidad Show subpages for Contabilidad" [ref=e379] [cursor=pointer]:
+                - /url: /reference/cliente
+                - generic [ref=e381]: Contabilidad
+                - button "Show subpages for Contabilidad" [ref=e382]:
+                  - generic [ref=e383]: 
+              - list:
+                - listitem [ref=e384]:
+                  - link "Cliente Show subpages for Cliente" [ref=e385] [cursor=pointer]:
+                    - /url: /reference/consultarcliente
+                    - generic [ref=e387]: Cliente
+                    - button "Show subpages for Cliente" [ref=e388]:
+                      - generic [ref=e389]: 
+                  - list:
+                    - listitem [ref=e390]:
+                      - link "Consultar Cliente get" [ref=e391] [cursor=pointer]:
+                        - /url: /reference/consultarcliente
+                        - generic [ref=e393]: Consultar Cliente
+                        - generic [ref=e395]: get
+                    - listitem [ref=e396]:
+                      - link "Crear Cliente post" [ref=e397] [cursor=pointer]:
+                        - /url: /reference/crearcliente
+                        - generic [ref=e399]: Crear Cliente
+                        - generic [ref=e401]: post
+                - listitem [ref=e402]:
+                  - link "Proveedor Show subpages for Proveedor" [ref=e403] [cursor=pointer]:
+                    - /url: /reference/consultarproveedor
+                    - generic [ref=e405]: Proveedor
+                    - button "Show subpages for Proveedor" [ref=e406]:
+                      - generic [ref=e407]: 
+                  - list:
+                    - listitem [ref=e408]:
+                      - link "Consultar Proveedor get" [ref=e409] [cursor=pointer]:
+                        - /url: /reference/consultarproveedor
+                        - generic [ref=e411]: Consultar Proveedor
+                        - generic [ref=e413]: get
+                    - listitem [ref=e414]:
+                      - link "Crear Proveedor post" [ref=e415] [cursor=pointer]:
+                        - /url: /reference/crearproveedor
+                        - generic [ref=e417]: Crear Proveedor
+                        - generic [ref=e419]: post
+                    - listitem [ref=e420]:
+                      - link "Eliminar Proveedor del" [ref=e421] [cursor=pointer]:
+                        - /url: /reference/eliminarproveedor
+                        - generic [ref=e423]: Eliminar Proveedor
+                        - generic [ref=e425]: del
+                - listitem [ref=e426]:
+                  - link "Tercero Show subpages for Tercero" [ref=e427] [cursor=pointer]:
+                    - /url: /reference/consultartercero
+                    - generic [ref=e429]: Tercero
+                    - button "Show subpages for Tercero" [ref=e430]:
+                      - generic [ref=e431]: 
+                  - list:
+                    - listitem [ref=e432]:
+                      - link "Consultar Tercero get" [ref=e433] [cursor=pointer]:
+                        - /url: /reference/consultartercero
+                        - generic [ref=e435]: Consultar Tercero
+                        - generic [ref=e437]: get
+                    - listitem [ref=e438]:
+                      - link "Crear Tercero post" [ref=e439] [cursor=pointer]:
+                        - /url: /reference/creartercero
+                        - generic [ref=e441]: Crear Tercero
+                        - generic [ref=e443]: post
+                    - listitem [ref=e444]:
+                      - link "Eliminar Tercero del" [ref=e445] [cursor=pointer]:
+                        - /url: /reference/eliminartercero
+                        - generic [ref=e447]: Eliminar Tercero
+                        - generic [ref=e449]: del
+                - listitem [ref=e450]:
+                  - link "Concepto Contable Show subpages for Concepto Contable" [ref=e451] [cursor=pointer]:
+                    - /url: /reference/consultarconceptocontable
+                    - generic [ref=e453]: Concepto Contable
+                    - button "Show subpages for Concepto Contable" [ref=e454]:
+                      - generic [ref=e455]: 
+                  - list:
+                    - listitem [ref=e456]:
+                      - link "Consultar Conceptos Contables get" [ref=e457] [cursor=pointer]:
+                        - /url: /reference/consultarconceptocontable
+                        - generic [ref=e459]: Consultar Conceptos Contables
+                        - generic [ref=e461]: get
+                - listitem [ref=e462]:
+                  - link "Cuenta Contable Show subpages for Cuenta Contable" [ref=e463] [cursor=pointer]:
+                    - /url: /reference/consultarcuentacontable
+                    - generic [ref=e465]: Cuenta Contable
+                    - button "Show subpages for Cuenta Contable" [ref=e466]:
+                      - generic [ref=e467]: 
+                  - list:
+                    - listitem [ref=e468]:
+                      - link "Consultar Cuentas Contables get" [ref=e469] [cursor=pointer]:
+                        - /url: /reference/consultarcuentacontable
+                        - generic [ref=e471]: Consultar Cuentas Contables
+                        - generic [ref=e473]: get
+                - listitem [ref=e474]:
+                  - link "Fuente Contable Show subpages for Fuente Contable" [ref=e475] [cursor=pointer]:
+                    - /url: /reference/consultarfuentecontable
+                    - generic [ref=e477]: Fuente Contable
+                    - button "Show subpages for Fuente Contable" [ref=e478]:
+                      - generic [ref=e479]: 
+                  - list:
+                    - listitem [ref=e480]:
+                      - link "Consultar Fuentes Contables get" [ref=e481] [cursor=pointer]:
+                        - /url: /reference/consultarfuentecontable
+                        - generic [ref=e483]: Consultar Fuentes Contables
+                        - generic [ref=e485]: get
+                - listitem [ref=e486]:
+                  - link "Comprobante Show subpages for Comprobante" [ref=e487] [cursor=pointer]:
+                    - /url: /reference/crearcomprobante
+                    - generic [ref=e489]: Comprobante
+                    - button "Show subpages for Comprobante" [ref=e490]:
+                      - generic [ref=e491]: 
+                  - list:
+                    - listitem [ref=e492]:
+                      - link "Crear Comprobante post" [ref=e493] [cursor=pointer]:
+                        - /url: /reference/crearcomprobante
+                        - generic [ref=e495]: Crear Comprobante
+                        - generic [ref=e497]: post
+            - listitem [ref=e498]:
+              - link "Inventarios Show subpages for Inventarios" [ref=e499] [cursor=pointer]:
+                - /url: /reference/item
+                - generic [ref=e501]: Inventarios
+                - button "Show subpages for Inventarios" [ref=e502]:
+                  - generic [ref=e503]: 
+              - list:
+                - listitem [ref=e504]:
+                  - link "Ítem Show subpages for Ítem" [ref=e505] [cursor=pointer]:
+                    - /url: /reference/crearitem
+                    - generic [ref=e507]: Ítem
+                    - button "Show subpages for Ítem" [ref=e508]:
+                      - generic [ref=e509]: 
+                  - list:
+                    - listitem [ref=e510]:
+                      - link "Crear Ítem post" [ref=e511] [cursor=pointer]:
+                        - /url: /reference/crearitem
+                        - generic [ref=e513]: Crear Ítem
+                        - generic [ref=e515]: post
+                    - listitem [ref=e516]:
+                      - link "Consultar ítems asociados a un control get" [ref=e517] [cursor=pointer]:
+                        - /url: /reference/consultaritemcontrol
+                        - generic [ref=e519]: Consultar ítems asociados a un control
+                        - generic [ref=e521]: get
+                    - listitem [ref=e522]:
+                      - link "Eliminar ítems asociados a un control del" [ref=e523] [cursor=pointer]:
+                        - /url: /reference/eliminarcontrol
+                        - generic [ref=e525]: Eliminar ítems asociados a un control
+                        - generic [ref=e527]: del
+                - listitem [ref=e528]:
+                  - link "Lote Show subpages for Lote" [ref=e529] [cursor=pointer]:
+                    - /url: /reference/consultarlote
+                    - generic [ref=e531]: Lote
+                    - button "Show subpages for Lote" [ref=e532]:
+                      - generic [ref=e533]: 
+                  - list:
+                    - listitem [ref=e534]:
+                      - link "Consultar Lotes get" [ref=e535] [cursor=pointer]:
+                        - /url: /reference/consultarlote
+                        - generic [ref=e537]: Consultar Lotes
+                        - generic [ref=e539]: get
+                    - listitem [ref=e540]:
+                      - link "Crear Lotes post" [ref=e541] [cursor=pointer]:
+                        - /url: /reference/crearlotes
+                        - generic [ref=e543]: Crear Lotes
+                        - generic [ref=e545]: post
+                - listitem [ref=e546]:
+                  - link "Pedido Show subpages for Pedido" [ref=e547] [cursor=pointer]:
+                    - /url: /reference/crearpedido
+                    - generic [ref=e549]: Pedido
+                    - button "Show subpages for Pedido" [ref=e550]:
+                      - generic [ref=e551]: 
+                  - list:
+                    - listitem [ref=e552]:
+                      - link "Crear Pedido post" [ref=e553] [cursor=pointer]:
+                        - /url: /reference/crearpedido
+                        - generic [ref=e555]: Crear Pedido
+                        - generic [ref=e557]: post
+                    - listitem [ref=e558]:
+                      - link "Consultar Pedido por Código get" [ref=e559] [cursor=pointer]:
+                        - /url: /reference/consultarpedido
+                        - generic [ref=e561]: Consultar Pedido por Código
+                        - generic [ref=e563]: get
+                    - listitem [ref=e564]:
+                      - link "Consultar Pedido por Control get" [ref=e565] [cursor=pointer]:
+                        - /url: /reference/consultarpedidocontrol
+                        - generic [ref=e567]: Consultar Pedido por Control
+                        - generic [ref=e569]: get
+                - listitem [ref=e570]:
+                  - link "Orden de Compra Show subpages for Orden de Compra" [ref=e571] [cursor=pointer]:
+                    - /url: /reference/crearordencompra
+                    - generic [ref=e573]: Orden de Compra
+                    - button "Show subpages for Orden de Compra" [ref=e574]:
+                      - generic [ref=e575]: 
+                  - list:
+                    - listitem [ref=e576]:
+                      - link "Crear orden de compra post" [ref=e577] [cursor=pointer]:
+                        - /url: /reference/crearordencompra
+                        - generic [ref=e579]: Crear orden de compra
+                        - generic [ref=e581]: post
+                - listitem [ref=e582]:
+                  - link "Entrada Costo Inventario Show subpages for Entrada Costo Inventario" [ref=e583] [cursor=pointer]:
+                    - /url: /reference/crearentradacostoinventario
+                    - generic [ref=e585]: Entrada Costo Inventario
+                    - button "Show subpages for Entrada Costo Inventario" [ref=e586]:
+                      - generic [ref=e587]: 
+                  - list:
+                    - listitem [ref=e588]:
+                      - link "Crear Entrada de Inventario con Costo post" [ref=e589] [cursor=pointer]:
+                        - /url: /reference/crearentradacostoinventario
+                        - generic [ref=e591]: Crear Entrada de Inventario con Costo
+                        - generic [ref=e593]: post
+                - listitem [ref=e594]:
+                  - link "Salida Inventario Show subpages for Salida Inventario" [ref=e595] [cursor=pointer]:
+                    - /url: /reference/crearsalidainventario
+                    - generic [ref=e597]: Salida Inventario
+                    - button "Show subpages for Salida Inventario" [ref=e598]:
+                      - generic [ref=e599]: 
+                  - list:
+                    - listitem [ref=e600]:
+                      - link "Crear Salida de Inventario post" [ref=e601] [cursor=pointer]:
+                        - /url: /reference/crearsalidainventario
+                        - generic [ref=e603]: Crear Salida de Inventario
+                        - generic [ref=e605]: post
+                - listitem [ref=e606]:
+                  - link "Tipos de Ítem Show subpages for Tipos de Ítem" [ref=e607] [cursor=pointer]:
+                    - /url: /reference/consultartipositemtodos
+                    - generic [ref=e609]: Tipos de Ítem
+                    - button "Show subpages for Tipos de Ítem" [ref=e610]:
+                      - generic [ref=e611]: 
+                  - list:
+                    - listitem [ref=e612]:
+                      - link "Consultar Tipo(s) de Ítem get" [ref=e613] [cursor=pointer]:
+                        - /url: /reference/consultartipositemtodos
+                        - generic [ref=e615]: Consultar Tipo(s) de Ítem
+                        - generic [ref=e617]: get
+                    - listitem [ref=e618]:
+                      - link "Consultar Tipo(s) de Ítem get" [ref=e619] [cursor=pointer]:
+                        - /url: /reference/consultartipositemcodigo
+                        - generic [ref=e621]: Consultar Tipo(s) de Ítem
+                        - generic [ref=e623]: get
+                - listitem [ref=e624]:
+                  - link "Roles de Usuario Show subpages for Roles de Usuario" [ref=e625] [cursor=pointer]:
+                    - /url: /reference/consultarrolesporfiltro
+                    - generic [ref=e627]: Roles de Usuario
+                    - button "Show subpages for Roles de Usuario" [ref=e628]:
+                      - generic [ref=e629]: 
+                  - list:
+                    - listitem [ref=e630]:
+                      - link "Consultar Roles de Usuario por Filtro get" [ref=e631] [cursor=pointer]:
+                        - /url: /reference/consultarrolesporfiltro
+                        - generic [ref=e633]: Consultar Roles de Usuario por Filtro
+                        - generic [ref=e635]: get
+                    - listitem [ref=e636]:
+                      - link "Consultar Roles de Usuario por Código de Usuario get" [ref=e637] [cursor=pointer]:
+                        - /url: /reference/consultarrolesusuario
+                        - generic [ref=e639]: Consultar Roles de Usuario por Código de Usuario
+                        - generic [ref=e641]: get
+                - listitem [ref=e642]:
+                  - link "Entrada por Orden de Compra Show subpages for Entrada por Orden de Compra" [ref=e643] [cursor=pointer]:
+                    - /url: /reference/crearentradaoc
+                    - generic [ref=e645]: Entrada por Orden de Compra
+                    - button "Show subpages for Entrada por Orden de Compra" [ref=e646]:
+                      - generic [ref=e647]: 
+                  - list:
+                    - listitem [ref=e648]:
+                      - link "Crear Entrada de Inventario por Orden de Compra post" [ref=e649] [cursor=pointer]:
+                        - /url: /reference/crearentradaoc
+                        - generic [ref=e651]: Crear Entrada de Inventario por Orden de Compra
+                        - generic [ref=e653]: post
+            - listitem [ref=e654]:
+              - link "Información Común Show subpages for Información Común" [ref=e655] [cursor=pointer]:
+                - /url: /reference/actividad-economica
+                - generic [ref=e657]: Información Común
+                - button "Show subpages for Información Común" [ref=e658]:
+                  - generic [ref=e659]: 
+              - list:
+                - listitem [ref=e660]:
+                  - link "Actividad Económica Show subpages for Actividad Económica" [ref=e661] [cursor=pointer]:
+                    - /url: /reference/consultaractividadeconomica
+                    - generic [ref=e663]: Actividad Económica
+                    - button "Show subpages for Actividad Económica" [ref=e664]:
+                      - generic [ref=e665]: 
+                  - list:
+                    - listitem [ref=e666]:
+                      - link "Consultar Actividad Económica get" [ref=e667] [cursor=pointer]:
+                        - /url: /reference/consultaractividadeconomica
+                        - generic [ref=e669]: Consultar Actividad Económica
+                        - generic [ref=e671]: get
+                - listitem [ref=e672]:
+                  - link "Centro de Responsabilidad Show subpages for Centro de Responsabilidad" [ref=e673] [cursor=pointer]:
+                    - /url: /reference/consultarcentroresponsabilidad
+                    - generic [ref=e675]: Centro de Responsabilidad
+                    - button "Show subpages for Centro de Responsabilidad" [ref=e676]:
+                      - generic [ref=e677]: 
+                  - list:
+                    - listitem [ref=e678]:
+                      - link "Consultar Centros de Responsabilidad get" [ref=e679] [cursor=pointer]:
+                        - /url: /reference/consultarcentroresponsabilidad
+                        - generic [ref=e681]: Consultar Centros de Responsabilidad
+                        - generic [ref=e683]: get
+                - listitem [ref=e684]:
+                  - link "Ciudad Show subpages for Ciudad" [ref=e685] [cursor=pointer]:
+                    - /url: /reference/consultarciudad
+                    - generic [ref=e687]: Ciudad
+                    - button "Show subpages for Ciudad" [ref=e688]:
+                      - generic [ref=e689]: 
+                  - list:
+                    - listitem [ref=e690]:
+                      - link "Consultar Ciudad get" [ref=e691] [cursor=pointer]:
+                        - /url: /reference/consultarciudad
+                        - generic [ref=e693]: Consultar Ciudad
+                        - generic [ref=e695]: get
+                - listitem [ref=e696]:
+                  - link "Departamento Show subpages for Departamento" [ref=e697] [cursor=pointer]:
+                    - /url: /reference/consultardepartamento
+                    - generic [ref=e699]: Departamento
+                    - button "Show subpages for Departamento" [ref=e700]:
+                      - generic [ref=e701]: 
+                  - list:
+                    - listitem [ref=e702]:
+                      - link "Consultar Departamento get" [ref=e703] [cursor=pointer]:
+                        - /url: /reference/consultardepartamento
+                        - generic [ref=e705]: Consultar Departamento
+                        - generic [ref=e707]: get
+                - listitem [ref=e708]:
+                  - link "División Show subpages for División" [ref=e709] [cursor=pointer]:
+                    - /url: /reference/consultardivision
+                    - generic [ref=e711]: División
+                    - button "Show subpages for División" [ref=e712]:
+                      - generic [ref=e713]: 
+                  - list:
+                    - listitem [ref=e714]:
+                      - link "Consultar División(es) get" [ref=e715] [cursor=pointer]:
+                        - /url: /reference/consultardivision
+                        - generic [ref=e717]: Consultar División(es)
+                        - generic [ref=e719]: get
+                - listitem [ref=e720]:
+                  - link "Forma de Pago Show subpages for Forma de Pago" [ref=e721] [cursor=pointer]:
+                    - /url: /reference/consultarformapago
+                    - generic [ref=e723]: Forma de Pago
+                    - button "Show subpages for Forma de Pago" [ref=e724]:
+                      - generic [ref=e725]: 
+                  - list:
+                    - listitem [ref=e726]:
+                      - link "Consultar Formas de Pago get" [ref=e727] [cursor=pointer]:
+                        - /url: /reference/consultarformapago
+                        - generic [ref=e729]: Consultar Formas de Pago
+                        - generic [ref=e731]: get
+                - listitem [ref=e732]:
+                  - link "Moneda Show subpages for Moneda" [ref=e733] [cursor=pointer]:
+                    - /url: /reference/consultarmoneda
+                    - generic [ref=e735]: Moneda
+                    - button "Show subpages for Moneda" [ref=e736]:
+                      - generic [ref=e737]: 
+                  - list:
+                    - listitem [ref=e738]:
+                      - link "Consultar Moneda get" [ref=e739] [cursor=pointer]:
+                        - /url: /reference/consultarmoneda
+                        - generic [ref=e741]: Consultar Moneda
+                        - generic [ref=e743]: get
+                - listitem [ref=e744]:
+                  - link "Países Show subpages for Países" [ref=e745] [cursor=pointer]:
+                    - /url: /reference/consultarpaises
+                    - generic [ref=e747]: Países
+                    - button "Show subpages for Países" [ref=e748]:
+                      - generic [ref=e749]: 
+                  - list:
+                    - listitem [ref=e750]:
+                      - link "Consultar Pais get" [ref=e751] [cursor=pointer]:
+                        - /url: /reference/consultarpaises
+                        - generic [ref=e753]: Consultar Pais
+                        - generic [ref=e755]: get
+                - listitem [ref=e756]:
+                  - link "Tipos de Consecutivo Show subpages for Tipos de Consecutivo" [ref=e757] [cursor=pointer]:
+                    - /url: /reference/consultartipoconsecutivo
+                    - generic [ref=e759]: Tipos de Consecutivo
+                    - button "Show subpages for Tipos de Consecutivo" [ref=e760]:
+                      - generic [ref=e761]: 
+                  - list:
+                    - listitem [ref=e762]:
+                      - link "Consultar Tipos de Consecutivo get" [ref=e763] [cursor=pointer]:
+                        - /url: /reference/consultartipoconsecutivo
+                        - generic [ref=e765]: Consultar Tipos de Consecutivo
+                        - generic [ref=e767]: get
+            - listitem [ref=e768]:
+              - link "Tesoreria Show subpages for Tesoreria" [ref=e769] [cursor=pointer]:
+                - /url: /reference/ingresos
+                - generic [ref=e771]: Tesoreria
+                - button "Show subpages for Tesoreria" [ref=e772]:
+                  - generic [ref=e773]: 
+              - list:
+                - listitem [ref=e774]:
+                  - link "Ingresos Show subpages for Ingresos" [ref=e775] [cursor=pointer]:
+                    - /url: /reference/crearingresos
+                    - generic [ref=e777]: Ingresos
+                    - button "Show subpages for Ingresos" [ref=e778]:
+                      - generic [ref=e779]: 
+                  - list:
+                    - listitem [ref=e780]:
+                      - link "Crear Ingreso post" [ref=e781] [cursor=pointer]:
+                        - /url: /reference/crearingresos
+                        - generic [ref=e783]: Crear Ingreso
+                        - generic [ref=e785]: post
+            - listitem [ref=e786]:
+              - link "Cuentas por Pagar Show subpages for Cuentas por Pagar" [ref=e787] [cursor=pointer]:
+                - /url: /reference/documento-cxp
+                - generic [ref=e789]: Cuentas por Pagar
+                - button "Show subpages for Cuentas por Pagar" [ref=e790]:
+                  - generic [ref=e791]: 
+              - list:
+                - listitem [ref=e792]:
+                  - link "Documento CxP Show subpages for Documento CxP" [ref=e793] [cursor=pointer]:
+                    - /url: /reference/consultardocumentocxp
+                    - generic [ref=e795]: Documento CxP
+                    - button "Show subpages for Documento CxP" [ref=e796]:
+                      - generic [ref=e797]: 
+                  - list:
+                    - listitem [ref=e798]:
+                      - link "Consultar documento CXP get" [ref=e799] [cursor=pointer]:
+                        - /url: /reference/consultardocumentocxp
+                        - generic [ref=e801]: Consultar documento CXP
+                        - generic [ref=e803]: get
+                    - listitem [ref=e804]:
+                      - link "Crear documento CXP post" [ref=e805] [cursor=pointer]:
+                        - /url: /reference/creardocumentocxp
+                        - generic [ref=e807]: Crear documento CXP
+                        - generic [ref=e809]: post
+                - listitem [ref=e810]:
+                  - link "Tipo Proveedor Show subpages for Tipo Proveedor" [ref=e811] [cursor=pointer]:
+                    - /url: /reference/consultartipoproveedor
+                    - generic [ref=e813]: Tipo Proveedor
+                    - button "Show subpages for Tipo Proveedor" [ref=e814]:
+                      - generic [ref=e815]: 
+                  - list:
+                    - listitem [ref=e816]:
+                      - link "Consultar Tipos de Proveedor get" [ref=e817] [cursor=pointer]:
+                        - /url: /reference/consultartipoproveedor
+                        - generic [ref=e819]: Consultar Tipos de Proveedor
+                        - generic [ref=e821]: get
+                - listitem [ref=e822]:
+                  - link "Aplicación Show subpages for Aplicación" [ref=e823] [cursor=pointer]:
+                    - /url: /reference/crearaplicacion
+                    - generic [ref=e825]: Aplicación
+                    - button "Show subpages for Aplicación" [ref=e826]:
+                      - generic [ref=e827]: 
+                  - list:
+                    - listitem [ref=e828]:
+                      - link "Crear aplicación CXP post" [ref=e829] [cursor=pointer]:
+                        - /url: /reference/crearaplicacion
+                        - generic [ref=e831]: Crear aplicación CXP
+                        - generic [ref=e833]: post
+            - listitem [ref=e834]:
+              - link "Cuentas por Cobrar Show subpages for Cuentas por Cobrar" [ref=e835] [cursor=pointer]:
+                - /url: /reference/documento-cxc
+                - generic [ref=e837]: Cuentas por Cobrar
+                - button "Show subpages for Cuentas por Cobrar" [ref=e838]:
+                  - generic [ref=e839]: 
+              - list:
+                - listitem [ref=e840]:
+                  - link "Documento CxC Show subpages for Documento CxC" [ref=e841] [cursor=pointer]:
+                    - /url: /reference/creardocumentocxc
+                    - generic [ref=e843]: Documento CxC
+                    - button "Show subpages for Documento CxC" [ref=e844]:
+                      - generic [ref=e845]: 
+                  - list:
+                    - listitem [ref=e846]:
+                      - link "Crear documento CXC post" [ref=e847] [cursor=pointer]:
+                        - /url: /reference/creardocumentocxc
+                        - generic [ref=e849]: Crear documento CXC
+                        - generic [ref=e851]: post
+            - listitem [ref=e852]:
+              - link "Proveedores Externos Show subpages for Proveedores Externos" [ref=e853] [cursor=pointer]:
+                - /url: /reference/documentos-externos-fe
+                - generic [ref=e855]: Proveedores Externos
+                - button "Show subpages for Proveedores Externos" [ref=e856]:
+                  - generic [ref=e857]: 
+              - list:
+                - listitem [ref=e858]:
+                  - link "Documentos Externos FE Show subpages for Documentos Externos FE" [ref=e859] [cursor=pointer]:
+                    - /url: /reference/documentosexternosfe
+                    - generic [ref=e861]: Documentos Externos FE
+                    - button "Show subpages for Documentos Externos FE" [ref=e862]:
+                      - generic [ref=e863]: 
+                  - list:
+                    - listitem [ref=e864]:
+                      - link "Obtener documentos electrónicos por rango de fecha get" [ref=e865] [cursor=pointer]:
+                        - /url: /reference/documentosexternosfe
+                        - generic [ref=e867]: Obtener documentos electrónicos por rango de fecha
+                        - generic [ref=e869]: get
+        - generic [ref=e870]:
+          - heading "Nómina" [level=2] [ref=e871]
+          - list [ref=e872]:
+            - listitem [ref=e873]:
+              - link "Introducción Nómina" [ref=e874] [cursor=pointer]:
+                - /url: /reference/introduccion-nomina
+                - generic [ref=e878]: Introducción Nómina
+            - listitem [ref=e879]:
+              - link "Autenticación" [ref=e880] [cursor=pointer]:
+                - /url: /reference/autenticacion-nomina
+                - generic [ref=e884]: Autenticación
+            - listitem [ref=e885]:
+              - link "Novedades Show subpages for Novedades" [ref=e886] [cursor=pointer]:
+                - /url: /reference/actualizarnovedad
+                - generic [ref=e888]: Novedades
+                - button "Show subpages for Novedades" [ref=e889]:
+                  - generic [ref=e890]: 
+              - list:
+                - listitem [ref=e891]:
+                  - link "Actualizar una novedad. put" [ref=e892] [cursor=pointer]:
+                    - /url: /reference/actualizarnovedad
+                    - generic [ref=e894]: Actualizar una novedad.
+                    - generic [ref=e896]: put
+                - listitem [ref=e897]:
+                  - link "Crear una novedad. post" [ref=e898] [cursor=pointer]:
+                    - /url: /reference/guardarnovedad
+                    - generic [ref=e900]: Crear una novedad.
+                    - generic [ref=e902]: post
+                - listitem [ref=e903]:
+                  - link "Crear una novedad de libranza. post" [ref=e904] [cursor=pointer]:
+                    - /url: /reference/guardarlibranzaexterna
+                    - generic [ref=e906]: Crear una novedad de libranza.
+                    - generic [ref=e908]: post
+                - listitem [ref=e909]:
+                  - link "Consultar una novedad. get" [ref=e910] [cursor=pointer]:
+                    - /url: /reference/getnovedad
+                    - generic [ref=e912]: Consultar una novedad.
+                    - generic [ref=e914]: get
+                - listitem [ref=e915]:
+                  - link "Eliminar una novedad. del" [ref=e916] [cursor=pointer]:
+                    - /url: /reference/deletenovedad
+                    - generic [ref=e918]: Eliminar una novedad.
+                    - generic [ref=e920]: del
+                - listitem [ref=e921]:
+                  - link "Consultar las novedades de un empleado que aplican en un rango de fechas de un periodo. get" [ref=e922] [cursor=pointer]:
+                    - /url: /reference/getnovedadesempleado
+                    - generic [ref=e924]: Consultar las novedades de un empleado que aplican en un rango de fechas de un periodo.
+                    - generic [ref=e926]: get
+            - listitem [ref=e927]:
+              - link "Reportes Show subpages for Reportes" [ref=e928] [cursor=pointer]:
+                - /url: /reference/gethistoricovacaciones
+                - generic [ref=e930]: Reportes
+                - button "Show subpages for Reportes" [ref=e931]:
+                  - generic [ref=e932]: 
+              - list:
+                - listitem [ref=e933]:
+                  - link "Consultar el histórico de vacaciones get" [ref=e934] [cursor=pointer]:
+                    - /url: /reference/gethistoricovacaciones
+                    - generic [ref=e936]: Consultar el histórico de vacaciones
+                    - generic [ref=e938]: get
+                - listitem [ref=e939]:
+                  - link "Consultar el histórico de salarios get" [ref=e940] [cursor=pointer]:
+                    - /url: /reference/gethistoricosalarios
+                    - generic [ref=e942]: Consultar el histórico de salarios
+                    - generic [ref=e944]: get
+                - listitem [ref=e945]:
+                  - link "Consultar el histórico de incapacidades get" [ref=e946] [cursor=pointer]:
+                    - /url: /reference/gethistoricoincapacidades
+                    - generic [ref=e948]: Consultar el histórico de incapacidades
+                    - generic [ref=e950]: get
+                - listitem [ref=e951]:
+                  - link "Consultar el histórico de entidades de seguridad social get" [ref=e952] [cursor=pointer]:
+                    - /url: /reference/gethistoricoentidadesseguridadsocial
+                    - generic [ref=e954]: Consultar el histórico de entidades de seguridad social
+                    - generic [ref=e956]: get
+                - listitem [ref=e957]:
+                  - link "Consultar el histórico de ausentismos get" [ref=e958] [cursor=pointer]:
+                    - /url: /reference/gethistoricoausentismos
+                    - generic [ref=e960]: Consultar el histórico de ausentismos
+                    - generic [ref=e962]: get
+                - listitem [ref=e963]:
+                  - link "Obtiene el histórico de anticipos de cesantías get" [ref=e964] [cursor=pointer]:
+                    - /url: /reference/gethistoricoanticiposcesantias
+                    - generic [ref=e966]: Obtiene el histórico de anticipos de cesantías
+                    - generic [ref=e968]: get
+                - listitem [ref=e969]:
+                  - link "Consultar el histórico de alivios tributarios get" [ref=e970] [cursor=pointer]:
+                    - /url: /reference/gethistoricoaliviostributarios
+                    - generic [ref=e972]: Consultar el histórico de alivios tributarios
+                    - generic [ref=e974]: get
+                - listitem [ref=e975]:
+                  - link "Consultar el detalle base de vacaciones disfrutadas salario variable get" [ref=e976] [cursor=pointer]:
+                    - /url: /reference/getdetallebasevacacionesdisfrutadassalariovariable
+                    - generic [ref=e978]: Consultar el detalle base de vacaciones disfrutadas salario variable
+                    - generic [ref=e980]: get
+                - listitem [ref=e981]:
+                  - link "Consultar el detalle base de vacaciones disfrutadas salario fijo get" [ref=e982] [cursor=pointer]:
+                    - /url: /reference/getdetallebasevacacionesdisfrutadassalariofijo
+                    - generic [ref=e984]: Consultar el detalle base de vacaciones disfrutadas salario fijo
+                    - generic [ref=e986]: get
+                - listitem [ref=e987]:
+                  - link "Consultar el detalle base de prima salario fijo mes a mes get" [ref=e988] [cursor=pointer]:
+                    - /url: /reference/getdetallebaseprimamesames
+                    - generic [ref=e990]: Consultar el detalle base de prima salario fijo mes a mes
+                    - generic [ref=e992]: get
+                - listitem [ref=e993]:
+                  - link "Consultar los acumulados para el calculo de la prima de servicios get" [ref=e994] [cursor=pointer]:
+                    - /url: /reference/getdetallebaseprima
+                    - generic [ref=e996]: Consultar los acumulados para el calculo de la prima de servicios
+                    - generic [ref=e998]: get
+                - listitem [ref=e999]:
+                  - link "Consultar los acumulados para el calculo de Indemnizacion get" [ref=e1000] [cursor=pointer]:
+                    - /url: /reference/getdetallebaseindemnizacion
+                    - generic [ref=e1002]: Consultar los acumulados para el calculo de Indemnizacion
+                    - generic [ref=e1004]: get
+                - listitem [ref=e1005]:
+                  - link "Consultar el detalle base de cesantías salario variable mes a mes get" [ref=e1006] [cursor=pointer]:
+                    - /url: /reference/getdetallebasecesantiassalariovariablemesames
+                    - generic [ref=e1008]: Consultar el detalle base de cesantías salario variable mes a mes
+                    - generic [ref=e1010]: get
+                - listitem [ref=e1011]:
+                  - link "Consultar el detalle base de cesantías salario fijo mes a mes get" [ref=e1012] [cursor=pointer]:
+                    - /url: /reference/getdetallebasecesantiassalariofijomesames
+                    - generic [ref=e1014]: Consultar el detalle base de cesantías salario fijo mes a mes
+                    - generic [ref=e1016]: get
+                - listitem [ref=e1017]:
+                  - link "Consultar el detalle base de cesantías salario fijo get" [ref=e1018] [cursor=pointer]:
+                    - /url: /reference/getdetallebasecesantiassalariofijo
+                    - generic [ref=e1020]: Consultar el detalle base de cesantías salario fijo
+                    - generic [ref=e1022]: get
+                - listitem [ref=e1023]:
+                  - link "Consultar los acumulados para el calculo de Cesantias get" [ref=e1024] [cursor=pointer]:
+                    - /url: /reference/getdetallebasecesantias
+                    - generic [ref=e1026]: Consultar los acumulados para el calculo de Cesantias
+                    - generic [ref=e1028]: get
+            - listitem [ref=e1029]:
+              - link "Vinculados Show subpages for Vinculados" [ref=e1030] [cursor=pointer]:
+                - /url: /reference/getconsultaexternaempleado
+                - generic [ref=e1032]: Vinculados
+                - button "Show subpages for Vinculados" [ref=e1033]:
+                  - generic [ref=e1034]: 
+              - list:
+                - listitem [ref=e1035]:
+                  - link "Consultar información de un empleado con vinculación vigente. get" [ref=e1036] [cursor=pointer]:
+                    - /url: /reference/getconsultaexternaempleado
+                    - generic [ref=e1038]: Consultar información de un empleado con vinculación vigente.
+                    - generic [ref=e1040]: get
+                - listitem [ref=e1041]:
+                  - link "Consultar la lista de vinculados vigentes para el próximo pago de nómina get" [ref=e1042] [cursor=pointer]:
+                    - /url: /reference/getvinculadosvigentes
+                    - generic [ref=e1044]: Consultar la lista de vinculados vigentes para el próximo pago de nómina
+                    - generic [ref=e1046]: get
+        - generic [ref=e1047]:
+          - heading "PYMES" [level=2] [ref=e1048]
+          - list [ref=e1049]:
+            - listitem [ref=e1050]:
+              - link "Introducción Pymes" [ref=e1051] [cursor=pointer]:
+                - /url: /reference/introduccion-pymes
+                - generic [ref=e1055]: Introducción Pymes
+            - listitem [ref=e1056]:
+              - link "Autenticación" [ref=e1057] [cursor=pointer]:
+                - /url: /reference/autenticacion-pymes
+                - generic [ref=e1061]: Autenticación
+            - listitem [ref=e1062]:
+              - link "Configuración Show subpages for Configuración" [ref=e1063] [cursor=pointer]:
+                - /url: /reference/cuentas-bancarias-pymes
+                - generic [ref=e1065]: Configuración
+                - button "Show subpages for Configuración" [ref=e1066]:
+                  - generic [ref=e1067]: 
+              - list:
+                - listitem [ref=e1068]:
+                  - link "Cuentas Bancarias Show subpages for Cuentas Bancarias" [ref=e1069] [cursor=pointer]:
+                    - /url: /reference/consultarcuentasbancariaspymes
+                    - generic [ref=e1071]: Cuentas Bancarias
+                    - button "Show subpages for Cuentas Bancarias" [ref=e1072]:
+                      - generic [ref=e1073]: 
+                  - list:
+                    - listitem [ref=e1074]:
+                      - link "Consultar cuentas bancarias get" [ref=e1075] [cursor=pointer]:
+                        - /url: /reference/consultarcuentasbancariaspymes
+                        - generic [ref=e1077]: Consultar cuentas bancarias
+                        - generic [ref=e1079]: get
+                - listitem [ref=e1080]:
+                  - link "Listado de Centros Show subpages for Listado de Centros" [ref=e1081] [cursor=pointer]:
+                    - /url: /reference/consultarcentrospymes
+                    - generic [ref=e1083]: Listado de Centros
+                    - button "Show subpages for Listado de Centros" [ref=e1084]:
+                      - generic [ref=e1085]: 
+                  - list:
+                    - listitem [ref=e1086]:
+                      - link "Obtiene el listado de centros de responsabilidad. get" [ref=e1087] [cursor=pointer]:
+                        - /url: /reference/consultarcentrospymes
+                        - generic [ref=e1089]: Obtiene el listado de centros de responsabilidad.
+                        - generic [ref=e1091]: get
+                    - listitem [ref=e1092]:
+                      - link "Obtiene un centro de responsabilidad por su identificador. get" [ref=e1093] [cursor=pointer]:
+                        - /url: /reference/consultarcentroporuuidpymes
+                        - generic [ref=e1095]: Obtiene un centro de responsabilidad por su identificador.
+                        - generic [ref=e1097]: get
+                - listitem [ref=e1098]:
+                  - link "Formas de Pago Show subpages for Formas de Pago" [ref=e1099] [cursor=pointer]:
+                    - /url: /reference/consultarformasdepagopymes
+                    - generic [ref=e1101]: Formas de Pago
+                    - button "Show subpages for Formas de Pago" [ref=e1102]:
+                      - generic [ref=e1103]: 
+                  - list:
+                    - listitem [ref=e1104]:
+                      - link "Consultar formas de pago get" [ref=e1105] [cursor=pointer]:
+                        - /url: /reference/consultarformasdepagopymes
+                        - generic [ref=e1107]: Consultar formas de pago
+                        - generic [ref=e1109]: get
+                - listitem [ref=e1110]:
+                  - link "Impuestos Show subpages for Impuestos" [ref=e1111] [cursor=pointer]:
+                    - /url: /reference/consultarvigenciatarivaimpuestopymes
+                    - generic [ref=e1113]: Impuestos
+                    - button "Show subpages for Impuestos" [ref=e1114]:
+                      - generic [ref=e1115]: 
+                  - list:
+                    - listitem [ref=e1116]:
+                      - link "Consultar vigencias de tarifas de impuesto get" [ref=e1117] [cursor=pointer]:
+                        - /url: /reference/consultarvigenciatarivaimpuestopymes
+                        - generic [ref=e1119]: Consultar vigencias de tarifas de impuesto
+                        - generic [ref=e1121]: get
+                - listitem [ref=e1122]:
+                  - link "Medios de Pago Show subpages for Medios de Pago" [ref=e1123] [cursor=pointer]:
+                    - /url: /reference/consultarmediosdepagopymes
+                    - generic [ref=e1125]: Medios de Pago
+                    - button "Show subpages for Medios de Pago" [ref=e1126]:
+                      - generic [ref=e1127]: 
+                  - list:
+                    - listitem [ref=e1128]:
+                      - link "Consultar medios de pago get" [ref=e1129] [cursor=pointer]:
+                        - /url: /reference/consultarmediosdepagopymes
+                        - generic [ref=e1131]: Consultar medios de pago
+                        - generic [ref=e1133]: get
+                - listitem [ref=e1134]:
+                  - link "Monedas Show subpages for Monedas" [ref=e1135] [cursor=pointer]:
+                    - /url: /reference/listarmonedaspymes
+                    - generic [ref=e1137]: Monedas
+                    - button "Show subpages for Monedas" [ref=e1138]:
+                      - generic [ref=e1139]: 
+                  - list:
+                    - listitem [ref=e1140]:
+                      - link "Listar monedas get" [ref=e1141] [cursor=pointer]:
+                        - /url: /reference/listarmonedaspymes
+                        - generic [ref=e1143]: Listar monedas
+                        - generic [ref=e1145]: get
+                    - listitem [ref=e1146]:
+                      - link "Buscar moneda por código get" [ref=e1147] [cursor=pointer]:
+                        - /url: /reference/buscarmonedaporcodigopymes
+                        - generic [ref=e1149]: Buscar moneda por código
+                        - generic [ref=e1151]: get
+                    - listitem [ref=e1152]:
+                      - link "Buscar moneda por UUID get" [ref=e1153] [cursor=pointer]:
+                        - /url: /reference/buscarmonedaporuuidpymes
+                        - generic [ref=e1155]: Buscar moneda por UUID
+                        - generic [ref=e1157]: get
+                - listitem [ref=e1158]:
+                  - link "Estructura Empresarial Show subpages for Estructura Empresarial" [ref=e1159] [cursor=pointer]:
+                    - /url: /reference/listarestablecimientospymes
+                    - generic [ref=e1161]: Estructura Empresarial
+                    - button "Show subpages for Estructura Empresarial" [ref=e1162]:
+                      - generic [ref=e1163]: 
+                  - list:
+                    - listitem [ref=e1164]:
+                      - link "Listar establecimientos get" [ref=e1165] [cursor=pointer]:
+                        - /url: /reference/listarestablecimientospymes
+                        - generic [ref=e1167]: Listar establecimientos
+                        - generic [ref=e1169]: get
+                    - listitem [ref=e1170]:
+                      - link "Consultar establecimiento get" [ref=e1171] [cursor=pointer]:
+                        - /url: /reference/consultarestablecimientopymes
+                        - generic [ref=e1173]: Consultar establecimiento
+                        - generic [ref=e1175]: get
+                    - listitem [ref=e1176]:
+                      - link "Buscar establecimiento por ID get" [ref=e1177] [cursor=pointer]:
+                        - /url: /reference/buscarestablecimientoporidpymes
+                        - generic [ref=e1179]: Buscar establecimiento por ID
+                        - generic [ref=e1181]: get
+                    - listitem [ref=e1182]:
+                      - link "Listar agrupadores get" [ref=e1183] [cursor=pointer]:
+                        - /url: /reference/listaragrupadorespymes
+                        - generic [ref=e1185]: Listar agrupadores
+                        - generic [ref=e1187]: get
+                    - listitem [ref=e1188]:
+                      - link "Consultar agrupador get" [ref=e1189] [cursor=pointer]:
+                        - /url: /reference/consultaragrupadorpymes
+                        - generic [ref=e1191]: Consultar agrupador
+                        - generic [ref=e1193]: get
+                    - listitem [ref=e1194]:
+                      - link "Buscar agrupador por ID get" [ref=e1195] [cursor=pointer]:
+                        - /url: /reference/buscaragrupadorporidpymes
+                        - generic [ref=e1197]: Buscar agrupador por ID
+                        - generic [ref=e1199]: get
+                    - listitem [ref=e1200]:
+                      - link "Listar bodegas get" [ref=e1201] [cursor=pointer]:
+                        - /url: /reference/listarbodegaspymes
+                        - generic [ref=e1203]: Listar bodegas
+                        - generic [ref=e1205]: get
+                    - listitem [ref=e1206]:
+                      - link "Consultar bodega get" [ref=e1207] [cursor=pointer]:
+                        - /url: /reference/consultarbodegapymes
+                        - generic [ref=e1209]: Consultar bodega
+                        - generic [ref=e1211]: get
+                - listitem [ref=e1212]:
+                  - link "Unidades de Negocio Show subpages for Unidades de Negocio" [ref=e1213] [cursor=pointer]:
+                    - /url: /reference/get-unidades-negocio
+                    - generic [ref=e1215]: Unidades de Negocio
+                    - button "Show subpages for Unidades de Negocio" [ref=e1216]:
+                      - generic [ref=e1217]: 
+                  - list:
+                    - listitem [ref=e1218]:
+                      - link "Listar unidades de negocio get" [ref=e1219] [cursor=pointer]:
+                        - /url: /reference/get-unidades-negocio
+                        - generic [ref=e1221]: Listar unidades de negocio
+                        - generic [ref=e1223]: get
+                    - listitem [ref=e1224]:
+                      - link "Consultar unidad de negocio por UUID get" [ref=e1225] [cursor=pointer]:
+                        - /url: /reference/get-unidad-negocio-por-uuid
+                        - generic [ref=e1227]: Consultar unidad de negocio por UUID
+                        - generic [ref=e1229]: get
+                    - listitem [ref=e1230]:
+                      - link "Consultar unidad de negocio por código completo get" [ref=e1231] [cursor=pointer]:
+                        - /url: /reference/get-unidad-negocio-por-codigo-completo
+                        - generic [ref=e1233]: Consultar unidad de negocio por código completo
+                        - generic [ref=e1235]: get
+                    - listitem [ref=e1236]:
+                      - link "Consultar unidades de negocio hijas de una unidad de negocio padre get" [ref=e1237] [cursor=pointer]:
+                        - /url: /reference/get-unidades-negocio-por-padre
+                        - generic [ref=e1239]: Consultar unidades de negocio hijas de una unidad de negocio padre
+                        - generic [ref=e1241]: get
+            - listitem [ref=e1242]:
+              - link "Facturación Show subpages for Facturación" [ref=e1243] [cursor=pointer]:
+                - /url: /reference/consecutivos
+                - generic [ref=e1245]: Facturación
+                - button "Show subpages for Facturación" [ref=e1246]:
+                  - generic [ref=e1247]: 
+              - list:
+                - listitem [ref=e1248]:
+                  - link "Consecutivos Show subpages for Consecutivos" [ref=e1249] [cursor=pointer]:
+                    - /url: /reference/consultarvigenciasconsecutivospymes
+                    - generic [ref=e1251]: Consecutivos
+                    - button "Show subpages for Consecutivos" [ref=e1252]:
+                      - generic [ref=e1253]: 
+                  - list:
+                    - listitem [ref=e1254]:
+                      - link "Consultar vigencias de consecutivos get" [ref=e1255] [cursor=pointer]:
+                        - /url: /reference/consultarvigenciasconsecutivospymes
+                        - generic [ref=e1257]: Consultar vigencias de consecutivos
+                        - generic [ref=e1259]: get
+                - listitem [ref=e1260]:
+                  - link "Clientes Show subpages for Clientes" [ref=e1261] [cursor=pointer]:
+                    - /url: /reference/listarclientespymes
+                    - generic [ref=e1263]: Clientes
+                    - button "Show subpages for Clientes" [ref=e1264]:
+                      - generic [ref=e1265]: 
+                  - list:
+                    - listitem [ref=e1266]:
+                      - link "Listar clientes get" [ref=e1267] [cursor=pointer]:
+                        - /url: /reference/listarclientespymes
+                        - generic [ref=e1269]: Listar clientes
+                        - generic [ref=e1271]: get
+                    - listitem [ref=e1272]:
+                      - link "Crear cliente post" [ref=e1273] [cursor=pointer]:
+                        - /url: /reference/crearclientepymes
+                        - generic [ref=e1275]: Crear cliente
+                        - generic [ref=e1277]: post
+                    - listitem [ref=e1278]:
+                      - link "Actualizar cliente put" [ref=e1279] [cursor=pointer]:
+                        - /url: /reference/actualizarclientepymes
+                        - generic [ref=e1281]: Actualizar cliente
+                        - generic [ref=e1283]: put
+                    - listitem [ref=e1284]:
+                      - link "Consultar cliente por UUID get" [ref=e1285] [cursor=pointer]:
+                        - /url: /reference/consultarclienteporuuidpymes
+                        - generic [ref=e1287]: Consultar cliente por UUID
+                        - generic [ref=e1289]: get
+                    - listitem [ref=e1290]:
+                      - link "Consultar cliente por identificación get" [ref=e1291] [cursor=pointer]:
+                        - /url: /reference/consultarclienteportipoidpymes
+                        - generic [ref=e1293]: Consultar cliente por identificación
+                        - generic [ref=e1295]: get
+                    - listitem [ref=e1296]:
+                      - link "Suspender cliente del" [ref=e1297] [cursor=pointer]:
+                        - /url: /reference/eliminarclientepymes
+                        - generic [ref=e1299]: Suspender cliente
+                        - generic [ref=e1301]: del
+                - listitem [ref=e1302]:
+                  - link "Facturas de Venta Show subpages for Facturas de Venta" [ref=e1303] [cursor=pointer]:
+                    - /url: /reference/anularfacturaventa
+                    - generic [ref=e1305]: Facturas de Venta
+                    - button "Show subpages for Facturas de Venta" [ref=e1306]:
+                      - generic [ref=e1307]: 
+                  - list:
+                    - listitem [ref=e1308]:
+                      - link "Anular factura de venta post" [ref=e1309] [cursor=pointer]:
+                        - /url: /reference/anularfacturaventa
+                        - generic [ref=e1311]: Anular factura de venta
+                        - generic [ref=e1313]: post
+                    - listitem [ref=e1314]:
+                      - link "Crear factura de venta post" [ref=e1315] [cursor=pointer]:
+                        - /url: /reference/crearfacturaventa
+                        - generic [ref=e1317]: Crear factura de venta
+                        - generic [ref=e1319]: post
+                    - listitem [ref=e1320]:
+                      - link "Verificar si existe factura get" [ref=e1321] [cursor=pointer]:
+                        - /url: /reference/existefacturaventa
+                        - generic [ref=e1323]: Verificar si existe factura
+                        - generic [ref=e1325]: get
+                    - listitem [ref=e1326]:
+                      - link "Registrar pago de factura post" [ref=e1327] [cursor=pointer]:
+                        - /url: /reference/pagarfacturaventa
+                        - generic [ref=e1329]: Registrar pago de factura
+                        - generic [ref=e1331]: post
+                - listitem [ref=e1332]:
+                  - link "Lista de Precios Show subpages for Lista de Precios" [ref=e1333] [cursor=pointer]:
+                    - /url: /reference/consultarproductolistaprecio
+                    - generic [ref=e1335]: Lista de Precios
+                    - button "Show subpages for Lista de Precios" [ref=e1336]:
+                      - generic [ref=e1337]: 
+                  - list:
+                    - listitem [ref=e1338]:
+                      - link "Consultar producto en lista de precios get" [ref=e1339] [cursor=pointer]:
+                        - /url: /reference/consultarproductolistaprecio
+                        - generic [ref=e1341]: Consultar producto en lista de precios
+                        - generic [ref=e1343]: get
+                    - listitem [ref=e1344]:
+                      - link "Crear o modificar producto en lista de precios put" [ref=e1345] [cursor=pointer]:
+                        - /url: /reference/crearmodificarproductolistaprecio
+                        - generic [ref=e1347]: Crear o modificar producto en lista de precios
+                        - generic [ref=e1349]: put
+                - listitem [ref=e1350]:
+                  - link "Vendedores Show subpages for Vendedores" [ref=e1351] [cursor=pointer]:
+                    - /url: /reference/crearvendedorpymes
+                    - generic [ref=e1353]: Vendedores
+                    - button "Show subpages for Vendedores" [ref=e1354]:
+                      - generic [ref=e1355]: 
+                  - list:
+                    - listitem [ref=e1356]:
+                      - link "Crear vendedor post" [ref=e1357] [cursor=pointer]:
+                        - /url: /reference/crearvendedorpymes
+                        - generic [ref=e1359]: Crear vendedor
+                        - generic [ref=e1361]: post
+                    - listitem [ref=e1362]:
+                      - link "Listar vendedores get" [ref=e1363] [cursor=pointer]:
+                        - /url: /reference/listarvendedorespymes
+                        - generic [ref=e1365]: Listar vendedores
+                        - generic [ref=e1367]: get
+                    - listitem [ref=e1368]:
+                      - link "Buscar vendedores por número de identificación get" [ref=e1369] [cursor=pointer]:
+                        - /url: /reference/buscarvendedoresporidpymes
+                        - generic [ref=e1371]: Buscar vendedores por número de identificación
+                        - generic [ref=e1373]: get
+                    - listitem [ref=e1374]:
+                      - link "Consultar vendedor por UUID get" [ref=e1375] [cursor=pointer]:
+                        - /url: /reference/consultarvendedorporuuidpymes
+                        - generic [ref=e1377]: Consultar vendedor por UUID
+                        - generic [ref=e1379]: get
+                    - listitem [ref=e1380]:
+                      - link "Actualizar vendedor put" [ref=e1381] [cursor=pointer]:
+                        - /url: /reference/actualizarvendedorpymes
+                        - generic [ref=e1383]: Actualizar vendedor
+                        - generic [ref=e1385]: put
+                    - listitem [ref=e1386]:
+                      - link "Eliminar vendedor del" [ref=e1387] [cursor=pointer]:
+                        - /url: /reference/eliminarvendedorpymes
+                        - generic [ref=e1389]: Eliminar vendedor
+                        - generic [ref=e1391]: del
+            - listitem [ref=e1392]:
+              - link "Tesorería Show subpages for Tesorería" [ref=e1393] [cursor=pointer]:
+                - /url: /reference/crearingresopymes
+                - generic [ref=e1395]: Tesorería
+                - button "Show subpages for Tesorería" [ref=e1396]:
+                  - generic [ref=e1397]: 
+              - list:
+                - listitem [ref=e1398]:
+                  - link "Crear ingreso put" [ref=e1399] [cursor=pointer]:
+                    - /url: /reference/crearingresopymes
+                    - generic [ref=e1401]: Crear ingreso
+                    - generic [ref=e1403]: put
+            - listitem [ref=e1404]:
+              - link "Inventario Hide subpages for Inventario" [ref=e1405] [cursor=pointer]:
+                - /url: /reference/productos-pymes
+                - generic [ref=e1407]: Inventario
+                - button "Hide subpages for Inventario" [expanded] [ref=e1408]:
+                  - generic [ref=e1409]: 
+              - list [ref=e1410]:
+                - listitem [ref=e1411]:
+                  - link "Productos Show subpages for Productos" [ref=e1412] [cursor=pointer]:
+                    - /url: /reference/consultarunidadesmedidapymes
+                    - generic [ref=e1414]: Productos
+                    - button "Show subpages for Productos" [ref=e1415]:
+                      - generic [ref=e1416]: 
+                  - list:
+                    - listitem [ref=e1417]:
+                      - link "Consultar unidades de medida get" [ref=e1418] [cursor=pointer]:
+                        - /url: /reference/consultarunidadesmedidapymes
+                        - generic [ref=e1420]: Consultar unidades de medida
+                        - generic [ref=e1422]: get
+                    - listitem [ref=e1423]:
+                      - link "Disponibilidad de productos post" [ref=e1424] [cursor=pointer]:
+                        - /url: /reference/disponibilidadproductospymes
+                        - generic [ref=e1426]: Disponibilidad de productos
+                        - generic [ref=e1428]: post
+                - listitem [ref=e1429]:
+                  - link "Ítems Show subpages for Ítems" [ref=e1430] [cursor=pointer]:
+                    - /url: /reference/crearmodificaritempymes
+                    - generic [ref=e1432]: Ítems
+                    - button "Show subpages for Ítems" [ref=e1433]:
+                      - generic [ref=e1434]: 
+                  - list:
+                    - listitem [ref=e1435]:
+                      - link "Crear o modificar ítem put" [ref=e1436] [cursor=pointer]:
+                        - /url: /reference/crearmodificaritempymes
+                        - generic [ref=e1438]: Crear o modificar ítem
+                        - generic [ref=e1440]: put
+                    - listitem [ref=e1441]:
+                      - link "Consultar ítem get" [ref=e1442] [cursor=pointer]:
+                        - /url: /reference/consultaritempymes
+                        - generic [ref=e1444]: Consultar ítem
+                        - generic [ref=e1446]: get
+                    - listitem [ref=e1447]:
+                      - link "Listar ítems get" [ref=e1448] [cursor=pointer]:
+                        - /url: /reference/listaritempymes
+                        - generic [ref=e1450]: Listar ítems
+                        - generic [ref=e1452]: get
+                    - listitem [ref=e1453]:
+                      - link "Inactivar ítem del" [ref=e1454] [cursor=pointer]:
+                        - /url: /reference/inactivaritempymes
+                        - generic [ref=e1456]: Inactivar ítem
+                        - generic [ref=e1458]: del
+                - listitem [ref=e1459]:
+                  - link "Salidas de Inventario Hide subpages for Salidas de Inventario" [ref=e1460] [cursor=pointer]:
+                    - /url: /reference/consultarsalidainventariopymes
+                    - generic [ref=e1462]: Salidas de Inventario
+                    - button "Hide subpages for Salidas de Inventario" [expanded] [ref=e1463]:
+                      - generic [ref=e1464]: 
+                  - list [ref=e1465]:
+                    - listitem [ref=e1466]:
+                      - link "Consultar salida con detalle de inventario get" [ref=e1467] [cursor=pointer]:
+                        - /url: /reference/consultarsalidainventariopymes
+                        - generic [ref=e1469]: Consultar salida con detalle de inventario
+                        - generic [ref=e1471]: get
+                    - listitem [ref=e1472]:
+                      - link "Consultar salida de inventario get" [ref=e1473] [cursor=pointer]:
+                        - /url: /reference/consultarsalidapymes
+                        - generic [ref=e1475]: Consultar salida de inventario
+                        - generic [ref=e1477]: get
+                    - listitem [ref=e1478]:
+                      - link "Crear salida de inventario post" [ref=e1479] [cursor=pointer]:
+                        - /url: /reference/crearsalidainventariopymes
+                        - generic [ref=e1481]: Crear salida de inventario
+                        - generic [ref=e1483]: post
+                    - listitem [ref=e1484]:
+                      - link "Registrar entrada de costo post" [ref=e1485] [cursor=pointer]:
+                        - /url: /reference/entradacostoinventariopymes
+                        - generic [ref=e1487]: Registrar entrada de costo
+                        - generic [ref=e1489]: post
+                    - listitem [ref=e1490]:
+                      - link "Actualizar estado de pedido de consumo patch" [ref=e1491] [cursor=pointer]:
+                        - /url: /reference/estadopedidoconsumopymes
+                        - generic [ref=e1493]: Actualizar estado de pedido de consumo
+                        - generic [ref=e1495]: patch
+        - generic [ref=e1496]:
+          - heading "Restobar" [level=2] [ref=e1497]
+          - list [ref=e1498]:
+            - listitem [ref=e1499]:
+              - link "Introducción Restobar" [ref=e1500] [cursor=pointer]:
+                - /url: /reference/introduccion-restobar
+                - generic [ref=e1504]: Introducción Restobar
+            - listitem [ref=e1505]:
+              - link "Autenticación Show subpages for Autenticación" [ref=e1506] [cursor=pointer]:
+                - /url: /reference/iniciarsesion
+                - generic [ref=e1510]: Autenticación
+                - button "Show subpages for Autenticación" [ref=e1511]:
+                  - generic [ref=e1512]: 
+              - list:
+                - listitem [ref=e1513]:
+                  - link "Inicio de sesión de usuario post" [ref=e1514] [cursor=pointer]:
+                    - /url: /reference/iniciarsesion
+                    - generic [ref=e1516]: Inicio de sesión de usuario
+                    - generic [ref=e1518]: post
+            - listitem [ref=e1519]:
+              - link "Categorías Show subpages for Categorías" [ref=e1520] [cursor=pointer]:
+                - /url: /reference/consultarcategorias
+                - generic [ref=e1522]: Categorías
+                - button "Show subpages for Categorías" [ref=e1523]:
+                  - generic [ref=e1524]: 
+              - list:
+                - listitem [ref=e1525]:
+                  - link "Consultar todas las categorías get" [ref=e1526] [cursor=pointer]:
+                    - /url: /reference/consultarcategorias
+                    - generic [ref=e1528]: Consultar todas las categorías
+                    - generic [ref=e1530]: get
+                - listitem [ref=e1531]:
+                  - link "Crear o editar una categoría post" [ref=e1532] [cursor=pointer]:
+                    - /url: /reference/guardarcategoria
+                    - generic [ref=e1534]: Crear o editar una categoría
+                    - generic [ref=e1536]: post
+                - listitem [ref=e1537]:
+                  - link "Consultar categoría por ID get" [ref=e1538] [cursor=pointer]:
+                    - /url: /reference/consultarcategoriaporid
+                    - generic [ref=e1540]: Consultar categoría por ID
+                    - generic [ref=e1542]: get
+                - listitem [ref=e1543]:
+                  - link "Eliminar categoría del" [ref=e1544] [cursor=pointer]:
+                    - /url: /reference/eliminarcategoria
+                    - generic [ref=e1546]: Eliminar categoría
+                    - generic [ref=e1548]: del
+                - listitem [ref=e1549]:
+                  - link "Consultar categorías con productos get" [ref=e1550] [cursor=pointer]:
+                    - /url: /reference/consultarcategoriasconproductos
+                    - generic [ref=e1552]: Consultar categorías con productos
+                    - generic [ref=e1554]: get
+            - listitem [ref=e1555]:
+              - link "Ingredientes Show subpages for Ingredientes" [ref=e1556] [cursor=pointer]:
+                - /url: /reference/consultaringredientes
+                - generic [ref=e1558]: Ingredientes
+                - button "Show subpages for Ingredientes" [ref=e1559]:
+                  - generic [ref=e1560]: 
+              - list:
+                - listitem [ref=e1561]:
+                  - link "Consultar ingredientes get" [ref=e1562] [cursor=pointer]:
+                    - /url: /reference/consultaringredientes
+                    - generic [ref=e1564]: Consultar ingredientes
+                    - generic [ref=e1566]: get
+                - listitem [ref=e1567]:
+                  - link "Crear o editar ingrediente post" [ref=e1568] [cursor=pointer]:
+                    - /url: /reference/guardaringrediente
+                    - generic [ref=e1570]: Crear o editar ingrediente
+                    - generic [ref=e1572]: post
+                - listitem [ref=e1573]:
+                  - link "Consultar solo ingredientes get" [ref=e1574] [cursor=pointer]:
+                    - /url: /reference/consultarsoloingredientes
+                    - generic [ref=e1576]: Consultar solo ingredientes
+                    - generic [ref=e1578]: get
+                - listitem [ref=e1579]:
+                  - link "Consultar ingrediente por ID get" [ref=e1580] [cursor=pointer]:
+                    - /url: /reference/consultaringredienteporid
+                    - generic [ref=e1582]: Consultar ingrediente por ID
+                    - generic [ref=e1584]: get
+                - listitem [ref=e1585]:
+                  - link "Eliminar ingrediente del" [ref=e1586] [cursor=pointer]:
+                    - /url: /reference/eliminaringrediente
+                    - generic [ref=e1588]: Eliminar ingrediente
+                    - generic [ref=e1590]: del
+            - listitem [ref=e1591]:
+              - link "Inventario Show subpages for Inventario" [ref=e1592] [cursor=pointer]:
+                - /url: /reference/consultarmovimientosinventario
+                - generic [ref=e1594]: Inventario
+                - button "Show subpages for Inventario" [ref=e1595]:
+                  - generic [ref=e1596]: 
+              - list:
+                - listitem [ref=e1597]:
+                  - link "Consultar movimientos de inventario get" [ref=e1598] [cursor=pointer]:
+                    - /url: /reference/consultarmovimientosinventario
+                    - generic [ref=e1600]: Consultar movimientos de inventario
+                    - generic [ref=e1602]: get
+                - listitem [ref=e1603]:
+                  - link "Crear o editar movimiento de inventario post" [ref=e1604] [cursor=pointer]:
+                    - /url: /reference/guardarmovimientoinventario
+                    - generic [ref=e1606]: Crear o editar movimiento de inventario
+                    - generic [ref=e1608]: post
+                - listitem [ref=e1609]:
+                  - link "Consultar tipos de inventario get" [ref=e1610] [cursor=pointer]:
+                    - /url: /reference/consultartiposinventario
+                    - generic [ref=e1612]: Consultar tipos de inventario
+                    - generic [ref=e1614]: get
+                - listitem [ref=e1615]:
+                  - link "Consultar movimiento por ID get" [ref=e1616] [cursor=pointer]:
+                    - /url: /reference/consultarmovimientoporid
+                    - generic [ref=e1618]: Consultar movimiento por ID
+                    - generic [ref=e1620]: get
+                - listitem [ref=e1621]:
+                  - link "Eliminar movimiento de inventario del" [ref=e1622] [cursor=pointer]:
+                    - /url: /reference/eliminarmovimientoinventario
+                    - generic [ref=e1624]: Eliminar movimiento de inventario
+                    - generic [ref=e1626]: del
+                - listitem [ref=e1627]:
+                  - link "Reporte de compras de ingredientes get" [ref=e1628] [cursor=pointer]:
+                    - /url: /reference/reportecomprasingredientes
+                    - generic [ref=e1630]: Reporte de compras de ingredientes
+                    - generic [ref=e1632]: get
+                - listitem [ref=e1633]:
+                  - link "Reporte de producción de ingredientes get" [ref=e1634] [cursor=pointer]:
+                    - /url: /reference/reporteproduccioningredientes
+                    - generic [ref=e1636]: Reporte de producción de ingredientes
+                    - generic [ref=e1638]: get
+                - listitem [ref=e1639]:
+                  - link "Reporte de traslados de ingredientes get" [ref=e1640] [cursor=pointer]:
+                    - /url: /reference/reportetrasladosingredientes
+                    - generic [ref=e1642]: Reporte de traslados de ingredientes
+                    - generic [ref=e1644]: get
+            - listitem [ref=e1645]:
+              - link "Clientes Show subpages for Clientes" [ref=e1646] [cursor=pointer]:
+                - /url: /reference/consultarclientes
+                - generic [ref=e1648]: Clientes
+                - button "Show subpages for Clientes" [ref=e1649]:
+                  - generic [ref=e1650]: 
+              - list:
+                - listitem [ref=e1651]:
+                  - link "Consultar lista de clientes get" [ref=e1652] [cursor=pointer]:
+                    - /url: /reference/consultarclientes
+                    - generic [ref=e1654]: Consultar lista de clientes
+                    - generic [ref=e1656]: get
+                - listitem [ref=e1657]:
+                  - link "Crear o editar un cliente post" [ref=e1658] [cursor=pointer]:
+                    - /url: /reference/guardarcliente
+                    - generic [ref=e1660]: Crear o editar un cliente
+                    - generic [ref=e1662]: post
+                - listitem [ref=e1663]:
+                  - link "Obtener un cliente por ID get" [ref=e1664] [cursor=pointer]:
+                    - /url: /reference/consultarclienteporid
+                    - generic [ref=e1666]: Obtener un cliente por ID
+                    - generic [ref=e1668]: get
+                - listitem [ref=e1669]:
+                  - link "Eliminar un cliente del" [ref=e1670] [cursor=pointer]:
+                    - /url: /reference/eliminarcliente
+                    - generic [ref=e1672]: Eliminar un cliente
+                    - generic [ref=e1674]: del
+                - listitem [ref=e1675]:
+                  - link "Registrar abono a crédito de un cliente post" [ref=e1676] [cursor=pointer]:
+                    - /url: /reference/registrarabonocreditocliente
+                    - generic [ref=e1678]: Registrar abono a crédito de un cliente
+                    - generic [ref=e1680]: post
+            - listitem [ref=e1681]:
+              - link "Proveedores de Domicilio Show subpages for Proveedores de Domicilio" [ref=e1682] [cursor=pointer]:
+                - /url: /reference/consultarproveedoresdomicilio
+                - generic [ref=e1684]: Proveedores de Domicilio
+                - button "Show subpages for Proveedores de Domicilio" [ref=e1685]:
+                  - generic [ref=e1686]: 
+              - list:
+                - listitem [ref=e1687]:
+                  - link "Obtener todos los proveedores de domicilio get" [ref=e1688] [cursor=pointer]:
+                    - /url: /reference/consultarproveedoresdomicilio
+                    - generic [ref=e1690]: Obtener todos los proveedores de domicilio
+                    - generic [ref=e1692]: get
+                - listitem [ref=e1693]:
+                  - link "Crear o editar un proveedor de domicilio post" [ref=e1694] [cursor=pointer]:
+                    - /url: /reference/guardarproveedordomicilio
+                    - generic [ref=e1696]: Crear o editar un proveedor de domicilio
+                    - generic [ref=e1698]: post
+                - listitem [ref=e1699]:
+                  - link "Obtener un proveedor de domicilio por ID get" [ref=e1700] [cursor=pointer]:
+                    - /url: /reference/consultarproveedordomicilioporid
+                    - generic [ref=e1702]: Obtener un proveedor de domicilio por ID
+                    - generic [ref=e1704]: get
+                - listitem [ref=e1705]:
+                  - link "Eliminar un proveedor de domicilio del" [ref=e1706] [cursor=pointer]:
+                    - /url: /reference/eliminarproveedordomicilio
+                    - generic [ref=e1708]: Eliminar un proveedor de domicilio
+                    - generic [ref=e1710]: del
+            - listitem [ref=e1711]:
+              - link "Eventos Show subpages for Eventos" [ref=e1712] [cursor=pointer]:
+                - /url: /reference/consultareventos
+                - generic [ref=e1714]: Eventos
+                - button "Show subpages for Eventos" [ref=e1715]:
+                  - generic [ref=e1716]: 
+              - list:
+                - listitem [ref=e1717]:
+                  - link "Obtener todos los eventos del negocio get" [ref=e1718] [cursor=pointer]:
+                    - /url: /reference/consultareventos
+                    - generic [ref=e1720]: Obtener todos los eventos del negocio
+                    - generic [ref=e1722]: get
+                - listitem [ref=e1723]:
+                  - link "Crear o editar un evento post" [ref=e1724] [cursor=pointer]:
+                    - /url: /reference/guardarevento
+                    - generic [ref=e1726]: Crear o editar un evento
+                    - generic [ref=e1728]: post
+                - listitem [ref=e1729]:
+                  - link "Obtener un evento por ID get" [ref=e1730] [cursor=pointer]:
+                    - /url: /reference/consultareventoporid
+                    - generic [ref=e1732]: Obtener un evento por ID
+                    - generic [ref=e1734]: get
+                - listitem [ref=e1735]:
+                  - link "Eliminar un evento (borrado lógico) del" [ref=e1736] [cursor=pointer]:
+                    - /url: /reference/eliminarevento
+                    - generic [ref=e1738]: Eliminar un evento (borrado lógico)
+                    - generic [ref=e1740]: del
+            - listitem [ref=e1741]:
+              - link "Facturas Show subpages for Facturas" [ref=e1742] [cursor=pointer]:
+                - /url: /reference/consultarfacturas
+                - generic [ref=e1744]: Facturas
+                - button "Show subpages for Facturas" [ref=e1745]:
+                  - generic [ref=e1746]: 
+              - list:
+                - listitem [ref=e1747]:
+                  - link "Consultar todas las facturas get" [ref=e1748] [cursor=pointer]:
+                    - /url: /reference/consultarfacturas
+                    - generic [ref=e1750]: Consultar todas las facturas
+                    - generic [ref=e1752]: get
+                - listitem [ref=e1753]:
+                  - link "Crear nueva factura post" [ref=e1754] [cursor=pointer]:
+                    - /url: /reference/crearfactura
+                    - generic [ref=e1756]: Crear nueva factura
+                    - generic [ref=e1758]: post
+                - listitem [ref=e1759]:
+                  - link "Validar estado de factura electrónica get" [ref=e1760] [cursor=pointer]:
+                    - /url: /reference/validarfacturaelectronica
+                    - generic [ref=e1762]: Validar estado de factura electrónica
+                    - generic [ref=e1764]: get
+                - listitem [ref=e1765]:
+                  - link "Contar facturas electrónicas get" [ref=e1766] [cursor=pointer]:
+                    - /url: /reference/contarfacturaselectronicas
+                    - generic [ref=e1768]: Contar facturas electrónicas
+                    - generic [ref=e1770]: get
+                - listitem [ref=e1771]:
+                  - link "Obtener la última factura del negocio get" [ref=e1772] [cursor=pointer]:
+                    - /url: /reference/obtenerultimafactura
+                    - generic [ref=e1774]: Obtener la última factura del negocio
+                    - generic [ref=e1776]: get
+                - listitem [ref=e1777]:
+                  - link "Obtener facturas en estado Facturada get" [ref=e1778] [cursor=pointer]:
+                    - /url: /reference/obtenerfacturadas
+                    - generic [ref=e1780]: Obtener facturas en estado Facturada
+                    - generic [ref=e1782]: get
+                - listitem [ref=e1783]:
+                  - link "Obtener factura por ID get" [ref=e1784] [cursor=pointer]:
+                    - /url: /reference/obtenerfacturaporid
+                    - generic [ref=e1786]: Obtener factura por ID
+                    - generic [ref=e1788]: get
+                - listitem [ref=e1789]:
+                  - link "Verificar validación de factura electrónica por ID get" [ref=e1790] [cursor=pointer]:
+                    - /url: /reference/verificarvalidacionfacturaelectronica
+                    - generic [ref=e1792]: Verificar validación de factura electrónica por ID
+                    - generic [ref=e1794]: get
+                - listitem [ref=e1795]:
+                  - link "Marcar factura como pagada post" [ref=e1796] [cursor=pointer]:
+                    - /url: /reference/marcarfacturacomopagada
+                    - generic [ref=e1798]: Marcar factura como pagada
+                    - generic [ref=e1800]: post
+                - listitem [ref=e1801]:
+                  - link "Pagar facturas de proveedores de domicilio put" [ref=e1802] [cursor=pointer]:
+                    - /url: /reference/pagarfacturasproveedoresdomicilio
+                    - generic [ref=e1804]: Pagar facturas de proveedores de domicilio
+                    - generic [ref=e1806]: put
+                - listitem [ref=e1807]:
+                  - link "Reenviar factura por correo electrónico post" [ref=e1808] [cursor=pointer]:
+                    - /url: /reference/reenviarfacturaemail
+                    - generic [ref=e1810]: Reenviar factura por correo electrónico
+                    - generic [ref=e1812]: post
+                - listitem [ref=e1813]:
+                  - link "Anular factura post" [ref=e1814] [cursor=pointer]:
+                    - /url: /reference/anularfactura
+                    - generic [ref=e1816]: Anular factura
+                    - generic [ref=e1818]: post
+                - listitem [ref=e1819]:
+                  - link "Finalizar proceso de anulación de factura electrónica post" [ref=e1820] [cursor=pointer]:
+                    - /url: /reference/finalizaranulacionfacturaelectronica
+                    - generic [ref=e1822]: Finalizar proceso de anulación de factura electrónica
+                    - generic [ref=e1824]: post
+                - listitem [ref=e1825]:
+                  - link "Obtener domicilios asignados al repartidor actual get" [ref=e1826] [cursor=pointer]:
+                    - /url: /reference/obtenermisdomicilios
+                    - generic [ref=e1828]: Obtener domicilios asignados al repartidor actual
+                    - generic [ref=e1830]: get
+                - listitem [ref=e1831]:
+                  - link "Obtener domicilios pendientes de asignación get" [ref=e1832] [cursor=pointer]:
+                    - /url: /reference/obtenerdomiciliospendientes
+                    - generic [ref=e1834]: Obtener domicilios pendientes de asignación
+                    - generic [ref=e1836]: get
+                - listitem [ref=e1837]:
+                  - link "Cambiar estado de un domicilio put" [ref=e1838] [cursor=pointer]:
+                    - /url: /reference/cambiarestadodomicilio
+                    - generic [ref=e1840]: Cambiar estado de un domicilio
+                    - generic [ref=e1842]: put
+                - listitem [ref=e1843]:
+                  - link "Forzar reenvío de factura a integración contable patch" [ref=e1844] [cursor=pointer]:
+                    - /url: /reference/forzarenviointegracion
+                    - generic [ref=e1846]: Forzar reenvío de factura a integración contable
+                    - generic [ref=e1848]: patch
+            - listitem [ref=e1849]:
+              - link "Pedidos Show subpages for Pedidos" [ref=e1850] [cursor=pointer]:
+                - /url: /reference/crearpedidos
+                - generic [ref=e1852]: Pedidos
+                - button "Show subpages for Pedidos" [ref=e1853]:
+                  - generic [ref=e1854]: 
+              - list:
+                - listitem [ref=e1855]:
+                  - link "Crear nuevos pedidos post" [ref=e1856] [cursor=pointer]:
+                    - /url: /reference/crearpedidos
+                    - generic [ref=e1858]: Crear nuevos pedidos
+                    - generic [ref=e1860]: post
+                - listitem [ref=e1861]:
+                  - link "Cancelar o actualizar un pedido put" [ref=e1862] [cursor=pointer]:
+                    - /url: /reference/actualizarpedido
+                    - generic [ref=e1864]: Cancelar o actualizar un pedido
+                    - generic [ref=e1866]: put
+                - listitem [ref=e1867]:
+                  - link "Consultar todos los pedidos get" [ref=e1868] [cursor=pointer]:
+                    - /url: /reference/consultarpedidos
+                    - generic [ref=e1870]: Consultar todos los pedidos
+                    - generic [ref=e1872]: get
+                - listitem [ref=e1873]:
+                  - link "Obtener pedidos en espera del negocio actual get" [ref=e1874] [cursor=pointer]:
+                    - /url: /reference/obtenerpedidosenespera
+                    - generic [ref=e1876]: Obtener pedidos en espera del negocio actual
+                    - generic [ref=e1878]: get
+                - listitem [ref=e1879]:
+                  - link "Obtener pedidos de una mesa get" [ref=e1880] [cursor=pointer]:
+                    - /url: /reference/obtenerpedidospormesa
+                    - generic [ref=e1882]: Obtener pedidos de una mesa
+                    - generic [ref=e1884]: get
+                - listitem [ref=e1885]:
+                  - link "Obtener mesas agrupadas por estado de pedido get" [ref=e1886] [cursor=pointer]:
+                    - /url: /reference/obtenermesasporestadopedido
+                    - generic [ref=e1888]: Obtener mesas agrupadas por estado de pedido
+                    - generic [ref=e1890]: get
+                - listitem [ref=e1891]:
+                  - link "Obtener grupos de pedidos por estado get" [ref=e1892] [cursor=pointer]:
+                    - /url: /reference/obtenergruposporestadopedido
+                    - generic [ref=e1894]: Obtener grupos de pedidos por estado
+                    - generic [ref=e1896]: get
+                - listitem [ref=e1897]:
+                  - link "Obtener un pedido por ID get" [ref=e1898] [cursor=pointer]:
+                    - /url: /reference/consultarpedidoporid
+                    - generic [ref=e1900]: Obtener un pedido por ID
+                    - generic [ref=e1902]: get
+                - listitem [ref=e1903]:
+                  - link "Mover pedidos a otra mesa post" [ref=e1904] [cursor=pointer]:
+                    - /url: /reference/moverpedidosamesa
+                    - generic [ref=e1906]: Mover pedidos a otra mesa
+                    - generic [ref=e1908]: post
+                - listitem [ref=e1909]:
+                  - link "Actualizar múltiples pedidos (cortesías e internos) put" [ref=e1910] [cursor=pointer]:
+                    - /url: /reference/actualizarpedidosmasivo
+                    - generic [ref=e1912]: Actualizar múltiples pedidos (cortesías e internos)
+                    - generic [ref=e1914]: put
+                - listitem [ref=e1915]:
+                  - link "Dividir pedidos en unidades individuales put" [ref=e1916] [cursor=pointer]:
+                    - /url: /reference/dividirpedidos
+                    - generic [ref=e1918]: Dividir pedidos en unidades individuales
+                    - generic [ref=e1920]: put
+            - listitem [ref=e1921]:
+              - link "Cocina Show subpages for Cocina" [ref=e1922] [cursor=pointer]:
+                - /url: /reference/obtenerpedidosparacocina
+                - generic [ref=e1924]: Cocina
+                - button "Show subpages for Cocina" [ref=e1925]:
+                  - generic [ref=e1926]: 
+              - list:
+                - listitem [ref=e1927]:
+                  - link "Obtener pedidos para la pantalla de cocina get" [ref=e1928] [cursor=pointer]:
+                    - /url: /reference/obtenerpedidosparacocina
+                    - generic [ref=e1930]: Obtener pedidos para la pantalla de cocina
+                    - generic [ref=e1932]: get
+                - listitem [ref=e1933]:
+                  - link "Obtener pedidos en espera para cocina get" [ref=e1934] [cursor=pointer]:
+                    - /url: /reference/obtenerpedidosenesperacocina
+                    - generic [ref=e1936]: Obtener pedidos en espera para cocina
+                    - generic [ref=e1938]: get
+                - listitem [ref=e1939]:
+                  - link "Cambiar estado de cocina de pedidos put" [ref=e1940] [cursor=pointer]:
+                    - /url: /reference/cambiarestadococinapedidos
+                    - generic [ref=e1942]: Cambiar estado de cocina de pedidos
+                    - generic [ref=e1944]: put
+            - listitem [ref=e1945]:
+              - link "Pagos de Facturas de Inventario Show subpages for Pagos de Facturas de Inventario" [ref=e1946] [cursor=pointer]:
+                - /url: /reference/consultarpagosinventario
+                - generic [ref=e1948]: Pagos de Facturas de Inventario
+                - button "Show subpages for Pagos de Facturas de Inventario" [ref=e1949]:
+                  - generic [ref=e1950]: 
+              - list:
+                - listitem [ref=e1951]:
+                  - link "Obtener todos los pagos de facturas de inventario get" [ref=e1952] [cursor=pointer]:
+                    - /url: /reference/consultarpagosinventario
+                    - generic [ref=e1954]: Obtener todos los pagos de facturas de inventario
+                    - generic [ref=e1956]: get
+                - listitem [ref=e1957]:
+                  - link "Crear o actualizar un pago de factura de inventario post" [ref=e1958] [cursor=pointer]:
+                    - /url: /reference/guardarpagoinventario
+                    - generic [ref=e1960]: Crear o actualizar un pago de factura de inventario
+                    - generic [ref=e1962]: post
+                - listitem [ref=e1963]:
+                  - link "Obtener pagos por movimiento de inventario get" [ref=e1964] [cursor=pointer]:
+                    - /url: /reference/consultarpagosinventariopormovimiento
+                    - generic [ref=e1966]: Obtener pagos por movimiento de inventario
+                    - generic [ref=e1968]: get
+                - listitem [ref=e1969]:
+                  - link "Obtener un pago de factura de inventario por ID get" [ref=e1970] [cursor=pointer]:
+                    - /url: /reference/consultarpagoinventarioporid
+                    - generic [ref=e1972]: Obtener un pago de factura de inventario por ID
+                    - generic [ref=e1974]: get
+                - listitem [ref=e1975]:
+                  - link "Eliminar un pago de factura de inventario del" [ref=e1976] [cursor=pointer]:
+                    - /url: /reference/eliminarpagoinventario
+                    - generic [ref=e1978]: Eliminar un pago de factura de inventario
+                    - generic [ref=e1980]: del
+            - listitem [ref=e1981]:
+              - link "Métodos de Pago Show subpages for Métodos de Pago" [ref=e1982] [cursor=pointer]:
+                - /url: /reference/consultarmetodospago
+                - generic [ref=e1984]: Métodos de Pago
+                - button "Show subpages for Métodos de Pago" [ref=e1985]:
+                  - generic [ref=e1986]: 
+              - list:
+                - listitem [ref=e1987]:
+                  - link "Consultar todos los métodos de pago get" [ref=e1988] [cursor=pointer]:
+                    - /url: /reference/consultarmetodospago
+                    - generic [ref=e1990]: Consultar todos los métodos de pago
+                    - generic [ref=e1992]: get
+                - listitem [ref=e1993]:
+                  - link "Crear o actualizar un método de pago post" [ref=e1994] [cursor=pointer]:
+                    - /url: /reference/guardarmetodopago
+                    - generic [ref=e1996]: Crear o actualizar un método de pago
+                    - generic [ref=e1998]: post
+                - listitem [ref=e1999]:
+                  - link "Consultar un método de pago por ID get" [ref=e2000] [cursor=pointer]:
+                    - /url: /reference/consultarmetodopagoporid
+                    - generic [ref=e2002]: Consultar un método de pago por ID
+                    - generic [ref=e2004]: get
+                - listitem [ref=e2005]:
+                  - link "Eliminar un método de pago del" [ref=e2006] [cursor=pointer]:
+                    - /url: /reference/eliminarmetodopago
+                    - generic [ref=e2008]: Eliminar un método de pago
+                    - generic [ref=e2010]: del
+            - listitem [ref=e2011]:
+              - link "Impuestos Show subpages for Impuestos" [ref=e2012] [cursor=pointer]:
+                - /url: /reference/consultarimpuestos
+                - generic [ref=e2014]: Impuestos
+                - button "Show subpages for Impuestos" [ref=e2015]:
+                  - generic [ref=e2016]: 
+              - list:
+                - listitem [ref=e2017]:
+                  - link "Consultar todos los impuestos get" [ref=e2018] [cursor=pointer]:
+                    - /url: /reference/consultarimpuestos
+                    - generic [ref=e2020]: Consultar todos los impuestos
+                    - generic [ref=e2022]: get
+                - listitem [ref=e2023]:
+                  - link "Crear o editar un impuesto post" [ref=e2024] [cursor=pointer]:
+                    - /url: /reference/guardarimpuesto
+                    - generic [ref=e2026]: Crear o editar un impuesto
+                    - generic [ref=e2028]: post
+                - listitem [ref=e2029]:
+                  - link "Consultar un impuesto por ID get" [ref=e2030] [cursor=pointer]:
+                    - /url: /reference/consultarimpuestoporid
+                    - generic [ref=e2032]: Consultar un impuesto por ID
+                    - generic [ref=e2034]: get
+                - listitem [ref=e2035]:
+                  - link "Eliminar un impuesto del" [ref=e2036] [cursor=pointer]:
+                    - /url: /reference/eliminarimpuesto
+                    - generic [ref=e2038]: Eliminar un impuesto
+                    - generic [ref=e2040]: del
+            - listitem [ref=e2041]:
+              - link "Productos Show subpages for Productos" [ref=e2042] [cursor=pointer]:
+                - /url: /reference/consultarproductos
+                - generic [ref=e2044]: Productos
+                - button "Show subpages for Productos" [ref=e2045]:
+                  - generic [ref=e2046]: 
+              - list:
+                - listitem [ref=e2047]:
+                  - link "Consultar todos los productos get" [ref=e2048] [cursor=pointer]:
+                    - /url: /reference/consultarproductos
+                    - generic [ref=e2050]: Consultar todos los productos
+                    - generic [ref=e2052]: get
+                - listitem [ref=e2053]:
+                  - link "Crear o editar un producto post" [ref=e2054] [cursor=pointer]:
+                    - /url: /reference/guardarproducto
+                    - generic [ref=e2056]: Crear o editar un producto
+                    - generic [ref=e2058]: post
+                - listitem [ref=e2059]:
+                  - link "Consultar productos por categoría get" [ref=e2060] [cursor=pointer]:
+                    - /url: /reference/consultarproductosporcategoria
+                    - generic [ref=e2062]: Consultar productos por categoría
+                    - generic [ref=e2064]: get
+                - listitem [ref=e2065]:
+                  - link "Consultar productos y subproductos get" [ref=e2066] [cursor=pointer]:
+                    - /url: /reference/consultarproductosysubproductos
+                    - generic [ref=e2068]: Consultar productos y subproductos
+                    - generic [ref=e2070]: get
+                - listitem [ref=e2071]:
+                  - link "Guardar menú de proveedor externo post" [ref=e2072] [cursor=pointer]:
+                    - /url: /reference/guardarmenuproveedorexterno
+                    - generic [ref=e2074]: Guardar menú de proveedor externo
+                    - generic [ref=e2076]: post
+                - listitem [ref=e2077]:
+                  - link "Consultar menú de proveedor externo get" [ref=e2078] [cursor=pointer]:
+                    - /url: /reference/consultarmenuproveedorexterno
+                    - generic [ref=e2080]: Consultar menú de proveedor externo
+                    - generic [ref=e2082]: get
+                - listitem [ref=e2083]:
+                  - link "Guardar configuración por ubicación de stock post" [ref=e2084] [cursor=pointer]:
+                    - /url: /reference/guardarconfiguracionubicacionstock
+                    - generic [ref=e2086]: Guardar configuración por ubicación de stock
+                    - generic [ref=e2088]: post
+                - listitem [ref=e2089]:
+                  - link "Subir imagen de producto post" [ref=e2090] [cursor=pointer]:
+                    - /url: /reference/subirimagenproducto
+                    - generic [ref=e2092]: Subir imagen de producto
+                    - generic [ref=e2094]: post
+                - listitem [ref=e2095]:
+                  - link "Cargar productos desde Excel post" [ref=e2096] [cursor=pointer]:
+                    - /url: /reference/cargarproductosexcel
+                    - generic [ref=e2098]: Cargar productos desde Excel
+                    - generic [ref=e2100]: post
+                - listitem [ref=e2101]:
+                  - link "Convertir producto en subproducto post" [ref=e2102] [cursor=pointer]:
+                    - /url: /reference/convertirproductoasubproducto
+                    - generic [ref=e2104]: Convertir producto en subproducto
+                    - generic [ref=e2106]: post
+                - listitem [ref=e2107]:
+                  - link "Consultar producto por ID get" [ref=e2108] [cursor=pointer]:
+                    - /url: /reference/consultarproductoporid
+                    - generic [ref=e2110]: Consultar producto por ID
+                    - generic [ref=e2112]: get
+                - listitem [ref=e2113]:
+                  - link "Eliminar un producto del" [ref=e2114] [cursor=pointer]:
+                    - /url: /reference/eliminarproducto
+                    - generic [ref=e2116]: Eliminar un producto
+                    - generic [ref=e2118]: del
+                - listitem [ref=e2119]:
+                  - link "Guardar precios/configuración por ubicación de stock post" [ref=e2120] [cursor=pointer]:
+                    - /url: /reference/guardarpreciosconfiguracionubicacionstock
+                    - generic [ref=e2122]: Guardar precios/configuración por ubicación de stock
+                    - generic [ref=e2124]: post
+                - listitem [ref=e2125]:
+                  - link "Verificar herencia de productos en negocios hijos post" [ref=e2126] [cursor=pointer]:
+                    - /url: /reference/verificarherenciaproductos
+                    - generic [ref=e2128]: Verificar herencia de productos en negocios hijos
+                    - generic [ref=e2130]: post
+            - listitem [ref=e2131]:
+              - link "Reportes Show subpages for Reportes" [ref=e2132] [cursor=pointer]:
+                - /url: /reference/reporteventasporfacturas
+                - generic [ref=e2134]: Reportes
+                - button "Show subpages for Reportes" [ref=e2135]:
+                  - generic [ref=e2136]: 
+              - list:
+                - listitem [ref=e2137]:
+                  - link "Consultar las ventas por facturas get" [ref=e2138] [cursor=pointer]:
+                    - /url: /reference/reporteventasporfacturas
+                    - generic [ref=e2140]: Consultar las ventas por facturas
+                    - generic [ref=e2142]: get
+                - listitem [ref=e2143]:
+                  - link "Consultar las ventas agrupadas por categorías get" [ref=e2144] [cursor=pointer]:
+                    - /url: /reference/reporteventasporcategoria
+                    - generic [ref=e2146]: Consultar las ventas agrupadas por categorías
+                    - generic [ref=e2148]: get
+                - listitem [ref=e2149]:
+                  - link "Consultar las ventas detallado por productos get" [ref=e2150] [cursor=pointer]:
+                    - /url: /reference/reporteventasporproducto
+                    - generic [ref=e2152]: Consultar las ventas detallado por productos
+                    - generic [ref=e2154]: get
+                - listitem [ref=e2155]:
+                  - link "Reporte de compras de inventario get" [ref=e2156] [cursor=pointer]:
+                    - /url: /reference/reportecomprasinventario
+                    - generic [ref=e2158]: Reporte de compras de inventario
+                    - generic [ref=e2160]: get
+                - listitem [ref=e2161]:
+                  - link "Reporte de producciones de inventario get" [ref=e2162] [cursor=pointer]:
+                    - /url: /reference/reporteproducciones
+                    - generic [ref=e2164]: Reporte de producciones de inventario
+                    - generic [ref=e2166]: get
+                - listitem [ref=e2167]:
+                  - link "Reporte de traslados de inventario entre ubicaciones get" [ref=e2168] [cursor=pointer]:
+                    - /url: /reference/reportetraslados
+                    - generic [ref=e2170]: Reporte de traslados de inventario entre ubicaciones
+                    - generic [ref=e2172]: get
+                - listitem [ref=e2173]:
+                  - link "Reporte de mermas de inventario get" [ref=e2174] [cursor=pointer]:
+                    - /url: /reference/reportemermas
+                    - generic [ref=e2176]: Reporte de mermas de inventario
+                    - generic [ref=e2178]: get
+                - listitem [ref=e2179]:
+                  - link "Reporte de gastos del negocio get" [ref=e2180] [cursor=pointer]:
+                    - /url: /reference/reportegastos
+                    - generic [ref=e2182]: Reporte de gastos del negocio
+                    - generic [ref=e2184]: get
+                - listitem [ref=e2185]:
+                  - link "Reporte de utilidad (ventas con costos) get" [ref=e2186] [cursor=pointer]:
+                    - /url: /reference/reporteutilidad
+                    - generic [ref=e2188]: Reporte de utilidad (ventas con costos)
+                    - generic [ref=e2190]: get
+                - listitem [ref=e2191]:
+                  - link "Reporte de utilidad agrupado por tipos de gasto get" [ref=e2192] [cursor=pointer]:
+                    - /url: /reference/reporteutilidadportiposgasto
+                    - generic [ref=e2194]: Reporte de utilidad agrupado por tipos de gasto
+                    - generic [ref=e2196]: get
+                - listitem [ref=e2197]:
+                  - link "Reporte de utilidad agrupado por proveedor de entrega get" [ref=e2198] [cursor=pointer]:
+                    - /url: /reference/reporteutilidadporproveedorentrega
+                    - generic [ref=e2200]: Reporte de utilidad agrupado por proveedor de entrega
+                    - generic [ref=e2202]: get
+            - listitem [ref=e2203]:
+              - link "Estadísticas Show subpages for Estadísticas" [ref=e2204] [cursor=pointer]:
+                - /url: /reference/getdashboard
+                - generic [ref=e2206]: Estadísticas
+                - button "Show subpages for Estadísticas" [ref=e2207]:
+                  - generic [ref=e2208]: 
+              - list:
+                - listitem [ref=e2209]:
+                  - link "Dashboard completo de estadísticas get" [ref=e2210] [cursor=pointer]:
+                    - /url: /reference/getdashboard
+                    - generic [ref=e2212]: Dashboard completo de estadísticas
+                    - generic [ref=e2214]: get
+                - listitem [ref=e2215]:
+                  - link "Dashboard completo de estadísticas v2 get" [ref=e2216] [cursor=pointer]:
+                    - /url: /reference/getdashboardv2
+                    - generic [ref=e2218]: Dashboard completo de estadísticas v2
+                    - generic [ref=e2220]: get
+                - listitem [ref=e2221]:
+                  - link "Total de facturas en la caja actual get" [ref=e2222] [cursor=pointer]:
+                    - /url: /reference/gettotalinvoicescurrentcashbox
+                    - generic [ref=e2224]: Total de facturas en la caja actual
+                    - generic [ref=e2226]: get
+                - listitem [ref=e2227]:
+                  - link "Últimos pedidos del negocio get" [ref=e2228] [cursor=pointer]:
+                    - /url: /reference/getlastorders
+                    - generic [ref=e2230]: Últimos pedidos del negocio
+                    - generic [ref=e2232]: get
+                - listitem [ref=e2233]:
+                  - link "Total de facturas del día de hoy get" [ref=e2234] [cursor=pointer]:
+                    - /url: /reference/gettotalinvoicestoday
+                    - generic [ref=e2236]: Total de facturas del día de hoy
+                    - generic [ref=e2238]: get
+                - listitem [ref=e2239]:
+                  - link "Total de facturas de los últimos 7 días get" [ref=e2240] [cursor=pointer]:
+                    - /url: /reference/gettotalinvoiceslast7days
+                    - generic [ref=e2242]: Total de facturas de los últimos 7 días
+                    - generic [ref=e2244]: get
+                - listitem [ref=e2245]:
+                  - link "Total de facturas de los últimos 30 días (premium) get" [ref=e2246] [cursor=pointer]:
+                    - /url: /reference/gettotalinvoiceslast30days
+                    - generic [ref=e2248]: Total de facturas de los últimos 30 días (premium)
+                    - generic [ref=e2250]: get
+                - listitem [ref=e2251]:
+                  - link "Total de facturas del año actual (premium) get" [ref=e2252] [cursor=pointer]:
+                    - /url: /reference/gettotalinvoicescurrentyear
+                    - generic [ref=e2254]: Total de facturas del año actual (premium)
+                    - generic [ref=e2256]: get
+                - listitem [ref=e2257]:
+                  - link "Total de facturas del año actual v2 (premium) get" [ref=e2258] [cursor=pointer]:
+                    - /url: /reference/gettotalinvoicescurrentyearv2
+                    - generic [ref=e2260]: Total de facturas del año actual v2 (premium)
+                    - generic [ref=e2262]: get
+                - listitem [ref=e2263]:
+                  - link "Pedidos de hoy agrupados por hora (premium) get" [ref=e2264] [cursor=pointer]:
+                    - /url: /reference/gettotalorderstodaybyhours
+                    - generic [ref=e2266]: Pedidos de hoy agrupados por hora (premium)
+                    - generic [ref=e2268]: get
+                - listitem [ref=e2269]:
+                  - link "Facturas de los últimos 7 días agrupadas por día (premium) get" [ref=e2270] [cursor=pointer]:
+                    - /url: /reference/gettotalinvoiceslast7daysbydays
+                    - generic [ref=e2272]: Facturas de los últimos 7 días agrupadas por día (premium)
+                    - generic [ref=e2274]: get
+                - listitem [ref=e2275]:
+                  - link "Pedidos del mes actual agrupados por producto (premium) get" [ref=e2276] [cursor=pointer]:
+                    - /url: /reference/gettotalorderscurrentmonthbyproducts
+                    - generic [ref=e2278]: Pedidos del mes actual agrupados por producto (premium)
+                    - generic [ref=e2280]: get
+                - listitem [ref=e2281]:
+                  - link "Facturas del año actual agrupadas por mes (premium) get" [ref=e2282] [cursor=pointer]:
+                    - /url: /reference/gettotalinvoicescurrentyearbymonth
+                    - generic [ref=e2284]: Facturas del año actual agrupadas por mes (premium)
+                    - generic [ref=e2286]: get
+                - listitem [ref=e2287]:
+                  - link "Facturas del año actual agrupadas por mes v2 (premium) get" [ref=e2288] [cursor=pointer]:
+                    - /url: /reference/gettotalinvoicescurrentyearbymonthv2
+                    - generic [ref=e2290]: Facturas del año actual agrupadas por mes v2 (premium)
+                    - generic [ref=e2292]: get
+                - listitem [ref=e2293]:
+                  - link "Pedidos del mes actual agrupados por vendedor (premium) get" [ref=e2294] [cursor=pointer]:
+                    - /url: /reference/gettotalorderscurrentmonthbyseller
+                    - generic [ref=e2296]: Pedidos del mes actual agrupados por vendedor (premium)
+                    - generic [ref=e2298]: get
+                - listitem [ref=e2299]:
+                  - link "Pedidos de las últimas 24 horas agrupados por hora (premium) get" [ref=e2300] [cursor=pointer]:
+                    - /url: /reference/gettotalorderslast24hoursbyhours
+                    - generic [ref=e2302]: Pedidos de las últimas 24 horas agrupados por hora (premium)
+                    - generic [ref=e2304]: get
+                - listitem [ref=e2305]:
+                  - link "Total de facturas agrupadas por meses (premium) get" [ref=e2306] [cursor=pointer]:
+                    - /url: /reference/gettotalinvoicesbymonths
+                    - generic [ref=e2308]: Total de facturas agrupadas por meses (premium)
+                    - generic [ref=e2310]: get
+                - listitem [ref=e2311]:
+                  - link "Total de facturas agrupadas por días get" [ref=e2312] [cursor=pointer]:
+                    - /url: /reference/gettotalinvoicesbydays
+                    - generic [ref=e2314]: Total de facturas agrupadas por días
+                    - generic [ref=e2316]: get
+                - listitem [ref=e2317]:
+                  - link "Total de facturas agrupadas por mesa (premium) get" [ref=e2318] [cursor=pointer]:
+                    - /url: /reference/gettotalinvoicesbytables
+                    - generic [ref=e2320]: Total de facturas agrupadas por mesa (premium)
+                    - generic [ref=e2322]: get
+                - listitem [ref=e2323]:
+                  - link "Total de facturas agrupadas por método de pago (premium) get" [ref=e2324] [cursor=pointer]:
+                    - /url: /reference/gettotalinvoicesbypaymentmethodpaid
+                    - generic [ref=e2326]: Total de facturas agrupadas por método de pago (premium)
+                    - generic [ref=e2328]: get
+                - listitem [ref=e2329]:
+                  - link "Total de facturas agrupadas por producto (premium) get" [ref=e2330] [cursor=pointer]:
+                    - /url: /reference/gettotalinvoicesbyproducts
+                    - generic [ref=e2332]: Total de facturas agrupadas por producto (premium)
+                    - generic [ref=e2334]: get
+                - listitem [ref=e2335]:
+                  - link "Total de facturas agrupadas por vendedor (premium) get" [ref=e2336] [cursor=pointer]:
+                    - /url: /reference/gettotalinvoicesbysellers
+                    - generic [ref=e2338]: Total de facturas agrupadas por vendedor (premium)
+                    - generic [ref=e2340]: get
+                - listitem [ref=e2341]:
+                  - link "Pedidos agrupados por hora del día (premium) get" [ref=e2342] [cursor=pointer]:
+                    - /url: /reference/gettotalordersgroupbyhours
+                    - generic [ref=e2344]: Pedidos agrupados por hora del día (premium)
+                    - generic [ref=e2346]: get
+                - listitem [ref=e2347]:
+                  - link "Pedidos agrupados por día de la semana (premium) get" [ref=e2348] [cursor=pointer]:
+                    - /url: /reference/gettotalordersgroupbydays
+                    - generic [ref=e2350]: Pedidos agrupados por día de la semana (premium)
+                    - generic [ref=e2352]: get
+                - listitem [ref=e2353]:
+                  - link "Total de facturas agrupadas por proveedor de domicilio (premium) get" [ref=e2354] [cursor=pointer]:
+                    - /url: /reference/gettotalinvoicesbydeliveryproviders
+                    - generic [ref=e2356]: Total de facturas agrupadas por proveedor de domicilio (premium)
+                    - generic [ref=e2358]: get
+                - listitem [ref=e2359]:
+                  - link "Tiempo promedio de entrega de repartidores (premium) get" [ref=e2360] [cursor=pointer]:
+                    - /url: /reference/getavgtimedeliveryguydelivered
+                    - generic [ref=e2362]: Tiempo promedio de entrega de repartidores (premium)
+                    - generic [ref=e2364]: get
+                - listitem [ref=e2365]:
+                  - link "(PirPos SuperAdmin) Total de facturas por mes de toda la plataforma get" [ref=e2366] [cursor=pointer]:
+                    - /url: /reference/getpptotalinvoicesbymonths
+                    - generic [ref=e2368]: (PirPos SuperAdmin) Total de facturas por mes de toda la plataforma
+                    - generic [ref=e2370]: get
+                - listitem [ref=e2371]:
+                  - link "(PirPos SuperAdmin) Total de facturas por día de toda la plataforma get" [ref=e2372] [cursor=pointer]:
+                    - /url: /reference/getpptotalinvoicesbydays
+                    - generic [ref=e2374]: (PirPos SuperAdmin) Total de facturas por día de toda la plataforma
+                    - generic [ref=e2376]: get
+                - listitem [ref=e2377]:
+                  - link "Total de ventas agrupadas por facturador get" [ref=e2378] [cursor=pointer]:
+                    - /url: /reference/gettotalsalesbybiller
+                    - generic [ref=e2380]: Total de ventas agrupadas por facturador
+                    - generic [ref=e2382]: get
+            - listitem [ref=e2383]:
+              - link "Mesas Show subpages for Mesas" [ref=e2384] [cursor=pointer]:
+                - /url: /reference/consultarmesas
+                - generic [ref=e2386]: Mesas
+                - button "Show subpages for Mesas" [ref=e2387]:
+                  - generic [ref=e2388]: 
+              - list:
+                - listitem [ref=e2389]:
+                  - link "Obtiene todas las mesas activas del negocio get" [ref=e2390] [cursor=pointer]:
+                    - /url: /reference/consultarmesas
+                    - generic [ref=e2392]: Obtiene todas las mesas activas del negocio
+                    - generic [ref=e2394]: get
+                - listitem [ref=e2395]:
+                  - link "Crea o edita una mesa post" [ref=e2396] [cursor=pointer]:
+                    - /url: /reference/guardarmesa
+                    - generic [ref=e2398]: Crea o edita una mesa
+                    - generic [ref=e2400]: post
+                - listitem [ref=e2401]:
+                  - link "Obtiene mesas activas con sus órdenes en espera y facturas pendientes get" [ref=e2402] [cursor=pointer]:
+                    - /url: /reference/consultarmesasconordenes
+                    - generic [ref=e2404]: Obtiene mesas activas con sus órdenes en espera y facturas pendientes
+                    - generic [ref=e2406]: get
+                - listitem [ref=e2407]:
+                  - link "Obtiene una mesa por su ID get" [ref=e2408] [cursor=pointer]:
+                    - /url: /reference/consultarmesaporid
+                    - generic [ref=e2410]: Obtiene una mesa por su ID
+                    - generic [ref=e2412]: get
+                - listitem [ref=e2413]:
+                  - link "Elimina (soft delete) una mesa por su ID del" [ref=e2414] [cursor=pointer]:
+                    - /url: /reference/eliminarmesa
+                    - generic [ref=e2416]: Elimina (soft delete) una mesa por su ID
+                    - generic [ref=e2418]: del
+            - listitem [ref=e2419]:
+              - link "Unidades Show subpages for Unidades" [ref=e2420] [cursor=pointer]:
+                - /url: /reference/consultarunidades
+                - generic [ref=e2422]: Unidades
+                - button "Show subpages for Unidades" [ref=e2423]:
+                  - generic [ref=e2424]: 
+              - list:
+                - listitem [ref=e2425]:
+                  - link "Consultar unidades get" [ref=e2426] [cursor=pointer]:
+                    - /url: /reference/consultarunidades
+                    - generic [ref=e2428]: Consultar unidades
+                    - generic [ref=e2430]: get
+                - listitem [ref=e2431]:
+                  - link "Crear o editar una unidad post" [ref=e2432] [cursor=pointer]:
+                    - /url: /reference/guardarunidad
+                    - generic [ref=e2434]: Crear o editar una unidad
+                    - generic [ref=e2436]: post
+                - listitem [ref=e2437]:
+                  - link "Consultar unidad por ID get" [ref=e2438] [cursor=pointer]:
+                    - /url: /reference/consultarunidadporid
+                    - generic [ref=e2440]: Consultar unidad por ID
+                    - generic [ref=e2442]: get
+                - listitem [ref=e2443]:
+                  - link "Eliminar unidad del" [ref=e2444] [cursor=pointer]:
+                    - /url: /reference/eliminarunidad
+                    - generic [ref=e2446]: Eliminar unidad
+                    - generic [ref=e2448]: del
+            - listitem [ref=e2449]:
+              - link "Proveedores Show subpages for Proveedores" [ref=e2450] [cursor=pointer]:
+                - /url: /reference/consultarproveedores
+                - generic [ref=e2452]: Proveedores
+                - button "Show subpages for Proveedores" [ref=e2453]:
+                  - generic [ref=e2454]: 
+              - list:
+                - listitem [ref=e2455]:
+                  - link "Consultar proveedores get" [ref=e2456] [cursor=pointer]:
+                    - /url: /reference/consultarproveedores
+                    - generic [ref=e2458]: Consultar proveedores
+                    - generic [ref=e2460]: get
+                - listitem [ref=e2461]:
+                  - link "Crear o editar proveedor post" [ref=e2462] [cursor=pointer]:
+                    - /url: /reference/guardarproveedor
+                    - generic [ref=e2464]: Crear o editar proveedor
+                    - generic [ref=e2466]: post
+                - listitem [ref=e2467]:
+                  - link "Consultar proveedor por ID get" [ref=e2468] [cursor=pointer]:
+                    - /url: /reference/consultarproveedorporid
+                    - generic [ref=e2470]: Consultar proveedor por ID
+                    - generic [ref=e2472]: get
+                - listitem [ref=e2473]:
+                  - link "Eliminar proveedor del" [ref=e2474] [cursor=pointer]:
+                    - /url: /reference/eliminarproveedor
+                    - generic [ref=e2476]: Eliminar proveedor
+                    - generic [ref=e2478]: del
+            - listitem [ref=e2479]:
+              - link "Gastos Show subpages for Gastos" [ref=e2480] [cursor=pointer]:
+                - /url: /reference/consultargastos
+                - generic [ref=e2482]: Gastos
+                - button "Show subpages for Gastos" [ref=e2483]:
+                  - generic [ref=e2484]: 
+              - list:
+                - listitem [ref=e2485]:
+                  - link "Consultar gastos get" [ref=e2486] [cursor=pointer]:
+                    - /url: /reference/consultargastos
+                    - generic [ref=e2488]: Consultar gastos
+                    - generic [ref=e2490]: get
+                - listitem [ref=e2491]:
+                  - link "Crear o editar gasto post" [ref=e2492] [cursor=pointer]:
+                    - /url: /reference/guardargasto
+                    - generic [ref=e2494]: Crear o editar gasto
+                    - generic [ref=e2496]: post
+                - listitem [ref=e2497]:
+                  - link "Eliminar gasto del" [ref=e2498] [cursor=pointer]:
+                    - /url: /reference/eliminargasto
+                    - generic [ref=e2500]: Eliminar gasto
+                    - generic [ref=e2502]: del
+            - listitem [ref=e2503]:
+              - link "Tipos de gasto Show subpages for Tipos de gasto" [ref=e2504] [cursor=pointer]:
+                - /url: /reference/consultartiposgasto
+                - generic [ref=e2506]: Tipos de gasto
+                - button "Show subpages for Tipos de gasto" [ref=e2507]:
+                  - generic [ref=e2508]: 
+              - list:
+                - listitem [ref=e2509]:
+                  - link "Consultar tipos de gasto get" [ref=e2510] [cursor=pointer]:
+                    - /url: /reference/consultartiposgasto
+                    - generic [ref=e2512]: Consultar tipos de gasto
+                    - generic [ref=e2514]: get
+                - listitem [ref=e2515]:
+                  - link "Crear o editar tipo de gasto post" [ref=e2516] [cursor=pointer]:
+                    - /url: /reference/guardartipogasto
+                    - generic [ref=e2518]: Crear o editar tipo de gasto
+                    - generic [ref=e2520]: post
+                - listitem [ref=e2521]:
+                  - link "Consultar tipo de gasto por ID get" [ref=e2522] [cursor=pointer]:
+                    - /url: /reference/consultartipogastoporid
+                    - generic [ref=e2524]: Consultar tipo de gasto por ID
+                    - generic [ref=e2526]: get
+                - listitem [ref=e2527]:
+                  - link "Eliminar tipo de gasto del" [ref=e2528] [cursor=pointer]:
+                    - /url: /reference/eliminartipogasto
+                    - generic [ref=e2530]: Eliminar tipo de gasto
+                    - generic [ref=e2532]: del
+            - listitem [ref=e2533]:
+              - link "Cajas registradoras Show subpages for Cajas registradoras" [ref=e2534] [cursor=pointer]:
+                - /url: /reference/consultarcajasregistradoras
+                - generic [ref=e2536]: Cajas registradoras
+                - button "Show subpages for Cajas registradoras" [ref=e2537]:
+                  - generic [ref=e2538]: 
+              - list:
+                - listitem [ref=e2539]:
+                  - link "Consultar cajas registradoras get" [ref=e2540] [cursor=pointer]:
+                    - /url: /reference/consultarcajasregistradoras
+                    - generic [ref=e2542]: Consultar cajas registradoras
+                    - generic [ref=e2544]: get
+                - listitem [ref=e2545]:
+                  - link "Crear o editar caja registradora post" [ref=e2546] [cursor=pointer]:
+                    - /url: /reference/guardarcajaregistradora
+                    - generic [ref=e2548]: Crear o editar caja registradora
+                    - generic [ref=e2550]: post
+                - listitem [ref=e2551]:
+                  - link "Consultar caja registradora por ID get" [ref=e2552] [cursor=pointer]:
+                    - /url: /reference/consultarcajaregistradoraporid
+                    - generic [ref=e2554]: Consultar caja registradora por ID
+                    - generic [ref=e2556]: get
+                - listitem [ref=e2557]:
+                  - link "Eliminar caja registradora del" [ref=e2558] [cursor=pointer]:
+                    - /url: /reference/eliminarcajaregistradora
+                    - generic [ref=e2560]: Eliminar caja registradora
+                    - generic [ref=e2562]: del
+            - listitem [ref=e2563]:
+              - link "Cuadre de Caja Show subpages for Cuadre de Caja" [ref=e2564] [cursor=pointer]:
+                - /url: /reference/consultarcuadrescaja
+                - generic [ref=e2566]: Cuadre de Caja
+                - button "Show subpages for Cuadre de Caja" [ref=e2567]:
+                  - generic [ref=e2568]: 
+              - list:
+                - listitem [ref=e2569]:
+                  - link "Consultar cuadres de caja get" [ref=e2570] [cursor=pointer]:
+                    - /url: /reference/consultarcuadrescaja
+                    - generic [ref=e2572]: Consultar cuadres de caja
+                    - generic [ref=e2574]: get
+            - listitem [ref=e2575]:
+              - link "Promociones Show subpages for Promociones" [ref=e2576] [cursor=pointer]:
+                - /url: /reference/consultarpromociones
+                - generic [ref=e2578]: Promociones
+                - button "Show subpages for Promociones" [ref=e2579]:
+                  - generic [ref=e2580]: 
+              - list:
+                - listitem [ref=e2581]:
+                  - link "Consultar promociones get" [ref=e2582] [cursor=pointer]:
+                    - /url: /reference/consultarpromociones
+                    - generic [ref=e2584]: Consultar promociones
+                    - generic [ref=e2586]: get
+                - listitem [ref=e2587]:
+                  - link "Crear o editar promoción post" [ref=e2588] [cursor=pointer]:
+                    - /url: /reference/guardarpromocion
+                    - generic [ref=e2590]: Crear o editar promoción
+                    - generic [ref=e2592]: post
+                - listitem [ref=e2593]:
+                  - link "Consultar promoción por ID get" [ref=e2594] [cursor=pointer]:
+                    - /url: /reference/consultarpromocionporid
+                    - generic [ref=e2596]: Consultar promoción por ID
+                    - generic [ref=e2598]: get
+                - listitem [ref=e2599]:
+                  - link "Eliminar promoción del" [ref=e2600] [cursor=pointer]:
+                    - /url: /reference/eliminarpromocion
+                    - generic [ref=e2602]: Eliminar promoción
+                    - generic [ref=e2604]: del
+            - listitem [ref=e2605]:
+              - link "Roles Show subpages for Roles" [ref=e2606] [cursor=pointer]:
+                - /url: /reference/consultarroles
+                - generic [ref=e2608]: Roles
+                - button "Show subpages for Roles" [ref=e2609]:
+                  - generic [ref=e2610]: 
+              - list:
+                - listitem [ref=e2611]:
+                  - link "Consultar roles get" [ref=e2612] [cursor=pointer]:
+                    - /url: /reference/consultarroles
+                    - generic [ref=e2614]: Consultar roles
+                    - generic [ref=e2616]: get
+                - listitem [ref=e2617]:
+                  - link "Crear o editar rol post" [ref=e2618] [cursor=pointer]:
+                    - /url: /reference/guardarrol
+                    - generic [ref=e2620]: Crear o editar rol
+                    - generic [ref=e2622]: post
+                - listitem [ref=e2623]:
+                  - link "Consultar rol por ID get" [ref=e2624] [cursor=pointer]:
+                    - /url: /reference/consultarrolporid
+                    - generic [ref=e2626]: Consultar rol por ID
+                    - generic [ref=e2628]: get
+                - listitem [ref=e2629]:
+                  - link "Eliminar rol del" [ref=e2630] [cursor=pointer]:
+                    - /url: /reference/eliminarrol
+                    - generic [ref=e2632]: Eliminar rol
+                    - generic [ref=e2634]: del
+            - listitem [ref=e2635]:
+              - link "Áreas de pedido Show subpages for Áreas de pedido" [ref=e2636] [cursor=pointer]:
+                - /url: /reference/consultarareaspedido
+                - generic [ref=e2638]: Áreas de pedido
+                - button "Show subpages for Áreas de pedido" [ref=e2639]:
+                  - generic [ref=e2640]: 
+              - list:
+                - listitem [ref=e2641]:
+                  - link "Consultar áreas de pedido get" [ref=e2642] [cursor=pointer]:
+                    - /url: /reference/consultarareaspedido
+                    - generic [ref=e2644]: Consultar áreas de pedido
+                    - generic [ref=e2646]: get
+                - listitem [ref=e2647]:
+                  - link "Crear o editar área de pedido post" [ref=e2648] [cursor=pointer]:
+                    - /url: /reference/guardarareapedido
+                    - generic [ref=e2650]: Crear o editar área de pedido
+                    - generic [ref=e2652]: post
+                - listitem [ref=e2653]:
+                  - link "Consultar área de pedido por ID get" [ref=e2654] [cursor=pointer]:
+                    - /url: /reference/consultarareapedidoporid
+                    - generic [ref=e2656]: Consultar área de pedido por ID
+                    - generic [ref=e2658]: get
+                - listitem [ref=e2659]:
+                  - link "Eliminar área de pedido del" [ref=e2660] [cursor=pointer]:
+                    - /url: /reference/eliminarareapedido
+                    - generic [ref=e2662]: Eliminar área de pedido
+                    - generic [ref=e2664]: del
+        - generic [ref=e2665]:
+          - heading "ALOJAMIENTOS" [level=2] [ref=e2666]
+          - list [ref=e2667]:
+            - listitem [ref=e2668]:
+              - link "Introducción" [ref=e2669] [cursor=pointer]:
+                - /url: /reference/introduccion-alojamientos
+                - generic [ref=e2673]: Introducción
+            - listitem [ref=e2674]:
+              - link "Autenticación" [ref=e2675] [cursor=pointer]:
+                - /url: /reference/autenticacion-alojamientos
+                - generic [ref=e2679]: Autenticación
+            - listitem [ref=e2680]:
+              - link "Sesiones Show subpages for Sesiones" [ref=e2681] [cursor=pointer]:
+                - /url: /reference/post_api-v2-sessions-send-otp
+                - generic [ref=e2683]: Sesiones
+                - button "Show subpages for Sesiones" [ref=e2684]:
+                  - generic [ref=e2685]: 
+              - list:
+                - listitem [ref=e2686]:
+                  - link "Enviar OTP post" [ref=e2687] [cursor=pointer]:
+                    - /url: /reference/post_api-v2-sessions-send-otp
+                    - generic [ref=e2689]: Enviar OTP
+                    - generic [ref=e2691]: post
+                - listitem [ref=e2692]:
+                  - link "Iniciar sesión con OTP post" [ref=e2693] [cursor=pointer]:
+                    - /url: /reference/post_api-v2-sessions
+                    - generic [ref=e2695]: Iniciar sesión con OTP
+                    - generic [ref=e2697]: post
+                - listitem [ref=e2698]:
+                  - link "Cerrar sesión del" [ref=e2699] [cursor=pointer]:
+                    - /url: /reference/delete_api-v2-sessions
+                    - generic [ref=e2701]: Cerrar sesión
+                    - generic [ref=e2703]: del
+            - listitem [ref=e2704]:
+              - link "Reservas del Hotel Show subpages for Reservas del Hotel" [ref=e2705] [cursor=pointer]:
+                - /url: /reference/get_api-v2-hotel-reservations
+                - generic [ref=e2707]: Reservas del Hotel
+                - button "Show subpages for Reservas del Hotel" [ref=e2708]:
+                  - generic [ref=e2709]: 
+              - list:
+                - listitem [ref=e2710]:
+                  - link "Listar reservas del hotel get" [ref=e2711] [cursor=pointer]:
+                    - /url: /reference/get_api-v2-hotel-reservations
+                    - generic [ref=e2713]: Listar reservas del hotel
+                    - generic [ref=e2715]: get
+        - generic [ref=e2716]:
+          - text: Powered by
+          - link "ReadMe" [ref=e2717] [cursor=pointer]:
+            - /url: https://readme.com?ref_src=hub&project=api-loggro
+            - img [ref=e2718]
+      - button "Hide sidebar navigation" [ref=e2720] [cursor=pointer]
+    - generic [ref=e2722]:
+      - article [ref=e2723]:
+        - generic [ref=e2724]:
+          - generic [ref=e2725]:
+            - heading "Consultar salida con detalle de inventario View tags" [level=1] [ref=e2727]:
+              - text: Consultar salida con detalle de inventario
+              - button "View tags" [ref=e2729] [cursor=pointer]
+            - generic [ref=e2732]:
+              - button "Copy Page" [ref=e2733] [cursor=pointer]:
+                - generic [ref=e2736]: Copy Page
+              - button [ref=e2738] [cursor=pointer]
+          - generic [ref=e2741]:
+            - generic [ref=e2742]: get
+            - generic [ref=e2743]:
+              - 'generic "https://api.loggro.com/apik/loggro-inventario/v1/salidas/{id}/inventario" [ref=e2744]'
+              - button "Show full URL" [ref=e2745] [cursor=pointer]
+            - button "Copy to clipboard" [ref=e2748] [cursor=pointer]
+          - paragraph [ref=e2752]: Consulta una salida con su información de inventario asociada.
+        - generic [ref=e2753]:
+          - generic [ref=e2754]:
+            - generic [ref=e2755]: Recent Requests
+            - generic [ref=e2756]: Log in to see full request history
+          - generic [ref=e2759]:
+            - table [ref=e2760]:
+              - rowgroup [ref=e2766]:
+                - row "Time Status User Agent" [ref=e2767]:
+                  - columnheader "Time" [ref=e2768]
+                  - columnheader "Status" [ref=e2769]
+                  - columnheader "User Agent" [ref=e2770]
+                  - columnheader [ref=e2771]
+              - rowgroup [ref=e2772]:
+                - row "Retrieving recent requests…" [ref=e2773]:
+                  - cell "Retrieving recent requests…" [ref=e2774]:
+                    - generic [ref=e2775]: Retrieving recent requests…
+            - progressbar [ref=e2778]:
+              - img "Loading" [ref=e2779]
+        - generic [ref=e2781]:
+          - generic [ref=e2783]:
+            - link "Skip link to Path Params" [ref=e2784] [cursor=pointer]:
+              - /url: "#path-params"
+            - text: Path Params
+          - generic [ref=e2792]:
+            - generic [ref=e2793]:
+              - generic [ref=e2794]:
+                - generic [ref=e2795]: id
+                - generic [ref=e2796]: string
+                - generic [ref=e2797]: required
+              - paragraph [ref=e2801]: UUID de la salida a consultar
+            - 'combobox "{id} id" [ref=e2804]'
+        - generic [ref=e2806]:
+          - link "Skip link to Responses" [ref=e2807] [cursor=pointer]:
+            - /url: "#response-schemas"
+          - text: Responses
+        - generic [ref=e2810]:
+          - heading "200 200 Salida con detalle de inventario" [level=1] [ref=e2812]:
+            - button "200 200 Salida con detalle de inventario" [ref=e2813] [cursor=pointer]:
+              - generic [ref=e2814]:
+                - generic [ref=e2815]:
+                  - code [ref=e2816]:
+                    - img "200" [ref=e2817]
+                  - text: "200"
+                - paragraph [ref=e2819]: Salida con detalle de inventario
+          - heading "400 400 Error al procesar la consulta" [level=1] [ref=e2824]:
+            - button "400 400 Error al procesar la consulta" [ref=e2825] [cursor=pointer]:
+              - generic [ref=e2826]:
+                - generic [ref=e2827]:
+                  - code [ref=e2828]:
+                    - img "400" [ref=e2829]
+                  - text: "400"
+                - paragraph [ref=e2831]: Error al procesar la consulta
+          - generic [ref=e2836]:
+            - generic [ref=e2837]:
+              - code [ref=e2838]:
+                - img "404" [ref=e2839]
+              - text: "404"
+            - paragraph [ref=e2841]: Salida no encontrada
+        - generic [ref=e2842]:
+          - paragraph [ref=e2845]:
+            - generic [ref=e2846]: 
+            - text: Updated 3 months ago
+          - separator [ref=e2847]
+          - navigation "Pagination Controls" [ref=e2848]:
+            - 'link "Previous Page: Inactivar ítem" [ref=e2849] [cursor=pointer]':
+              - /url: /reference/inactivaritempymes
+              - generic [ref=e2850]: 
+              - generic [ref=e2851]: Inactivar ítem
+            - 'link "Next Page: Consultar salida de inventario" [ref=e2852] [cursor=pointer]':
+              - /url: /reference/consultarsalidapymes
+              - generic [ref=e2853]: Consultar salida de inventario
+              - generic [ref=e2854]: 
+          - generic [ref=e2856]:
+            - text: Did this page help you?
+            - generic [ref=e2857]:
+              - button "Yes, this page helped me" [ref=e2859] [cursor=pointer]:
+                - generic [ref=e2860]: 
+                - generic [ref=e2861]: "Yes"
+              - button "No, this page did not help me" [ref=e2863] [cursor=pointer]:
+                - generic [ref=e2864]: 
+                - generic [ref=e2865]: "No"
+      - generic [ref=e2866]:
+        - generic [ref=e2867]:
+          - generic [ref=e2869]: Language
+          - generic [ref=e2871]:
+            - button " Shell" [pressed] [ref=e2872] [cursor=pointer]:
+              - generic [ref=e2873]: 
+              - text: Shell
+            - button " Node" [ref=e2874] [cursor=pointer]:
+              - generic [ref=e2875]: 
+              - text: Node
+            - button " Ruby" [ref=e2876] [cursor=pointer]:
+              - generic [ref=e2877]: 
+              - text: Ruby
+            - button " PHP" [ref=e2878] [cursor=pointer]:
+              - generic [ref=e2879]: 
+              - text: PHP
+            - button " Python" [ref=e2880] [cursor=pointer]:
+              - generic [ref=e2881]:
+                - generic [ref=e2882]: 
+                - generic: 
+              - text: Python
+            - button "More Languages" [ref=e2884] [cursor=pointer]
+        - generic [ref=e2888]:
+          - generic [ref=e2889]:
+            - generic [ref=e2890]: Credentials
+            - generic [ref=e2891]:
+              - button "Bearer Information" [ref=e2892]:
+                - generic [ref=e2893]: Bearer
+                - img "Information" [ref=e2894]: 
+              - button "JWT Information" [ref=e2895]:
+                - generic [ref=e2896]: JWT
+                - img "Information" [ref=e2897]: 
+          - generic [ref=e2898]:
+            - button "Bearer" [disabled] [ref=e2901]:
+              - generic [ref=e2902]: Bearer
+            - generic [ref=e2904]:
+              - textbox "token" [ref=e2905]
+              - button "Show" [ref=e2906] [cursor=pointer]
+        - generic [ref=e2909]:
+          - button "cURL Request" [ref=e2913] [cursor=pointer]:
+            - generic [ref=e2914]: cURL Request
+          - generic [ref=e2923]:
+            - generic [ref=e2924]:
+              - generic [ref=e2925]: "1"
+              - text: curl --request GET \
+            - generic [ref=e2926]:
+              - generic [ref=e2927]: "2"
+              - text: "--url https://api.loggro.com/apik/loggro-inventario/v1/salidas/id/inventario \\"
+            - generic [ref=e2928]:
+              - generic [ref=e2929]: "3"
+              - text: "--header 'accept: application/json'"
+          - generic [ref=e2933]:
+            - button "Copy to clipboard" [ref=e2935] [cursor=pointer]
+            - button "Try It!" [ref=e2938] [cursor=pointer]
+          - generic [ref=e2939]:
+            - generic [ref=e2941]: Response
+            - generic [ref=e2942]:
+              - generic [ref=e2943]:
+                - text: Click
+                - code [ref=e2944]: Try It!
+                - text: "to start a request and see the response here! Or choose an example:"
+              - generic [ref=e2946]:
+                - generic [ref=e2947]: application/json
+                - generic [ref=e2948]:
+                  - button "200 200" [ref=e2949] [cursor=pointer]:
+                    - code [ref=e2950]:
+                      - img "200" [ref=e2951]
+                    - generic [ref=e2952]: "200"
+                  - button "400 400" [ref=e2953] [cursor=pointer]:
+                    - code [ref=e2954]:
+                      - img "400" [ref=e2955]
+                    - generic [ref=e2956]: "400"
+      - text:     

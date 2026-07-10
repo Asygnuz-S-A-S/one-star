@@ -6,7 +6,7 @@ async function main() {
   console.log("Iniciando seed...");
 
   // ── Categorías ─────────────────────────────────────────────────────────────
-  const [lanzamientos, hombre, , , accesorios] = await Promise.all([
+  const [lanzamientos, hombre, mujer, ninos, accesorios] = await Promise.all([
     prisma.category.upsert({
       where: { slug: "lanzamientos" },
       update: {},
@@ -41,89 +41,75 @@ async function main() {
   // Los imágenes usan rutas placeholder; se reemplazarán con assets reales en Fase 3.
   const products = [
     {
-      slug: "asphalt-hoodie",
-      name: "Asphalt Hoodie",
-      basePrice: new Prisma.Decimal("249900.00"),
+      slug: "nike-air-force-1-07",
+      name: "Nike Air Force 1 '07",
+      basePrice: new Prisma.Decimal("529900.00"),
+      isOnSale: false,
+      salePrice: null,
+      createdAt: new Date(),
+      description: "La leyenda sigue viva con las zapatillas Nike Air Force 1 '07, una versión moderna del icónico modelo de la AF1 que combina su estilo clásico con nuevos detalles.",
+      categoryId: hombre.id,
+      images: [
+        { url: "https://static.nike.com/a/images/t_PDP_1728_v1/f_auto,q_auto:eco/b7d9211c-26e7-431a-ac24-b0540fb3c00f/AIR+FORCE+1+%2707.png", alt: "Air Force 1 Frontal", position: 0 },
+        { url: "https://static.nike.com/a/images/t_PDP_1728_v1/f_auto,q_auto:eco/33533fe2-1157-4001-896e-1803b30659c8/AIR+FORCE+1+%2707.png", alt: "Air Force 1 Lateral", position: 1 },
+      ],
+      variants: [
+        { sku: "AF1-40",  size: "40",  color: "Blanco", stock: 15 },
+        { sku: "AF1-41",  size: "41",  color: "Blanco", stock: 10 },
+        { sku: "AF1-42",  size: "42",  color: "Blanco", stock: 8  },
+      ],
+    },
+    {
+      slug: "air-jordan-1-retro-high",
+      name: "Air Jordan 1 Retro High",
+      basePrice: new Prisma.Decimal("849900.00"),
       isOnSale: true,
-      salePrice: new Prisma.Decimal("199900.00"),
-      description:
-        "Sudadera urbana de alto rendimiento. Tejido técnico antipilling con capucha ajustable y bolsillo canguro. Corte oversize inspirado en el asfalto de la ciudad.",
-      categoryId: lanzamientos.id,
-      images: [
-        { url: "/images/asphalt-hoodie-1.jpg", alt: "Asphalt Hoodie vista frontal", position: 0 },
-        { url: "/images/asphalt-hoodie-2.jpg", alt: "Asphalt Hoodie vista trasera", position: 1 },
-        { url: "/images/asphalt-hoodie-3.jpg", alt: "Asphalt Hoodie detalle capucha", position: 2 },
-      ],
-      variants: [
-        { sku: "AH-S-GRY",  size: "S",  color: "Gris Concreto", stock: 10 },
-        { sku: "AH-M-GRY",  size: "M",  color: "Gris Concreto", stock: 15 },
-        { sku: "AH-L-GRY",  size: "L",  color: "Gris Concreto", stock: 8  },
-        { sku: "AH-S-BLK",  size: "S",  color: "Negro Carbono", stock: 12 },
-        { sku: "AH-M-BLK",  size: "M",  color: "Negro Carbono", stock: 20 },
-        { sku: "AH-L-BLK",  size: "L",  color: "Negro Carbono", stock: 5  },
-      ],
-    },
-    {
-      slug: "carbon-run-tee",
-      name: "Carbon Run Tee",
-      basePrice: new Prisma.Decimal("89900.00"),
-      isOnSale: false,
-      salePrice: null,
-      description:
-        "Camiseta técnica de running con tejido de secado ultra-rápido. Costuras planas para evitar fricciones. Diseñada para el corredor urbano que no sacrifica el estilo.",
+      salePrice: new Prisma.Decimal("699900.00"),
+      createdAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000),
+      description: "Las Air Jordan 1 Retro High OG combinan un diseño clásico con un toque moderno. Cuentan con materiales de primera calidad para una mayor comodidad y estilo.",
       categoryId: hombre.id,
       images: [
-        { url: "/images/carbon-run-tee-1.jpg", alt: "Carbon Run Tee vista frontal", position: 0 },
-        { url: "/images/carbon-run-tee-2.jpg", alt: "Carbon Run Tee detalle tejido", position: 1 },
+        { url: "https://static.nike.com/a/images/t_PDP_1728_v1/f_auto,q_auto:eco/57f44d82-df51-4053-90d5-53df8a5e305e/AIR+JORDAN+1+RETRO+HIGH+OG.png", alt: "Jordan 1 Frontal", position: 0 },
+        { url: "https://static.nike.com/a/images/t_PDP_1728_v1/f_auto,q_auto:eco/cd8aeb1d-fc37-4d9f-a2e6-5c68fce14152/AIR+JORDAN+1+RETRO+HIGH+OG.png", alt: "Jordan 1 Lateral", position: 1 },
       ],
       variants: [
-        { sku: "CRT-S-BLK",  size: "S",  color: "Negro Carbono", stock: 20 },
-        { sku: "CRT-M-BLK",  size: "M",  color: "Negro Carbono", stock: 25 },
-        { sku: "CRT-L-BLK",  size: "L",  color: "Negro Carbono", stock: 18 },
-        { sku: "CRT-XL-BLK", size: "XL", color: "Negro Carbono", stock: 10 },
-        { sku: "CRT-M-WHT",  size: "M",  color: "Blanco",        stock: 14 },
-        { sku: "CRT-L-WHT",  size: "L",  color: "Blanco",        stock: 9  },
+        { sku: "AJ1-40",  size: "40",  color: "Rojo/Negro", stock: 0 },
+        { sku: "AJ1-42",  size: "42",  color: "Rojo/Negro", stock: 0 },
       ],
     },
     {
-      slug: "concrete-jogger",
-      name: "Concrete Jogger",
-      basePrice: new Prisma.Decimal("179900.00"),
+      slug: "adidas-superstar-vegan",
+      name: "Adidas Superstar Vegan",
+      basePrice: new Prisma.Decimal("429900.00"),
       isOnSale: false,
       salePrice: null,
-      description:
-        "Jogger urbano de corte relaxed fit con bolsillos laterales de cremallera y puños acanalados. El gris concreto como filosofía de vida.",
+      description: "Un clásico desde los 70, ahora hecho sin utilizar productos de origen animal. Mantienen el diseño icónico de la puntera de goma.",
+      categoryId: mujer.id,
+      images: [
+        { url: "https://images.unsplash.com/photo-1618214227845-a764d2547b74?auto=format&fit=crop&q=80&w=800", alt: "Adidas Superstar", position: 0 },
+        { url: "https://images.unsplash.com/photo-1639016147683-1678864757c3?auto=format&fit=crop&q=80&w=800", alt: "Adidas Superstar Detalle", position: 1 },
+      ],
+      variants: [
+        { sku: "SS-36",  size: "36",  color: "Blanco/Negro", stock: 12 },
+        { sku: "SS-38",  size: "38",  color: "Blanco/Negro", stock: 14 },
+      ],
+    },
+    {
+      slug: "new-balance-550",
+      name: "New Balance 550",
+      basePrice: new Prisma.Decimal("629900.00"),
+      isOnSale: true,
+      salePrice: new Prisma.Decimal("499900.00"),
+      createdAt: new Date(),
+      description: "El modelo 550 original debutó en 1989 y dejó su huella en las canchas de baloncesto de todo el país.",
       categoryId: hombre.id,
       images: [
-        { url: "/images/concrete-jogger-1.jpg", alt: "Concrete Jogger vista frontal", position: 0 },
-        { url: "/images/concrete-jogger-2.jpg", alt: "Concrete Jogger vista lateral", position: 1 },
+        { url: "https://nb.scene7.com/is/image/NB/bb550wtg_nb_02_i?$dw_detail_main_lg$&bgc=f1f1f1&layer=1&bgcolor=f1f1f1&blendMode=mult&scale=10&wid=1600&hei=1600", alt: "New Balance 550", position: 0 },
+        { url: "https://nb.scene7.com/is/image/NB/bb550wtg_nb_04_i?$dw_detail_main_lg$&bgc=f1f1f1&layer=1&bgcolor=f1f1f1&blendMode=mult&scale=10&wid=1600&hei=1600", alt: "NB 550 Detalle", position: 1 },
       ],
       variants: [
-        { sku: "CJ-S-GRY",  size: "S",  color: "Gris Concreto", stock: 8  },
-        { sku: "CJ-M-GRY",  size: "M",  color: "Gris Concreto", stock: 14 },
-        { sku: "CJ-L-GRY",  size: "L",  color: "Gris Concreto", stock: 11 },
-        { sku: "CJ-XL-GRY", size: "XL", color: "Gris Concreto", stock: 6  },
-        { sku: "CJ-M-BLK",  size: "M",  color: "Negro Carbono", stock: 9  },
-        { sku: "CJ-L-BLK",  size: "L",  color: "Negro Carbono", stock: 7  },
-      ],
-    },
-    {
-      slug: "one-star-logo-cap",
-      name: "One Star Logo Cap",
-      basePrice: new Prisma.Decimal("59900.00"),
-      isOnSale: false,
-      salePrice: null,
-      description:
-        "Gorra 6 paneles con estructura media y visera curva. Bordado del isotipo One Star en frente. Cierre ajustable de metal. Talla única.",
-      categoryId: accesorios.id,
-      images: [
-        { url: "/images/one-star-logo-cap-1.jpg", alt: "One Star Logo Cap vista frontal", position: 0 },
-        { url: "/images/one-star-logo-cap-2.jpg", alt: "One Star Logo Cap vista lateral", position: 1 },
-      ],
-      variants: [
-        { sku: "OSC-ONE-BLK", size: "Única", color: "Negro Carbono",  stock: 30 },
-        { sku: "OSC-ONE-WHT", size: "Única", color: "Blanco",         stock: 25 },
-        { sku: "OSC-ONE-RED", size: "Única", color: "Rojo One Star",  stock: 15 },
+        { sku: "NB-41",  size: "41",  color: "Blanco/Verde", stock: 12 },
+        { sku: "NB-43",  size: "43",  color: "Blanco/Verde", stock: 5 },
       ],
     },
   ];
@@ -169,7 +155,65 @@ async function main() {
   });
 
   console.log("✓ GiftCard lista");
-  console.log("\nSeed completado: 5 categorías · 4 productos · variantes · 1 gift card");
+
+  // ── Grilla de Inicio ────────────────────────────────────────────────────────
+  const gridCount = await prisma.homeGridBlock.count();
+  if (gridCount === 0) {
+    await prisma.homeGridBlock.createMany({
+      data: [
+        { label: "Lanzamientos", href: "/lanzamientos", bgColor: "bg-[#1C1C1C]", emoji: "🚀", darkText: false, position: 0 },
+        { label: "Hombre", href: "/hombre", bgColor: "bg-[#2C2C2C]", emoji: "👟", darkText: false, position: 1 },
+        { label: "Mujer", href: "/mujer", bgColor: "bg-[#3A3A3A]", emoji: "✨", darkText: false, position: 2 },
+        { label: "Niños", href: "/ninos", bgColor: "bg-[#4A4A4A]", emoji: "⭐", darkText: false, position: 3 },
+        { label: "Accesorios", href: "/accesorios", bgColor: "bg-[#E0E0E0]", emoji: "🎒", darkText: true, position: 4 },
+        { label: "SALE", href: "/sale", bgColor: "bg-[#E31C23]", emoji: "%", darkText: false, position: 5 },
+        { label: "Tarjeta\nRegalo", href: "/tarjeta-regalo", bgColor: "bg-[#1C1C1C]", emoji: "🎁", darkText: false, position: 6 },
+      ],
+    });
+    console.log("✓ 7 bloques de inicio creados");
+  } else {
+    console.log("✓ Bloques de inicio ya existen, omitiendo seed");
+  }
+
+  // ── Menú de Navegación ──────────────────────────────────────────────────────
+  const navCount = await prisma.navigationItem.count();
+  if (navCount === 0) {
+    await prisma.navigationItem.createMany({
+      data: [
+        { label: "Lanzamientos", href: "/lanzamientos", isSale: false, position: 1 },
+        { label: "Hombre", href: "/c/hombre", isSale: false, position: 2 },
+        { label: "Mujer", href: "/c/mujer", isSale: false, position: 3 },
+        { label: "Niños", href: "/c/ninos", isSale: false, position: 4 },
+        { label: "SALE", href: "/sale", isSale: true, position: 5 },
+        { label: "Accesorios", href: "/c/accesorios", isSale: false, position: 6 },
+        { label: "Tarjeta regalo", href: "/tarjeta-regalo", isSale: false, position: 7 },
+        { label: "Tiendas", href: "/tiendas", isSale: false, position: 8 },
+      ],
+    });
+    console.log("✓ 8 ítems de navegación creados");
+  } else {
+    console.log("✓ Navegación ya inicializada");
+  }
+
+  // 12. Landing Sections
+  const sectionsCount = await prisma.landingSection.count();
+  if (sectionsCount === 0) {
+    await prisma.landingSection.createMany({
+      data: [
+        { type: "HERO", position: 1 },
+        { type: "CATEGORY_GRID", position: 2 },
+        { type: "FEATURED_PRODUCTS", position: 3 },
+        { type: "BRAND_STRIP", position: 4 },
+        { type: "NEW_ARRIVALS", position: 5 },
+        { type: "NEWSLETTER", position: 6 },
+      ],
+    });
+    console.log("✓ 6 secciones de landing creadas");
+  } else {
+    console.log("✓ Secciones de landing ya inicializadas");
+  }
+
+  console.log("Seed completado exitosamente 🚀");
 }
 
 main()

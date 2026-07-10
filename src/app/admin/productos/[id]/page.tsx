@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation"
 import { getProductByIdForAdmin } from "@/server/services/product.service"
 import { getCategories } from "@/server/services/category.service"
+import { getAllBrands } from "@/server/services/brand.service"
+import { getStoreLocations } from "@/server/services/store.service"
 import ProductForm from "@/components/admin/ProductForm"
 import type { ProductWithRelations } from "@/types/admin"
 
@@ -11,9 +13,11 @@ interface Props {
 export default async function EditarProductoPage({ params }: Props) {
   const { id } = await params
 
-  const [product, categories] = await Promise.all([
+  const [product, categories, brands, stores] = await Promise.all([
     getProductByIdForAdmin(id),
     getCategories(),
+    getAllBrands(),
+    getStoreLocations(),
   ])
 
   if (!product) notFound()
@@ -27,6 +31,8 @@ export default async function EditarProductoPage({ params }: Props) {
         mode="edit"
         product={product as unknown as ProductWithRelations}
         categories={categories}
+        brands={brands}
+        stores={stores}
       />
     </div>
   )

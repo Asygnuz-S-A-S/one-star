@@ -2,7 +2,18 @@
 
 import { useState } from "react"
 
-export default function NewsletterSection() {
+export default function NewsletterSection({ config = {} }: { config?: Record<string, any> }) {
+  const title = config.title || "Únete a One Star"
+  const subtitle = config.subtitle || "Accede primero a los lanzamientos y ofertas exclusivas.\nSin spam, solo lo mejor del mundo sneaker."
+  const theme = config.theme as "light" | "dark" || "dark" // default dark for newsletter
+
+  const isDark = theme === "dark"
+  const sectionBg = isDark ? "bg-[#1C1C1C]" : "bg-[#F7F7F7]"
+  const titleColor = isDark ? "text-white" : "text-[#1C1C1C]"
+  const subtitleColor = isDark ? "text-white/60" : "text-gray-600"
+  const inputBg = isDark ? "bg-white/5 border-white/10 text-white" : "bg-white border-gray-300 text-[#1C1C1C]"
+  const inputPlaceholder = isDark ? "placeholder:text-white/30" : "placeholder:text-gray-400"
+
   const [email, setEmail] = useState("")
   const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
@@ -29,20 +40,18 @@ export default function NewsletterSection() {
   }
 
   return (
-    <section className="bg-[#1C1C1C] py-16 md:py-24 px-4">
+    <section className={`${sectionBg} py-16 md:py-24 px-4`}>
       <div className="max-w-2xl mx-auto text-center">
         {/* Logo mark */}
         <div className="flex justify-center mb-6">
           <span className="w-8 h-1 bg-[#E31C23]" />
         </div>
 
-        <h2 className="font-[var(--font-barlow)] font-black uppercase text-white text-3xl md:text-5xl tracking-tight leading-none mb-4">
-          Únete a One Star
+        <h2 className={`font-[var(--font-barlow)] font-black uppercase text-3xl md:text-5xl tracking-tight leading-none mb-4 whitespace-pre-wrap ${titleColor}`}>
+          {title}
         </h2>
-        <p className="font-[var(--font-montserrat)] text-white/60 text-sm md:text-base leading-relaxed mb-10">
-          Accede primero a los lanzamientos y ofertas exclusivas.
-          <br className="hidden md:block" />
-          Sin spam, solo lo mejor del mundo sneaker.
+        <p className={`font-[var(--font-montserrat)] text-sm md:text-base leading-relaxed mb-10 whitespace-pre-wrap ${subtitleColor}`}>
+          {subtitle}
         </p>
 
         {success ? (
@@ -52,7 +61,7 @@ export default function NewsletterSection() {
                 <polyline points="20,6 9,17 4,12" />
               </svg>
             </div>
-            <p className="font-[var(--font-barlow)] font-bold text-white text-xl uppercase tracking-wide">
+            <p className={`font-[var(--font-barlow)] font-bold text-xl uppercase tracking-wide ${titleColor}`}>
               ¡Gracias! Pronto recibirás novedades.
             </p>
           </div>
@@ -61,13 +70,13 @@ export default function NewsletterSection() {
             <div className="flex flex-col sm:flex-row gap-0 max-w-md mx-auto">
               <input
                 type="email"
+                placeholder="Ingresa tu correo"
                 value={email}
                 onChange={(e) => {
                   setEmail(e.target.value)
                   if (error) setError("")
                 }}
-                placeholder="tucorreo@email.com"
-                className="flex-1 bg-white/10 border border-white/20 text-white placeholder:text-white/30 font-[var(--font-montserrat)] text-sm px-5 py-4 focus:outline-none focus:border-[#E31C23] transition-colors"
+                className={`flex-1 px-4 py-4 md:py-0 border font-[var(--font-montserrat)] text-sm focus:outline-none focus:border-[#E31C23] focus:ring-1 focus:ring-[#E31C23] transition-colors ${inputBg} ${inputPlaceholder}`}
               />
               <button
                 type="submit"

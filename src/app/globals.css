@@ -6,11 +6,76 @@
 @import "@fontsource/montserrat/500.css";
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ═══════════════════════════════════════
+   Tokens de diseño — Light Mode
+═══════════════════════════════════════ */
 :root {
   --background: #ffffff;
   --foreground: #1C1C1C;
   --font-barlow: "Barlow", sans-serif;
   --font-montserrat: "Montserrat", sans-serif;
+
+  /* Superficies */
+  --surface-1: #ffffff;
+  --surface-2: #F5F5F5;
+  --surface-3: #EDEDED;
+
+  /* Bordes & dividers */
+  --border:        #E0E0E0;
+  --border-strong: #BDBDBD;
+  --divider:       #E0E0E0;
+
+  /* Jerarquía de textos */
+  --text-primary:   #1C1C1C;
+  --text-secondary: #4A4A4A;
+  --text-muted:     #9E9E9E;
+  --text-inverse:   #ffffff;
+
+  /* Inputs */
+  --input-bg:           #ffffff;
+  --input-border:       #D4D4D4;
+  --input-border-focus: #1C1C1C;
+  --input-placeholder:  #9E9E9E;
+  --input-text:         #1C1C1C;
+
+  /* Focus ring */
+  --focus-ring: rgba(28, 28, 28, 0.18);
+}
+
+/* ═══════════════════════════════════════
+   Tokens de diseño — Dark Mode
+═══════════════════════════════════════ */
+.dark {
+  --background: #0f0f0f;
+  --foreground: #f0f0f2;
+
+  /* Superficies */
+  --surface-1: #1a1a1a;
+  --surface-2: #222222;
+  --surface-3: #2c2c2c;
+
+  /* Bordes & dividers — más sutiles en dark */
+  --border:        rgba(255, 255, 255, 0.10);
+  --border-strong: rgba(255, 255, 255, 0.22);
+  --divider:       rgba(255, 255, 255, 0.07);
+
+  /* Jerarquía de textos */
+  --text-primary:   #f0f0f2;
+  --text-secondary: #9d9da6;
+  --text-muted:     #5e5e66;
+  --text-inverse:   #1C1C1C;
+
+  /* Inputs — fondo ligeramente elevado, borde sutil */
+  --input-bg:           #1e1e1e;
+  --input-border:       rgba(255, 255, 255, 0.11);
+  --input-border-focus: rgba(255, 255, 255, 0.70);
+  --input-placeholder:  #5e5e66;
+  --input-text:         #f0f0f2;
+
+  /* Focus ring */
+  --focus-ring: rgba(255, 255, 255, 0.12);
 }
 
 @theme inline {
@@ -25,6 +90,13 @@
   --color-onestar-carbon: #1C1C1C;
   --color-onestar-asphalt: #4A4A4A;
   --color-onestar-concrete: #E0E0E0;
+
+  /* Exponer tokens como utilidades Tailwind */
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border: var(--border);
+  --color-divider: var(--divider);
 }
 
 body {
@@ -32,8 +104,57 @@ body {
   color: var(--foreground);
 }
 
+/* ═══════════════════════════════════════
+   Estilos base globales con dark mode
+═══════════════════════════════════════ */
+@layer base {
+  /* Botones redondeados */
+  button,
+  [type="button"],
+  [type="submit"],
+  [type="reset"] {
+    border-radius: 8px;
+  }
+
+  /* Inputs con tokens automáticos */
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    border-radius: 8px;
+    background-color: var(--input-bg);
+    border-color: var(--input-border);
+    color: var(--input-text);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  input:not([type="checkbox"]):not([type="radio"])::placeholder,
+  textarea::placeholder {
+    color: var(--input-placeholder);
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]):focus,
+  select:focus,
+  textarea:focus {
+    outline: none;
+    border-color: var(--input-border-focus);
+    box-shadow: 0 0 0 3px var(--focus-ring);
+  }
+
+  /* Dividers */
+  hr {
+    border-color: var(--divider);
+  }
+
+  /* Texto secundario y muted vía clase utilitaria */
+  .text-secondary { color: var(--text-secondary); }
+  .text-muted     { color: var(--text-muted); }
+}
+
+/* ═══════════════════════════════════════
+   Animaciones
+═══════════════════════════════════════ */
 @keyframes marquee {
-  0% { transform: translateX(0); }
+  0%   { transform: translateX(0); }
   100% { transform: translateX(-50%); }
 }
 
@@ -41,6 +162,7 @@ body {
   animation: marquee 20s linear infinite;
 }
 
+/* Scrollbar oculta */
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;

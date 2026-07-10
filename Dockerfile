@@ -11,10 +11,10 @@ RUN apk add --no-cache openssl libc6-compat
 
 WORKDIR /app
 
-COPY package.json package-lock.json ./
+COPY package.json pnpm-lock.yaml ./
 
-# npm ci garantiza instalación 100% reproducible del lock file
-RUN npm ci
+# Instalar pnpm y luego las dependencias con frozen lockfile
+RUN npm install -g pnpm && pnpm install --frozen-lockfile
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage 2 — builder
@@ -51,7 +51,7 @@ ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
 RUN npx prisma generate
 
 # Build de producción. Produce .next/standalone/ gracias a output: 'standalone'.
-RUN npm run build
+RUN pnpm build
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage 3 — runner
