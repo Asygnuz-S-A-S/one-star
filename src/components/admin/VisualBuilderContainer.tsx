@@ -1,35 +1,13 @@
 "use client"
 
 import React, { useState, useRef } from "react"
-import { LandingSection, TopBanner, NavigationItem, StoreLogo, Category } from "@prisma/client"
-import LandingBuilderList from "@/components/admin/LandingBuilderList"
+import { LandingSection, Category } from "@prisma/client"
+import LandingBuilderList, { type BuilderGlobals } from "@/components/admin/LandingBuilderList"
 import Link from "next/link"
 
 interface VisualBuilderContainerProps {
   initialSections: LandingSection[]
-  initialGlobals: {
-    topBanner: TopBanner | null
-    logos: {
-      desktop: StoreLogo | null
-      mobile: StoreLogo | null
-      large: StoreLogo | null
-    }
-    navigation: NavigationItem[]
-    headerConfig: {
-      layout: string
-      showSearch: boolean
-      showCart: boolean
-      showUser: boolean
-      bgColor: string
-      textColor: string
-      hasBorderBottom: boolean
-      bgOpacity: number
-      useBlur: boolean
-      margin: string
-      padding: string
-      borderRadius: string
-    }
-  }
+  initialGlobals: BuilderGlobals
   initialBanners: any[]
   categories: Category[]
 }

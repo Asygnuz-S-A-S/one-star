@@ -29,32 +29,34 @@ import { updateHeaderConfigAction } from "@/server/actions/header-config.actions
 import { deleteBanner } from "@/app/admin/banners/actions"
 import { searchProductsAction } from "@/server/actions/product.actions"
 
+export interface BuilderGlobals {
+  topBanner: TopBanner | null
+  logos: {
+    desktop: StoreLogo | null
+    mobile: StoreLogo | null
+    large: StoreLogo | null
+  }
+  navigation: NavigationItem[]
+  headerConfig: {
+    layout: string
+    navAlignment: string
+    showSearch: boolean
+    showCart: boolean
+    showUser: boolean
+    bgColor: string
+    textColor: string
+    hasBorderBottom: boolean
+    bgOpacity: number
+    useBlur: boolean
+    margin: string
+    padding: string
+    borderRadius: string
+  }
+}
+
 interface LandingBuilderListProps {
   initialSections: LandingSection[]
-  initialGlobals?: {
-    topBanner: TopBanner | null
-    logos: {
-      desktop: StoreLogo | null
-      mobile: StoreLogo | null
-      large: StoreLogo | null
-    }
-    navigation: NavigationItem[]
-    headerConfig: {
-      layout: string
-      navAlignment: string
-      showSearch: boolean
-      showCart: boolean
-      showUser: boolean
-      bgColor: string
-      textColor: string
-      hasBorderBottom: boolean
-      bgOpacity: number
-      useBlur: boolean
-      margin: string
-      padding: string
-      borderRadius: string
-    }
-  }
+  initialGlobals?: BuilderGlobals
   categories?: Category[]
   initialBanners?: any[]
   onRefresh?: () => void
@@ -236,7 +238,7 @@ export default function LandingBuilderList({ initialSections, initialGlobals, in
         text: globalBannerState.text || "",
         btnText: globalBannerState.btnText || "",
         btnUrl: globalBannerState.btnUrl || "",
-        messages: globalBannerState.messages || [],
+        messages: (globalBannerState.messages as { text: string; url?: string }[] | null) ?? [],
         bgColor: globalBannerState.bgColor || "#000000",
         textColor: globalBannerState.textColor || "#FFFFFF",
         isActive: globalBannerState.isActive ?? false
@@ -1458,6 +1460,21 @@ export default function LandingBuilderList({ initialSections, initialGlobals, in
 
           {editingSection.type === "PRODUCT_CAROUSEL" && (
             <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wider">Estilo de Visualización</label>
+                <select
+                  value={configInput.layout || "carousel"}
+                  onChange={(e) => setConfigInput({ ...configInput, layout: e.target.value })}
+                  className="w-full p-2 border border-gray-300 rounded text-sm focus:ring-[#1C1C1C] focus:border-[#1C1C1C]"
+                >
+                  <option value="carousel">Carrusel horizontal (tarjetas)</option>
+                  <option value="showcase">Showcase / pasarela (producto grande que rota)</option>
+                </select>
+                <p className="text-[11px] text-gray-400 mt-1">
+                  «Showcase» muestra un producto grande al centro que cambia de vista al mover el cursor, con el nombre de la marca en grande — estilo pasarela.
+                </p>
+              </div>
+
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wider">Buscar Productos</label>
                 <div className="relative">

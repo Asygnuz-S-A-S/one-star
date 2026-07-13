@@ -15,9 +15,6 @@ interface VariantRow {
   sku: string
   size: string
   color: string
-  sku: string
-  size: string
-  color: string
   stock: string
   inventory: Array<{ storeLocationId: string | null; stock: string }>
   sizeUS: string
@@ -42,7 +39,7 @@ interface CrossSellItem {
 interface Props {
   mode: "create" | "edit"
   product?: ProductWithRelations
-  categories: Category[]
+  categories: { id: string; name: string }[]
   brands?: { id: string; name: string }[]
   stores?: StoreLocation[]
 }
@@ -254,7 +251,7 @@ export default function ProductForm({ mode, product, categories, brands = [], st
   const [variants, setVariants] = useState<VariantRow[]>(
     product?.variants.map((v) => {
       // Map existing DB inventory to local string array
-      const mappedInventory = stores.map(store => {
+      const mappedInventory: Array<{ storeLocationId: string | null; stock: string }> = stores.map(store => {
         const found = v.inventory?.find((i: any) => i.storeLocationId === store.id)
         return {
           storeLocationId: store.id,
@@ -299,7 +296,7 @@ export default function ProductForm({ mode, product, categories, brands = [], st
 
   // Cross-sells
   const [crossSells, setCrossSells] = useState<CrossSellItem[]>(
-    product?.crossSells.map((p) => ({ id: p.id, name: p.name, brandId: p.brandId ?? null, brandName: p.brandName ?? null })) ?? []
+    product?.crossSells.map((p) => ({ id: p.id, name: p.name, brandId: p.brandId ?? null, brandName: p.brand?.name ?? null })) ?? []
   )
   const [crossSellSearch, setCrossSearch] = useState("")
   const [crossSellResults, setCrossResults] = useState<CrossSellItem[]>([])

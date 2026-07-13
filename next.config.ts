@@ -13,6 +13,14 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "res.cloudinary.com",
       },
+      {
+        protocol: "https",
+        hostname: "nb.scene7.com",
+      },
+      {
+        protocol: "https",
+        hostname: "static.nike.com",
+      },
     ],
   },
 }

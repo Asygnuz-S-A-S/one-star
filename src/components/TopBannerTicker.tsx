@@ -1,8 +1,8 @@
 "use client";
 
-import { motion } from "motion/react";
+import type { CSSProperties } from "react";
 import Link from "next/link";
-import { useState } from "react";
+import { useReducedMotion } from "motion/react";
 
 interface BannerMessage {
   text: string;
@@ -18,6 +18,9 @@ interface TopBannerTickerProps {
   textColor?: string;
 }
 
+const TICKER_SECONDS_PER_MESSAGE = 6;
+const TICKER_REPEATS = 4;
+
 export default function TopBannerTicker({
   messages,
   fallbackText,
@@ -26,7 +29,7 @@ export default function TopBannerTicker({
   bgColor = "#1C1C1C",
   textColor = "#FFFFFF",
 }: TopBannerTickerProps) {
-  const [isHovered, setIsHovered] = useState(false);
+  const prefersReducedMotion = useReducedMotion();
 
   let displayMessages = messages;
   if (!messages || messages.length === 0) {
@@ -37,7 +40,9 @@ export default function TopBannerTicker({
     }
   }
 
-  if (displayMessages.length === 1) {
+  // Un solo mensaje, o el usuario prefiere movimiento reducido:
+  // banner estático con el primer mensaje, sin animación.
+  if (displayMessages.length === 1 || prefersReducedMotion) {
     const msg = displayMessages[0];
     return (
       <div
@@ -58,25 +63,39 @@ export default function TopBannerTicker({
     );
   }
 
-  const repeatedMessages = [...displayMessages, ...displayMessages, ...displayMessages, ...displayMessages];
+  const repeatedMessages = Array.from({ length: TICKER_REPEATS }, () => displayMessages).flat();
+  const durationSeconds = displayMessages.length * TICKER_SECONDS_PER_MESSAGE;
 
   return (
     <div
-      className="text-[11px] tracking-wide py-2 font-montserrat overflow-hidden whitespace-nowrap relative flex items-center"
+      className="onestar-ticker text-[11px] tracking-wide py-2 font-montserrat overflow-hidden whitespace-nowrap relative flex items-center"
       style={{ backgroundColor: bgColor, color: textColor, height: "32px" }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Usar una clase group-hover en un div wrapper o manejar el estado para pausar */}
-      <motion.div
-        className="flex gap-12"
-        animate={isHovered ? "paused" : "running"}
-        variants={{
-          running: { x: ["0%", "-50%"], transition: { repeat: Infinity, ease: "linear", duration: displayMessages.length * 6 } },
-          paused: { x: ["0%", "-50%"], transition: { repeat: Infinity, ease: "linear", duration: displayMessages.length * 6 } } 
-        }}
-        // Truco CSS para pausar más seguro
-        style={{ animationPlayState: isHovered ? "paused" : "running" }}
+      {/*
+        Animación CSS nativa: a diferencia de las animaciones JS de motion,
+        `animation-play-state: paused` en :hover SÍ pausa el marquee.
+        Solo se anima `transform` (compositor-friendly).
+      */}
+      <style>{`
+        @keyframes onestar-ticker-scroll {
+          from { transform: translateX(0); }
+          to { transform: translateX(-50%); }
+        }
+        .onestar-ticker-track {
+          animation: onestar-ticker-scroll var(--ticker-duration, 24s) linear infinite;
+        }
+        .onestar-ticker:hover .onestar-ticker-track {
+          animation-play-state: paused;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .onestar-ticker-track {
+            animation: none;
+          }
+        }
+      `}</style>
+      <div
+        className="onestar-ticker-track flex gap-12"
+        style={{ "--ticker-duration": `${durationSeconds}s` } as CSSProperties}
       >
         {repeatedMessages.map((msg, idx) => (
           <div key={idx} className="flex items-center gap-2 shrink-0">
@@ -92,7 +111,7 @@ export default function TopBannerTicker({
             )}
           </div>
         ))}
-      </motion.div>
+      </div>
     </div>
   );
 }

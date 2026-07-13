@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useId, cloneElement, isValidElement } from "react"
 import Link from "next/link"
 import { motion } from "motion/react"
 import { useCart } from "@/store"
@@ -86,14 +86,32 @@ interface FieldProps {
 }
 
 function Field({ label, error, required, children }: FieldProps) {
+  // Asocia label ↔ control y anuncia el error a lectores de pantalla
+  const id = useId()
+  const errorId = `${id}-error`
+  const control = isValidElement(children)
+    ? cloneElement(children as React.ReactElement<Record<string, unknown>>, {
+        id,
+        "aria-invalid": error ? true : undefined,
+        "aria-describedby": error ? errorId : undefined,
+      })
+    : children
+
   return (
     <div>
-      <label className="block text-xs font-montserrat font-medium text-[#4A4A4A] uppercase tracking-wide mb-1">
+      <label
+        htmlFor={id}
+        className="block text-xs font-montserrat font-medium text-[#4A4A4A] uppercase tracking-wide mb-1"
+      >
         {label}
         {required && <span className="text-[#E31C23] ml-0.5">*</span>}
       </label>
-      {children}
-      {error && <p className="mt-1 text-xs text-[#E31C23] font-montserrat">{error}</p>}
+      {control}
+      {error && (
+        <p id={errorId} className="mt-1 text-xs text-[#E31C23] font-montserrat">
+          {error}
+        </p>
+      )}
     </div>
   )
 }

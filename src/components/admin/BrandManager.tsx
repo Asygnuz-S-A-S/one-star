@@ -81,6 +81,7 @@ export default function BrandManager({ brands: initialBrands }: { brands: BrandD
           id: result.id!,
           name: name.trim(),
           slug,
+          erpId: null,
           logoUrl: logoUrl || null,
           isActive,
         }])

@@ -17,6 +17,8 @@ const rawCategory = {
   id: "cat-1",
   name: "Zapatillas",
   slug: "zapatillas",
+  description: null,
+  imageUrl: null,
   createdAt: new Date("2024-01-01"),
   updatedAt: new Date("2024-01-01"),
 }

@@ -25,3 +25,29 @@ export async function getUniqueColors(): Promise<string[]> {
 export async function countVariants(): Promise<number> {
   return prisma.variant.count()
 }
+
+/**
+ * Variantes con los datos de precio de su producto.
+ * Usado por el checkout para recalcular precios en el servidor:
+ * los precios enviados por el cliente nunca se persisten.
+ */
+export async function findVariantsForPricing(variantIds: string[]) {
+  return prisma.variant.findMany({
+    where: { id: { in: variantIds } },
+    select: {
+      id: true,
+      sku: true,
+      stock: true,
+      productId: true,
+      product: {
+        select: {
+          id: true,
+          name: true,
+          basePrice: true,
+          isOnSale: true,
+          salePrice: true,
+        },
+      },
+    },
+  })
+}

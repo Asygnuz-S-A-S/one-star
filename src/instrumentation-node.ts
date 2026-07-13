@@ -13,7 +13,9 @@ Sentry.init({
 import * as cron from "node-cron"
 
 // Evita que el cron se inicialice múltiples veces en dev con HMR
-if (!(global as any).__cronInitialized) {
+const globalWithCron = global as typeof global & { __cronInitialized?: boolean }
+
+if (!globalWithCron.__cronInitialized) {
   console.log("[Cron] Inicializando tareas programadas internas...")
 
   // Ejecuta la sincronización cada 30 minutos
@@ -35,5 +37,5 @@ if (!(global as any).__cronInitialized) {
     }
   })
 
-  ;(global as any).__cronInitialized = true
+  ;globalWithCron.__cronInitialized = true
 }

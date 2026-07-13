@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react"
 import Image from "next/image"
+import { motion } from "motion/react"
 import type { ProductImage } from "@/types/shop"
 
 interface ProductGalleryProps {
@@ -16,11 +17,6 @@ export default function ProductGallery({ images, videoUrl }: ProductGalleryProps
 
   const hasVideo = Boolean(videoUrl)
   const allImages = images.map(img => img.url)
-
-  // Qué imagen mostrar: si hay hover frame activo lo usamos, si no el seleccionado
-  const displayUrl = !showVideo && hoverFrame !== null
-    ? allImages[hoverFrame] ?? allImages[activeIndex]
-    : allImages[activeIndex]
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (showVideo || allImages.length <= 1) return
@@ -51,31 +47,42 @@ export default function ProductGallery({ images, videoUrl }: ProductGalleryProps
 
       {/* Thumbnails verticales (derecha en mobile = abajo; izquierda en desktop) */}
       <div className="flex flex-row md:flex-col gap-2 overflow-x-auto md:overflow-y-auto md:max-h-[580px] pb-1 scrollbar-hide md:w-20 shrink-0">
-        {images.map((img, idx) => (
-          <button
-            key={img.id}
-            onClick={() => { setActiveIndex(idx); setShowVideo(false) }}
-            className={`relative shrink-0 w-16 h-16 md:w-20 md:h-20 bg-[#F0F0F0] dark:bg-white/5 overflow-hidden rounded-xl border-2 transition-all duration-200 ${
-              !showVideo && activeIndex === idx
-                ? "border-[#1C1C1C] dark:border-white shadow-sm"
-                : "border-transparent hover:border-[#4A4A4A]/50"
-            }`}
-            aria-label={img.alt || `Imagen ${idx + 1}`}
-          >
-            <Image
-              src={img.url}
-              alt={img.alt || `Miniatura ${idx + 1}`}
-              fill
-              className="object-cover object-center"
-              sizes="80px"
-            />
-          </button>
-        ))}
+        {images.map((img, idx) => {
+          const active = !showVideo && activeIndex === idx
+          return (
+            <motion.button
+              key={img.id}
+              onClick={() => { setActiveIndex(idx); setShowVideo(false) }}
+              whileHover={{ scale: 1.08, y: -2 }}
+              whileTap={{ scale: 0.92 }}
+              animate={{ scale: active ? 1.05 : 1 }}
+              transition={{ type: "spring", stiffness: 420, damping: 15 }}
+              className={`relative shrink-0 w-16 h-16 md:w-20 md:h-20 bg-[#F0F0F0] dark:bg-white/5 overflow-hidden rounded-xl border-2 ${
+                active
+                  ? "border-[#1C1C1C] dark:border-white shadow-md"
+                  : "border-transparent hover:border-[#4A4A4A]/50"
+              }`}
+              aria-label={img.alt || `Imagen ${idx + 1}`}
+            >
+              <Image
+                src={img.url}
+                alt={img.alt || `Miniatura ${idx + 1}`}
+                fill
+                className="object-cover object-center"
+                sizes="80px"
+              />
+            </motion.button>
+          )
+        })}
 
         {hasVideo && (
-          <button
+          <motion.button
             onClick={() => setShowVideo(true)}
-            className={`relative shrink-0 w-16 h-16 md:w-20 md:h-20 bg-[#1C1C1C] dark:bg-white/10 overflow-hidden rounded-xl border-2 transition-all duration-200 flex items-center justify-center ${
+            whileHover={{ scale: 1.08, y: -2 }}
+            whileTap={{ scale: 0.92 }}
+            animate={{ scale: showVideo ? 1.05 : 1 }}
+            transition={{ type: "spring", stiffness: 420, damping: 15 }}
+            className={`relative shrink-0 w-16 h-16 md:w-20 md:h-20 bg-[#1C1C1C] dark:bg-white/10 overflow-hidden rounded-xl border-2 flex items-center justify-center ${
               showVideo ? "border-[#1C1C1C] dark:border-white" : "border-transparent hover:border-[#4A4A4A]/50"
             }`}
             aria-label="Ver video del producto"
@@ -83,11 +90,11 @@ export default function ProductGallery({ images, videoUrl }: ProductGalleryProps
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" className="w-7 h-7">
               <path d="M8 5v14l11-7z"/>
             </svg>
-          </button>
+          </motion.button>
         )}
       </div>
 
-      {/* Imagen principal con animación 3D */}
+      {/* Imagen principal: rotación 3D al mover el mouse + zoom lúdico al hover */}
       <div
         className="relative flex-1 aspect-square bg-[#F0F0F0] dark:bg-white/5 overflow-hidden rounded-2xl cursor-crosshair group"
         onMouseMove={handleMouseMove}
@@ -104,28 +111,34 @@ export default function ProductGallery({ images, videoUrl }: ProductGalleryProps
           />
         ) : activeImage ? (
           <>
-            {/* Renderizamos todas las imágenes, mostramos la activa */}
-            {allImages.map((url, idx) => (
-              <Image
-                key={`main-${idx}`}
-                src={url}
-                alt={images[idx]?.alt || `Vista ${idx + 1}`}
-                fill
-                priority={idx === 0}
-                className={`object-contain object-center transition-opacity duration-100 ease-in-out ${
-                  idx === (hoverFrame ?? activeIndex) ? "opacity-100" : "opacity-0"
-                }`}
-                sizes="(max-width: 768px) 100vw, 55vw"
-              />
-            ))}
+            {/* Capa con zoom al hover: al pasar el mouse la imagen crece un poco */}
+            <div className="absolute inset-0 transition-transform duration-500 ease-out group-hover:scale-110">
+              {allImages.map((url, idx) => (
+                <Image
+                  key={`main-${idx}`}
+                  src={url}
+                  alt={images[idx]?.alt || `Vista ${idx + 1}`}
+                  fill
+                  priority={idx === 0}
+                  className={`object-contain object-center transition-opacity duration-100 ease-in-out ${
+                    idx === (hoverFrame ?? activeIndex) ? "opacity-100" : "opacity-0"
+                  }`}
+                  sizes="(max-width: 768px) 100vw, 55vw"
+                />
+              ))}
+            </div>
 
             {/* Hint sutil de interacción (solo si hay más de 1 imagen) */}
             {allImages.length > 1 && (
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+              <motion.div
+                className="absolute bottom-4 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+                animate={{ x: [-4, 4, -4] }}
+                transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+              >
                 <span className="text-[10px] font-[var(--font-montserrat)] tracking-widest text-[#4A4A4A] dark:text-white/50 uppercase">
                   ← Mover para rotar →
                 </span>
-              </div>
+              </motion.div>
             )}
           </>
         ) : null}

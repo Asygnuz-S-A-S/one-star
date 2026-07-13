@@ -119,9 +119,9 @@ export class LoggroERPAdapter implements IERPAdapter {
     const loggroItems = await this.client.getProducts()
     
     // Mapear los items de Loggro a ERPProduct
-    return loggroItems.map((item: any) => ({
-      erpId: item.id || item.codigo,
-      sku: item.codigo || item.id,
+    return loggroItems.map((item) => ({
+      erpId: String(item.id ?? item.codigo ?? ""),
+      sku: String(item.codigo ?? item.id ?? ""),
       name: item.descripcion || "Sin Nombre",
       basePrice: Number(item.precioDefecto || item.precioBase || item.precioVta || 0),
       stock: item.cantidadDisponible || item.cantDisp || 0,

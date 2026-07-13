@@ -39,6 +39,7 @@ const rawBanner = {
   linkUrl: "/sale",
   position: 0,
   isActive: true,
+  mediaType: "IMAGE",
   startDate: new Date("2024-01-01"),
   endDate: new Date("2024-12-31"),
   createdAt: new Date("2024-01-01"),

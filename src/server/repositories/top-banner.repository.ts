@@ -1,3 +1,4 @@
+import "server-only"
 import { prisma } from "@/server/db/prisma"
 import { TopBanner } from "@prisma/client"
 
@@ -10,7 +11,7 @@ export async function updateTopBanner(data: {
   text: string
   btnText?: string | null
   btnUrl?: string | null
-  messages?: any
+  messages?: { text: string; url?: string }[]
   bgColor: string
   textColor: string
   isActive: boolean

@@ -23,10 +23,13 @@ export interface Variant {
 }
 
 export interface CrossSellProduct {
+  isNew?: boolean
+  hasStock?: boolean
   id: string
   slug: string
   name: string
   brand: string | null
+  brandId?: string | null
   basePrice: number
   isOnSale: boolean
   salePrice: number | null

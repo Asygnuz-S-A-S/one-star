@@ -104,7 +104,6 @@ export async function getAdminDashboardStats(): Promise<DashboardStatsDTO> {
     }
   } catch (error) {
     if (process.env.NODE_ENV === "development") {
-      // eslint-disable-next-line no-console
       console.error("[DashboardService] Error:", error)
     }
     return {

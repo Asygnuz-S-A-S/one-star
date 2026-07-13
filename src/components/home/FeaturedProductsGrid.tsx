@@ -13,6 +13,7 @@ interface ProductItem {
   salePrice?: number
   imageUrl?: string
   secondaryImageUrl?: string
+  gallery?: string[]
   isNew?: boolean
   isOnSale?: boolean
 }
@@ -51,8 +52,8 @@ export default function FeaturedProductsGrid({ products, theme = "light" }: { pr
               salePrice={product.salePrice}
               imageUrl={product.imageUrl}
               secondaryImageUrl={product.secondaryImageUrl}
+              gallery={product.gallery}
               isOnSale={product.isOnSale}
-              theme={theme}
             />
           </motion.div>
         ))}
@@ -85,8 +86,8 @@ export default function FeaturedProductsGrid({ products, theme = "light" }: { pr
               salePrice={product.salePrice}
               imageUrl={product.imageUrl}
               secondaryImageUrl={product.secondaryImageUrl}
+              gallery={product.gallery}
               isOnSale={product.isOnSale}
-              theme={theme}
             />
           </motion.div>
         ))}

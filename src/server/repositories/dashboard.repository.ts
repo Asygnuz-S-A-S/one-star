@@ -51,10 +51,11 @@ export async function getDashboardData() {
   let products: Array<{ id: string; name: string; brand: string | null }> = []
   if (orderItemsRaw.length > 0) {
     const productIds = orderItemsRaw.map((oi) => oi.productId)
-    products = await prisma.product.findMany({
+    const rows = await prisma.product.findMany({
       where: { id: { in: productIds } },
-      select: { id: true, name: true, brand: true }
+      select: { id: true, name: true, brand: { select: { name: true } } }
     })
+    products = rows.map((p) => ({ id: p.id, name: p.name, brand: p.brand?.name ?? null }))
   }
 
   return {

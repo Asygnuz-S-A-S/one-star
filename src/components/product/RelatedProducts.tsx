@@ -24,6 +24,7 @@ export default async function RelatedProducts({
         {products.map((product) => {
           const image = product.images[0]
           const secondaryImage = product.images[1]
+          const gallery = product.images.slice(2).map((img) => img.url)
           return (
             <Link key={product.id} href={`/productos/${product.slug}`}>
               <ProductCard
@@ -34,6 +35,7 @@ export default async function RelatedProducts({
                 salePrice={product.isOnSale && product.salePrice ? product.salePrice : undefined}
                 imageUrl={image?.url}
                 secondaryImageUrl={secondaryImage?.url}
+                gallery={gallery}
                 isOnSale={product.isOnSale} isNew={product.isNew} hasStock={product.hasStock}
               />
             </Link>

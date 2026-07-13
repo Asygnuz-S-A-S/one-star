@@ -19,10 +19,26 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const navigationItems = await getActiveNavigationItems();
-  const topBanner = await getTopBanner();
-  const primaryLogos = await getPrimaryLogos();
-  const headerConfig = await getHeaderConfig();
+  // Queries independientes en paralelo; si la BD falla, la página
+  // se renderiza con fallbacks en lugar de caerse entera.
+  const [navigationItems, topBanner, primaryLogos, headerConfig] = await Promise.all([
+    getActiveNavigationItems().catch((error: unknown) => {
+      console.error("[layout] getActiveNavigationItems falló:", error);
+      return [];
+    }),
+    getTopBanner().catch((error: unknown) => {
+      console.error("[layout] getTopBanner falló:", error);
+      return null;
+    }),
+    getPrimaryLogos().catch((error: unknown) => {
+      console.error("[layout] getPrimaryLogos falló:", error);
+      return null;
+    }),
+    getHeaderConfig().catch((error: unknown) => {
+      console.error("[layout] getHeaderConfig falló:", error);
+      return null;
+    }),
+  ]);
   
   // Si el banner está inactivo o no existe, solo ocupamos la altura de la barra nav
   const isBannerActive = topBanner?.isActive ?? true;

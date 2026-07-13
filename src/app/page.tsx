@@ -14,17 +14,36 @@ import { getActiveLandingSections } from "@/server/repositories/landing-section.
 import { getTopBanner } from "@/server/repositories/top-banner.repository"
 
 export default async function Home() {
-  const visibleBanners = await getVisibleBanners()
-  const gridBlocks = await getVisibleGridBlocks()
-  const uniqueBrands = await getUniqueBrands()
-  const sections = await getActiveLandingSections()
-  const topBanner = await getTopBanner()
+  // Queries independientes en paralelo; con fallbacks para que un fallo
+  // puntual no tumbe toda la home.
+  const [visibleBanners, gridBlocks, uniqueBrands, sections, topBanner] = await Promise.all([
+    getVisibleBanners().catch((error: unknown) => {
+      console.error("[home] getVisibleBanners falló:", error)
+      return []
+    }),
+    getVisibleGridBlocks().catch((error: unknown) => {
+      console.error("[home] getVisibleGridBlocks falló:", error)
+      return []
+    }),
+    getUniqueBrands().catch((error: unknown) => {
+      console.error("[home] getUniqueBrands falló:", error)
+      return []
+    }),
+    getActiveLandingSections().catch((error: unknown) => {
+      console.error("[home] getActiveLandingSections falló:", error)
+      return []
+    }),
+    getTopBanner().catch((error: unknown) => {
+      console.error("[home] getTopBanner falló:", error)
+      return null
+    }),
+  ])
   const isBannerActive = topBanner?.isActive ?? true
 
   return (
     <>
       {sections.map((section, index) => {
-        const config = typeof section.config === 'object' && section.config !== null ? section.config as Record<string, any> : {}
+        const config = typeof section.config === 'object' && section.config !== null ? section.config as Record<string, unknown> : {}
         
         switch (section.type) {
           case "HERO":

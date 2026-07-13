@@ -8,6 +8,10 @@ export const metadata = {
   description: "Encuentra la sucursal One Star más cercana a ti.",
 }
 
+// Las tiendas se gestionan desde el admin: la página se renderiza por request
+// (además evita requerir una BD accesible durante el build/prerender).
+export const dynamic = "force-dynamic"
+
 export default async function TiendasPage() {
   const stores = await prisma.storeLocation.findMany({
     where: { isActive: true },

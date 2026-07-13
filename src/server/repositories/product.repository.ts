@@ -122,7 +122,15 @@ export async function searchProductsByName(
   q: string,
   excludeId?: string,
   take = 8
-): Promise<{ id: string; name: string; brandId: string | null; brand: { name: string } | null }[]> {
+): Promise<{
+  id: string
+  name: string
+  slug: string
+  basePrice: { toNumber: () => number }
+  brandId: string | null
+  brand: { name: string } | null
+  images: { url: string }[]
+}[]> {
   return prisma.product.findMany({
     where: {
       AND: [
@@ -130,7 +138,15 @@ export async function searchProductsByName(
         excludeId ? { id: { not: excludeId } } : {},
       ],
     },
-    select: { id: true, name: true, brandId: true, brand: { select: { name: true } } },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      basePrice: true,
+      brandId: true,
+      brand: { select: { name: true } },
+      images: { select: { url: true }, orderBy: { position: "asc" }, take: 2 },
+    },
     take,
   })
 }

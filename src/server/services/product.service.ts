@@ -6,10 +6,7 @@ import {
   countProducts,
   fetchBrands,
   createProductRecord,
-  updateProductRecord,
   deleteProductRecord,
-  deleteVariantsByProduct,
-  deleteImagesByProduct,
   searchProductsByName,
   runInTransaction,
 } from "../repositories/product.repository"
@@ -53,6 +50,7 @@ export interface CrossSellDTO {
   name: string
   brandId: string | null
   brandName: string | null
+  brand: string | null
   basePrice: number
   isOnSale: boolean
   salePrice: number | null
@@ -66,6 +64,8 @@ export interface ProductDTO {
   name: string
   brandId: string | null
   brandName: string | null
+  /** Nombre de la marca (alias plano de brandName para la UI de la tienda) */
+  brand: string | null
   basePrice: number
   isOnSale: boolean
   salePrice: number | null
@@ -73,7 +73,6 @@ export interface ProductDTO {
   extendedDescription: string | null
   videoUrl: string | null
   metaTitle: string | null
-  metaDescription: string | null
   metaDescription: string | null
   gender: string | null
   categoryId: string
@@ -234,6 +233,7 @@ function mapToDTO(raw: RawProduct): ProductDTO {
     name: raw.name,
     brandId: raw.brandId ?? null,
     brandName: raw.brand?.name ?? null,
+    brand: raw.brand?.name ?? null,
     basePrice: raw.basePrice.toNumber(),
     isOnSale: raw.isOnSale,
     salePrice: raw.salePrice ? raw.salePrice.toNumber() : null,
@@ -264,6 +264,7 @@ function mapToDTO(raw: RawProduct): ProductDTO {
       name: cs.name,
       brandId: cs.brandId ?? null,
       brandName: cs.brand?.name ?? null,
+      brand: cs.brand?.name ?? null,
       basePrice: cs.basePrice.toNumber(),
       isOnSale: cs.isOnSale,
       salePrice: cs.salePrice ? cs.salePrice.toNumber() : null,
@@ -467,6 +468,7 @@ export async function updateProduct(
       },
       include: {
         category: true,
+        brand: { select: { id: true, name: true, slug: true } },
         images: { orderBy: { position: "asc" } },
         variants: true,
       },

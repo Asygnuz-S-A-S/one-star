@@ -10,6 +10,7 @@ import CrossSelling from "@/components/product/CrossSelling"
 import RelatedProducts from "@/components/product/RelatedProducts"
 import ProductReviews from "@/components/product/ProductReviews"
 import StoreAvailability from "@/components/product/StoreAvailability"
+import Reveal from "@/components/ui/Reveal"
 
 interface PageProps {
   params: Promise<{ slug: string }>
@@ -138,7 +139,7 @@ export default async function ProductPage({ params }: PageProps) {
 
         {/* ── Extended description hero (Nike-style) ── */}
         {(product.extendedDescription || product.description) && (
-          <div className="relative bg-[#F5F5F5] dark:bg-white/5 rounded-3xl overflow-hidden mb-16 min-h-[280px]">
+          <Reveal from="scale" className="relative bg-[#F5F5F5] dark:bg-white/5 rounded-3xl overflow-hidden mb-16 min-h-[280px]">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center p-10 md:p-16">
               <div>
                 <h2 className="font-[var(--font-barlow)] font-black text-3xl md:text-4xl uppercase text-[#1C1C1C] dark:text-white mb-2 leading-tight">
@@ -165,7 +166,7 @@ export default async function ProductPage({ params }: PageProps) {
                 </div>
               )}
             </div>
-          </div>
+          </Reveal>
         )}
       </div>
 

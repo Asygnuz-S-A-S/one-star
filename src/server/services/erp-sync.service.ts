@@ -42,9 +42,6 @@ export async function syncCatalogFromERP(): Promise<ERPCatalogSyncResult> {
       })
     }
 
-    // Caché de marcas para no hacer queries repetidos
-    const brandCache = new Map<string, string>()
-
     // 1. Agrupar los ítems de Loggro por "Producto Base" usando el SKU
     // Asumimos que el SKU tiene un formato "BASE-VARIANTE" (ej. "CAM01-M-ROJ")
     // Si no tiene guión, el producto base es el mismo SKU.
@@ -111,7 +108,7 @@ export async function syncCatalogFromERP(): Promise<ERPCatalogSyncResult> {
           const baseSlug = safeName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)+/g, "")
           
           let brandSlug = baseSlug
-          let count = await prisma.brand.count({ where: { slug: brandSlug } })
+          const count = await prisma.brand.count({ where: { slug: brandSlug } })
           if (count > 0) brandSlug = `${baseSlug}-${Date.now()}`
             
           brand = await prisma.brand.create({

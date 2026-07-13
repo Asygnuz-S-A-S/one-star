@@ -2,9 +2,13 @@
 
 import Image from "next/image"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { motion } from "motion/react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useSession } from "@/lib/auth-client"
+import { useWishlistStore } from "@/store"
+
+const MAX_STARS = 5
 
 interface ProductCardProps {
   id: string
@@ -19,6 +23,9 @@ interface ProductCardProps {
   isNew?: boolean
   isOnSale?: boolean
   hasStock?: boolean
+  rating?: number
+  reviewCount?: number
+  priority?: boolean
 }
 
 function formatPrice(price: number): string {
@@ -30,16 +37,32 @@ function formatPrice(price: number): string {
   }).format(price)
 }
 
-export default function ProductCard({ id, slug, name, brand, price, salePrice, imageUrl, secondaryImageUrl, gallery, isNew, isOnSale, hasStock = true }: ProductCardProps) {
+export default function ProductCard({ id, slug, name, brand, price, salePrice, imageUrl, secondaryImageUrl, gallery, isNew, isOnSale, hasStock = true, rating, reviewCount, priority = false }: ProductCardProps) {
   const href = slug ? `/productos/${slug}` : undefined
+  const router = useRouter()
   const { data: session } = useSession()
-  const [isFavorite, setIsFavorite] = useState(false)
+  // La sesión solo se conoce en el cliente; renderizamos el botón de favoritos
+  // tras montar para que el HTML del servidor y el del cliente coincidan
+  // (evita el error de hidratación).
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+  const isFavorite = useWishlistStore((state) => state.productIds.includes(id))
+  const toggleWishlist = useWishlistStore((state) => state.toggle)
 
   const toggleFavorite = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    setIsFavorite(!isFavorite)
+    toggleWishlist(id)
   }
+
+  const goToProduct = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (href) router.push(href)
+  }
+
+  const hasRating = rating !== undefined && reviewCount !== undefined && reviewCount > 0
+  const filledStars = hasRating ? Math.min(MAX_STARS, Math.max(0, Math.round(rating))) : 0
 
   const discountPercentage = isOnSale && salePrice && price > 0
     ? Math.round((1 - Number(salePrice) / Number(price)) * 100)
@@ -101,7 +124,7 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
                   src={src}
                   alt={`${name} vista ${index + 1}`}
                   fill
-                  priority={index === 0}
+                  priority={priority && index === 0}
                   className={`object-cover object-center transition-opacity duration-150 ease-in-out ${
                     index === activeFrame ? "opacity-100" : "opacity-0"
                   }`}
@@ -149,7 +172,7 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
         </div>
 
         {/* Favorite Button */}
-        {session?.user && (
+        {mounted && session?.user && (
           <button 
             onClick={toggleFavorite}
             className="absolute top-2 right-2 z-20 p-2 bg-white/70 dark:bg-black/50 backdrop-blur-md rounded-full text-[#1C1C1C] dark:text-white hover:text-[#E31C23] dark:hover:text-[#E31C23] transition-colors shadow-sm"
@@ -163,24 +186,46 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
       </div>
 
       <div className="mt-2 text-left flex flex-col px-1">
-        <Link href={href || "#"} className="block w-full" prefetch={false}>
-          <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5 text-[#4A4A4A] dark:text-gray-400">
-            {brand}
-          </p>
-          <h3 className="text-sm font-bold uppercase text-[#1C1C1C] dark:text-white mb-1 line-clamp-1 leading-tight">
-            {name}
-          </h3>
-        </Link>
-        
-        {/* Star Rating Mock */}
-        <div className="flex items-center gap-0.5 mb-2">
-          {[1,2,3,4,5].map(star => (
-            <svg key={star} width="10" height="10" viewBox="0 0 24 24" fill="currentColor" className="text-yellow-400">
-              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-            </svg>
-          ))}
-          <span className="text-[9px] text-gray-500 ml-1">(12)</span>
-        </div>
+        {(() => {
+          const info = (
+            <>
+              <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5 text-[#4A4A4A] dark:text-gray-400">
+                {brand}
+              </p>
+              <h3 className="text-sm font-bold uppercase text-[#1C1C1C] dark:text-white mb-1 line-clamp-1 leading-tight">
+                {name}
+              </h3>
+            </>
+          )
+          return href ? (
+            <Link href={href} className="block w-full" prefetch={false}>
+              {info}
+            </Link>
+          ) : (
+            <div className="block w-full">{info}</div>
+          )
+        })()}
+
+        {hasRating && (
+          <div className="flex items-center gap-0.5 mb-2" aria-label={`Calificación: ${rating} de ${MAX_STARS}`}>
+            {Array.from({ length: MAX_STARS }, (_, i) => (
+              <svg
+                key={i}
+                width="10"
+                height="10"
+                viewBox="0 0 24 24"
+                fill={i < filledStars ? "currentColor" : "none"}
+                stroke="currentColor"
+                strokeWidth={i < filledStars ? 0 : 1.5}
+                className="text-yellow-400"
+                aria-hidden="true"
+              >
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+              </svg>
+            ))}
+            <span className="text-[9px] text-gray-500 ml-1">({reviewCount})</span>
+          </div>
+        )}
 
         <div className="flex items-center justify-between mt-auto pt-1">
           <div className="flex items-center gap-1.5">
@@ -200,10 +245,13 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
             )}
           </div>
           
-          <button 
-            disabled={!hasStock}
-            className={`py-1.5 px-3 text-[9px] md:text-[10px] font-bold uppercase tracking-widest transition-colors duration-200 rounded-full shrink-0 ${
-              hasStock 
+          {/* La talla se elige en la ficha, así que el botón navega al detalle */}
+          <button
+            onClick={goToProduct}
+            disabled={!hasStock || !href}
+            aria-label={hasStock ? `Ver ${name}` : `${name} agotado`}
+            className={`relative z-20 py-1.5 px-3 text-[9px] md:text-[10px] font-bold uppercase tracking-widest transition-colors duration-200 rounded-full shrink-0 ${
+              hasStock && href
                 ? "bg-[#1C1C1C] text-white hover:bg-[#E31C23] dark:bg-white dark:text-black dark:hover:bg-gray-200"
                 : "bg-gray-200 text-gray-400 cursor-not-allowed dark:bg-white/10 dark:text-gray-500"
             }`}

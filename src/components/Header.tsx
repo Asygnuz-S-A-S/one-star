@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useSession } from "@/lib/auth-client";
 import { useCart } from "@/store";
 import { useTheme } from "next-themes";
+import { usePathname } from "next/navigation";
 import CartDrawer from "@/components/cart/CartDrawer";
 import TopBannerTicker from "@/components/TopBannerTicker";
 import { NavigationItem, TopBanner, StoreLogo } from "@prisma/client";
@@ -146,6 +147,7 @@ export default function Header({
   
   const { data: session } = useSession();
   const { totalItems, toggleCart } = useCart();
+  const pathname = usePathname();
 
   useEffect(() => {
     setMounted(true);
@@ -165,18 +167,16 @@ export default function Header({
     session?.user?.name?.charAt(0) ?? session?.user?.email?.charAt(0) ?? "U";
 
   // Helper para convertir hex a rgba
-  const hexToRgba = (hex: string, opacity: number) => {
-    if (!hex) return 'transparent';
-    let c: any;
-    if(/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)){
-        c= hex.substring(1).split('');
-        if(c.length== 3){
-            c= [c[0], c[0], c[1], c[1], c[2], c[2]];
-        }
-        c= '0x'+c.join('');
-        return 'rgba('+[(c>>16)&255, (c>>8)&255, c&255].join(',')+','+(opacity/100)+')';
+  const hexToRgba = (hex: string, opacity: number): string => {
+    if (!hex) return "transparent";
+    if (!/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)) return hex;
+    let digits = hex.substring(1).split("");
+    if (digits.length === 3) {
+      digits = [digits[0], digits[0], digits[1], digits[1], digits[2], digits[2]];
     }
-    return hex;
+    const value = Number.parseInt(digits.join(""), 16);
+    const channels = [(value >> 16) & 255, (value >> 8) & 255, value & 255];
+    return `rgba(${channels.join(",")},${opacity / 100})`;
   }
 
   return (
@@ -190,7 +190,7 @@ export default function Header({
       {/* ── Barra de anuncio ─────────────────────────────────────────── */}
       {(!banner || banner.isActive) && (
         <TopBannerTicker 
-          messages={banner?.messages as any[] || []}
+          messages={(banner?.messages as { text: string; url?: string }[] | null) ?? []}
           fallbackText={banner?.text}
           fallbackBtnText={banner?.btnText || undefined}
           fallbackBtnUrl={banner?.btnUrl || undefined}
@@ -299,18 +299,21 @@ export default function Header({
             <ul className={`flex items-center gap-5 xl:gap-7 justify-${config?.navAlignment === "center" ? "center" : config?.navAlignment === "right" ? "end" : "start"}`}>
               {items.map((item) => (
                 <li key={item.id}>
-                  <Link
-                    href={item.href}
-                    className={[
-                      "font-barlow font-semibold text-sm tracking-wide uppercase transition-colors duration-150",
-                      item.isSale
-                        ? "text-[#E31C23]"
-                        : "hover:text-[#E31C23]",
-                    ].join(" ")}
-                    style={!item.isSale ? { color: "inherit" } : undefined}
-                  >
-                    {item.label}
-                  </Link>
+                  {(() => {
+                    const isActive = pathname === item.href;
+                    return (
+                      <Link
+                        href={item.href}
+                        className={[
+                          "font-barlow font-semibold text-sm tracking-wide uppercase transition-colors duration-150",
+                          isActive ? "text-[#E31C23]" : "hover:text-[#E31C23]",
+                        ].join(" ")}
+                        style={isActive ? { color: "#E31C23" } : { color: "inherit" }}
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })()}
                 </li>
               ))}
             </ul>
@@ -369,18 +372,22 @@ export default function Header({
             <ul>
               {items.map((item) => (
                 <li key={item.id} className="border-b border-[#E0E0E0] last:border-b-0">
-                  <Link
-                    href={item.href}
-                    onClick={() => setMenuOpen(false)}
-                    className={[
-                      "block px-6 py-4 font-barlow font-semibold text-sm tracking-wide uppercase transition-colors duration-150",
-                      item.isSale
-                        ? "text-[#E31C23]"
-                        : "text-[#1C1C1C] hover:text-[#E31C23]",
-                    ].join(" ")}
-                  >
-                    {item.label}
-                  </Link>
+                  {(() => {
+                    const isActive = pathname === item.href;
+                    return (
+                      <Link
+                        href={item.href}
+                        onClick={() => setMenuOpen(false)}
+                        className={[
+                          "block px-6 py-4 font-barlow font-semibold text-sm tracking-wide uppercase transition-colors duration-150",
+                          isActive ? "text-[#E31C23]" : "text-[#1C1C1C] hover:text-[#E31C23]",
+                        ].join(" ")}
+                        style={isActive ? { color: "#E31C23" } : undefined}
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })()}
                 </li>
               ))}
             </ul>

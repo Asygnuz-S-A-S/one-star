@@ -2,9 +2,13 @@
 
 import Image from "next/image"
 import Link from "next/link"
+import { useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "motion/react"
 import { useCart } from "@/store"
 import { formatCOP } from "@/lib/shop-utils"
+
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
 function IconX({ size = 20 }: { size?: number }) {
   return (
@@ -48,6 +52,43 @@ const drawerSpring = { type: "spring", stiffness: 380, damping: 36 } as const
 
 export default function CartDrawer() {
   const { items, isOpen, closeCart, removeItem, updateQuantity, subtotal, totalItems } = useCart()
+  const drawerRef = useRef<HTMLDivElement>(null)
+  const closeButtonRef = useRef<HTMLButtonElement>(null)
+
+  // Accesibilidad del diálogo: Escape cierra, el foco entra al abrir,
+  // Tab queda atrapado dentro y el foco vuelve al trigger al cerrar.
+  useEffect(() => {
+    if (!isOpen) return
+    const previouslyFocused =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null
+    closeButtonRef.current?.focus()
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        closeCart()
+        return
+      }
+      if (e.key !== "Tab" || !drawerRef.current) return
+      const focusables = drawerRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
+      if (focusables.length === 0) return
+      const first = focusables[0]
+      const last = focusables[focusables.length - 1]
+      const active = document.activeElement
+      if (e.shiftKey && (active === first || !drawerRef.current.contains(active))) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && (active === last || !drawerRef.current.contains(active))) {
+        e.preventDefault()
+        first.focus()
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown)
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown)
+      previouslyFocused?.focus()
+    }
+  }, [isOpen, closeCart])
 
   return (
     <AnimatePresence>
@@ -68,6 +109,7 @@ export default function CartDrawer() {
           {/* Drawer */}
           <motion.div
             key="cart-drawer"
+            ref={drawerRef}
             className="fixed top-0 right-0 z-50 h-full w-full max-w-md bg-white shadow-2xl flex flex-col"
             role="dialog"
             aria-modal="true"
@@ -90,9 +132,10 @@ export default function CartDrawer() {
                 )}
               </div>
               <button
+                ref={closeButtonRef}
                 onClick={closeCart}
                 aria-label="Cerrar carrito"
-                className="text-[#4A4A4A] hover:text-[#E31C23] transition-colors p-1"
+                className="text-[#4A4A4A] hover:text-[#E31C23] transition-colors p-1 focus-visible:outline-2 focus-visible:outline-[#E31C23]"
               >
                 <IconX />
               </button>

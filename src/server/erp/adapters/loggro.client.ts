@@ -33,6 +33,36 @@ interface LoggroItem {
   stock?: number
 }
 
+/** Unidad de medida del catálogo Loggro */
+export interface LoggroUnidadMedida {
+  codigo?: string
+  nombre?: string
+  [key: string]: unknown
+}
+
+/** Item del catálogo Loggro — campos observados en la API real */
+export interface LoggroCatalogItem {
+  id?: string
+  codigo?: string
+  descripcion?: string
+  precioDefecto?: number | string
+  precioBase?: number | string
+  precioVta?: number | string
+  cantidadDisponible?: number
+  cantDisp?: number
+  codigoUnidad?: string | number
+  unidadMedida?: string | number
+  categoria?: string
+  nombreCategoria?: string
+  codigoCategoria?: string
+  categoriaProducto_uuid?: string
+}
+
+/** Respuesta paginada del endpoint de items */
+interface LoggroCatalogResponse {
+  contenido?: { content?: LoggroCatalogItem[] }
+}
+
 // ─── Cliente ──────────────────────────────────────────────────────────────────
 
 export class LoggroClient {
@@ -49,7 +79,6 @@ export class LoggroClient {
     path: string,
     body?: unknown
   ): Promise<T> {
-    console.log(`${LOGGRO_BASE_URL}${path}`)
     const res = await fetch(`${LOGGRO_BASE_URL}${path}`, {
       method,
       headers: {
@@ -150,9 +179,10 @@ export class LoggroClient {
 
   // ── Sincronización de Catálogo ───────────────────────────────────────────────
 
-  async getUnidadesMedida(): Promise<any[]> {
+
+  async getUnidadesMedida(): Promise<LoggroUnidadMedida[]> {
     try {
-      const results = await this.request<any[]>(
+      const results = await this.request<LoggroUnidadMedida[]>(
         "GET",
         "/apik/loggro-inventario/v1/productos/unidades-medida"
       )
@@ -163,9 +193,9 @@ export class LoggroClient {
     }
   }
 
-  async getProducts(): Promise<any[]> {
+  async getProducts(): Promise<LoggroCatalogItem[]> {
     try {
-      const results = await this.request<any>(
+      const results = await this.request<LoggroCatalogResponse>(
         "GET",
         "/apik/loggro-inventario/v1/items"
       )

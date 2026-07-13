@@ -24,7 +24,20 @@ export default async function AdminBannerPage() {
         Personaliza el mensaje promocional que aparece en la parte superior de todas las páginas de la tienda.
       </p>
 
-      <BannerManager initialData={topBanner || defaultBannerData} />
+      <BannerManager
+        initialData={
+          topBanner
+            ? {
+                text: topBanner.text,
+                btnText: topBanner.btnText ?? "",
+                btnUrl: topBanner.btnUrl ?? "",
+                bgColor: topBanner.bgColor,
+                textColor: topBanner.textColor,
+                isActive: topBanner.isActive,
+              }
+            : defaultBannerData
+        }
+      />
     </div>
   )
 }

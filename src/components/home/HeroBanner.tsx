@@ -55,9 +55,15 @@ export default function HeroBanner({
   const [isTransitioning, setIsTransitioning] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
+  // El parallax basado en el ref del contenedor solo se activa tras montar:
+  // durante la hidratación el elemento aún no existe y motion lanzaría
+  // "Target ref is defined but not hydrated".
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+
   const { scrollYProgress } = useScroll({
-    target: containerRef,
-    offset: ["start start", "end start"]
+    target: mounted ? containerRef : undefined,
+    offset: ["start start", "end start"],
   })
 
   // Parallax transforms

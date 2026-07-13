@@ -19,6 +19,7 @@ export default function CrossSelling({ products, title = "COMPLETA TU LOOK" }: C
         {products.map((product) => {
           const image = product.images[0]
           const secondaryImage = product.images[1]
+          const gallery = product.images.slice(2).map((img) => img.url)
           return (
             <Link
               key={product.id}
@@ -33,6 +34,7 @@ export default function CrossSelling({ products, title = "COMPLETA TU LOOK" }: C
                 salePrice={product.salePrice ? Number(product.salePrice) : undefined}
                 imageUrl={image?.url}
                 secondaryImageUrl={secondaryImage?.url}
+                gallery={gallery}
                 isOnSale={product.isOnSale} isNew={product.isNew} hasStock={product.hasStock}
               />
             </Link>

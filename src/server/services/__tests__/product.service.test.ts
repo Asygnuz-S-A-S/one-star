@@ -7,7 +7,7 @@ vi.mock("@/server/repositories/product.repository", () => ({
   findProductBySlug: vi.fn(),
   findProductByIdForAdmin: vi.fn(),
   countProducts: vi.fn(),
-  getUniqueBrands: vi.fn(),
+  fetchBrands: vi.fn(),
   createProductRecord: vi.fn(),
   updateProductRecord: vi.fn(),
   deleteProductRecord: vi.fn(),
@@ -28,7 +28,7 @@ import {
   findManyProducts,
   findProductBySlug,
   countProducts,
-  getUniqueBrands as fetchBrands,
+  fetchBrands,
   deleteProductRecord,
   searchProductsByName,
 } from "@/server/repositories/product.repository"
@@ -162,7 +162,7 @@ describe("deleteProduct", () => {
 
 describe("searchProducts", () => {
   it("retorna resultados del repositorio", async () => {
-    mockSearch.mockResolvedValue([{ id: "prod-1", name: "Nike Air Max", brand: "Nike" }])
+    mockSearch.mockResolvedValue([{ id: "prod-1", name: "Nike Air Max", brand: { name: "Nike" } }] as never)
     const result = await searchProducts("nike")
     expect(result[0].name).toBe("Nike Air Max")
   })

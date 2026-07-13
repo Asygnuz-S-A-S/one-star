@@ -21,6 +21,10 @@ vi.mock("@/server/erp", () => ({
   })),
 }))
 
+vi.mock("@/server/repositories/variant.repository", () => ({
+  findVariantsForPricing: vi.fn(),
+}))
+
 import {
   placeOrder,
   getOrderById,
@@ -42,6 +46,7 @@ import {
   getVariantsStock,
   markOrderPaidWithStock,
 } from "@/server/repositories/order.repository"
+import { findVariantsForPricing } from "@/server/repositories/variant.repository"
 
 const mockCreate = vi.mocked(createOrder)
 const mockFindById = vi.mocked(findOrderById)
@@ -52,8 +57,24 @@ const mockUpdateStatus = vi.mocked(updateOrderStatus)
 const mockUpdateTracking = vi.mocked(updateOrderStatusAndTracking)
 const mockGetStock = vi.mocked(getVariantsStock)
 const mockMarkPaid = vi.mocked(markOrderPaidWithStock)
+const mockPricing = vi.mocked(findVariantsForPricing)
 
 const makeDecimal = (n: number) => ({ toNumber: () => n })
+
+/** Variante como la devuelve findVariantsForPricing (precio real en BD: 135.000) */
+const pricedVariant = {
+  id: "var-1",
+  sku: "NK-001",
+  stock: 5,
+  productId: "prod-1",
+  product: {
+    id: "prod-1",
+    name: "Nike Air Max",
+    basePrice: makeDecimal(135000),
+    isOnSale: false,
+    salePrice: null,
+  },
+}
 
 const rawOrder = {
   id: "order-1",
@@ -82,17 +103,27 @@ const rawOrder = {
 }
 
 const orderInput = {
-  total: 270000,
   items: [
-    { productId: "prod-1", sku: "NK-001", productName: "Nike Air Max", quantity: 2, unitPrice: 120000 },
+    {
+      productId: "prod-1",
+      variantId: "var-1",
+      sku: "NK-001",
+      productName: "Nike Air Max",
+      quantity: 2,
+    },
   ],
+  shippingMethod: "standard" as const,
   customerName: "Juan Pérez",
   customerEmail: "test@example.com",
   paymentMethod: "card",
 }
 
 describe("placeOrder", () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockPricing.mockResolvedValue([pricedVariant] as never)
+    mockGetStock.mockResolvedValue([{ id: "var-1", stock: 5, sku: "NK-001" }])
+  })
 
   it("persiste el pedido y retorna el DTO", async () => {
     mockCreate.mockResolvedValue(rawOrder as never)
@@ -121,6 +152,79 @@ describe("placeOrder", () => {
     mockCreate.mockResolvedValue(rawOrder as never)
     await placeOrder("user-1", orderInput)
     expect(mockCreate).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe("placeOrder — seguridad de precios", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockPricing.mockResolvedValue([pricedVariant] as never)
+    mockGetStock.mockResolvedValue([{ id: "var-1", stock: 5, sku: "NK-001" }])
+    mockCreate.mockResolvedValue(rawOrder as never)
+  })
+
+  it("calcula el total desde la BD, no desde el cliente", async () => {
+    // 2 × 135.000 (precio BD) = 270.000 ≥ 200.000 → envío gratis
+    await placeOrder("user-1", orderInput)
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ total: 270000 })
+    )
+    const input = mockCreate.mock.calls[0][0] as {
+      items: { create: { unitPrice: number }[] }
+    }
+    expect(input.items.create[0].unitPrice).toBe(135000)
+  })
+
+  it("usa el precio de oferta cuando el producto está en sale", async () => {
+    mockPricing.mockResolvedValue([
+      {
+        ...pricedVariant,
+        product: {
+          ...pricedVariant.product,
+          isOnSale: true,
+          salePrice: makeDecimal(100000),
+        },
+      },
+    ] as never)
+    await placeOrder("user-1", orderInput)
+    // 2 × 100.000 = 200.000 → envío gratis → total 200.000
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ total: 200000 })
+    )
+  })
+
+  it("suma el costo de envío estándar bajo el umbral", async () => {
+    await placeOrder("user-1", { ...orderInput, items: [{ ...orderInput.items[0], quantity: 1 }] })
+    // 135.000 < 200.000 → envío 15.000 → total 150.000
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ total: 150000 })
+    )
+  })
+
+  it("rechaza ítems sin variantId", async () => {
+    await expect(
+      placeOrder("user-1", {
+        ...orderInput,
+        items: [{ productId: "prod-1", sku: "NK-001", productName: "Nike Air Max", quantity: 1 }],
+      })
+    ).rejects.toThrow(/variante/i)
+    expect(mockCreate).not.toHaveBeenCalled()
+  })
+
+  it("rechaza cuando la variante no pertenece al producto indicado", async () => {
+    await expect(
+      placeOrder("user-1", {
+        ...orderInput,
+        items: [{ ...orderInput.items[0], productId: "otro-producto" }],
+      })
+    ).rejects.toThrow(/inconsistentes/i)
+    expect(mockCreate).not.toHaveBeenCalled()
+  })
+
+  it("rechaza cuando la variante ya no existe en la BD", async () => {
+    mockPricing.mockResolvedValue([] as never)
+    await expect(placeOrder("user-1", orderInput)).rejects.toThrow(/no está disponible/i)
+    expect(mockCreate).not.toHaveBeenCalled()
   })
 })
 
@@ -227,53 +331,33 @@ describe("changeOrderStatusAndTracking", () => {
 })
 
 describe("placeOrder — validación de stock", () => {
-  beforeEach(() => vi.clearAllMocks())
-
-  const inputWithVariant = {
-    total: 240000,
-    items: [
-      {
-        productId: "prod-1",
-        variantId: "var-1",
-        sku: "NK-001",
-        productName: "Nike Air Max",
-        quantity: 2,
-        unitPrice: 120000,
-      },
-    ],
-    customerName: "Juan Pérez",
-    customerEmail: "test@example.com",
-    paymentMethod: "card",
-  }
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockPricing.mockResolvedValue([pricedVariant] as never)
+  })
 
   it("crea el pedido cuando hay stock suficiente", async () => {
     mockGetStock.mockResolvedValue([{ id: "var-1", stock: 5, sku: "NK-001" }])
     mockCreate.mockResolvedValue(rawOrder as never)
-    const result = await placeOrder("user-1", inputWithVariant)
+    const result = await placeOrder("user-1", orderInput)
     expect(result.id).toBe("order-1")
     expect(mockCreate).toHaveBeenCalledTimes(1)
   })
 
   it("rechaza el pedido cuando el stock es insuficiente", async () => {
     mockGetStock.mockResolvedValue([{ id: "var-1", stock: 1, sku: "NK-001" }])
-    await expect(placeOrder("user-1", inputWithVariant)).rejects.toThrow(
-      /stock insuficiente/i
+    await expect(placeOrder("user-1", orderInput)).rejects.toThrow(
+      /stock local insuficiente/i
     )
     expect(mockCreate).not.toHaveBeenCalled()
   })
 
-  it("rechaza cuando la variante no existe (stock 0)", async () => {
+  it("rechaza cuando la variante no tiene stock registrado", async () => {
     mockGetStock.mockResolvedValue([])
-    await expect(placeOrder("user-1", inputWithVariant)).rejects.toThrow(
-      /stock insuficiente/i
+    await expect(placeOrder("user-1", orderInput)).rejects.toThrow(
+      /stock local insuficiente/i
     )
     expect(mockCreate).not.toHaveBeenCalled()
-  })
-
-  it("no consulta stock si los items no tienen variantId", async () => {
-    mockCreate.mockResolvedValue(rawOrder as never)
-    await placeOrder("user-1", orderInput)
-    expect(mockGetStock).not.toHaveBeenCalled()
   })
 })
 

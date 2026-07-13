@@ -72,7 +72,18 @@
       "Bash(kill 2386)",
       "Bash(ps -p 2386 -o pid,command)",
       "Bash(kill -9 2386)",
-      "Bash(curl *)"
+      "Bash(curl *)",
+      "Bash(grep -rniE \"\\(api[_-]?key|secret|password|token\\)\\\\s*[:=]\\\\s*['\\\\\"][A-Za-z0-9_\\\\-]{12,}['\\\\\"]\" src --include=\"*.ts\" --include=\"*.tsx\")",
+      "Bash(pnpm eslint *)",
+      "Bash(python3 *)",
+      "Bash(pnpm tsc *)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(pnpm vitest *)",
+      "Bash(awk -F: '{print $1}')",
+      "Bash(pnpm build *)",
+      "Bash(npx vitest *)",
+      "Bash(gh auth *)",
+      "Bash(gh pr *)"
     ]
   }
 }

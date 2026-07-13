@@ -20,6 +20,7 @@ export default async function FeaturedProducts({ config = {} }: { config?: Recor
     salePrice: p.isOnSale && p.salePrice ? p.salePrice : undefined,
     imageUrl: p.images[0]?.url,
     secondaryImageUrl: p.images[1]?.url,
+    gallery: p.images.slice(2).map((img) => img.url),
     isOnSale: p.isOnSale,
     isNew: p.isNew,
     hasStock: p.hasStock,

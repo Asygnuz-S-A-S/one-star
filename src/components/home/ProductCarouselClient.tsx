@@ -14,7 +14,10 @@ interface ProductItem {
   salePrice?: number
   imageUrl?: string
   secondaryImageUrl?: string
+  gallery?: string[]
   isOnSale?: boolean
+  isNew?: boolean
+  hasStock?: boolean
 }
 
 interface ProductCarouselClientProps {
@@ -129,10 +132,10 @@ export default function ProductCarouselClient({ title, products, theme = "light"
                 salePrice={product.salePrice}
                 imageUrl={product.imageUrl}
                 secondaryImageUrl={product.secondaryImageUrl}
+                gallery={product.gallery}
                 isOnSale={product.isOnSale}
                 isNew={product.isNew}
                 hasStock={product.hasStock}
-                theme={theme}
               />
             </motion.div>
           ))}

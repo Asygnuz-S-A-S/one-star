@@ -20,6 +20,7 @@ export function AnimatedProductGrid({ products, animationKey }: Props) {
       {products.map((product, i) => {
         const image = product.images[0]
         const secondaryImage = product.images[1]
+        const gallery = product.images.slice(2).map((img) => img.url)
         return (
           <motion.div
             key={product.id}
@@ -31,18 +32,20 @@ export function AnimatedProductGrid({ products, animationKey }: Props) {
               ease: "easeOut",
             }}
           >
-            <Link href={`/productos/${product.slug}`}>
-              <ProductCard
-                id={product.id}
-                name={product.name}
-                brand={product.brand ?? "One Star"}
-                price={product.basePrice}
-                salePrice={product.salePrice ?? undefined}
-                imageUrl={image?.url}
-                secondaryImageUrl={secondaryImage?.url}
-                isOnSale={product.isOnSale} isNew={product.isNew} hasStock={product.hasStock}
-              />
-            </Link>
+            <ProductCard
+              id={product.id}
+              slug={product.slug}
+              name={product.name}
+              brand={product.brand ?? "One Star"}
+              price={product.basePrice}
+              salePrice={product.salePrice ?? undefined}
+              imageUrl={image?.url}
+              secondaryImageUrl={secondaryImage?.url}
+              gallery={gallery}
+              isOnSale={product.isOnSale}
+              isNew={product.isNew}
+              hasStock={product.hasStock}
+            />
           </motion.div>
         )
       })}

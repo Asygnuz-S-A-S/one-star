@@ -14,6 +14,7 @@ interface ProductItem {
   salePrice?: number
   imageUrl?: string
   secondaryImageUrl?: string
+  gallery?: string[]
   isOnSale?: boolean
 }
 
