@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { prisma } from "../db/prisma"
+import { requireAdmin } from "@/server/auth/require-admin"
 
 export async function createStoreAction(data: {
   name: string
@@ -14,6 +15,7 @@ export async function createStoreAction(data: {
   isActive: boolean
 }) {
   try {
+    await requireAdmin()
     await prisma.storeLocation.create({ data })
     revalidatePath("/admin/tiendas")
     revalidatePath("/tiendas")
@@ -36,6 +38,7 @@ export async function updateStoreAction(id: string, data: {
   isActive: boolean
 }) {
   try {
+    await requireAdmin()
     await prisma.storeLocation.update({
       where: { id },
       data
@@ -51,6 +54,7 @@ export async function updateStoreAction(id: string, data: {
 
 export async function deleteStoreAction(id: string) {
   try {
+    await requireAdmin()
     await prisma.storeLocation.delete({ where: { id } })
     revalidatePath("/admin/tiendas")
     revalidatePath("/tiendas")
@@ -63,6 +67,7 @@ export async function deleteStoreAction(id: string) {
 
 export async function toggleStoreActiveAction(id: string, isActive: boolean) {
   try {
+    await requireAdmin()
     await prisma.storeLocation.update({
       where: { id },
       data: { isActive },

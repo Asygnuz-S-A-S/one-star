@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getStorageAdapter } from "@/server/storage/storage.container"
+import { getAdminSession } from "@/server/auth/require-admin"
 
 export async function POST(request: NextRequest) {
   try {
+    // Solo administradores pueden subir archivos: evita abuso de la cuenta de
+    // almacenamiento (costos, alojamiento de contenido arbitrario).
+    const session = await getAdminSession()
+    if (!session) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 })
+    }
+
     const storage = getStorageAdapter()
 
     const formData = await request.formData()
@@ -27,16 +35,17 @@ export async function POST(request: NextRequest) {
     const result = await storage.uploadImage(base64, { folder: "one-star/productos" })
 
     return NextResponse.json({ url: result.url, publicId: result.publicId })
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
       console.error("[api/upload]", error)
     }
     
     // Si el error es de configuración, devolver un 503
-    if (error.message?.includes("configurado")) {
+    const message = error instanceof Error ? error.message : ""
+    if (message.includes("configurado")) {
       return NextResponse.json(
-        { error: error.message },
+        { error: message },
         { status: 503 }
       )
     }

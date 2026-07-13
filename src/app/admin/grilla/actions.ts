@@ -7,6 +7,7 @@ import {
   deleteGridBlock as deleteGridBlockService,
   updateGridBlocksPositions,
 } from "@/server/services/home-grid.service"
+import { requireAdmin } from "@/server/auth/require-admin"
 
 function parseForm(formData: FormData) {
   return {
@@ -28,6 +29,7 @@ export async function createGridBlock(
     return { success: false, error: "Texto, enlace y color son obligatorios." }
   }
   try {
+    await requireAdmin()
     await createGridBlockService(input)
     revalidatePath("/admin/grilla")
     revalidatePath("/") // revalidate storefront
@@ -46,6 +48,7 @@ export async function updateGridBlock(
 ): Promise<{ success: boolean; error?: string }> {
   const input = parseForm(formData)
   try {
+    await requireAdmin()
     await updateGridBlockService(id, input)
     revalidatePath("/admin/grilla")
     revalidatePath("/")
@@ -62,6 +65,7 @@ export async function deleteGridBlock(
   id: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    await requireAdmin()
     await deleteGridBlockService(id)
     revalidatePath("/admin/grilla")
     revalidatePath("/")
@@ -79,6 +83,7 @@ export async function toggleGridBlockActive(
   current: boolean
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    await requireAdmin()
     await updateGridBlockService(id, { isActive: !current })
     revalidatePath("/admin/grilla")
     revalidatePath("/")

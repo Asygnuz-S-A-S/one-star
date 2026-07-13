@@ -9,6 +9,7 @@ import {
 } from "@/server/services/product.service"
 import { productFormSchema } from "@/server/validators/product.validator"
 import { slugify } from "@/lib/utils"
+import { requireAdmin } from "@/server/auth/require-admin"
 import type { ActionResult } from "@/types/admin"
 
 function getErrorMessage(error: unknown): string {
@@ -61,6 +62,7 @@ export async function createProduct(formData: FormData): Promise<ActionResult> {
   const slug = data.slug || slugify(data.name)
 
   try {
+    await requireAdmin()
     const product = await createProductService({
       ...data,
       slug,
@@ -102,6 +104,7 @@ export async function updateProduct(
   const slug = data.slug || slugify(data.name)
 
   try {
+    await requireAdmin()
     await updateProductService(id, {
       ...data,
       slug,
@@ -132,6 +135,7 @@ export async function updateProduct(
 
 export async function deleteProduct(id: string): Promise<ActionResult> {
   try {
+    await requireAdmin()
     await deleteProductService(id)
     revalidatePath("/admin/productos")
     return { success: true }
@@ -144,5 +148,6 @@ export async function searchProducts(
   q: string,
   excludeId?: string
 ): Promise<{ id: string; name: string; brandId: string | null; brand: { name: string } | null }[]> {
+  await requireAdmin()
   return searchProductsService(q, excludeId)
 }

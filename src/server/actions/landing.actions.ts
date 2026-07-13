@@ -2,11 +2,14 @@
 
 import { revalidatePath } from "next/cache"
 import { prisma } from "../db/prisma"
+import { requireAdmin } from "@/server/auth/require-admin"
+import type { Prisma, LandingSectionType } from "@prisma/client"
 
 export async function updateLandingSectionPositionsAction(
   updates: { id: string; position: number }[]
 ) {
   try {
+    await requireAdmin()
     await prisma.$transaction(
       updates.map((update) =>
         prisma.landingSection.update({
@@ -26,6 +29,7 @@ export async function updateLandingSectionPositionsAction(
 
 export async function toggleLandingSectionActiveAction(id: string, isActive: boolean) {
   try {
+    await requireAdmin()
     await prisma.landingSection.update({
       where: { id },
       data: { isActive },
@@ -39,8 +43,9 @@ export async function toggleLandingSectionActiveAction(id: string, isActive: boo
   }
 }
 
-export async function updateLandingSectionConfigAction(id: string, config: any) {
+export async function updateLandingSectionConfigAction(id: string, config: Prisma.InputJsonValue) {
   try {
+    await requireAdmin()
     await prisma.landingSection.update({
       where: { id },
       data: { config },
@@ -54,8 +59,9 @@ export async function updateLandingSectionConfigAction(id: string, config: any) 
   }
 }
 
-export async function createLandingSectionAction(type: any) {
+export async function createLandingSectionAction(type: LandingSectionType) {
   try {
+    await requireAdmin()
     const maxPosition = await prisma.landingSection.aggregate({
       _max: { position: true },
     })
@@ -79,6 +85,7 @@ export async function createLandingSectionAction(type: any) {
 
 export async function deleteLandingSectionAction(id: string) {
   try {
+    await requireAdmin()
     await prisma.landingSection.delete({
       where: { id },
     })

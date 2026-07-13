@@ -2,9 +2,11 @@
 
 import { revalidatePath } from "next/cache"
 import { prisma } from "../db/prisma"
+import { requireAdmin } from "@/server/auth/require-admin"
 
 export async function createCategoryAction(name: string, slug: string) {
   try {
+    await requireAdmin()
     const existing = await prisma.category.findUnique({ where: { slug } })
     if (existing) {
       return { success: false, error: "El slug ya existe" }
@@ -23,6 +25,7 @@ export async function createCategoryAction(name: string, slug: string) {
 
 export async function updateCategoryAction(id: string, name: string, slug: string) {
   try {
+    await requireAdmin()
     const existing = await prisma.category.findUnique({ where: { slug } })
     if (existing && existing.id !== id) {
       return { success: false, error: "El slug ya está en uso por otra categoría" }
@@ -42,6 +45,7 @@ export async function updateCategoryAction(id: string, name: string, slug: strin
 
 export async function deleteCategoryAction(id: string) {
   try {
+    await requireAdmin()
     // Check if category has products
     const productsCount = await prisma.product.count({ where: { categoryId: id } })
     if (productsCount > 0) {

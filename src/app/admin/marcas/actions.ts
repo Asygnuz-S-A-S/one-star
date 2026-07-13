@@ -2,10 +2,12 @@
 
 import { revalidatePath } from "next/cache"
 import { createBrand, updateBrand, deleteBrand } from "@/server/services/brand.service"
+import { requireAdmin } from "@/server/auth/require-admin"
 import type { ActionResult } from "@/types/admin"
 
 export async function createBrandAction(formData: FormData): Promise<ActionResult> {
   try {
+    await requireAdmin()
     const name = (formData.get("name") as string)?.trim()
     const logoUrl = (formData.get("logoUrl") as string)?.trim() || null
     const isActive = formData.get("isActive") !== "false"
@@ -26,6 +28,7 @@ export async function createBrandAction(formData: FormData): Promise<ActionResul
 
 export async function updateBrandAction(id: string, formData: FormData): Promise<ActionResult> {
   try {
+    await requireAdmin()
     const name = (formData.get("name") as string)?.trim()
     const logoUrl = (formData.get("logoUrl") as string)?.trim() || null
     const isActive = formData.get("isActive") !== "false"
@@ -43,6 +46,7 @@ export async function updateBrandAction(id: string, formData: FormData): Promise
 
 export async function deleteBrandAction(id: string): Promise<ActionResult> {
   try {
+    await requireAdmin()
     await deleteBrand(id)
     revalidatePath("/admin/marcas")
     revalidatePath("/admin/productos")

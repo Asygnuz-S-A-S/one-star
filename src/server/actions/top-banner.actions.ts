@@ -2,23 +2,30 @@
 
 import { updateTopBanner } from "@/server/repositories/top-banner.repository"
 import { revalidatePath } from "next/cache"
+import { requireAdmin } from "@/server/auth/require-admin"
+
+export interface TopBannerMessageInput {
+  text: string
+  url?: string
+}
 
 export async function updateTopBannerAction(data: {
   text: string
   btnText?: string | null
   btnUrl?: string | null
-  messages?: any
+  messages?: TopBannerMessageInput[]
   bgColor: string
   textColor: string
   isActive: boolean
 }) {
   try {
-    console.log("Updating TopBanner with data:", JSON.stringify(data, null, 2))
+    await requireAdmin()
     const updated = await updateTopBanner(data)
     revalidatePath("/", "layout")
     return { success: true, data: updated }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error updating top banner:", error)
-    return { success: false, error: error.message || "Error al actualizar el banner" }
+    const message = error instanceof Error ? error.message : "Error al actualizar el banner"
+    return { success: false, error: message }
   }
 }

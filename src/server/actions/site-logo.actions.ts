@@ -7,6 +7,7 @@ import {
   updateStoreLogoTheme
 } from "@/server/repositories/site-logo.repository"
 import { revalidatePath } from "next/cache"
+import { requireAdmin } from "@/server/auth/require-admin"
 
 export async function addStoreLogoAction(data: {
   url: string
@@ -16,46 +17,54 @@ export async function addStoreLogoAction(data: {
   isPrimary: boolean
 }) {
   try {
+    await requireAdmin()
     const newLogo = await addStoreLogo(data)
     if (data.isPrimary) {
       revalidatePath("/", "layout")
     }
     return { success: true, data: newLogo }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error adding store logo:", error)
-    return { success: false, error: error.message || "Error al subir logo" }
+    const message = error instanceof Error ? error.message : "Error al subir logo"
+    return { success: false, error: message }
   }
 }
 
 export async function setPrimaryStoreLogoAction(id: string, type: string) {
   try {
+    await requireAdmin()
     await setPrimaryStoreLogo(id, type)
     revalidatePath("/", "layout")
     return { success: true }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error setting primary logo:", error)
-    return { success: false, error: error.message || "Error al establecer logo principal" }
+    const message = error instanceof Error ? error.message : "Error al establecer logo principal"
+    return { success: false, error: message }
   }
 }
 
 export async function updateStoreLogoThemeAction(id: string, theme: string) {
   try {
+    await requireAdmin()
     await updateStoreLogoTheme(id, theme)
     revalidatePath("/", "layout")
     return { success: true }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error updating logo theme:", error)
-    return { success: false, error: error.message || "Error al cambiar el tema" }
+    const message = error instanceof Error ? error.message : "Error al cambiar el tema"
+    return { success: false, error: message }
   }
 }
 
 export async function deleteStoreLogoAction(id: string) {
   try {
+    await requireAdmin()
     await deleteStoreLogo(id)
     revalidatePath("/", "layout")
     return { success: true }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error deleting store logo:", error)
-    return { success: false, error: error.message || "Error al eliminar logo" }
+    const message = error instanceof Error ? error.message : "Error al eliminar logo"
+    return { success: false, error: message }
   }
 }

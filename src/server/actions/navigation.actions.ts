@@ -2,9 +2,11 @@
 
 import { revalidatePath } from "next/cache"
 import { prisma } from "../db/prisma"
+import { requireAdmin } from "@/server/auth/require-admin"
 
 export async function createNavigationItemAction(label: string, href: string, isSale: boolean) {
   try {
+    await requireAdmin()
     const maxPos = await prisma.navigationItem.aggregate({
       _max: { position: true }
     })
@@ -24,6 +26,7 @@ export async function createNavigationItemAction(label: string, href: string, is
 
 export async function updateNavigationItemAction(id: string, label: string, href: string, isSale: boolean) {
   try {
+    await requireAdmin()
     await prisma.navigationItem.update({
       where: { id },
       data: { label, href, isSale }
@@ -39,6 +42,7 @@ export async function updateNavigationItemAction(id: string, label: string, href
 
 export async function deleteNavigationItemAction(id: string) {
   try {
+    await requireAdmin()
     await prisma.navigationItem.delete({ where: { id } })
     revalidatePath("/admin/navegacion")
     revalidatePath("/")
@@ -53,6 +57,7 @@ export async function updateNavigationPositionsAction(
   updates: { id: string; position: number }[]
 ) {
   try {
+    await requireAdmin()
     await prisma.$transaction(
       updates.map((update) =>
         prisma.navigationItem.update({
@@ -72,6 +77,7 @@ export async function updateNavigationPositionsAction(
 
 export async function toggleNavigationItemActiveAction(id: string, isActive: boolean) {
   try {
+    await requireAdmin()
     await prisma.navigationItem.update({
       where: { id },
       data: { isActive },

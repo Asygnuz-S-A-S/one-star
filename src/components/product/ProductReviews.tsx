@@ -64,7 +64,8 @@ export default function ProductReviews({ productId, initialReviews, stats }: Pro
     const formData = new FormData(e.currentTarget)
     formData.set("productId", productId)
     formData.set("rating", String(rating))
-    if (session?.user?.id) formData.set("userId", session.user.id)
+    // El userId NO se envía: el servidor lo deriva de la sesión para impedir
+    // suplantar a otro usuario. El nombre solo se usa para reseñas de invitado.
     const result = await submitReviewAction(formData)
     setSubmitting(false)
     if (result.ok) {
