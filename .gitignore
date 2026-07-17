@@ -51,3 +51,8 @@ node_modules/
 # Sentry
 .sentryclirc
 sentry-debug.log
+
+# Agent and IDE local settings
+.agents/
+.claude/
+

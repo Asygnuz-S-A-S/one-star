@@ -30,7 +30,11 @@ export function verifyEpaycoSignature(payload: EpaycoWebhookPayload): boolean {
     )
     .digest("hex")
 
-  return expected === payload.x_signature
+  // Comparación en tiempo constante para no filtrar la firma por timing.
+  const expectedBuf = Buffer.from(expected, "utf8")
+  const receivedBuf = Buffer.from(payload.x_signature, "utf8")
+  if (expectedBuf.length !== receivedBuf.length) return false
+  return crypto.timingSafeEqual(expectedBuf, receivedBuf)
 }
 
 export const EpaycoStatus = {

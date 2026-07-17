@@ -190,6 +190,7 @@ export default function LandingBuilderList({ initialSections, initialGlobals, in
     const { source, destination } = result
     if (source.index === destination.index) return
 
+    const prevSections = sections
     const newSections = Array.from(sections)
     const [moved] = newSections.splice(source.index, 1)
     newSections.splice(destination.index, 0, moved)
@@ -201,12 +202,18 @@ export default function LandingBuilderList({ initialSections, initialGlobals, in
 
     setSections(updatedSections)
     setIsSaving(true)
-    
-    await updateLandingSectionPositionsAction(
+
+    const res = await updateLandingSectionPositionsAction(
       updatedSections.map(s => ({ id: s.id, position: s.position }))
     )
-    
     setIsSaving(false)
+
+    if (!res?.success) {
+      // Revierte el orden si el guardado falla (evita desincronía UI/BD)
+      setSections(prevSections)
+      alert("No se pudo guardar el nuevo orden: " + (res?.error ?? "desconocido"))
+      return
+    }
     triggerRefresh()
   }
 
@@ -373,17 +380,26 @@ export default function LandingBuilderList({ initialSections, initialGlobals, in
   const saveConfig = async () => {
     if (!editingSection) return
     setIsSaving(true)
-    
-    setSections(sections.map(s => 
-      s.id === editingSection.id 
-        ? { ...s, config: configInput as any } 
+
+    // Snapshot para poder revertir si el guardado falla
+    const prevSections = sections
+    setSections(sections.map(s =>
+      s.id === editingSection.id
+        ? { ...s, config: configInput as any }
         : s
     ))
-    
-    await updateLandingSectionConfigAction(editingSection.id, configInput)
-    
-    setEditingSection(null)
+
+    const res = await updateLandingSectionConfigAction(editingSection.id, configInput)
     setIsSaving(false)
+
+    if (!res?.success) {
+      // Revierte el cambio optimista y mantiene el modal abierto con el error
+      setSections(prevSections)
+      alert("Error al guardar la configuración: " + (res?.error ?? "desconocido"))
+      return
+    }
+
+    setEditingSection(null)
     triggerRefresh()
   }
   const renderModals = () => (

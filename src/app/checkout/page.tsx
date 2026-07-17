@@ -1,14 +1,15 @@
 "use client"
 
-import { useState, useCallback, useId, cloneElement, isValidElement } from "react"
+import { useState, useCallback, useEffect, useId, cloneElement, isValidElement } from "react"
 import Link from "next/link"
 import { motion } from "motion/react"
 import { useCart } from "@/store"
 import { formatCOP } from "@/lib/shop-utils"
 import { COLOMBIA_DEPARTMENTS } from "@/lib/colombia-departments"
 import CheckoutStepper from "@/components/checkout/CheckoutStepper"
-import OrderSummary from "@/components/checkout/OrderSummary"
+import OrderSummary, { type AppliedCoupon } from "@/components/checkout/OrderSummary"
 import EpaycoButton, { type EpaycoCheckoutData } from "@/components/checkout/EpaycoButton"
+import { captureAbandonedCartAction } from "@/server/actions/abandoned-cart.actions"
 import { createOrder } from "./actions"
 
 const sectionVariants = {
@@ -132,6 +133,8 @@ export default function CheckoutPage() {
   const [serverError, setServerError] = useState("")
   /** Cuando está definido el pedido ya fue creado; mostramos el botón de pago */
   const [epaycoData, setEpaycoData] = useState<EpaycoCheckoutData | null>(null)
+  /** Cupón validado en servidor; placeOrder lo revalida y recalcula el descuento */
+  const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null)
 
   const [values, setValues] = useState<FormValues>({
     email: "",
@@ -149,7 +152,31 @@ export default function CheckoutPage() {
   })
 
   const shippingCost = getShippingCost(values.shippingMethod, subtotal)
-  const total = subtotal + shippingCost
+  const discount = appliedCoupon?.discountAmount ?? 0
+  const total = subtotal - discount + shippingCost
+
+  // Captura del carrito abandonado: cuando hay email válido e ítems, se guarda
+  // (con debounce) para que el admin pueda recuperarlo si la compra no se
+  // completa. Al crear el pedido, el servidor lo marca como recuperado.
+  const email = values.email
+  useEffect(() => {
+    if (epaycoData || items.length === 0 || !validateEmail(email)) return
+    const timer = setTimeout(() => {
+      void captureAbandonedCartAction({
+        email: email.trim(),
+        items: items.map((item) => ({
+          productId: item.productId,
+          variantId: item.id,
+          name: item.name,
+          size: item.size,
+          quantity: item.quantity,
+          price: item.price,
+          imageUrl: item.imageUrl ?? null,
+        })),
+      })
+    }, 2500)
+    return () => clearTimeout(timer)
+  }, [email, items, epaycoData])
 
   const set = useCallback(<K extends keyof FormValues>(key: K, value: FormValues[K]) => {
     setValues((prev) => ({ ...prev, [key]: value }))
@@ -195,6 +222,7 @@ export default function CheckoutPage() {
       postalCode: values.postalCode || undefined,
       shippingMethod: values.shippingMethod,
       paymentMethod: "epayco",
+      couponCode: appliedCoupon?.code,
       items: items.map((item) => ({
         productId: item.productId,
         variantId: item.id,
@@ -504,7 +532,11 @@ export default function CheckoutPage() {
 
             {/* ── RIGHT: Order Summary ── */}
             <div className="w-full md:w-[45%] md:sticky md:top-28">
-              <OrderSummary shippingCost={shippingCost} />
+              <OrderSummary
+                shippingCost={shippingCost}
+                appliedCoupon={appliedCoupon}
+                onCouponChange={setAppliedCoupon}
+              />
             </div>
           </div>
         </form>

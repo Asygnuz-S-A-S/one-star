@@ -14,8 +14,14 @@ export async function GET(request: Request) {
     const authHeader = request.headers.get("authorization")
     const secret = process.env.CRON_SECRET
 
-    // Validar seguridad (Solo si está configurada en .env)
-    if (secret && authHeader !== `Bearer ${secret}`) {
+    // Fail-closed: en producción el endpoint NO opera sin CRON_SECRET
+    // configurada. En desarrollo se permite sin secreto para pruebas locales.
+    if (!secret) {
+      if (process.env.NODE_ENV === "production") {
+        console.error("[cron/sync-erp] CRON_SECRET no configurada — endpoint deshabilitado")
+        return NextResponse.json({ error: "Cron no configurado" }, { status: 503 })
+      }
+    } else if (authHeader !== `Bearer ${secret}`) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 })
     }
 
@@ -34,7 +40,7 @@ export async function GET(request: Request) {
       processed: result.processedCount,
       timestamp: new Date().toISOString()
     })
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: "Error interno ejecutando sincronización automática" },
       { status: 500 }

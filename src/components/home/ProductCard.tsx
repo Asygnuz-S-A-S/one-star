@@ -4,7 +4,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { motion } from "motion/react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useSession } from "@/lib/auth-client"
 import { useWishlistStore } from "@/store"
 
@@ -73,11 +73,12 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
   const frames = [imageUrl, secondaryImageUrl, ...(gallery || [])].filter(Boolean) as string[]
   const hasFrames = frames.length > 0
   const [activeFrame, setActiveFrame] = useState(0)
-  const [isHovering, setIsHovering] = useState(false)
+  const imageFrameRef = useRef<HTMLDivElement | null>(null)
 
-  const handleMouseMoveSequence = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handleMouseMoveSequence = (e: React.MouseEvent<HTMLElement>) => {
     if (frames.length <= 1) return
-    const rect = e.currentTarget.getBoundingClientRect()
+    const rect = imageFrameRef.current?.getBoundingClientRect()
+    if (!rect) return
     const x = Math.max(0, Math.min(0.9999, (e.clientX - rect.left) / rect.width))
     // Distribuir las N imágenes de forma uniforme a lo largo del ancho
     const frameIndex = Math.floor(x * frames.length)
@@ -85,12 +86,10 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
   }
 
   const handleMouseEnterSequence = () => {
-    setIsHovering(true)
     setActiveFrame(0)
   }
 
   const handleMouseLeaveSequence = () => {
-    setIsHovering(false)
     setActiveFrame(0)
   }
 
@@ -103,14 +102,15 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
       viewport={{ once: true, margin: "-50px" }}
       whileHover={{ y: -6 }}
       transition={{ duration: 0.5, type: "spring", stiffness: 300, damping: 20 }}
+      onMouseMove={handleMouseMoveSequence}
+      onMouseEnter={handleMouseEnterSequence}
+      onMouseLeave={handleMouseLeaveSequence}
     >
       {/* Image container with 3D Sequence Sequence */}
       {href && <Link href={href} className="absolute inset-0 z-20" aria-label={name} />}
       <div 
+        ref={imageFrameRef}
         className="relative aspect-[3/4] bg-[#F5F5F5] dark:bg-white/5 dark:backdrop-blur-md dark:border dark:border-white/10 overflow-hidden mb-4 rounded-xl shadow-sm transition-shadow duration-300 group-hover:shadow-2xl"
-        onMouseMove={handleMouseMoveSequence}
-        onMouseEnter={handleMouseEnterSequence}
-        onMouseLeave={handleMouseLeaveSequence}
       >
         <div className="w-full h-full">
           {/* Subtle overlay gradient on hover */}

@@ -4,29 +4,48 @@ import { useState } from "react"
 import Image from "next/image"
 import { useCart } from "@/store"
 import { formatCOP } from "@/lib/shop-utils"
+import { validateCouponAction } from "@/server/actions/coupon.actions"
+
+export interface AppliedCoupon {
+  code: string
+  discountAmount: number
+}
 
 interface OrderSummaryProps {
   shippingCost: number
+  appliedCoupon: AppliedCoupon | null
+  onCouponChange: (coupon: AppliedCoupon | null) => void
 }
 
-export default function OrderSummary({ shippingCost }: OrderSummaryProps) {
+export default function OrderSummary({ shippingCost, appliedCoupon, onCouponChange }: OrderSummaryProps) {
   const { items, subtotal } = useCart()
   const [isExpanded, setIsExpanded] = useState(false)
   const [couponCode, setCouponCode] = useState("")
   const [couponError, setCouponError] = useState("")
   const [couponApplying, setCouponApplying] = useState(false)
 
-  const total = subtotal + shippingCost
+  const discount = appliedCoupon?.discountAmount ?? 0
+  const total = subtotal - discount + shippingCost
 
   async function handleApplyCoupon() {
     if (!couponCode.trim()) return
     setCouponApplying(true)
     setCouponError("")
-    // Simulate async validation
-    await new Promise((r) => setTimeout(r, 600))
-    // TODO: Connect to real coupon validation API route
-    setCouponError("Cupón no válido")
+    // El servidor valida vigencia, tope de usos y compra mínima, y calcula el
+    // descuento. En placeOrder se revalida de nuevo: esto es solo para la UI.
+    const result = await validateCouponAction(couponCode, subtotal)
+    if (result.valid && result.code && result.discountAmount !== undefined) {
+      onCouponChange({ code: result.code, discountAmount: result.discountAmount })
+      setCouponCode("")
+    } else {
+      setCouponError(result.error ?? "Cupón no válido")
+    }
     setCouponApplying(false)
+  }
+
+  function handleRemoveCoupon() {
+    onCouponChange(null)
+    setCouponError("")
   }
 
   return (
@@ -110,28 +129,48 @@ export default function OrderSummary({ shippingCost }: OrderSummaryProps) {
 
         {/* Coupon field */}
         <div className="px-4 py-3 border-b border-[#E0E0E0]">
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={couponCode}
-              onChange={(e) => {
-                setCouponCode(e.target.value.toUpperCase())
-                setCouponError("")
-              }}
-              placeholder="Código de cupón"
-              className="flex-1 border border-[#E0E0E0] rounded px-3 py-2 text-sm font-montserrat text-[#1C1C1C] placeholder-[#4A4A4A] bg-white focus:outline-none focus:border-[#1C1C1C] transition-colors"
-            />
-            <button
-              type="button"
-              onClick={handleApplyCoupon}
-              disabled={couponApplying || !couponCode.trim()}
-              className="px-4 py-2 border border-[#1C1C1C] text-[#1C1C1C] text-sm font-montserrat font-medium rounded hover:bg-[#1C1C1C] hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {couponApplying ? "..." : "Aplicar"}
-            </button>
-          </div>
-          {couponError && (
-            <p className="mt-1 text-xs text-[#E31C23] font-montserrat">{couponError}</p>
+          {appliedCoupon ? (
+            <div className="flex items-center justify-between gap-2">
+              <span className="inline-flex items-center gap-2 text-sm font-montserrat text-green-700 bg-green-50 border border-green-200 rounded px-3 py-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Cupón <strong>{appliedCoupon.code}</strong> aplicado
+              </span>
+              <button
+                type="button"
+                onClick={handleRemoveCoupon}
+                className="text-xs font-montserrat text-[#4A4A4A] underline hover:text-[#E31C23] transition-colors"
+              >
+                Quitar
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={couponCode}
+                  onChange={(e) => {
+                    setCouponCode(e.target.value.toUpperCase())
+                    setCouponError("")
+                  }}
+                  placeholder="Código de cupón"
+                  className="flex-1 border border-[#E0E0E0] rounded px-3 py-2 text-sm font-montserrat text-[#1C1C1C] placeholder-[#4A4A4A] bg-white focus:outline-none focus:border-[#1C1C1C] transition-colors"
+                />
+                <button
+                  type="button"
+                  onClick={handleApplyCoupon}
+                  disabled={couponApplying || !couponCode.trim()}
+                  className="px-4 py-2 border border-[#1C1C1C] text-[#1C1C1C] text-sm font-montserrat font-medium rounded hover:bg-[#1C1C1C] hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {couponApplying ? "..." : "Aplicar"}
+                </button>
+              </div>
+              {couponError && (
+                <p className="mt-1 text-xs text-[#E31C23] font-montserrat">{couponError}</p>
+              )}
+            </>
           )}
         </div>
 
@@ -141,6 +180,12 @@ export default function OrderSummary({ shippingCost }: OrderSummaryProps) {
             <span>Subtotal</span>
             <span>{formatCOP(subtotal)}</span>
           </div>
+          {appliedCoupon && (
+            <div className="flex justify-between text-sm font-montserrat text-green-700">
+              <span>Descuento ({appliedCoupon.code})</span>
+              <span>-{formatCOP(discount)}</span>
+            </div>
+          )}
           <div className="flex justify-between text-sm font-montserrat text-[#4A4A4A]">
             <span>Envío</span>
             {shippingCost === 0 ? (

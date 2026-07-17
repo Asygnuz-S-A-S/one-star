@@ -201,10 +201,9 @@ export default function Header({
 
       {/* ── Barra de navegación ──────────────────────────────────────── */}
       <div 
-        className={`transition-all duration-300 ${isScrolled || menuOpen ? 'backdrop-blur-xl bg-white/75 dark:bg-black/75 shadow-sm' : 'bg-transparent'}`}
+        className={`transition-all duration-300 backdrop-blur-xl ${isScrolled || menuOpen ? "bg-white/95 dark:bg-black/80 shadow-sm" : "bg-white/92 dark:bg-black/78"}`}
         style={{
-          color: (!isScrolled && !menuOpen) ? "#FFFFFF" : undefined,
-          borderBottom: isScrolled && config?.hasBorderBottom !== false ? "1px solid rgba(150, 150, 150, 0.2)" : "none",
+          borderBottom: config?.hasBorderBottom !== false ? "1px solid rgba(150, 150, 150, 0.2)" : "none",
           margin: config?.margin || "0px",
           padding: config?.padding || "0px",
           borderRadius: config?.borderRadius || "0px",
@@ -320,7 +319,7 @@ export default function Header({
           </nav>
 
           {/* Acciones rápidas */}
-          <div className="flex items-center gap-2 shrink-0 order-3 ml-auto text-[#1C1C1C] dark:text-[#f5f5f7]" style={(!isScrolled && !menuOpen) ? { color: "#FFFFFF" } : undefined}>
+          <div className="flex items-center gap-2 shrink-0 order-3 ml-auto text-[#1C1C1C] dark:text-[#f5f5f7]">
             {mounted && (
               <button
                 onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}

@@ -3,6 +3,7 @@
 import { headers } from "next/headers"
 import { auth } from "@/lib/auth"
 import { placeOrder } from "@/server/services/order.service"
+import { markCartsRecoveredForEmail } from "@/server/services/abandoned-cart.service"
 import { checkoutSchema } from "@/server/validators/checkout.validator"
 import type { EpaycoCheckoutData } from "@/components/checkout/EpaycoButton"
 
@@ -28,6 +29,8 @@ export interface CheckoutData {
   postalCode?: string
   shippingMethod: "standard" | "express"
   paymentMethod: "epayco" | "mercadopago" | "addi"
+  /** Código de cupón aplicado; el servidor lo revalida y recalcula el descuento */
+  couponCode?: string
   items: CheckoutItem[]
   /** Solo informativos — el servidor los ignora y recalcula (ver order.service) */
   subtotal: number
@@ -66,6 +69,7 @@ export async function createOrder(data: CheckoutData): Promise<CreateOrderResult
       customerName: `${input.name} ${input.lastName}`,
       paymentMethod: input.paymentMethod,
       shippingMethod: input.shippingMethod,
+      couponCode: input.couponCode,
       shippingAddress: {
         phone: input.phone,
         address: input.address,
@@ -81,6 +85,12 @@ export async function createOrder(data: CheckoutData): Promise<CreateOrderResult
         productName: item.name,
         quantity: item.quantity,
       })),
+    })
+
+    // El pedido se creó: los carritos abandonados de este email quedan cerrados.
+    // Fire-and-forget: un fallo aquí no debe afectar la compra.
+    markCartsRecoveredForEmail(input.email).catch((err) => {
+      console.error("[createOrder] No se pudo marcar carrito recuperado:", err)
     })
 
     const epaycoData: EpaycoCheckoutData = {
@@ -100,13 +110,13 @@ export async function createOrder(data: CheckoutData): Promise<CreateOrderResult
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Error desconocido"
     if (process.env.NODE_ENV === "development") {
-      // eslint-disable-next-line no-console
       console.error("[createOrder]", message)
     }
     const isCustomerFacing =
       message.startsWith("Stock") ||
       message.includes("ya no está disponible") ||
-      message.includes("se agotó")
+      message.includes("se agotó") ||
+      message.includes("cupón")
     return {
       success: false,
       error: isCustomerFacing ? message : "Error al procesar el pedido",

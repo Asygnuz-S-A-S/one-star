@@ -15,6 +15,11 @@ import { findVariantsForPricing } from "../repositories/variant.repository"
 import type { Prisma, OrderStatus } from "@prisma/client"
 import { getERPAdapter } from "../erp"
 import { getShippingCost, type ShippingMethod } from "@/lib/shipping"
+import {
+  validateCouponForOrder,
+  registerCouponUsage,
+  releaseCouponUsage,
+} from "./coupon.service"
 
 export interface OrderItemDTO {
   id: string
@@ -159,13 +164,32 @@ export async function placeOrder(
     customerName?: string
     customerEmail?: string
     paymentMethod?: string
+    /** Código de cupón; el descuento se valida y recalcula en servidor */
+    couponCode?: string
   }
 ): Promise<OrderDTO> {
   // 0. SEGURIDAD: recalcula precios desde la BD. El total nunca viene del cliente.
   const pricedItems = await priceItemsFromDatabase(data.items)
   const subtotal = pricedItems.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0)
+  // El envío gratis se decide sobre el subtotal antes del descuento
   const shippingCost = getShippingCost(data.shippingMethod, subtotal)
-  const total = subtotal + shippingCost
+
+  // 0.2 Cupón: se revalida en servidor y el descuento se recalcula desde la BD.
+  let appliedCoupon: { id: string; code: string; discountAmount: number } | null = null
+  if (data.couponCode) {
+    const validation = await validateCouponForOrder(data.couponCode, subtotal)
+    if (!validation.valid) {
+      throw new Error(`El cupón "${data.couponCode}" ya no es válido: ${validation.reason}`)
+    }
+    appliedCoupon = {
+      id: validation.id,
+      code: validation.code,
+      discountAmount: validation.discountAmount,
+    }
+  }
+
+  const discountAmount = appliedCoupon?.discountAmount ?? 0
+  const total = subtotal - discountAmount + shippingCost
 
   // 0.1 Valida disponibilidad de stock ANTES de crear el pedido.
   //     El stock se descuenta luego al marcar el pedido como PAID, pero se
@@ -194,13 +218,16 @@ export async function placeOrder(
     }
   }
 
-  // El shippingAddress registrado refleja el costo calculado en servidor
+  // El shippingAddress registrado refleja el costo y descuento calculados en servidor
   const shippingAddress = {
     ...(typeof data.shippingAddress === "object" && data.shippingAddress !== null
       ? (data.shippingAddress as Record<string, unknown>)
       : {}),
     shippingMethod: data.shippingMethod,
     shippingCost,
+    ...(appliedCoupon
+      ? { couponCode: appliedCoupon.code, couponDiscount: appliedCoupon.discountAmount }
+      : {}),
   }
 
   const orderInput: Prisma.OrderCreateInput = {
@@ -220,9 +247,27 @@ export async function placeOrder(
     },
   }
 
+  // 0.9 Reserva el uso del cupón ANTES de crear el pedido: el incremento es
+  //     condicional (no supera maxUses), así dos compras concurrentes no
+  //     exceden el tope. Si el pedido luego falla, se libera el uso.
+  if (appliedCoupon) {
+    const usageRegistered = await registerCouponUsage(appliedCoupon.id)
+    if (!usageRegistered) {
+      throw new Error(`El cupón "${appliedCoupon.code}" ya no es válido: alcanzó su límite de usos`)
+    }
+  }
+
   // 1. Persiste el pedido en la BD de One Star primero.
   //    El pedido siempre queda registrado, independientemente del ERP.
-  const order = await createOrder(orderInput)
+  let order: Awaited<ReturnType<typeof createOrder>>
+  try {
+    order = await createOrder(orderInput)
+  } catch (error) {
+    if (appliedCoupon) {
+      await releaseCouponUsage(appliedCoupon.id)
+    }
+    throw error
+  }
 
   // 2. Notifica al ERP de forma asincrónica (fire-and-forget con modo degradado).
   //    Si el ERP falla, el pedido ya está guardado y se puede reintentar luego.

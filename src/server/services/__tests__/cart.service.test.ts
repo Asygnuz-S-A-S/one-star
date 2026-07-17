@@ -16,7 +16,7 @@ const mockClearCart = vi.mocked(clearCartByUserId)
 const makeDecimal = (n: number) => ({ toNumber: () => n })
 
 const mockCart = {
-  id: "cart-1",
+  id: "cart-1", 
   userId: "user-1",
   items: [
     {

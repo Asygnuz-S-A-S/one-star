@@ -6,18 +6,35 @@ vi.mock("@/server/repositories/abandoned-cart.repository", () => ({
   findManyAbandonedCarts: vi.fn(),
   countAbandonedCarts: vi.fn(),
   markAbandonedCartRecovered: vi.fn(),
+  findOpenAbandonedCartByEmail: vi.fn(),
+  createAbandonedCartRecord: vi.fn(),
+  updateAbandonedCartData: vi.fn(),
+  markAbandonedCartsRecoveredByEmail: vi.fn(),
 }))
 
-import { getAbandonedCarts, recoverAbandonedCart } from "../abandoned-cart.service"
+import {
+  getAbandonedCarts,
+  recoverAbandonedCart,
+  captureAbandonedCart,
+  markCartsRecoveredForEmail,
+} from "../abandoned-cart.service"
 import {
   findManyAbandonedCarts,
   countAbandonedCarts,
   markAbandonedCartRecovered,
+  findOpenAbandonedCartByEmail,
+  createAbandonedCartRecord,
+  updateAbandonedCartData,
+  markAbandonedCartsRecoveredByEmail,
 } from "@/server/repositories/abandoned-cart.repository"
 
 const mockFind = vi.mocked(findManyAbandonedCarts)
 const mockCount = vi.mocked(countAbandonedCarts)
 const mockRecover = vi.mocked(markAbandonedCartRecovered)
+const mockFindOpen = vi.mocked(findOpenAbandonedCartByEmail)
+const mockCreateRecord = vi.mocked(createAbandonedCartRecord)
+const mockUpdateData = vi.mocked(updateAbandonedCartData)
+const mockRecoverByEmail = vi.mocked(markAbandonedCartsRecoveredByEmail)
 
 const rawCart = {
   id: "ac-1",
@@ -83,5 +100,45 @@ describe("recoverAbandonedCart", () => {
     mockRecover.mockResolvedValue(undefined as never)
     await recoverAbandonedCart("ac-1")
     expect(mockRecover).toHaveBeenCalledWith("ac-1")
+  })
+})
+
+describe("captureAbandonedCart", () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  const items = [{ productId: "prod-1", variantId: "var-1", name: "Nike Air", quantity: 1, price: 135000 }]
+
+  it("crea un registro nuevo cuando el email no tiene carrito abierto", async () => {
+    mockFindOpen.mockResolvedValue(null)
+    await captureAbandonedCart("cliente@example.com", items, null)
+    expect(mockCreateRecord).toHaveBeenCalledWith({
+      email: "cliente@example.com",
+      cartData: items,
+      userId: null,
+    })
+    expect(mockUpdateData).not.toHaveBeenCalled()
+  })
+
+  it("actualiza el carrito abierto existente en vez de duplicar", async () => {
+    mockFindOpen.mockResolvedValue(rawCart as never)
+    await captureAbandonedCart("cliente@example.com", items)
+    expect(mockUpdateData).toHaveBeenCalledWith("ac-1", items)
+    expect(mockCreateRecord).not.toHaveBeenCalled()
+  })
+
+  it("asocia el userId cuando el visitante tiene sesión", async () => {
+    mockFindOpen.mockResolvedValue(null)
+    await captureAbandonedCart("cliente@example.com", items, "user-1")
+    expect(mockCreateRecord).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: "user-1" })
+    )
+  })
+})
+
+describe("markCartsRecoveredForEmail", () => {
+  it("cierra todos los carritos abiertos del email", async () => {
+    mockRecoverByEmail.mockResolvedValue({ count: 2 } as never)
+    await markCartsRecoveredForEmail("cliente@example.com")
+    expect(mockRecoverByEmail).toHaveBeenCalledWith("cliente@example.com")
   })
 })
