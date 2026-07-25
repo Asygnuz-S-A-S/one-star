@@ -6,7 +6,7 @@ import { requireAdmin } from "@/server/auth/require-admin"
 export async function syncCatalogAction() {
   try {
     await requireAdmin()
-    const result = await syncCatalogFromERP()
+    const result = await syncCatalogFromERP("MANUAL")
     return result
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)

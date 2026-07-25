@@ -1,13 +1,56 @@
 import "server-only"
 import { getERPAdapter } from "@/server/erp"
 import { prisma } from "@/server/db/prisma"
+import type { ErpSyncLog, ErpSyncTrigger } from "@prisma/client"
 import type { ERPCatalogSyncResult } from "@/server/erp/erp.types"
+import {
+  createErpSyncLog,
+  findRecentErpSyncLogs,
+} from "@/server/repositories/erp-sync-log.repository"
+
+/** Minutos entre sincronizaciones automáticas (refleja el cron de instrumentation-node.ts). */
+export const ERP_AUTO_SYNC_MINUTES = 30
+
+/** Máximo que esperamos por el healthcheck del ERP antes de darlo por caído. */
+const PING_TIMEOUT_MS = 5000
+
+function erpProviderName(): string {
+  return (process.env.ERP_PROVIDER ?? "null").toLowerCase().trim()
+}
+
+/**
+ * Sincroniza el catálogo desde el ERP y registra el resultado en la BD para
+ * alimentar el panel de estado e historial de /admin/integraciones.
+ *
+ * @param trigger Quién disparó la sincronización (manual desde el panel o AUTO por cron).
+ */
+export async function syncCatalogFromERP(
+  trigger: ErpSyncTrigger = "AUTO"
+): Promise<ERPCatalogSyncResult> {
+  const startedAt = Date.now()
+  const result = await runCatalogSync()
+
+  try {
+    await createErpSyncLog({
+      provider: erpProviderName(),
+      trigger,
+      success: result.success,
+      processedCount: result.processedCount,
+      error: result.error ?? null,
+      durationMs: Date.now() - startedAt,
+    })
+  } catch (logErr) {
+    console.error("[ERP Sync Service] No se pudo guardar el registro de sincronización:", logErr)
+  }
+
+  return result
+}
 
 /**
  * Sincroniza el catálogo de productos desde el ERP activo hacia la base de datos local.
  * Si el adaptador actual no soporta `fetchCatalog`, falla pacíficamente.
  */
-export async function syncCatalogFromERP(): Promise<ERPCatalogSyncResult> {
+async function runCatalogSync(): Promise<ERPCatalogSyncResult> {
   const adapter = getERPAdapter()
 
   if (!adapter.fetchCatalog) {
@@ -187,5 +230,74 @@ export async function syncCatalogFromERP(): Promise<ERPCatalogSyncResult> {
     const msg = error instanceof Error ? error.message : String(error)
     console.error("[ERP Sync Service] Error sincronizando catálogo:", msg)
     return { success: false, processedCount: 0, error: msg }
+  }
+}
+
+// ─────────────────────────────────────────────
+// Estado del panel de integraciones
+// ─────────────────────────────────────────────
+
+/** Registro de sincronización serializable para el cliente (fechas como ISO). */
+export interface ErpSyncLogDTO {
+  id: string
+  provider: string
+  trigger: ErpSyncTrigger
+  success: boolean
+  processedCount: number
+  error: string | null
+  durationMs: number | null
+  createdAt: string
+}
+
+export interface ErpSyncStatus {
+  /** ERP configurado (ERP_PROVIDER). */
+  provider: string
+  /** ¿El ERP respondió al healthcheck? */
+  connected: boolean
+  /** Intervalo del auto-sync, en minutos. */
+  autoSyncMinutes: number
+  /** Última sincronización registrada, o null si nunca se ha corrido. */
+  last: ErpSyncLogDTO | null
+  /** Historial reciente (más nueva primero). */
+  history: ErpSyncLogDTO[]
+}
+
+function mapErpSyncLog(log: ErpSyncLog): ErpSyncLogDTO {
+  return {
+    id: log.id,
+    provider: log.provider,
+    trigger: log.trigger,
+    success: log.success,
+    processedCount: log.processedCount,
+    error: log.error,
+    durationMs: log.durationMs,
+    createdAt: log.createdAt.toISOString(),
+  }
+}
+
+/**
+ * Estado de la integración para el panel de admin: conexión con el ERP,
+ * última sincronización e historial reciente.
+ */
+export async function getErpSyncStatus(): Promise<ErpSyncStatus> {
+  const adapter = getERPAdapter()
+
+  const [connected, logs] = await Promise.all([
+    // No dejamos que un ERP lento/caído cuelgue la carga del panel.
+    Promise.race([
+      adapter.ping().catch(() => false),
+      new Promise<boolean>((resolve) => setTimeout(() => resolve(false), PING_TIMEOUT_MS)),
+    ]),
+    findRecentErpSyncLogs(10),
+  ])
+
+  const history = logs.map(mapErpSyncLog)
+
+  return {
+    provider: erpProviderName(),
+    connected,
+    autoSyncMinutes: ERP_AUTO_SYNC_MINUTES,
+    last: history[0] ?? null,
+    history,
   }
 }

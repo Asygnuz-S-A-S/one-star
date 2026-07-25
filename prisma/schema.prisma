@@ -469,3 +469,27 @@ model HeaderConfig {
   borderRadius    String   @default("0px")
   updatedAt       DateTime @updatedAt
 }
+
+// ─────────────────────────────────────────────
+// INTEGRACIONES (ERP)
+// ─────────────────────────────────────────────
+
+enum ErpSyncTrigger {
+  MANUAL // Disparada por un admin desde el panel
+  AUTO   // Disparada por el cron interno o un cron externo
+}
+
+// Registro de cada ejecución de sincronización de catálogo con el ERP.
+// Alimenta el panel de estado y el historial en /admin/integraciones.
+model ErpSyncLog {
+  id             String         @id @default(cuid())
+  provider       String // "loggro" | "alegra" | "null" | ...
+  trigger        ErpSyncTrigger @default(AUTO)
+  success        Boolean
+  processedCount Int            @default(0)
+  error          String?
+  durationMs     Int?
+  createdAt      DateTime       @default(now())
+
+  @@index([createdAt])
+}
