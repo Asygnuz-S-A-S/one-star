@@ -5,10 +5,31 @@ Este documento detalla el funcionamiento interno de la integración con Loggro P
 ## 1. Conexión y Autenticación
 La integración utiliza los endpoints oficiales de Loggro para PYMES:
 - **Base URL:** `https://api.loggro.com`
-- **Endpoint Productos:** `/apik/loggro-inventario/v1/items`
-- **Endpoint Unidades de Medida:** `/apik/loggro-inventario/v1/productos/unidades-medida`
+- **Endpoint Productos (catálogo):** `GET /apik/loggro-inventario/v1/items`
+- **Endpoint Unidades de Medida:** `GET /apik/loggro-inventario/v1/productos/unidades-medida`
+- **Establecimientos:** `GET /apik/loggro-inventario/v1/estructura-empresarial/establecimientos`
+- **Bodegas:** `GET /apik/loggro-inventario/v1/estructura-empresarial/bodegas`
+- **Existencias (stock):** `POST /apik/loggro-inventario/v1/productos/disponibilidad-productos`
 
-La autenticación se realiza mediante un `Bearer Token` estático configurado en las variables de entorno (`LOGGRO_API_TOKEN`).
+La autenticación se realiza mediante un `Bearer Token` estático configurado en las variables de entorno (`LOGGRO_API_TOKEN`). **Todas las peticiones deben enviar `Content-Type: application/json`**, incluso los `GET` (Loggro responde `415` si falta).
+
+### Consulta de existencias (stock)
+
+El endpoint de catálogo **no** incluye existencias. El stock se consulta aparte:
+
+```jsonc
+// POST /apik/loggro-inventario/v1/productos/disponibilidad-productos
+{
+  "establecimientoUuid": "…",   // o "establecimientoCodigo"
+  "bodegaUuid": "…",            // la bodega debe pertenecer al establecimiento
+  "items": [{ "codigoItem": "M7652-4" }]
+}
+// → 200 { "contenido": [ { "codigo": "M7652-4", "cantidadDisponible": 3 } ] }
+```
+
+Notas de comportamiento:
+- El establecimiento y la bodega se resuelven en `loggro.client.ts` desde `LOGGRO_ESTABLECIMIENTO_UUID` / `LOGGRO_BODEGA_UUID`, o se auto-detectan (establecimiento tipo `EST` + su bodega hija).
+- La consulta es **estricta**: si un `codigoItem` no es un ítem inventariable (p. ej. un producto base sin talla), Loggro responde `400 "Producto no encontrado: X"` para **todo** el lote. El cliente descarta el código faltante y reintenta con el resto.
 
 ## 2. Arquitectura de Mapeo de Catálogo (Flat vs Jerárquico)
 El desafío principal de la integración es la diferencia en los modelos de datos:
@@ -36,6 +57,23 @@ Para asegurar que Loggro mantenga el control contable sin destruir el enriquecim
 | Categoría | One Star | Loggro asigna "Sin Categoría" al crear. Luego One Star mantiene el control. |
 | Imágenes | One Star | Loggro no envía imágenes. One Star mantiene el control. |
 | Descripción Larga | One Star | One Star mantiene el control. |
+
+## Flujo de ventas (Web → Loggro)
+
+Cuando se confirma un pedido, `onOrderConfirmed` (en `loggro.adapter.ts`) **descuenta el stock** en Loggro registrando una salida de inventario:
+
+```jsonc
+// POST /apik/loggro-inventario/v1/salidas
+{
+  "establecimiento": "One Star Fundadores",   // nombre (requerido)
+  "establecimientoUuid": "…",
+  "observacion": "Salida por venta One Star (e-commerce)",
+  "detallesSalida": [{ "codigoItem": "M7652-4", "cantidad": 1 }]
+}
+// → 200 { "datos": "<uuid-de-la-salida>" }
+```
+
+> **Pendiente:** la facturación electrónica y el upsert de cliente (`createInvoice`, `upsertCustomer`) aún no están mapeados a endpoints reales de Loggro; `onOrderConfirmed` no los invoca todavía.
 
 ## 4. Agregando Nuevos Endpoints
 Cualquier nueva consulta a Loggro debe seguir este flujo:

@@ -26,32 +26,20 @@ export class LoggroERPAdapter implements IERPAdapter {
 
   async onOrderConfirmed(invoice: ERPInvoice): Promise<ERPSyncResult> {
     try {
-      // Paso 1: Upsert del cliente
-      const customer = await this.client.upsertCustomer(invoice.customer)
-
-      // Paso 2: Crear factura
-      const loggroInvoice = await this.client.createInvoice({
-        customer,
-        items: invoice.items,
-        total: invoice.total,
-        paymentMethod: invoice.paymentMethod,
-        orderId: invoice.orderId,
-      })
-
-      // Paso 3: Ajustar inventario
-      await this.client.adjustInventory(
+      // Descuenta el stock en Loggro registrando una SALIDA de inventario.
+      // La facturación electrónica y el upsert de cliente quedan PENDIENTES
+      // (sus endpoints aún no están mapeados a Loggro real): no se invocan aquí
+      // para no bloquear el descuento de inventario, que es lo crítico para
+      // mantener las existencias sincronizadas.
+      const salidaUuid = await this.client.createSalida(
         invoice.items.map((i) => ({ sku: i.sku, qty: i.quantity }))
       )
 
       console.info(
-        `[LoggroERP] Pedido ${invoice.orderId} → Factura Loggro #${loggroInvoice.id} creada ✓`
+        `[LoggroERP] Pedido ${invoice.orderId} → salida de inventario ${salidaUuid ?? "(sin ítems)"} ✓`
       )
 
-      return {
-        success: true,
-        erpInvoiceId: String(loggroInvoice.id),
-        erpCustomerId: String(customer.id),
-      }
+      return { success: true, erpInvoiceId: salidaUuid ?? undefined }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       console.error(`[LoggroERP] onOrderConfirmed falló para pedido ${invoice.orderId}:`, message)
@@ -117,17 +105,28 @@ export class LoggroERPAdapter implements IERPAdapter {
 
   async fetchCatalog(): Promise<import("../erp.types").ERPProduct[]> {
     const loggroItems = await this.client.getProducts()
-    
-    // Mapear los items de Loggro a ERPProduct
-    return loggroItems.map((item) => ({
-      erpId: String(item.id ?? item.codigo ?? ""),
-      sku: String(item.codigo ?? item.id ?? ""),
-      name: item.descripcion || "Sin Nombre",
-      basePrice: Number(item.precioDefecto || item.precioBase || item.precioVta || 0),
-      stock: item.cantidadDisponible || item.cantDisp || 0,
-      unitOfMeasure: item.codigoUnidad || item.unidadMedida ? String(item.codigoUnidad || item.unidadMedida) : undefined,
-      categoryName: item.categoria || item.nombreCategoria || item.codigoCategoria || undefined,
-      brandErpId: item.codigoCategoria || item.categoriaProducto_uuid || undefined,
-    }))
+
+    // El catálogo (/items) NO trae existencias: el stock se consulta aparte
+    // contra el endpoint de disponibilidad y se cruza por código de ítem.
+    const codigos = loggroItems.map((item) => String(item.codigo ?? "")).filter(Boolean)
+    const stockByCodigo = await this.client.getDisponibilidad(codigos)
+
+    return loggroItems.map((item) => {
+      const codigo = String(item.codigo ?? item.uuid ?? "")
+      return {
+        // El identificador estable de Loggro es `uuid`; `codigo` es el SKU.
+        erpId: String(item.uuid ?? item.codigo ?? ""),
+        sku: codigo,
+        name: item.descripcion || "Sin Nombre",
+        basePrice: Number(item.precioDefecto || item.precioBase || item.precioVta || 0),
+        stock: stockByCodigo.get(codigo) ?? 0,
+        unitOfMeasure:
+          item.codigoUnidad || item.unidadMedida
+            ? String(item.codigoUnidad || item.unidadMedida)
+            : undefined,
+        categoryName: item.categoria || item.nombreCategoria || item.codigoCategoria || undefined,
+        brandErpId: item.codigoCategoria || item.categoriaProducto_uuid || undefined,
+      }
+    })
   }
 }
