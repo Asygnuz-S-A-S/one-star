@@ -1,10 +1,11 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { Suspense, useState, useEffect, useCallback } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { prepareCustomerSignIn } from "@/lib/auth-actions"
 import { authClient } from "@/lib/auth-client"
+import { getSafeCallbackUrl } from "@/lib/auth-redirect"
 import { registerCustomer } from "./actions"
 
 const BRANDS = [
@@ -126,7 +127,33 @@ const inputClass = (error?: string) =>
   }`
 
 export default function RegistroPage() {
+  return (
+    <Suspense fallback={<RegistroFallback />}>
+      <RegistroForm />
+    </Suspense>
+  )
+}
+
+function RegistroFallback() {
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-[#F5F5F5] px-4 py-12">
+      <div
+        className="w-full max-w-md rounded-2xl bg-white px-8 py-10 text-center shadow-sm"
+        aria-busy="true"
+        aria-live="polite"
+      >
+        <div className="mx-auto mb-5 h-12 w-12 animate-pulse rounded-full bg-[#E31C23]/10" />
+        <p className="font-montserrat text-sm text-[#4A4A4A]">Preparando el registro...</p>
+      </div>
+    </main>
+  )
+}
+
+function RegistroForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const callbackUrl = getSafeCallbackUrl(searchParams.get("callbackUrl"))
+  const loginUrl = `/login?callbackUrl=${encodeURIComponent(callbackUrl)}`
 
   const [name, setName] = useState("")
   const [lastName, setLastName] = useState("")
@@ -231,22 +258,22 @@ export default function RegistroPage() {
 
     if (!prep.success) {
       setSubmitError("Registro exitoso. Por favor inicia sesión.")
-      router.push("/login")
+      router.push(loginUrl)
       return
     }
 
     const { error: signInError } = await authClient.signIn.email({
       email,
       password,
-      callbackURL: "/cuenta",
+      callbackURL: callbackUrl,
     })
 
     if (signInError) {
-      router.push("/login")
+      router.push(loginUrl)
       return
     }
 
-    router.push("/cuenta")
+    router.push(callbackUrl)
     router.refresh()
   }
 
@@ -486,7 +513,7 @@ export default function RegistroPage() {
 
         <p className="mt-8 text-center font-montserrat text-sm text-[#4A4A4A]">
           ¿Ya tienes cuenta?{" "}
-          <Link href="/login" className="text-[#E31C23] font-semibold hover:underline">
+          <Link href={loginUrl} className="text-[#E31C23] font-semibold hover:underline">
             Inicia sesión
           </Link>
         </p>

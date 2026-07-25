@@ -1,5 +1,6 @@
 "use server"
 
+import "server-only"
 import { headers } from "next/headers"
 import { auth } from "@/lib/auth"
 import { placeOrder } from "@/server/services/order.service"
@@ -44,27 +45,35 @@ interface CreateOrderResult {
   /** Datos para inicializar el checkout de ePayco en el cliente */
   epaycoData?: EpaycoCheckoutData
   error?: string
+  code?: "AUTH_REQUIRED" | "VALIDATION_ERROR" | "ORDER_ERROR"
 }
 
 export async function createOrder(data: CheckoutData): Promise<CreateOrderResult> {
-  // Validación server-side con Zod: nunca confiar en la validación del cliente.
-  const parsed = checkoutSchema.safeParse(data)
-  if (!parsed.success) {
-    const firstIssue = parsed.error.issues[0]
-    return {
-      success: false,
-      error: firstIssue ? firstIssue.message : "Datos de pedido inválidos",
-    }
-  }
-  const input = parsed.data
-
   try {
     const session = await auth.api.getSession({ headers: await headers() })
-    const userId = session?.user?.id ?? null
+    if (!session?.user?.id || session.user.userType !== "customer") {
+      return {
+        success: false,
+        code: "AUTH_REQUIRED",
+        error: "Debes iniciar sesión como cliente para completar la compra.",
+      }
+    }
+
+    // Validación server-side con Zod: nunca confiar en la validación del cliente.
+    const parsed = checkoutSchema.safeParse(data)
+    if (!parsed.success) {
+      const firstIssue = parsed.error.issues[0]
+      return {
+        success: false,
+        code: "VALIDATION_ERROR",
+        error: firstIssue ? firstIssue.message : "Datos de pedido inválidos",
+      }
+    }
+    const input = parsed.data
 
     // SEGURIDAD: no se envían precios — placeOrder los resuelve desde la BD
     // y calcula subtotal, envío y total en el servidor.
-    const order = await placeOrder(userId, {
+    const order = await placeOrder(session.user.id, {
       customerEmail: input.email,
       customerName: `${input.name} ${input.lastName}`,
       paymentMethod: input.paymentMethod,
@@ -119,6 +128,7 @@ export async function createOrder(data: CheckoutData): Promise<CreateOrderResult
       message.includes("cupón")
     return {
       success: false,
+      code: "ORDER_ERROR",
       error: isCustomerFacing ? message : "Error al procesar el pedido",
     }
   }

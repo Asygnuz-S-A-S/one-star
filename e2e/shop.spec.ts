@@ -55,12 +55,119 @@ test.describe("Carrito", () => {
 })
 
 test.describe("Checkout", () => {
-  test("redirige al login cuando se intenta checkout sin sesión", async ({ page }) => {
+  test("mantiene al visitante en checkout y bloquea compra, cupón y pago", async ({ page }) => {
     await page.goto("/checkout")
-    // O muestra el checkout, o redirige a login
+
+    await expect(page).toHaveURL(/\/checkout$/)
     await expect(
-      page.getByRole("heading").first()
+      page.getByRole("heading", { name: /inicia sesión para comprar/i })
     ).toBeVisible({ timeout: 8_000 })
+    await expect(page.getByRole("button", { name: /confirmar datos/i })).toHaveCount(0)
+    await expect(page.getByRole("button", { name: /pagar con epayco/i })).toHaveCount(0)
+    await expect(page.getByRole("textbox", { name: /email/i })).toHaveCount(0)
+    await expect(page.getByText(/código de cupón/i)).toHaveCount(0)
+
+    const loginLink = page.getByRole("link", { name: /iniciar sesión/i })
+    const registerLink = page.getByRole("link", { name: /crear cuenta/i })
+    await expect(loginLink).toHaveAttribute("href", "/login?callbackUrl=%2Fcheckout")
+    await expect(registerLink).toHaveAttribute("href", "/registro?callbackUrl=%2Fcheckout")
+  })
+
+  test("muestra el checkout normal a una sesión customer", async ({ page }) => {
+    await page.route("**/api/auth/get-session**", async (route) => {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          session: {
+            id: "session-customer",
+            token: "token-customer",
+            userId: "customer-1",
+            expiresAt: new Date(Date.now() + 60_000).toISOString(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+          user: {
+            id: "customer-1",
+            email: "cliente@example.com",
+            name: "Cliente",
+            emailVerified: true,
+            userType: "customer",
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        }),
+      })
+    })
+
+    await page.goto("/checkout")
+
+    await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible()
+    await expect(page.getByText("¿Ya tienes cuenta?")).toHaveCount(0)
+    await expect(page.getByText(/continuar como invitado/i)).toHaveCount(0)
+  })
+
+  test("mantiene bloqueada una sesión administrativa", async ({ page }) => {
+    await page.route("**/api/auth/get-session**", async (route) => {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          session: {
+            id: "session-admin",
+            token: "token-admin",
+            userId: "admin-1",
+            expiresAt: new Date(Date.now() + 60_000).toISOString(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+          user: {
+            id: "admin-1",
+            email: "admin@example.com",
+            name: "Admin",
+            emailVerified: true,
+            userType: "admin",
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        }),
+      })
+    })
+
+    await page.goto("/checkout")
+
+    await expect(page.getByRole("heading", { name: /inicia sesión para comprar/i })).toBeVisible()
+    await expect(page.getByRole("textbox", { name: /email/i })).toHaveCount(0)
+  })
+
+  test("muestra la silueta mientras se resuelve la sesión", async ({ page }) => {
+    let releaseSession!: () => void
+    const sessionResponse = new Promise<void>((resolve) => {
+      releaseSession = resolve
+    })
+
+    await page.route("**/api/auth/get-session**", async (route) => {
+      await sessionResponse
+      await route.fulfill({ contentType: "application/json", body: "null" })
+    })
+
+    await page.goto("/checkout")
+    await expect(page.locator("#checkout-auth-title")).toHaveText(/verificando tu sesión/i)
+    await expect(page.getByRole("textbox", { name: /email/i })).toHaveCount(0)
+
+    releaseSession()
+    await expect(page.getByRole("heading", { name: /inicia sesión para comprar/i })).toBeVisible()
+  })
+
+  test("el gate no desborda en viewport móvil", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto("/checkout")
+
+    await expect(page.getByRole("heading", { name: /inicia sesión para comprar/i })).toBeVisible()
+    const hasHorizontalOverflow = await page.evaluate(
+      () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    )
+    expect(hasHorizontalOverflow).toBe(false)
+    await expect(page.getByRole("link", { name: /iniciar sesión/i })).toBeVisible()
+    await expect(page.getByRole("link", { name: /crear cuenta/i })).toBeVisible()
   })
 })
 
