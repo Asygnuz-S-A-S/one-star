@@ -14,6 +14,7 @@ import {
 import { findVariantsForPricing } from "../repositories/variant.repository"
 import type { Prisma, OrderStatus } from "@prisma/client"
 import { getERPAdapter } from "../erp"
+import { sendOrderConfirmationEmail } from "./email.service"
 import { getShippingCost, type ShippingMethod } from "@/lib/shipping"
 import {
   validateCouponForOrder,
@@ -302,6 +303,24 @@ export async function placeOrder(
     .catch((err) => {
       console.error(`[ERP] Error inesperado sincronizando pedido ${order.id}:`, err)
     })
+
+  // 3. Correo de confirmación de compra al cliente (fire-and-forget: si el
+  //    correo falla, el pedido ya quedó guardado y no se ve afectado).
+  if (data.customerEmail) {
+    void sendOrderConfirmationEmail({
+      email: data.customerEmail,
+      name: data.customerName ?? undefined,
+      orderId: order.id,
+      items: pricedItems.map((i) => ({
+        productName: i.productName,
+        quantity: i.quantity,
+        unitPrice: i.unitPrice,
+      })),
+      total,
+    }).catch((err) =>
+      console.error(`[Email] Confirmación del pedido ${order.id} falló:`, err)
+    )
+  }
 
   return mapToDTO(order)
 }

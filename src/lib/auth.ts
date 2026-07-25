@@ -53,6 +53,30 @@ export const auth = betterAuth({
       hash: (password) => Promise.resolve(hashSync(password, 10)),
     },
   },
+  // Hooks de base de datos: al crearse una sesión (login exitoso) enviamos un
+  // correo de alerta al CLIENTE. Es fire-and-forget: si el correo falla, el
+  // login no se ve afectado.
+  databaseHooks: {
+    session: {
+      create: {
+        after: async (session) => {
+          try {
+            const user = await prisma.authUser.findUnique({
+              where: { id: session.userId },
+              select: { email: true, name: true, userType: true },
+            })
+            // Solo a clientes (no admins) con email válido.
+            if (user?.email && user.userType === "customer") {
+              const { sendLoginAlertEmail } = await import("@/server/services/email.service")
+              void sendLoginAlertEmail({ email: user.email, name: user.name ?? undefined })
+            }
+          } catch (err) {
+            console.error("[auth] hook de correo de inicio de sesión falló:", err)
+          }
+        },
+      },
+    },
+  },
   // Expose userType in the session object returned to clients
   advanced: {
     crossSubDomainCookies: { enabled: false },
