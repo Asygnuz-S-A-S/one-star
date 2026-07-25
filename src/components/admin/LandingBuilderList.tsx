@@ -1059,7 +1059,9 @@ export default function LandingBuilderList({ initialSections, initialGlobals, in
         <div className="flex-1 flex flex-col gap-4">
           {/* Universal config fields depending on type */}
           
-          {editingSection.type !== "CUSTOM_HTML" && (
+          {/* El HERO no usa "título de sección": su texto grande sale de cada slide
+              (banner.title), no de config.title — mostrar el campo aquí engañaba. */}
+          {editingSection.type !== "CUSTOM_HTML" && editingSection.type !== "HERO" && (
             <div>
               <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wider">Título de Sección</label>
               <input

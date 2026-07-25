@@ -14,7 +14,7 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
 
 # Instalar pnpm y luego las dependencias con frozen lockfile
-RUN npm install -g pnpm && pnpm install --frozen-lockfile
+RUN npm install -g pnpm && pnpm config set node-linker hoisted && pnpm install --frozen-lockfile
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage 2 — builder
@@ -51,7 +51,7 @@ ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
 RUN npx prisma generate
 
 # Build de producción. Produce .next/standalone/ gracias a output: 'standalone'.
-RUN pnpm build
+RUN npm run build
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage 3 — runner

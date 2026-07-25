@@ -14,6 +14,8 @@ import { getTopBanner } from "@/server/repositories/top-banner.repository";
 import { getPrimaryLogos } from "@/server/repositories/site-logo.repository";
 import { getHeaderConfig } from "@/server/repositories/header-config.repository";
 
+export const dynamic = "force-dynamic";
+
 export default async function RootLayout({
   children,
 }: Readonly<{

@@ -190,8 +190,15 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 ERP_PROVIDER="null"               # "null" | "alegra" | "siigo" | "loggro" | (futuro)
 ALEGRA_EMAIL=""                   # Email de la cuenta Alegra
 ALEGRA_API_KEY=""                 # API Key de Alegra
-LOGGRO_API_TOKEN=""               # Token de conexión para Loggro Pymes
-LOGGRO_BASE_URL=""                # Base URL para Loggro Pymes
+LOGGRO_API_TOKEN=""               # Token Bearer de conexión para Loggro Pymes
+LOGGRO_BASE_URL=""                # Base URL para Loggro Pymes (default: https://api.loggro.com)
+LOGGRO_ESTABLECIMIENTO_UUID=""    # (opcional) UUID del establecimiento para consultar existencias
+LOGGRO_BODEGA_UUID=""             # (opcional) UUID de la bodega; si se omiten, se auto-detectan
+CRON_SECRET=""                    # (opcional) Protege /api/cron/sync-erp para disparadores externos
+
+# Correos transaccionales (Resend — ver src/server/email/)
+RESEND_API_KEY=""                 # API key de Resend (https://resend.com/api-keys)
+EMAIL_FROM="One Star <onboarding@resend.dev>"  # Remitente. En producción usa un dominio verificado en Resend
 # Para Siigo u otro ERP, documentar sus variables aquí al agregar el adaptador
 ```
 
