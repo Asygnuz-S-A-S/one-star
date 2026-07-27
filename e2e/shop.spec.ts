@@ -17,6 +17,62 @@ test.describe("Home", () => {
     await page.getByRole("link", { name: /hombre/i }).first().click()
     await expect(page).toHaveURL(/\/hombre/)
   })
+
+  test("mantiene legibles los nombres y precios al activar el tema oscuro", async ({ page }) => {
+    await page.emulateMedia({ colorScheme: "light" })
+    await page.goto("/")
+    await page.evaluate(() => window.localStorage.setItem("theme", "light"))
+    await page.reload()
+
+    await page.getByRole("button", { name: "Cambiar tema" }).first().click()
+    await expect(page.locator("html")).toHaveClass(/dark/)
+
+    const productCard = page.locator("[data-product-id]:visible").first()
+    await expect(productCard).toBeVisible({ timeout: 10_000 })
+
+    const productName = productCard.locator("h3")
+    const productPrice = productCard.locator("span.text-sm.font-bold").first()
+
+    for (const productText of [productName, productPrice]) {
+      const contrastRatio = await productText.evaluate((element) => {
+        const parseColor = (color: string) => {
+          const channels = color.match(/[\d.]+/g)?.map(Number) ?? []
+          return {
+            red: channels[0] ?? 0,
+            green: channels[1] ?? 0,
+            blue: channels[2] ?? 0,
+            alpha: channels[3] ?? 1,
+          }
+        }
+        const luminance = ({ red, green, blue }: ReturnType<typeof parseColor>) => {
+          const linearChannels = [red, green, blue].map((channel) => {
+            const value = channel / 255
+            return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
+          })
+          return 0.2126 * linearChannels[0] + 0.7152 * linearChannels[1] + 0.0722 * linearChannels[2]
+        }
+
+        const foreground = parseColor(window.getComputedStyle(element).color)
+        let backgroundElement: Element | null = element
+        let background = parseColor("rgb(255, 255, 255)")
+
+        while (backgroundElement) {
+          const candidate = parseColor(window.getComputedStyle(backgroundElement).backgroundColor)
+          if (candidate.alpha > 0) {
+            background = candidate
+            break
+          }
+          backgroundElement = backgroundElement.parentElement
+        }
+
+        const light = Math.max(luminance(foreground), luminance(background))
+        const dark = Math.min(luminance(foreground), luminance(background))
+        return (light + 0.05) / (dark + 0.05)
+      })
+
+      expect(contrastRatio).toBeGreaterThanOrEqual(4.5)
+    }
+  })
 })
 
 test.describe("Catálogo de productos", () => {
@@ -24,7 +80,7 @@ test.describe("Catálogo de productos", () => {
     await page.goto("/productos")
     // Espera a que haya al menos un producto o el estado vacío
     await expect(
-      page.locator("article, [data-testid='product-card'], h2, h3").first()
+      page.locator("article:visible, [data-testid='product-card']:visible, h2:visible, h3:visible").first()
     ).toBeVisible({ timeout: 10_000 })
   })
 

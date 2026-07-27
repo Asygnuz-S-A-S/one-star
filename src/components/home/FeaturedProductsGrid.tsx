@@ -18,7 +18,7 @@ interface ProductItem {
   isOnSale?: boolean
 }
 
-export default function FeaturedProductsGrid({ products, theme = "light" }: { products: ProductItem[], theme?: "light" | "dark" }) {
+export default function FeaturedProductsGrid({ products }: { products: ProductItem[] }) {
   const gridRef = useRef<HTMLDivElement>(null)
   const isInView = useInView(gridRef, { once: true, margin: "-80px" })
 

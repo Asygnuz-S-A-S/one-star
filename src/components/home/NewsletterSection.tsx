@@ -2,17 +2,14 @@
 
 import { useState } from "react"
 
-export default function NewsletterSection({ config = {} }: { config?: Record<string, any> }) {
-  const title = config.title || "Únete a One Star"
-  const subtitle = config.subtitle || "Accede primero a los lanzamientos y ofertas exclusivas.\nSin spam, solo lo mejor del mundo sneaker."
-  const theme = config.theme as "light" | "dark" || "dark" // default dark for newsletter
+export default function NewsletterSection({ config = {} }: { config?: Record<string, unknown> }) {
+  const title = typeof config.title === "string" ? config.title : "Únete a One Star"
+  const subtitle = typeof config.subtitle === "string"
+    ? config.subtitle
+    : "Accede primero a los lanzamientos y ofertas exclusivas.\nSin spam, solo lo mejor del mundo sneaker."
+  const theme = config.theme === "light" ? "light" : "dark" // default dark for newsletter
 
   const isDark = theme === "dark"
-  const sectionBg = isDark ? "bg-[#1C1C1C]" : "bg-[#F7F7F7]"
-  const titleColor = isDark ? "text-white" : "text-[#1C1C1C]"
-  const subtitleColor = isDark ? "text-white/60" : "text-gray-600"
-  const inputBg = isDark ? "bg-white/5 border-white/10 text-white" : "bg-white border-gray-300 text-[#1C1C1C]"
-  const inputPlaceholder = isDark ? "placeholder:text-white/30" : "placeholder:text-gray-400"
 
   const [email, setEmail] = useState("")
   const [error, setError] = useState("")
@@ -40,17 +37,17 @@ export default function NewsletterSection({ config = {} }: { config?: Record<str
   }
 
   return (
-    <section className={`${sectionBg} py-16 md:py-24 px-4`}>
+    <section className={`bg-background text-foreground py-16 md:py-24 px-4 ${isDark ? "dark" : ""}`}>
       <div className="max-w-2xl mx-auto text-center">
         {/* Logo mark */}
         <div className="flex justify-center mb-6">
           <span className="w-8 h-1 bg-[#E31C23]" />
         </div>
 
-        <h2 className={`font-[var(--font-barlow)] font-black uppercase text-3xl md:text-5xl tracking-tight leading-none mb-4 whitespace-pre-wrap ${titleColor}`}>
+        <h2 className="font-[var(--font-barlow)] font-black uppercase text-3xl md:text-5xl tracking-tight leading-none mb-4 whitespace-pre-wrap text-foreground">
           {title}
         </h2>
-        <p className={`font-[var(--font-montserrat)] text-sm md:text-base leading-relaxed mb-10 whitespace-pre-wrap ${subtitleColor}`}>
+        <p className="font-[var(--font-montserrat)] text-sm md:text-base leading-relaxed mb-10 whitespace-pre-wrap text-[var(--text-secondary)]">
           {subtitle}
         </p>
 
@@ -61,7 +58,7 @@ export default function NewsletterSection({ config = {} }: { config?: Record<str
                 <polyline points="20,6 9,17 4,12" />
               </svg>
             </div>
-            <p className={`font-[var(--font-barlow)] font-bold text-xl uppercase tracking-wide ${titleColor}`}>
+            <p className="font-[var(--font-barlow)] font-bold text-xl uppercase tracking-wide text-foreground">
               ¡Gracias! Pronto recibirás novedades.
             </p>
           </div>
@@ -76,7 +73,7 @@ export default function NewsletterSection({ config = {} }: { config?: Record<str
                   setEmail(e.target.value)
                   if (error) setError("")
                 }}
-                className={`flex-1 px-4 py-4 md:py-0 border font-[var(--font-montserrat)] text-sm focus:outline-none focus:border-[#E31C23] focus:ring-1 focus:ring-[#E31C23] transition-colors ${inputBg} ${inputPlaceholder}`}
+                className="flex-1 px-4 py-4 md:py-0 border bg-[var(--input-bg)] border-[var(--input-border)] text-[var(--input-text)] placeholder:text-[var(--input-placeholder)] font-[var(--font-montserrat)] text-sm focus:outline-none focus:border-[#E31C23] focus:ring-1 focus:ring-[#E31C23] transition-colors"
               />
               <button
                 type="submit"
@@ -94,7 +91,7 @@ export default function NewsletterSection({ config = {} }: { config?: Record<str
           </form>
         )}
 
-        <p className="font-[var(--font-montserrat)] text-white/30 text-xs mt-6">
+        <p className="font-[var(--font-montserrat)] text-[var(--text-muted)] text-xs mt-6">
           Al suscribirte aceptas nuestra política de privacidad.
         </p>
       </div>
