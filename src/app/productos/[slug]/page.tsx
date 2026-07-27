@@ -4,8 +4,7 @@ import Image from "next/image"
 import type { Metadata } from "next"
 import { getProductBySlug } from "@/server/services/product.service"
 import { getProductReviews, getProductReviewStats } from "@/server/services/review.service"
-import ProductGallery from "@/components/product/ProductGallery"
-import ProductInfo from "@/components/product/ProductInfo"
+import ProductDetail from "@/components/product/ProductDetail"
 import CrossSelling from "@/components/product/CrossSelling"
 import RelatedProducts from "@/components/product/RelatedProducts"
 import ProductReviews from "@/components/product/ProductReviews"
@@ -132,10 +131,7 @@ export default async function ProductPage({ params }: PageProps) {
         </nav>
 
         {/* ── Main product grid ── */}
-        <div className="grid grid-cols-1 md:grid-cols-[60%_40%] gap-8 md:gap-12 mb-16">
-          <ProductGallery images={product.images} videoUrl={product.videoUrl} />
-          <ProductInfo product={product} reviewStats={productReviewStats} />
-        </div>
+        <ProductDetail product={product} reviewStats={productReviewStats} />
 
         {/* ── Extended description hero (Nike-style) ── */}
         {(product.extendedDescription || product.description) && (

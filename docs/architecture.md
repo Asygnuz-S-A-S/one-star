@@ -116,8 +116,28 @@ src/
 ### Catálogo
 - **Category** → slug único, relación 1:N con Product
 - **Product** → precio base, precio de oferta, género (enum), marca, slug, SEO meta, descripción extendida, videoUrl; relaciones con ProductImage, Variant, CartItem, OrderItem y cross-sells (M:M auto-relación)
-- **ProductImage** → url, alt, position, cascade delete
+- **ProductImage** → url, alt, position, `color` (nullable), cascade delete
 - **Variant** → SKU único, talla (US/CM/EUR), color, stock
+
+#### Imágenes por color de variante
+
+`ProductImage.color` vincula cada foto con un color de `Variant.color` (string libre, el mismo
+que sincroniza el ERP). `null` significa "imagen general del producto".
+
+En la ficha (`ProductDetail`), al seleccionar un color la galería muestra **las fotos de ese
+color más las generales**. Si el color no tiene fotos propias, se muestra la galería completa
+en lugar de dejarla vacía. La lógica vive en `src/lib/product-image.ts` (`filterImagesByColor`),
+que compara colores ignorando mayúsculas y acentos.
+
+`ProductDetail` es el componente cliente que une `ProductGallery` y `ProductInfo` porque ambos
+comparten el color seleccionado; la página `productos/[slug]` sigue siendo Server Component.
+
+#### Imagen predeterminada
+
+`public/placeholder-product.svg` se usa cuando un producto no tiene fotos cargadas.
+Se referencia siempre por la constante `PLACEHOLDER_IMAGE_URL` de `src/lib/product-image.ts`
+(nunca hardcodear la ruta). Aplica en ficha, galería, tarjetas, carrito, checkout, historial de
+pedidos y panel admin.
 
 ### Usuarios (dual-model)
 - **User** (negocio): email, passwordHash, role, datos de perfil completos (cédula, teléfono, fecha nacimiento, marca preferida, género)

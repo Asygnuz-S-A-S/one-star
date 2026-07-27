@@ -95,8 +95,13 @@ model ProductImage {
   url       String
   alt       String
   position  Int     @default(0)
+  // Color de variante al que pertenece la foto (coincide con Variant.color).
+  // null = imagen general del producto, se muestra con cualquier color seleccionado.
+  color     String?
   productId String
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, color])
 }
 
 // Una Variant = combinación única talla × color con su propio stock y SKU

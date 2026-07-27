@@ -7,6 +7,7 @@ import { motion } from "motion/react"
 import { useState, useEffect, useRef } from "react"
 import { useSession } from "@/lib/auth-client"
 import { useWishlistStore } from "@/store"
+import { PLACEHOLDER_IMAGE_URL } from "@/lib/product-image"
 
 const MAX_STARS = 5
 
@@ -70,8 +71,10 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
 
   // 3D Sequence Logic — zonas dinámicas según cantidad de imágenes
   // Más ángulos = animación más fluida. Orden recomendado: izq → 3/4 izq → frente → 3/4 der → der
-  const frames = [imageUrl, secondaryImageUrl, ...(gallery || [])].filter(Boolean) as string[]
-  const hasFrames = frames.length > 0
+  const realFrames = [imageUrl, secondaryImageUrl, ...(gallery || [])].filter(Boolean) as string[]
+  // Producto sin fotos: imagen predeterminada de la tienda en vez de un hueco.
+  const hasRealImages = realFrames.length > 0
+  const frames = hasRealImages ? realFrames : [PLACEHOLDER_IMAGE_URL]
   const [activeFrame, setActiveFrame] = useState(0)
   const imageFrameRef = useRef<HTMLDivElement | null>(null)
 
@@ -116,45 +119,21 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
           {/* Subtle overlay gradient on hover */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10 pointer-events-none rounded-xl" />
           
-          {hasFrames ? (
-            <div className="absolute inset-0 w-full h-full pointer-events-none">
-              {frames.map((src, index) => (
-                <Image
-                  key={`frame-${index}`}
-                  src={src}
-                  alt={`${name} vista ${index + 1}`}
-                  fill
-                  priority={priority && index === 0}
-                  className={`object-cover object-center transition-opacity duration-150 ease-in-out ${
-                    index === activeFrame ? "opacity-100" : "opacity-0"
-                  }`}
-                  sizes="(max-width: 768px) 50vw, 25vw"
-                />
-              ))}
-
-            </div>
-
-          ) : (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <svg
-                width="64"
-                height="64"
-                viewBox="0 0 64 64"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                className="text-[#4A4A4A]/30"
-              >
-                <path
-                  d="M16 16H48V48H16V16Z"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <path d="M16 48L32 32L48 48" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </div>
-          )}
+          <div className="absolute inset-0 w-full h-full pointer-events-none">
+            {frames.map((src, index) => (
+              <Image
+                key={`frame-${index}`}
+                src={src}
+                alt={hasRealImages ? `${name} vista ${index + 1}` : `${name} — sin imagen disponible`}
+                fill
+                priority={priority && index === 0}
+                className={`object-center transition-opacity duration-150 ease-in-out ${
+                  hasRealImages ? "object-cover" : "object-contain"
+                } ${index === activeFrame ? "opacity-100" : "opacity-0"}`}
+                sizes="(max-width: 768px) 50vw, 25vw"
+              />
+            ))}
+          </div>
         </div>
 
         {/* Top-Left Badges */}

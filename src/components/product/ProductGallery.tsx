@@ -4,6 +4,7 @@ import { useState, useCallback } from "react"
 import Image from "next/image"
 import { motion } from "motion/react"
 import type { ProductImage } from "@/types/shop"
+import { PLACEHOLDER_IMAGE_URL } from "@/lib/product-image"
 
 interface ProductGalleryProps {
   images: ProductImage[]
@@ -29,13 +30,18 @@ export default function ProductGallery({ images, videoUrl }: ProductGalleryProps
     setHoverFrame(null)
   }, [])
 
+  // Producto sin fotos cargadas: imagen predeterminada de la tienda.
   if (images.length === 0 && !hasVideo) {
     return (
-      <div className="aspect-square bg-[#F0F0F0] dark:bg-white/5 flex items-center justify-center rounded-2xl">
-        <svg width="80" height="80" viewBox="0 0 64 64" fill="none" className="text-[#4A4A4A]/30">
-          <path d="M8 40 C8 40 12 28 24 28 C30 28 34 32 40 32 C46 32 52 28 56 30 L56 42 C56 44 54 46 52 46 L12 46 C10 46 8 44 8 42 Z" fill="currentColor"/>
-          <path d="M24 28 L20 18 L28 18 L32 28" fill="currentColor" opacity="0.6"/>
-        </svg>
+      <div className="relative aspect-square bg-[#F0F0F0] dark:bg-white/5 overflow-hidden rounded-2xl">
+        <Image
+          src={PLACEHOLDER_IMAGE_URL}
+          alt="Producto sin imagen disponible"
+          fill
+          priority
+          className="object-contain object-center"
+          sizes="(max-width: 768px) 100vw, 55vw"
+        />
       </div>
     )
   }

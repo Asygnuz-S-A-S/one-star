@@ -23,6 +23,8 @@ export interface ProductImageDTO {
   url: string
   alt: string
   position: number
+  /** Color de variante al que pertenece la foto. null = imagen general. */
+  color: string | null
 }
 
 export interface InventoryLevelDTO {
@@ -121,6 +123,7 @@ export interface ImageInput {
   url: string
   alt?: string
   position?: number
+  color?: string | null
 }
 
 export interface ProductInput {
@@ -161,7 +164,7 @@ type RawVariant = {
   }>
 }
 
-type RawImage = { id: string; url: string; alt: string; position: number }
+type RawImage = { id: string; url: string; alt: string; position: number; color?: string | null }
 
 type RawPrice = { toNumber: () => number }
 
@@ -200,6 +203,16 @@ type RawProduct = {
   }>
   createdAt: Date
   updatedAt: Date
+}
+
+function mapImage(img: RawImage): ProductImageDTO {
+  return {
+    id: img.id,
+    url: img.url,
+    alt: img.alt,
+    position: img.position,
+    color: img.color ?? null,
+  }
 }
 
 function mapVariant(v: RawVariant): VariantDTO {
@@ -251,12 +264,7 @@ function mapToDTO(raw: RawProduct): ProductDTO {
     },
     availableOnline: raw.availableOnline ?? true,
     availableInStores: raw.availableInStores ?? true,
-    images: raw.images.map((img) => ({
-      id: img.id,
-      url: img.url,
-      alt: img.alt,
-      position: img.position,
-    })),
+    images: raw.images.map(mapImage),
     variants: raw.variants.map(mapVariant),
     crossSells: (raw.crossSells ?? []).map((cs) => ({
       id: cs.id,
@@ -268,12 +276,7 @@ function mapToDTO(raw: RawProduct): ProductDTO {
       basePrice: cs.basePrice.toNumber(),
       isOnSale: cs.isOnSale,
       salePrice: cs.salePrice ? cs.salePrice.toNumber() : null,
-      images: cs.images.map((img) => ({
-        id: img.id,
-        url: img.url,
-        alt: img.alt,
-        position: img.position,
-      })),
+      images: cs.images.map(mapImage),
       variants: cs.variants.map(mapVariant),
     })),
     hasStock: raw.variants.reduce((acc, v) => acc + (v.stock || 0), 0) > 0,
@@ -403,6 +406,7 @@ export async function createProduct(input: ProductInput): Promise<ProductDTO> {
         url: img.url,
         alt: img.alt ?? input.name,
         position: img.position ?? idx,
+        color: img.color ?? null,
       })),
     },
     ...(input.crossSellIds?.length
@@ -460,6 +464,7 @@ export async function updateProduct(
             url: img.url,
             alt: img.alt ?? input.name,
             position: img.position ?? idx,
+            color: img.color ?? null,
           })),
         },
         crossSells: {

@@ -3,6 +3,7 @@ import Link from "next/link"
 import OrderDetailActions from "./OrderDetailActions"
 import { getOrderById } from "@/server/services/order.service"
 import { formatDateTime, formatCurrency } from "@/lib/dates"
+import { PLACEHOLDER_IMAGE_URL } from "@/lib/product-image"
 
 interface Props {
   params: Promise<{ id: string }>
@@ -87,18 +88,12 @@ export default async function PedidoDetailPage({ params }: Props) {
                 return (
                   <div key={item.id} className="flex items-center gap-4">
                     <div className="w-14 h-14 rounded-lg overflow-hidden bg-gray-100 shrink-0">
-                      {imgUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={imgUrl}
-                          alt={item.productName}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">
-                          Sin foto
-                        </div>
-                      )}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={imgUrl ?? PLACEHOLDER_IMAGE_URL}
+                        alt={imgUrl ? item.productName : `${item.productName} — sin foto`}
+                        className={`w-full h-full ${imgUrl ? "object-cover" : "object-contain"}`}
+                      />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-[#1C1C1C] truncate">{item.productName}</p>

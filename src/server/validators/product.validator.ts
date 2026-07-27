@@ -26,6 +26,11 @@ const imageSchema = z.object({
   url: z.string().url("URL de imagen inválida."),
   alt: z.string().optional(),
   position: z.number().int().nonnegative().optional(),
+  // Color de variante al que pertenece la foto. null/"" = imagen general del producto.
+  color: z.preprocess(
+    (v) => (typeof v === "string" && v.trim() === "" ? null : v),
+    z.string().optional().nullable()
+  ),
 })
 
 export const productFormSchema = z.object({
