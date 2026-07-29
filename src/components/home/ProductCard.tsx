@@ -4,12 +4,15 @@ import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { motion } from "motion/react"
-import { useState, useEffect, useRef } from "react"
+import { useRef, useState, useSyncExternalStore } from "react"
 import { useSession } from "@/lib/auth-client"
 import { useWishlistStore } from "@/store"
 import { PLACEHOLDER_IMAGE_URL } from "@/lib/product-image"
+import { PRODUCT_COLORS, getColorSwatchStyle, type ColorPalette } from "@/lib/colors"
+import type { ProductCardColorSummary } from "@/lib/product-card-colors"
 
 const MAX_STARS = 5
+const subscribeToHydration = () => () => undefined
 
 interface ProductCardProps {
   id: string
@@ -27,6 +30,8 @@ interface ProductCardProps {
   rating?: number
   reviewCount?: number
   priority?: boolean
+  colorSummary?: ProductCardColorSummary
+  colorPalette?: ColorPalette
 }
 
 function formatPrice(price: number): string {
@@ -38,15 +43,16 @@ function formatPrice(price: number): string {
   }).format(price)
 }
 
-export default function ProductCard({ id, slug, name, brand, price, salePrice, imageUrl, secondaryImageUrl, gallery, isNew, isOnSale, hasStock = true, rating, reviewCount, priority = false }: ProductCardProps) {
+export default function ProductCard({ id, slug, name, brand, price, salePrice, imageUrl, secondaryImageUrl, gallery, isNew, isOnSale, hasStock = true, rating, reviewCount, priority = false, colorSummary, colorPalette }: ProductCardProps) {
   const href = slug ? `/productos/${slug}` : undefined
+  const palette = colorPalette && Object.keys(colorPalette).length > 0
+    ? colorPalette
+    : PRODUCT_COLORS
   const router = useRouter()
   const { data: session } = useSession()
-  // La sesión solo se conoce en el cliente; renderizamos el botón de favoritos
-  // tras montar para que el HTML del servidor y el del cliente coincidan
-  // (evita el error de hidratación).
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => setMounted(true), [])
+  // La sesión solo se conoce en el cliente. Este snapshot mantiene el HTML
+  // inicial del servidor y del cliente alineados antes de mostrar favoritos.
+  const mounted = useSyncExternalStore(subscribeToHydration, () => true, () => false)
   const isFavorite = useWishlistStore((state) => state.productIds.includes(id))
   const toggleWishlist = useWishlistStore((state) => state.toggle)
 
@@ -113,7 +119,9 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
       {href && <Link href={href} className="absolute inset-0 z-20" aria-label={name} />}
       <div 
         ref={imageFrameRef}
-        className="relative aspect-[3/4] bg-[#F5F5F5] dark:bg-white/5 dark:backdrop-blur-md dark:border dark:border-white/10 overflow-hidden mb-4 rounded-xl shadow-sm transition-shadow duration-300 group-hover:shadow-2xl"
+        className={`relative aspect-[3/4] bg-[#F5F5F5] dark:bg-white/5 dark:backdrop-blur-md dark:border dark:border-white/10 overflow-hidden rounded-xl shadow-sm transition-shadow duration-300 group-hover:shadow-2xl ${
+          colorSummary?.total ? "mb-2" : "mb-4"
+        }`}
       >
         <div className="w-full h-full">
           {/* Subtle overlay gradient on hover */}
@@ -163,6 +171,56 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
           </button>
         )}
       </div>
+
+      {colorSummary?.label && (
+        <div className="relative z-20 px-1 pointer-events-none">
+          <div
+            className="flex min-h-7 items-center gap-1 overflow-hidden"
+            role="list"
+            aria-label={`Colores disponibles de ${name}`}
+          >
+            {colorSummary.visibleOptions.map((option) => (
+              option.imageUrl ? (
+                <span
+                  key={option.name}
+                  className="relative h-7 w-7 shrink-0 overflow-hidden rounded-sm border border-[#E0E0E0] bg-[#F5F5F5] dark:border-white/20 dark:bg-white/5"
+                  role="listitem"
+                  aria-label={option.name}
+                  title={option.name}
+                >
+                  <Image
+                    src={option.imageUrl}
+                    alt=""
+                    fill
+                    sizes="28px"
+                    className="object-cover"
+                  />
+                </span>
+              ) : (
+                <span
+                  key={option.name}
+                  className="h-5 w-5 shrink-0 rounded-full ring-1 ring-[#C7C7C7] dark:ring-white/30"
+                  style={getColorSwatchStyle(option.name, palette)}
+                  role="listitem"
+                  aria-label={option.name}
+                  title={option.name}
+                />
+              )
+            ))}
+            {colorSummary.hiddenCount > 0 && (
+              <span
+                className="flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full bg-[#E0E0E0] px-1 text-[9px] font-bold text-[#4A4A4A] dark:bg-white/10 dark:text-white/60"
+                aria-label={`${colorSummary.hiddenCount} colores adicionales`}
+              >
+                +{colorSummary.hiddenCount}
+              </span>
+            )}
+          </div>
+          <p className="mt-1 text-[10px] font-[var(--font-montserrat)] text-[#6B6B6B] dark:text-white/50">
+            {colorSummary.label}
+          </p>
+        </div>
+      )}
 
       <div className="mt-2 text-left flex flex-col px-1">
         {(() => {

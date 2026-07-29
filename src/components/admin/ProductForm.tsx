@@ -7,6 +7,14 @@ import type { ProductWithRelations } from "@/types/admin"
 import { createProduct, updateProduct, deleteProduct, searchProducts } from "@/app/admin/productos/actions"
 import { draggable, dropTargetForElements, monitorForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
 import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine"
+import {
+  PRODUCT_COLORS,
+  buildColorSelectGroups,
+  getColorSwatchStyle,
+  isKnownColor,
+  isRealColor,
+  type ColorPalette,
+} from "@/lib/colors"
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -47,6 +55,8 @@ interface Props {
   categories: { id: string; name: string }[]
   brands?: { id: string; name: string }[]
   stores?: StoreLocation[]
+  /** Paleta activa (administrable en /admin/colores). Vacía = paleta de respaldo. */
+  colorPalette?: ColorPalette
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -241,7 +251,16 @@ function DraggableImageCard({
 
 // ─── Main Component ────────────────────────────────────────────────────────────
 
-export default function ProductForm({ mode, product, categories, brands = [], stores = [] }: Props) {
+export default function ProductForm({
+  mode,
+  product,
+  categories,
+  brands = [],
+  stores = [],
+  colorPalette,
+}: Props) {
+  const palette = colorPalette && Object.keys(colorPalette).length > 0 ? colorPalette : PRODUCT_COLORS
+  const colorGroups = useMemo(() => buildColorSelectGroups(palette), [palette])
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -410,6 +429,14 @@ export default function ProductForm({ mode, product, categories, brands = [], st
 
   function updateVariant(idx: number, field: keyof VariantRow, value: string) {
     setVariants((prev) => prev.map((v, i) => (i === idx ? { ...v, [field]: value } : v)))
+  }
+
+  /**
+   * Asigna un color a TODAS las variantes. Las tallas de un mismo producto
+   * suelen compartir color, así que evita repetir la selección fila por fila.
+   */
+  function applyColorToAllVariants(color: string) {
+    setVariants((prev) => prev.map((v) => ({ ...v, color })))
   }
 
   function updateVariantInventory(idx: number, storeId: string | null, stockValue: string) {
@@ -834,9 +861,39 @@ export default function ProductForm({ mode, product, categories, brands = [], st
         <div className="mb-4 bg-blue-50 border border-blue-200 text-blue-800 text-sm p-3 rounded-lg flex items-start gap-2">
           <span className="mt-0.5">ℹ️</span>
           <p>
-            <strong>Inventario:</strong> El Stock Web, SKU y detalles principales vienen de Loggro (solo lectura). Puedes asignar y modificar libremente el <strong>Stock en Tiendas Físicas</strong> manualmente aquí.
+            <strong>Inventario:</strong> El Stock Web, SKU y talla vienen de Loggro (solo lectura). Aquí puedes
+            asignar el <strong>Color</strong> de cada variante —usado por el filtro de la tienda y las fotos por
+            color— y el <strong>Stock en Tiendas Físicas</strong>.
           </p>
         </div>
+
+        {variants.length > 0 && (
+          <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+            <label htmlFor="bulk-color" className="text-xs font-medium text-[#1C1C1C]">
+              Asignar color a todas las variantes:
+            </label>
+            <select
+              id="bulk-color"
+              value=""
+              onChange={(e) => {
+                if (e.target.value) applyColorToAllVariants(e.target.value)
+              }}
+              className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs text-[#1C1C1C] focus:outline-none focus:ring-2 focus:ring-[#E31C23]"
+            >
+              <option value="">Seleccionar color…</option>
+              {colorGroups.map((group) => (
+                <optgroup key={group.label} label={group.label}>
+                  {group.options.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+            <span className="text-xs text-[#4A4A4A]">
+              Útil cuando todas las tallas son del mismo color.
+            </span>
+          </div>
+        )}
         <div className="overflow-x-auto">
           <table className="w-full text-xs mb-3">
             <thead>
@@ -871,7 +928,36 @@ export default function ProductForm({ mode, product, categories, brands = [], st
                       />
                     </td>
                     <td className="py-1 pr-2">
-                      <input type="text" value={v.color} disabled className={`${inputClass} text-xs bg-gray-50 text-gray-500 cursor-not-allowed`} />
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className={`h-4 w-4 shrink-0 rounded-full ring-1 ${
+                            isRealColor(v.color)
+                              ? "ring-gray-300"
+                              : "ring-gray-200 border border-dashed border-gray-300"
+                          }`}
+                          style={isRealColor(v.color) ? getColorSwatchStyle(v.color, palette) : undefined}
+                          aria-hidden
+                        />
+                        <select
+                          value={isRealColor(v.color) ? v.color : ""}
+                          onChange={(e) => updateVariant(idx, "color", e.target.value)}
+                          className={`${inputClass} text-xs`}
+                          aria-label={`Color de la variante ${v.sku || idx + 1}`}
+                        >
+                          <option value="">Sin asignar</option>
+                          {colorGroups.map((group) => (
+                            <optgroup key={group.label} label={group.label}>
+                              {group.options.map((c) => (
+                                <option key={c} value={c}>{c}</option>
+                              ))}
+                            </optgroup>
+                          ))}
+                          {/* Conserva un color histórico que no esté en la paleta */}
+                          {isRealColor(v.color) && !isKnownColor(v.color, palette) && (
+                            <option value={v.color}>{v.color}</option>
+                          )}
+                        </select>
+                      </div>
                     </td>
                     <td className="py-1 pr-2">
                       <input type="text" value={v.size} disabled className={`${inputClass} text-xs bg-gray-50 text-gray-500 cursor-not-allowed`} />

@@ -198,7 +198,10 @@ async function runCatalogSync(): Promise<ERPCatalogSyncResult> {
         // Determinar talla y color basados en el sufijo del SKU (ej. CAM01-ROJO-M -> ROJO-M)
         const suffix = variantItem.sku.substring(baseSku.length + 1)
         const size = suffix ? suffix : "Única"
-        const color = "N/A" // Loggro no suele separar color y talla fácilmente sin campos extra
+        // Loggro no expone el color como campo propio. Se deja vacío para que
+        // el admin lo asigne desde el formulario (alimenta el filtro de la
+        // tienda y las fotos por color); las sincronizaciones no lo sobrescriben.
+        const color = ""
 
         if (existingVariant) {
           await prisma.variant.update({

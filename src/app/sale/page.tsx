@@ -3,6 +3,7 @@ import FilterSidebar from "@/components/shop/FilterSidebar"
 import ShopLayout from "@/components/shop/ShopLayout"
 import { getUniqueBrands } from "@/server/services/product.service"
 import { getUniqueSizes, getUniqueColors } from "@/server/services/variant.service"
+import { getColorPalette } from "@/server/services/product-color.service"
 
 interface SalePageProps {
   searchParams: Promise<{
@@ -24,10 +25,11 @@ export const metadata = {
 
 export default async function SalePage({ searchParams }: SalePageProps) {
   const resolvedSearchParams = await searchParams
-  const [brands, sizes, colors] = await Promise.all([
+  const [brands, sizes, colors, colorPalette] = await Promise.all([
     getUniqueBrands(),
     getUniqueSizes(),
     getUniqueColors(),
+    getColorPalette(),
   ])
 
   const currentParams = new URLSearchParams(
@@ -41,6 +43,7 @@ export default async function SalePage({ searchParams }: SalePageProps) {
           brands={brands}
           sizes={sizes}
           colors={colors}
+          colorPalette={colorPalette}
           currentParams={currentParams.toString()}
         />
       }
@@ -51,6 +54,7 @@ export default async function SalePage({ searchParams }: SalePageProps) {
         title="SALE"
         subtitle="Descuentos por tiempo limitado"
         headerClassName="bg-[#E31C23] text-white [&_h1]:text-white [&_p]:text-white/80"
+        colorPalette={colorPalette}
       />
     </ShopLayout>
   )

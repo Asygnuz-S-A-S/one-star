@@ -1,5 +1,6 @@
 import "server-only"
 import { prisma } from "../db/prisma"
+import { isRealColor } from "@/lib/colors"
 import type { Variant } from "@prisma/client"
 
 export async function findManyVariants(): Promise<Variant[]> {
@@ -14,12 +15,18 @@ export async function getUniqueSizes(): Promise<string[]> {
   return variants.map(v => v.size).filter(Boolean)
 }
 
+/**
+ * Colores distintos disponibles para filtrar en la tienda.
+ * Descarta los marcadores sin color real ("N/A", vacío) que deja la
+ * sincronización del ERP cuando la variante aún no tiene color asignado.
+ */
 export async function getUniqueColors(): Promise<string[]> {
   const variants = await prisma.variant.findMany({
     select: { color: true },
     distinct: ["color"],
+    orderBy: { color: "asc" },
   })
-  return variants.map(v => v.color).filter(Boolean)
+  return variants.map((v) => v.color).filter(isRealColor)
 }
 
 export async function countVariants(): Promise<number> {

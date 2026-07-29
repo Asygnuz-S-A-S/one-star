@@ -1,17 +1,19 @@
 "use client"
 
-import Link from "next/link"
 import { motion } from "motion/react"
 import ProductCard from "@/components/home/ProductCard"
+import { buildProductCardColorSummary } from "@/lib/product-card-colors"
+import type { ColorPalette } from "@/lib/colors"
 import type { ProductDTO } from "@/server/services/product.service"
 
 interface Props {
   products: ProductDTO[]
   /** Cambia cuando cambian los filtros para re-disparar la animación */
   animationKey: string
+  colorPalette?: ColorPalette
 }
 
-export function AnimatedProductGrid({ products, animationKey }: Props) {
+export function AnimatedProductGrid({ products, animationKey, colorPalette }: Props) {
   return (
     <div
       key={animationKey}
@@ -21,9 +23,11 @@ export function AnimatedProductGrid({ products, animationKey }: Props) {
         const image = product.images[0]
         const secondaryImage = product.images[1]
         const gallery = product.images.slice(2).map((img) => img.url)
+        const colorSummary = buildProductCardColorSummary(product.variants, product.images)
         return (
           <motion.div
             key={product.id}
+            className="h-full"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{
@@ -45,6 +49,8 @@ export function AnimatedProductGrid({ products, animationKey }: Props) {
               isOnSale={product.isOnSale}
               isNew={product.isNew}
               hasStock={product.hasStock}
+              colorSummary={colorSummary}
+              colorPalette={colorPalette}
             />
           </motion.div>
         )
