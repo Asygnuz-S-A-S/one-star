@@ -85,12 +85,24 @@ para configurar el deploy.
      ahora mismo**. Supabase no la vuelve a mostrar y sin ella toca resetearla.
      Si la generas tú, evita `@`, `:`, `/` y `?` — van dentro de una URL y
      tendrías que escaparlos.
-   - **Region:** `East US (North Virginia)`. Debe quedar cerca de las funciones
-     de Vercel (`iad1` por defecto); si la base queda en otro continente cada
-     query paga el viaje de ida y vuelta y el sitio se siente lento sin razón
-     aparente.
+   - **Region:** la base y las funciones de Vercel deben quedar cerca; si no,
+     cada query paga el viaje de ida y vuelta y el sitio se siente lento sin
+     razón aparente. Dos rutas equivalentes:
+     - `East US (North Virginia)` y dejar Vercel en su `iad1` por defecto.
+     - Cualquier otra región, y luego alinear Vercel en **Settings → Functions
+       → Function Region**.
+
+     > **El proyecto actual está en `us-west-2` (Oregon)**, así que Vercel debe
+     > quedar en **Portland, us-west-2 (`pdx1`)**. Con el default `iad1` cada
+     > query cruzaría el continente.
    - Plan **Free**.
 3. Esperar ~2 minutos a que termine de provisionar.
+
+> **El primer intento de conexión puede fallar.** Recién creado el proyecto —y
+> también tras un rato sin uso— Prisma devuelve
+> `P1001: Can't reach database server` mientras el pooler arranca en frío. Pasó
+> en los dos puertos durante este despliegue y se resolvió reintentando el mismo
+> comando. Antes de dudar de la cadena de conexión, reintenta.
 
 > **No uses la integración de Supabase del Vercel Marketplace.** Inyecta las
 > variables con nombres propios (`POSTGRES_URL`, `POSTGRES_PRISMA_URL`, …) que
@@ -112,9 +124,14 @@ del dashboard** — el prefijo varía entre `aws-0-`, `aws-1-`, etc. según cuá
 se creó el proyecto):
 
 ```bash
-DATABASE_URL="postgresql://postgres.<project-ref>:[PASSWORD]@aws-0-us-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1"
-DIRECT_URL="postgresql://postgres.<project-ref>:[PASSWORD]@aws-0-us-east-1.pooler.supabase.com:5432/postgres"
+DATABASE_URL="postgresql://postgres.<project-ref>:[PASSWORD]@aws-1-us-west-2.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1"
+DIRECT_URL="postgresql://postgres.<project-ref>:[PASSWORD]@aws-1-us-west-2.pooler.supabase.com:5432/postgres"
 ```
+
+> **No agregues `sslmode=require`.** Con Supabase es contraproducente: probado
+> en este despliegue, `?pgbouncer=true&sslmode=require` hace que Prisma falle
+> con `Can't reach database server`, mientras que `?pgbouncer=true` a secas
+> conecta sin problema. La conexión ya va cifrada.
 
 **Por qué son dos y por qué el mismo host con puertos distintos:**
 
@@ -148,11 +165,26 @@ aplica lo ya versionado sin intentar generar migraciones nuevas ni ofrecer
 resetear la base. En este proyecto `migrate dev` está prohibido — ver
 `docs/architecture.md`.
 
-El seed crea el admin con `ADMIN_EMAIL` / `ADMIN_PASSWORD`. Defínelas antes de
-correrlo y usa una contraseña real — esto va a quedar público en internet.
+El seed crea categorías, productos demo, variantes, gift card, bloques de home,
+navegación y secciones de landing. **No crea el usuario administrador** — ese es
+un paso aparte, porque vive en la tabla `AdminUser`:
+
+```bash
+ADMIN_EMAIL=tu@correo.com ADMIN_PASSWORD='una-contraseña-real' \
+  npx tsx scripts/create-admin.ts
+```
+
+Si omites `ADMIN_PASSWORD` el script genera una aleatoria y la imprime **una
+sola vez**. Usa una contraseña real: este panel va a quedar público en internet.
 
 Cuando termine, **devuelve tu `.env` a las URLs locales** para no seguir
-trabajando contra la base que va a ver el cliente.
+trabajando contra la base que va a ver el cliente. Conviene guardar las cadenas
+de Supabase en un `.env.supabase` aparte (el patrón `.env*` del `.gitignore` ya
+lo excluye) y cargarlas solo cuando se necesiten:
+
+```bash
+set -a && . ./.env.supabase && set +a && pnpm prisma migrate deploy
+```
 
 Verifica en **Table Editor** de Supabase (o `pnpm db:studio`) que las tablas
 tengan datos.
@@ -230,11 +262,39 @@ Si falla, busca en el log:
 |---|---|---|
 | `Environment variable not found: DIRECT_URL` | falta la variable | agregarla (paso 2) y redesplegar |
 | `prepared statement "s0" already exists` | falta `?pgbouncer=true` en `DATABASE_URL` | agregarlo (paso 2) |
-| `Can't reach database server` | usaste `db.<ref>.supabase.co` (IPv6) en vez del pooler | cambiar a `pooler.supabase.com` (paso 2) |
+| `P1001 Can't reach database server` | pooler arrancando en frío, o usaste `db.<ref>.supabase.co` (IPv6) | reintentar el comando; si insiste, cambiar a `pooler.supabase.com` (paso 2) |
+| `P1001` con la cadena correcta | agregaste `sslmode=require` | quitarlo — rompe el pooler (paso 2) |
 | `password authentication failed` | la contraseña trae `@`, `:`, `/` o `?` sin escapar | resetearla en Supabase por una alfanumérica |
 | `Tenant or user not found` | el usuario del pooler va como `postgres.<project-ref>`, no `postgres` | copiar la cadena exacta del dashboard |
+| `Environment variable not found: DIRECT_URL` | falta la variable en Vercel, o el `.env` no se cargó en local | en local lo resuelve el `process.loadEnvFile()` de `prisma.config.ts`; en Vercel, agregarla (paso 2) |
 | `AUTH_SECRET is required` | falta el secret | `AUTH_SECRET` se lee en build, no solo en runtime |
+| `P2022 The column ... does not exist` | drift entre `schema.prisma` y las migraciones | ver la nota de drift más abajo |
 | `Table does not exist` | no corriste las migraciones | paso 3 |
+
+### La nota de drift
+
+Durante este despliegue, crear una base limpia reveló que las 9 migraciones del
+repo **no reproducían el `schema.prisma`**: faltaban 9 tablas (`Brand`,
+`ProductReview`, `InventoryLevel`, `NavigationItem`, `LandingSection`,
+`StoreLocation`, `TopBanner`, `StoreLogo`, `HeaderConfig`), 11 columnas y un
+enum. Las bases locales sí los tenían, aplicados en su momento sin generar la
+migración correspondiente.
+
+Se corrigió con la migración `20260729180000_sync_schema_drift`, escrita de
+forma **idempotente** (`IF NOT EXISTS`) para que se pueda aplicar tanto en una
+base nueva como en las bases de desarrollo que ya tenían esos objetos.
+
+Para comprobar que no vuelve a aparecer drift:
+
+```bash
+pnpm prisma migrate diff \
+  --from-schema-datasource prisma/schema.prisma \
+  --to-schema-datamodel prisma/schema.prisma --script
+```
+
+Si responde `-- This is an empty migration.`, la base y el schema coinciden.
+Cualquier otra salida es drift nuevo: hay que convertirlo en una migración
+versionada, **nunca** arreglarlo con `db push` o `migrate dev`.
 
 ## Paso 7 — Webhook de ePayco
 
@@ -270,7 +330,7 @@ Y a mano en el navegador:
 - [ ] Registro de un cliente nuevo → llega el correo de Resend
 - [ ] Login y **recargar la página**: la sesión sobrevive (valida que las URLs quedaron bien)
 - [ ] Agregar al carrito y llegar al checkout
-- [ ] Login en `/admin` con el usuario del seed
+- [ ] Login en `/admin` con el usuario creado por `scripts/create-admin.ts`
 - [ ] Crear un producto en el admin y verlo en la tienda
 - [ ] Filtro de colores en `/productos` y gestión en `/admin/colores`
 

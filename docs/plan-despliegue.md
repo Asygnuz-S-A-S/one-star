@@ -61,7 +61,7 @@ subida, el código nuevo espera columnas que no existirán en la base.
 |---|---|---|
 | 1.1 | Crear proyecto en Supabase | Región `East US (North Virginia)`, plan Free. Guardar la contraseña de la base |
 | 1.2 | Copiar las dos cadenas del pooler | `DATABASE_URL` puerto 6543 con `pgbouncer=true`; `DIRECT_URL` puerto 5432. La conexión directa `db.<ref>.supabase.co` es IPv6 y Vercel no la alcanza |
-| 1.3 | `prisma migrate deploy` + `db:seed` desde local | Vercel no corre migraciones |
+| 1.3 | `prisma migrate deploy` + `db:seed` + `scripts/create-admin.ts` desde local | Vercel no corre migraciones. El seed **no** crea el admin: es un paso aparte |
 | 1.4 | Crear proyecto en Vercel desde GitHub | **Production Branch = `develop`** |
 | 1.5 | Cargar las ~20 variables de entorno | Lista en `.env.example` |
 | 1.6 | Primer deploy | 3-6 min |
