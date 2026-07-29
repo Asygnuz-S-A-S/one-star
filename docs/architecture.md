@@ -196,9 +196,18 @@ Zod valida en la capa de `validators/` antes de llamar servicios. Los errores se
 
 ## Variables de Entorno Requeridas
 
+> Inventario completo y comentado: **`.env.example`** (versionado).
+> Procedimiento de despliegue: **`docs/deploy-vercel.md`**.
+
 ```bash
 # Base de datos
-DATABASE_URL=postgresql://...
+DATABASE_URL=postgresql://...     # Conexión de runtime
+DIRECT_URL=postgresql://...       # Conexión directa para migraciones de Prisma
+# En local ambas apuntan al mismo Postgres. En serverless NO son intercambiables:
+# DATABASE_URL debe ir al pooler (modo transaction) con ?pgbouncer=true, porque
+# cada invocación abre su propia conexión; DIRECT_URL debe ser la conexión
+# directa, porque `prisma migrate` necesita una sesión persistente para los
+# advisory locks y el DDL transaccional.
 
 # Autenticación (better-auth)
 AUTH_SECRET=...                   # Secret para firmar sesiones
@@ -220,7 +229,6 @@ CRON_SECRET=""                    # (opcional) Protege /api/cron/sync-erp para d
 RESEND_API_KEY=""                 # API key de Resend (https://resend.com/api-keys)
 EMAIL_FROM="One Star <onboarding@resend.dev>"  # Remitente. En producción usa un dominio verificado en Resend
 # Para Siigo u otro ERP, documentar sus variables aquí al agregar el adaptador
-```
 
 # Sentry (observabilidad — opcionales en desarrollo, requeridas en producción)
 SENTRY_DSN=https://...@o0.ingest.sentry.io/...   # DSN del proyecto Sentry (server)
@@ -239,12 +247,41 @@ NEXT_PUBLIC_EPAYCO_TEST=true        # "true" en staging, "false" en producción
 CLOUDINARY_CLOUD_NAME=...        # Nombre del cloud (Dashboard > Settings)
 CLOUDINARY_API_KEY=...           # API Key
 CLOUDINARY_API_SECRET=...        # API Secret (solo servidor)
+```
 
 Variables pendientes de definir:
 - `MERCADOPAGO_ACCESS_TOKEN`
 - `RESEND_API_KEY` (o equivalente de email)
 - `META_PIXEL_ID` / `META_ACCESS_TOKEN`
 - `GA4_MEASUREMENT_ID`
+
+## Despliegue
+
+El proyecto soporta dos topologías. El código es el mismo; la diferencia se
+detecta en tiempo de ejecución con `process.env.VERCEL`.
+
+| | Con proceso persistente | Serverless |
+|---|---|---|
+| Dónde | local, Docker, VPS, Lightsail | Vercel |
+| Postgres | contenedor `db` | Supabase (pooler 6543 en runtime + pooler 5432 para migraciones) |
+| Sync ERP | `node-cron` cada 30 min en `src/instrumentation-node.ts` | disparador externo → `GET /api/cron/sync-erp` |
+
+**Programación del cron.** `node-cron` requiere un proceso vivo entre
+ejecuciones, algo que no existe en serverless: allí cada request crea y destruye
+su propia instancia, así que el `schedule` nunca dispara. Por eso
+`instrumentation-node.ts` se salta la inicialización cuando `VERCEL === "1"`, y
+la programación pasa a `vercel.json`, que llama al endpoint con
+`Authorization: Bearer $CRON_SECRET`.
+
+Consecuencia a tener presente: **el plan Hobby de Vercel solo permite una
+ejecución diaria**, contra los 30 minutos de `node-cron`. Si la frecuencia de
+sincronización con el ERP se vuelve un requisito del negocio, la topología
+serverless deja de servir.
+
+`CRON_SECRET` es *fail-closed*: en producción, sin ella el endpoint responde
+`503` en vez de ejecutar la sincronización sin autenticar.
+
+Procedimiento paso a paso: **`docs/deploy-vercel.md`**.
 
 ## Capa ERP — Referencia Rápida
 
