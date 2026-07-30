@@ -3,6 +3,10 @@ import { getERPAdapter } from "@/server/erp"
 import { prisma } from "@/server/db/prisma"
 import type { ErpSyncLog, ErpSyncTrigger } from "@prisma/client"
 import type { ERPCatalogSyncResult } from "@/server/erp/erp.types"
+import { parseSku, DEFAULT_SIZE } from "@/lib/sku"
+import { detectColorFromText } from "@/lib/color-detect"
+import { isRealColor } from "@/lib/colors"
+import { findManyProductColors } from "@/server/repositories/product-color.repository"
 import {
   createErpSyncLog,
   findRecentErpSyncLogs,
@@ -65,9 +69,16 @@ async function runCatalogSync(): Promise<ERPCatalogSyncResult> {
     const products = await adapter.fetchCatalog()
     let count = 0
 
-    // Por seguridad, si el ERP retorna 0, quizás es un error.
+    // Un catálogo vacío casi siempre significa avería (credenciales, permisos o
+    // un fallo del ERP), no "no hay productos". Se reporta como ERROR: marcarlo
+    // como éxito dejaba el panel en verde mientras nada se sincronizaba.
     if (products.length === 0) {
-      return { success: true, processedCount: 0, error: "El ERP devolvió 0 productos." }
+      return {
+        success: false,
+        processedCount: 0,
+        error:
+          "El ERP devolvió 0 productos. Revisa que el catálogo tenga ítems y que la integración esté operativa.",
+      }
     }
 
     // Buscar la categoría "Por Defecto" o crearla para asignar nuevos productos
@@ -85,17 +96,20 @@ async function runCatalogSync(): Promise<ERPCatalogSyncResult> {
       })
     }
 
-    // 1. Agrupar los ítems de Loggro por "Producto Base" usando el SKU
-    // Asumimos que el SKU tiene un formato "BASE-VARIANTE" (ej. "CAM01-M-ROJ")
-    // Si no tiene guión, el producto base es el mismo SKU.
+    // Paleta activa: permite deducir el color de cada variante desde el texto
+    // que envía el ERP. Se lee una sola vez por sincronización.
+    const paletteNames = (await findManyProductColors(true)).map((c) => c.name)
+
+    // 1. Agrupar los ítems del ERP por "Producto Base" según su SKU.
+    //    Ver `parseSku`: "1162011-BWHT_10" agrupa por modelo+color y "NB574AZ-38"
+    //    por modelo, de modo que cada grupo es un producto con sus tallas.
     const groupedProducts = new Map<string, typeof products>()
 
     for (const erpProduct of products) {
       if (!erpProduct.sku) continue
-      
-      const parts = erpProduct.sku.split("-")
-      const baseSku = parts[0]
-      
+
+      const { baseSku } = parseSku(erpProduct.sku)
+
       if (!groupedProducts.has(baseSku)) {
         groupedProducts.set(baseSku, [])
       }
@@ -195,13 +209,16 @@ async function runCatalogSync(): Promise<ERPCatalogSyncResult> {
       for (const variantItem of variantsList) {
         const existingVariant = existingProduct.variants.find((v) => v.sku === variantItem.sku)
         
-        // Determinar talla y color basados en el sufijo del SKU (ej. CAM01-ROJO-M -> ROJO-M)
-        const suffix = variantItem.sku.substring(baseSku.length + 1)
-        const size = suffix ? suffix : "Única"
-        // Loggro no expone el color como campo propio. Se deja vacío para que
-        // el admin lo asigne desde el formulario (alimenta el filtro de la
-        // tienda y las fotos por color); las sincronizaciones no lo sobrescriben.
-        const color = ""
+        // La talla sale del propio SKU (ver `parseSku`).
+        const { size } = parseSku(variantItem.sku)
+
+        // El ERP no expone el color como campo, pero lo menciona en la
+        // descripción ("TENIS HOKA BONDI 9 NEGRO"): se deduce contra la paleta
+        // administrable. Si no se reconoce, queda vacío para asignarlo a mano.
+        const detectedColor =
+          detectColorFromText(variantItem.detailedName, paletteNames) ??
+          detectColorFromText(variantItem.name, paletteNames) ??
+          ""
 
         if (existingVariant) {
           await prisma.variant.update({
@@ -209,7 +226,11 @@ async function runCatalogSync(): Promise<ERPCatalogSyncResult> {
             data: {
               erpId: variantItem.erpId,
               stock: variantItem.stock,
-              size: size !== "Única" ? size : existingVariant.size,
+              size: size !== DEFAULT_SIZE ? size : existingVariant.size,
+              // Nunca se pisa un color ya asignado: el admin manda sobre el ERP.
+              ...(isRealColor(existingVariant.color) || !detectedColor
+                ? {}
+                : { color: detectedColor }),
             },
           })
         } else {
@@ -219,7 +240,7 @@ async function runCatalogSync(): Promise<ERPCatalogSyncResult> {
               sku: variantItem.sku,
               erpId: variantItem.erpId,
               size: size,
-              color: color,
+              color: detectedColor,
               stock: variantItem.stock,
             }
           })
