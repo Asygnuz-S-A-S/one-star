@@ -58,6 +58,8 @@ export interface ERPProduct {
   erpId: string
   sku: string
   name: string
+  /** Texto descriptivo largo del ERP; puede contener talla y color. */
+  detailedName?: string
   basePrice: number
   stock: number
   unitOfMeasure?: string

@@ -30,9 +30,20 @@ const INV = "/apik/loggro-inventario/v1"
 const ENV_ESTABLECIMIENTO_UUID = process.env.LOGGRO_ESTABLECIMIENTO_UUID?.trim() || undefined
 const ENV_BODEGA_UUID = process.env.LOGGRO_BODEGA_UUID?.trim() || undefined
 
+// Alcance del stock publicado en la tienda:
+//   "all"     → suma el inventario de todas las tiendas (por defecto)
+//   "primary" → solo la sede principal
+const STOCK_SCOPE = (process.env.LOGGRO_STOCK_SCOPE ?? "all").toLowerCase().trim()
+
 // La consulta de disponibilidad falla el lote completo si UN código no existe;
 // por eso se consulta en tandas y se reintenta descartando los no encontrados.
 const DISPONIBILIDAD_CHUNK_SIZE = 100
+
+// Paginación del catálogo. Loggro devuelve solo 10 ítems si no se pide `tamano`
+// y rechaza (400) cualquier página mayor a 100, así que se recorre de a 100.
+const CATALOG_PAGE_SIZE = 100
+/** Tope de seguridad para no iterar sin fin si el ERP nunca marca `last`. */
+const MAX_CATALOG_PAGES = 100
 
 // ─── Tipos internos de la API de Loggro ──────────────────────────────────────
 
@@ -67,6 +78,8 @@ export interface LoggroCatalogItem {
   id?: string
   codigo?: string
   descripcion?: string
+  /** Descripción larga; suele incluir talla y color (ej. "... 39 Azul Unisex"). */
+  descripcionDetallada?: string
   precioDefecto?: number | string
   precioBase?: number | string
   precioVta?: number | string
@@ -113,9 +126,22 @@ interface InventoryLocation {
   bodegaUuid: string
 }
 
-/** Respuesta paginada del endpoint de items */
+/** Página del listado de ítems (formato Spring Data). */
+interface LoggroCatalogPage {
+  content?: LoggroCatalogItem[]
+  totalElements?: number
+  totalPages?: number
+  last?: boolean
+}
+
+/**
+ * Respuesta paginada del endpoint de items.
+ * La API real envuelve en `contenido`; la documentación usa `datos`.
+ * Se aceptan ambas para no depender de cuál esté vigente.
+ */
 interface LoggroCatalogResponse {
-  contenido?: { content?: LoggroCatalogItem[] }
+  contenido?: LoggroCatalogPage
+  datos?: LoggroCatalogPage
 }
 
 /** Respuesta con envoltura `contenido` (lista) usada por varios endpoints */
@@ -140,6 +166,8 @@ export class LoggroClient {
   private token: string
   /** Cache de la ubicación de inventario resuelta (se resuelve una sola vez). */
   private locationPromise: Promise<InventoryLocation> | null = null
+  /** Cache de las ubicaciones que suman al stock publicado. */
+  private stockLocationsPromise: Promise<InventoryLocation[]> | null = null
 
   constructor(token: string) {
     this.token = token
@@ -285,6 +313,54 @@ export class LoggroClient {
     return this.locationPromise
   }
 
+  /**
+   * Ubicaciones cuyo inventario suma al stock publicado en la tienda.
+   *
+   * Con `LOGGRO_STOCK_SCOPE=all` (por defecto) se toman TODAS las tiendas
+   * operativas (`tipoNodo === "EST"`) con bodega propia, de modo que la web
+   * muestre la disponibilidad consolidada de la cadena. Con `primary` se limita
+   * a la sede principal (la misma que registra las salidas por venta).
+   */
+  private resolveStockLocations(): Promise<InventoryLocation[]> {
+    if (this.stockLocationsPromise) return this.stockLocationsPromise
+
+    this.stockLocationsPromise = (async () => {
+      if (STOCK_SCOPE === "primary") return [await this.resolveLocation()]
+
+      const [establecimientos, bodegas] = await Promise.all([
+        this.getEstablecimientos(),
+        this.getBodegas(),
+      ])
+
+      const tiendas = establecimientos.filter((e) => e.tipoNodo === "EST")
+      const locations: InventoryLocation[] = []
+
+      for (const est of tiendas) {
+        const bodega = bodegas.find((b) => b.padre === est.uuid)
+        if (!bodega) continue
+        locations.push({
+          establecimientoUuid: est.uuid,
+          establecimientoNombre: est.nombre ?? "",
+          bodegaUuid: bodega.uuid,
+        })
+      }
+
+      // Sin tiendas utilizables, se cae a la ubicación principal.
+      if (locations.length === 0) return [await this.resolveLocation()]
+
+      console.info(
+        `[LoggroClient] Stock consolidado de ${locations.length} tienda(s): ` +
+          locations.map((l) => l.establecimientoNombre || l.establecimientoUuid).join(", ")
+      )
+      return locations
+    })().catch((err) => {
+      this.stockLocationsPromise = null
+      throw err
+    })
+
+    return this.stockLocationsPromise
+  }
+
   // ── Contactos (clientes) ─────────────────────────────────────────────────────
   // NOTA: los endpoints de clientes/facturas de abajo pertenecen al flujo de
   // ventas (Web → Loggro) y aún NO están mapeados a rutas reales de Loggro.
@@ -356,14 +432,36 @@ export class LoggroClient {
     }
   }
 
+  /**
+   * Descarga el catálogo completo recorriendo todas las páginas.
+   *
+   * Loggro pagina con `pagina`/`tamano` (por defecto solo 10 registros), así que
+   * pedir el listado sin parámetros deja fuera casi todo el catálogo.
+   *
+   * Los errores se PROPAGAN a propósito: un fallo del ERP no debe confundirse
+   * con "el catálogo está vacío", porque eso ocultaría la avería.
+   */
   async getProducts(): Promise<LoggroCatalogItem[]> {
-    try {
-      const results = await this.request<LoggroCatalogResponse>("GET", `${INV}/items`)
-      return results?.contenido?.content || []
-    } catch (err) {
-      console.error("[LoggroClient] Error al obtener productos:", err)
-      return []
+    const items: LoggroCatalogItem[] = []
+
+    for (let pagina = 0; pagina < MAX_CATALOG_PAGES; pagina++) {
+      const res = await this.request<LoggroCatalogResponse>(
+        "GET",
+        `${INV}/items?pagina=${pagina}&tamano=${CATALOG_PAGE_SIZE}`
+      )
+      const page = res?.contenido ?? res?.datos
+      const content = page?.content ?? []
+      items.push(...content)
+
+      const isLast = page?.last === true || content.length < CATALOG_PAGE_SIZE
+      if (isLast) return items
     }
+
+    console.warn(
+      `[LoggroClient] Se alcanzó el tope de ${MAX_CATALOG_PAGES} páginas ` +
+        `(${items.length} ítems); el catálogo podría estar incompleto.`
+    )
+    return items
   }
 
   /**
@@ -378,17 +476,21 @@ export class LoggroClient {
     const unique = [...new Set(codigos.filter(Boolean))]
     if (unique.length === 0) return stock
 
-    let location: InventoryLocation
+    let locations: InventoryLocation[]
     try {
-      location = await this.resolveLocation()
+      locations = await this.resolveStockLocations()
     } catch (err) {
       console.error("[LoggroClient] No se pudo resolver la ubicación de inventario:", err)
       return stock
     }
 
-    for (let i = 0; i < unique.length; i += DISPONIBILIDAD_CHUNK_SIZE) {
-      const chunk = unique.slice(i, i + DISPONIBILIDAD_CHUNK_SIZE)
-      await this.fetchDisponibilidadChunk(location, chunk, stock)
+    // El stock de cada tienda se ACUMULA sobre el mismo mapa: un SKU disponible
+    // en varias sedes suma sus existencias.
+    for (const location of locations) {
+      for (let i = 0; i < unique.length; i += DISPONIBILIDAD_CHUNK_SIZE) {
+        const chunk = unique.slice(i, i + DISPONIBILIDAD_CHUNK_SIZE)
+        await this.fetchDisponibilidadChunk(location, chunk, stock)
+      }
     }
 
     return stock
@@ -415,7 +517,10 @@ export class LoggroClient {
       if (res.ok) {
         const data = this.parseJson<LoggroContenidoResponse<LoggroDisponibilidadItem>>(res.text)
         for (const item of data?.contenido ?? []) {
-          if (item.codigo != null) out.set(String(item.codigo), Number(item.cantidadDisponible ?? 0))
+          if (item.codigo == null) continue
+          const codigo = String(item.codigo)
+          const cantidad = Number(item.cantidadDisponible ?? 0)
+          out.set(codigo, (out.get(codigo) ?? 0) + cantidad)
         }
         return
       }

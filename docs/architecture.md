@@ -223,6 +223,7 @@ LOGGRO_API_TOKEN=""               # Token Bearer de conexión para Loggro Pymes
 LOGGRO_BASE_URL=""                # Base URL para Loggro Pymes (default: https://api.loggro.com)
 LOGGRO_ESTABLECIMIENTO_UUID=""    # (opcional) UUID del establecimiento para consultar existencias
 LOGGRO_BODEGA_UUID=""             # (opcional) UUID de la bodega; si se omiten, se auto-detectan
+LOGGRO_STOCK_SCOPE="all"          # "all" suma el stock de todas las tiendas | "primary" solo la sede principal
 CRON_SECRET=""                    # (opcional) Protege /api/cron/sync-erp para disparadores externos
 
 # Correos transaccionales (Resend — ver src/server/email/)

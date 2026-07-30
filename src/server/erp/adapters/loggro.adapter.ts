@@ -118,6 +118,7 @@ export class LoggroERPAdapter implements IERPAdapter {
         erpId: String(item.uuid ?? item.codigo ?? ""),
         sku: codigo,
         name: item.descripcion || "Sin Nombre",
+        detailedName: item.descripcionDetallada || undefined,
         basePrice: Number(item.precioDefecto || item.precioBase || item.precioVta || 0),
         stock: stockByCodigo.get(codigo) ?? 0,
         unitOfMeasure:
