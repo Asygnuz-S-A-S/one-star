@@ -19,7 +19,15 @@ function CheckoutSilhouette() {
   )
 }
 
-export default function CheckoutAuthGate({ isPending = false }: { isPending?: boolean }) {
+interface CheckoutAuthGateProps {
+  isPending?: boolean
+  draftPersistenceFailed?: boolean
+}
+
+export default function CheckoutAuthGate({
+  isPending = false,
+  draftPersistenceFailed = false,
+}: CheckoutAuthGateProps) {
   return (
     <main className="min-h-screen overflow-hidden bg-[#F5F5F5] px-4 py-8">
       <div className="mx-auto w-full max-w-6xl">
@@ -63,11 +71,16 @@ export default function CheckoutAuthGate({ isPending = false }: { isPending?: bo
                   id="checkout-auth-title"
                   className="font-barlow text-2xl font-bold uppercase tracking-wide text-[#1C1C1C]"
                 >
-                  Inicia sesión para comprar
+                  Inicia sesión para pagar
                 </h1>
                 <p className="mx-auto mt-3 max-w-md font-montserrat text-sm leading-6 text-[#4A4A4A]">
                   Tu cuenta protege los datos del pedido y te permite consultar el estado de tu compra.
                 </p>
+                {draftPersistenceFailed && (
+                  <p className="mx-auto mt-3 max-w-md rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 font-montserrat text-xs leading-5 text-amber-800">
+                    Tu navegador no permitió conservar el formulario. Al volver del inicio de sesión tendrás que diligenciarlo nuevamente.
+                  </p>
+                )}
                 <div className="mt-7 flex flex-col gap-3 sm:flex-row">
                   <Link
                     href={LOGIN_URL}

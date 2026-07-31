@@ -38,7 +38,7 @@ El checkout ya tiene `CheckoutStepper.tsx` (UI), `OrderSummary.tsx`, y `src/app/
 **Paso 1 — Datos de envío:**
 - **Dado** que un visitante sin sesión intenta abrir el checkout,  
   **cuando** se resuelve su sesión,  
-  **entonces** permanece en `/checkout`, ve opciones para iniciar sesión o registrarse y no puede acceder al formulario, cupón ni pago.
+  **entonces** permanece en `/checkout` y puede revisar el resumen, diligenciar el formulario y aplicar un cupón sin crear todavía un pedido.
 - Departamentos de Colombia prellenados desde `colombia-departments.ts`.
 - **Dado** que el cliente está autenticado,  
   **cuando** llega al checkout,  
@@ -70,9 +70,11 @@ El checkout ya tiene `CheckoutStepper.tsx` (UI), `OrderSummary.tsx`, y `src/app/
 
 ### Autenticación obligatoria en checkout
 
-- Sólo una sesión de tipo `customer` puede ver y completar el formulario.
-- Mientras se resuelve la sesión se muestra una silueta estable sin exponer controles del checkout.
+- Sólo una sesión de tipo `customer` puede confirmar el formulario y crear un pedido; visitantes y administradores pueden revisarlo, pero no enviarlo.
+- Mientras se resuelve la sesión el formulario permanece visible y la confirmación está deshabilitada, sin asumir que la persona es anónima.
+- Cuando una persona sin sesión `customer` pulsa el botón de confirmación, se muestra la silueta con opciones para iniciar sesión o registrarse.
 - Login y registro conservan un `callbackUrl` interno seguro para regresar a `/checkout`.
+- El borrador de contacto y envío se conserva temporalmente con caducidad, se vincula al email de la cuenta y se elimina al restaurarlo.
 - La Server Action de creación de pedido rechaza llamadas anónimas y sesiones administrativas antes de invocar el servicio de pedidos.
 
 ---
@@ -86,7 +88,7 @@ El checkout ya tiene `CheckoutStepper.tsx` (UI), `OrderSummary.tsx`, y `src/app/
 - [ ] Actualizar `order.service.ts` para decrementar stock en variantes tras confirmación
 - [ ] Conectar `CheckoutStepper` al flujo de pasarela (redirect o modal widget)
 - [ ] Agregar validación de cupón en checkout step 2 vía `coupon.service.ts`
-- [x] Bloquear el checkout a visitantes y conservar el retorno seguro entre login y registro
+- [x] Solicitar autenticación al confirmar el checkout, conservar el borrador y mantener el retorno seguro entre login y registro
 - [ ] Tests de integración en `order.service.ts` — flujo happy path y pago fallido
 
 ---
