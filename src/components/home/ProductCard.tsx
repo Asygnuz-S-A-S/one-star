@@ -8,8 +8,11 @@ import { useRef, useState, useSyncExternalStore } from "react"
 import { useSession } from "@/lib/auth-client"
 import { useWishlistStore } from "@/store"
 import { PLACEHOLDER_IMAGE_URL } from "@/lib/product-image"
-import { PRODUCT_COLORS, getColorSwatchStyle, type ColorPalette } from "@/lib/colors"
-import type { ProductCardColorSummary } from "@/lib/product-card-colors"
+import type { ColorPalette } from "@/lib/colors"
+import type {
+  ProductCardColorImageOption,
+  ProductCardColorSummary,
+} from "@/lib/product-card-colors"
 
 const MAX_STARS = 5
 const subscribeToHydration = () => () => undefined
@@ -43,11 +46,8 @@ function formatPrice(price: number): string {
   }).format(price)
 }
 
-export default function ProductCard({ id, slug, name, brand, price, salePrice, imageUrl, secondaryImageUrl, gallery, isNew, isOnSale, hasStock = true, rating, reviewCount, priority = false, colorSummary, colorPalette }: ProductCardProps) {
+export default function ProductCard({ id, slug, name, brand, price, salePrice, imageUrl, secondaryImageUrl, gallery, isNew, isOnSale, hasStock = true, rating, reviewCount, priority = false, colorSummary }: ProductCardProps) {
   const href = slug ? `/productos/${slug}` : undefined
-  const palette = colorPalette && Object.keys(colorPalette).length > 0
-    ? colorPalette
-    : PRODUCT_COLORS
   const router = useRouter()
   const { data: session } = useSession()
   // La sesión solo se conoce en el cliente. Este snapshot mantiene el HTML
@@ -82,7 +82,11 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
   const hasRealImages = realFrames.length > 0
   const frames = hasRealImages ? realFrames : [PLACEHOLDER_IMAGE_URL]
   const [activeFrame, setActiveFrame] = useState(0)
+  const [activeColorName, setActiveColorName] = useState<string | null>(null)
   const imageFrameRef = useRef<HTMLDivElement | null>(null)
+  const imageColorOptions = (colorSummary?.imageOptions ?? []).filter((option) =>
+    frames.includes(option.imageUrl)
+  )
 
   const handleMouseMoveSequence = (e: React.MouseEvent<HTMLElement>) => {
     if (frames.length <= 1) return
@@ -91,15 +95,32 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
     const x = Math.max(0, Math.min(0.9999, (e.clientX - rect.left) / rect.width))
     // Distribuir las N imágenes de forma uniforme a lo largo del ancho
     const frameIndex = Math.floor(x * frames.length)
+    setActiveColorName(null)
     setActiveFrame(frameIndex)
   }
 
   const handleMouseEnterSequence = () => {
+    setActiveColorName(null)
     setActiveFrame(0)
   }
 
   const handleMouseLeaveSequence = () => {
+    setActiveColorName(null)
     setActiveFrame(0)
+  }
+
+  const handleCardBlur = (event: React.FocusEvent<HTMLElement>) => {
+    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+      handleMouseLeaveSequence()
+    }
+  }
+
+  const previewColorImage = (option: ProductCardColorImageOption) => {
+    const frameIndex = frames.indexOf(option.imageUrl)
+    if (frameIndex < 0) return
+
+    setActiveColorName(option.name)
+    setActiveFrame(frameIndex)
   }
 
   return (
@@ -114,13 +135,14 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
       onMouseMove={handleMouseMoveSequence}
       onMouseEnter={handleMouseEnterSequence}
       onMouseLeave={handleMouseLeaveSequence}
+      onBlur={handleCardBlur}
     >
       {/* Image container with 3D Sequence Sequence */}
       {href && <Link href={href} className="absolute inset-0 z-20" aria-label={name} />}
       <div 
         ref={imageFrameRef}
         className={`relative aspect-[3/4] bg-[#F5F5F5] dark:bg-white/5 dark:backdrop-blur-md dark:border dark:border-white/10 overflow-hidden rounded-xl shadow-sm transition-shadow duration-300 group-hover:shadow-2xl ${
-          colorSummary?.total ? "mb-2" : "mb-4"
+          imageColorOptions.length > 0 ? "mb-2" : "mb-4"
         }`}
       >
         <div className="w-full h-full">
@@ -172,49 +194,51 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
         )}
       </div>
 
-      {colorSummary?.label && (
-        <div className="relative z-20 px-1 pointer-events-none">
+      {imageColorOptions.length > 0 && colorSummary?.label && (
+        <div
+          className="relative z-30 px-1"
+          onMouseMove={(event) => event.stopPropagation()}
+        >
           <div
-            className="flex min-h-7 items-center gap-1 overflow-hidden"
-            role="list"
+            className="flex min-h-11 items-center gap-1.5 overflow-x-auto overscroll-x-contain pb-1"
+            role="group"
             aria-label={`Colores disponibles de ${name}`}
           >
-            {colorSummary.visibleOptions.map((option) => (
-              option.imageUrl ? (
-                <span
+            {imageColorOptions.map((option) => {
+              const isActive = activeColorName
+                ? activeColorName === option.name
+                : frames[activeFrame] === option.imageUrl
+
+              return (
+                <button
                   key={option.name}
-                  className="relative h-7 w-7 shrink-0 overflow-hidden rounded-sm border border-[#E0E0E0] bg-[#F5F5F5] dark:border-white/20 dark:bg-white/5"
-                  role="listitem"
-                  aria-label={option.name}
+                  type="button"
+                  className={`relative h-10 w-10 shrink-0 overflow-hidden rounded-sm bg-[#F5F5F5] transition-[box-shadow,opacity] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E31C23] focus-visible:ring-offset-2 dark:bg-white/5 dark:focus-visible:ring-offset-[#0F0F0F] ${
+                    isActive
+                      ? "ring-2 ring-[#1C1C1C] dark:ring-white"
+                      : "opacity-75 ring-1 ring-[#D4D4D4] hover:opacity-100 dark:ring-white/25"
+                  }`}
+                  aria-label={`Ver ${name} en color ${option.name}`}
+                  aria-pressed={isActive}
                   title={option.name}
+                  onPointerEnter={() => previewColorImage(option)}
+                  onFocus={() => previewColorImage(option)}
+                  onClick={(event) => {
+                    event.preventDefault()
+                    event.stopPropagation()
+                    previewColorImage(option)
+                  }}
                 >
                   <Image
                     src={option.imageUrl}
                     alt=""
                     fill
-                    sizes="28px"
+                    sizes="40px"
                     className="object-cover"
                   />
-                </span>
-              ) : (
-                <span
-                  key={option.name}
-                  className="h-5 w-5 shrink-0 rounded-full ring-1 ring-[#C7C7C7] dark:ring-white/30"
-                  style={getColorSwatchStyle(option.name, palette)}
-                  role="listitem"
-                  aria-label={option.name}
-                  title={option.name}
-                />
+                </button>
               )
-            ))}
-            {colorSummary.hiddenCount > 0 && (
-              <span
-                className="flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full bg-[#E0E0E0] px-1 text-[9px] font-bold text-[#4A4A4A] dark:bg-white/10 dark:text-white/60"
-                aria-label={`${colorSummary.hiddenCount} colores adicionales`}
-              >
-                +{colorSummary.hiddenCount}
-              </span>
-            )}
+            })}
           </div>
           <p className="mt-1 text-[10px] font-[var(--font-montserrat)] text-[#6B6B6B] dark:text-white/50">
             {colorSummary.label}

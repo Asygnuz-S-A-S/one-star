@@ -15,8 +15,13 @@ export interface ProductCardColorOption {
   imageUrl?: string
 }
 
+export interface ProductCardColorImageOption extends ProductCardColorOption {
+  imageUrl: string
+}
+
 export interface ProductCardColorSummary {
   options: ProductCardColorOption[]
+  imageOptions: ProductCardColorImageOption[]
   visibleOptions: ProductCardColorOption[]
   hiddenCount: number
   total: number
@@ -34,10 +39,11 @@ export function buildProductCardColorSummary(
   const firstImageByColor = new Map<string, string>()
 
   for (const image of images) {
-    if (typeof image.color !== "string" || !isRealColor(image.color) || !image.url) continue
+    const imageUrl = image.url.trim()
+    if (typeof image.color !== "string" || !isRealColor(image.color) || !imageUrl) continue
     const normalized = normalizeColor(image.color)
     if (!firstImageByColor.has(normalized)) {
-      firstImageByColor.set(normalized, image.url)
+      firstImageByColor.set(normalized, imageUrl)
     }
   }
 
@@ -53,8 +59,13 @@ export function buildProductCardColorSummary(
   }
 
   const total = options.length
+  const imageOptions = options.filter(
+    (option): option is ProductCardColorImageOption => Boolean(option.imageUrl)
+  )
+
   return {
     options,
+    imageOptions,
     visibleOptions: options.slice(0, MAX_VISIBLE_PRODUCT_COLORS),
     hiddenCount: Math.max(0, total - MAX_VISIBLE_PRODUCT_COLORS),
     total,

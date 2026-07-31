@@ -53,12 +53,16 @@ describe("buildProductCardColorSummary", () => {
       { name: "Café", imageUrl: "/cafe-1.jpg" },
       { name: "Negro" },
     ])
+    expect(summary.imageOptions).toEqual([
+      { name: "Café", imageUrl: "/cafe-1.jpg" },
+    ])
   })
 
   test("limita las opciones visibles sin perder el total real", () => {
+    const colors = ["Negro", "Blanco", "Rojo", "Azul", "Verde", "Beige"]
     const summary = buildProductCardColorSummary(
-      ["Negro", "Blanco", "Rojo", "Azul", "Verde", "Beige"].map((color) => ({ color })),
-      []
+      colors.map((color) => ({ color })),
+      colors.map((color) => ({ url: `/${color.toLowerCase()}.jpg`, color }))
     )
 
     expect(summary.visibleOptions.map((option) => option.name)).toEqual([
@@ -69,6 +73,26 @@ describe("buildProductCardColorSummary", () => {
     expect(summary.hiddenCount).toBe(3)
     expect(summary.total).toBe(6)
     expect(summary.label).toBe("6 colores")
+    expect(summary.imageOptions).toEqual(
+      colors.map((color) => ({
+        name: color,
+        imageUrl: `/${color.toLowerCase()}.jpg`,
+      }))
+    )
+  })
+
+  test("no crea miniaturas cuando las imágenes no están etiquetadas por color", () => {
+    const summary = buildProductCardColorSummary(
+      [{ color: "Blanco" }, { color: "Negro" }],
+      [
+        { url: "/frontal.jpg", color: null },
+        { url: "/lateral.jpg" },
+        { url: "   ", color: "Blanco" },
+      ]
+    )
+
+    expect(summary.imageOptions).toEqual([])
+    expect(summary.label).toBe("2 colores")
   })
 
   test("no crea una etiqueta cuando el producto no tiene colores reales", () => {
