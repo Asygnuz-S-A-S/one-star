@@ -111,22 +111,62 @@ test.describe("Carrito", () => {
 })
 
 test.describe("Checkout", () => {
-  test("mantiene al visitante en checkout y bloquea compra, cupón y pago", async ({ page }) => {
+  test("solicita iniciar sesión solo cuando el visitante confirma el checkout", async ({ page }) => {
     await page.goto("/checkout")
 
     await expect(page).toHaveURL(/\/checkout$/)
+    await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible({ timeout: 8_000 })
+    await expect(page.getByPlaceholder(/código de cupón/i)).toBeVisible()
+    const confirmButton = page.getByRole("button", { name: /confirmar datos/i })
+    await expect(confirmButton).toBeVisible()
     await expect(
       page.getByRole("heading", { name: /inicia sesión para comprar/i })
-    ).toBeVisible({ timeout: 8_000 })
-    await expect(page.getByRole("button", { name: /confirmar datos/i })).toHaveCount(0)
-    await expect(page.getByRole("button", { name: /pagar con epayco/i })).toHaveCount(0)
-    await expect(page.getByRole("textbox", { name: /email/i })).toHaveCount(0)
-    await expect(page.getByText(/código de cupón/i)).toHaveCount(0)
+    ).toHaveCount(0)
+
+    await page.getByRole("textbox", { name: /email/i }).fill("cliente@example.com")
+    await page.getByRole("textbox", { name: /^nombre/i }).fill("Ana")
+    await page.getByRole("textbox", { name: /apellido/i }).fill("Pérez")
+    await page.getByRole("radio", { name: /envío express/i }).check()
+    await confirmButton.click()
+
+    await expect(
+      page.getByRole("heading", { name: /inicia sesión para pagar/i })
+    ).toBeVisible()
 
     const loginLink = page.getByRole("link", { name: /iniciar sesión/i })
     const registerLink = page.getByRole("link", { name: /crear cuenta/i })
     await expect(loginLink).toHaveAttribute("href", "/login?callbackUrl=%2Fcheckout")
     await expect(registerLink).toHaveAttribute("href", "/registro?callbackUrl=%2Fcheckout")
+    await page.route("**/api/auth/get-session**", async (route) => {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          session: {
+            id: "session-customer",
+            token: "token-customer",
+            userId: "customer-1",
+            expiresAt: new Date(Date.now() + 60_000).toISOString(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+          user: {
+            id: "customer-1",
+            email: "cliente@example.com",
+            name: "Cliente",
+            emailVerified: true,
+            userType: "customer",
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        }),
+      })
+    })
+
+    await page.goto("/checkout")
+
+    await expect(page.getByRole("textbox", { name: /email/i })).toHaveValue("cliente@example.com")
+    await expect(page.getByRole("textbox", { name: /^nombre/i })).toHaveValue("Ana")
+    await expect(page.getByRole("radio", { name: /envío express/i })).toBeChecked()
   })
 
   test("muestra el checkout normal a una sesión customer", async ({ page }) => {
@@ -162,7 +202,7 @@ test.describe("Checkout", () => {
     await expect(page.getByText(/continuar como invitado/i)).toHaveCount(0)
   })
 
-  test("mantiene bloqueada una sesión administrativa", async ({ page }) => {
+  test("solicita una cuenta de cliente al confirmar con sesión administrativa", async ({ page }) => {
     await page.route("**/api/auth/get-session**", async (route) => {
       await route.fulfill({
         contentType: "application/json",
@@ -190,11 +230,12 @@ test.describe("Checkout", () => {
 
     await page.goto("/checkout")
 
-    await expect(page.getByRole("heading", { name: /inicia sesión para comprar/i })).toBeVisible()
-    await expect(page.getByRole("textbox", { name: /email/i })).toHaveCount(0)
+    await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible()
+    await page.getByRole("button", { name: /confirmar datos/i }).click()
+    await expect(page.getByRole("heading", { name: /inicia sesión para pagar/i })).toBeVisible()
   })
 
-  test("muestra la silueta mientras se resuelve la sesión", async ({ page }) => {
+  test("mantiene el formulario visible pero no confirma mientras resuelve la sesión", async ({ page }) => {
     let releaseSession!: () => void
     const sessionResponse = new Promise<void>((resolve) => {
       releaseSession = resolve
@@ -206,18 +247,24 @@ test.describe("Checkout", () => {
     })
 
     await page.goto("/checkout")
-    await expect(page.locator("#checkout-auth-title")).toHaveText(/verificando tu sesión/i)
-    await expect(page.getByRole("textbox", { name: /email/i })).toHaveCount(0)
+    await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible()
+    await expect(page.getByRole("button", { name: /verificando sesión/i })).toBeDisabled()
+    await expect(page.locator("#checkout-auth-title")).toHaveCount(0)
 
     releaseSession()
-    await expect(page.getByRole("heading", { name: /inicia sesión para comprar/i })).toBeVisible()
+    const confirmButton = page.getByRole("button", { name: /confirmar datos/i })
+    await expect(confirmButton).toBeEnabled()
+    await confirmButton.click()
+    await expect(page.getByRole("heading", { name: /inicia sesión para pagar/i })).toBeVisible()
   })
 
-  test("el gate no desborda en viewport móvil", async ({ page }) => {
+  test("el gate posterior a confirmar no desborda en viewport móvil", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto("/checkout")
 
-    await expect(page.getByRole("heading", { name: /inicia sesión para comprar/i })).toBeVisible()
+    await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible()
+    await page.getByRole("button", { name: /confirmar datos/i }).click()
+    await expect(page.getByRole("heading", { name: /inicia sesión para pagar/i })).toBeVisible()
     const hasHorizontalOverflow = await page.evaluate(
       () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
     )

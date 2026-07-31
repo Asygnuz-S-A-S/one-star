@@ -15,3 +15,7 @@
 - Añadir pruebas de servicio/acciones, sanitizar errores internos y mejorar responsive/accesibilidad de `ColorManager`.
 - Alinear `src/server/actions/product-color.actions.ts`, `/admin/colores` y `ProductColor` con la ubicación y documentación arquitectónica del proyecto.
 - Revisar fuera de esta historia la ampliación de permisos en `.claude/settings.local.json`; no debe mezclarse con cambios funcionales.
+
+## 2026-07-31 — Inicio de sesión al confirmar checkout
+
+- Persistir y recuperar el pedido `PENDING`/los datos de ePayco cuando la página se recarga después de crear el pedido pero antes de completar el pago; el flujo preexistente vuelve al formulario y puede crear un pedido duplicado.

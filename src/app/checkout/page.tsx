@@ -1,17 +1,26 @@
 "use client"
 
-import { useState, useCallback, useEffect, useId, useSyncExternalStore, cloneElement, isValidElement } from "react"
+import { useState, useCallback, useEffect, useId, useRef, cloneElement, isValidElement } from "react"
 import Link from "next/link"
 import { motion } from "motion/react"
-import { useCart } from "@/store"
+import { useCart, useCartStore } from "@/store"
 import { formatCOP } from "@/lib/shop-utils"
 import { COLOMBIA_DEPARTMENTS } from "@/lib/colombia-departments"
+import {
+  clearCheckoutDraft,
+  getCheckoutSessionStorage,
+  loadCheckoutDraft,
+  saveCheckoutDraft,
+  type CheckoutFormDraft,
+  type CheckoutShippingMethod,
+} from "@/lib/checkout-draft"
 import CheckoutStepper from "@/components/checkout/CheckoutStepper"
 import OrderSummary, { type AppliedCoupon } from "@/components/checkout/OrderSummary"
 import EpaycoButton, { type EpaycoCheckoutData } from "@/components/checkout/EpaycoButton"
 import CheckoutAuthGate from "@/components/checkout/CheckoutAuthGate"
 import { useSession } from "@/lib/auth-client"
 import { captureAbandonedCartAction } from "@/server/actions/abandoned-cart.actions"
+import { validateCouponAction } from "@/server/actions/coupon.actions"
 import { createOrder } from "./actions"
 
 const sectionVariants = {
@@ -25,22 +34,9 @@ const sectionVariants = {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type ShippingMethod = "standard" | "express"
+type ShippingMethod = CheckoutShippingMethod
 
-interface FormValues {
-  email: string
-  newsletter: boolean
-  name: string
-  lastName: string
-  phone: string
-  address: string
-  apartment: string
-  city: string
-  department: string
-  postalCode: string
-  saveAddress: boolean
-  shippingMethod: ShippingMethod
-}
+type FormValues = CheckoutFormDraft
 
 type FormErrors = Partial<Record<keyof FormValues, string>>
 
@@ -49,6 +45,20 @@ type FormErrors = Partial<Record<keyof FormValues, string>>
 const STANDARD_SHIPPING_THRESHOLD = 200_000
 const STANDARD_SHIPPING_COST = 15_000
 const EXPRESS_SHIPPING_COST = 25_000
+const INITIAL_FORM_VALUES: FormValues = {
+  email: "",
+  newsletter: false,
+  name: "",
+  lastName: "",
+  phone: "",
+  address: "",
+  apartment: "",
+  city: "",
+  department: "",
+  postalCode: "",
+  saveAddress: false,
+  shippingMethod: "standard",
+}
 
 function getShippingCost(method: ShippingMethod, subtotal: number): number {
   if (method === "express") return EXPRESS_SHIPPING_COST
@@ -124,28 +134,46 @@ const inputClass =
 const inputErrorClass =
   "w-full border border-[#E31C23] rounded px-3 py-2.5 text-sm font-montserrat text-[#1C1C1C] placeholder-[#9E9E9E] bg-white focus:outline-none focus:border-[#E31C23] transition-colors"
 
-const subscribeToHydration = () => () => undefined
-
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function CheckoutPage() {
   const { data: session, isPending } = useSession()
-  const isHydrated = useSyncExternalStore(
-    subscribeToHydration,
-    () => true,
-    () => false,
-  )
+  const [requiresAuth, setRequiresAuth] = useState(false)
+  const [draftPersistenceFailed, setDraftPersistenceFailed] = useState(false)
+  const canCreateOrder = session?.user?.userType === "customer"
 
-  if (!isHydrated || isPending) return <CheckoutAuthGate isPending />
-  if (!session?.user || session.user.userType !== "customer") {
-    return <CheckoutAuthGate />
+  if (requiresAuth && !canCreateOrder) {
+    return <CheckoutAuthGate draftPersistenceFailed={draftPersistenceFailed} />
   }
 
-  return <AuthenticatedCheckout />
+  return (
+    <CheckoutForm
+      canCreateOrder={canCreateOrder}
+      isSessionPending={isPending}
+      sessionEmail={canCreateOrder ? session.user.email : null}
+      onAuthRequired={(draftSaved) => {
+        setDraftPersistenceFailed(!draftSaved)
+        setRequiresAuth(true)
+      }}
+    />
+  )
 }
 
-function AuthenticatedCheckout() {
+interface CheckoutFormProps {
+  canCreateOrder: boolean
+  isSessionPending: boolean
+  sessionEmail: string | null
+  onAuthRequired: (draftSaved: boolean) => void
+}
+
+function CheckoutForm({
+  canCreateOrder,
+  isSessionPending,
+  sessionEmail,
+  onAuthRequired,
+}: CheckoutFormProps) {
   const { items, subtotal } = useCart()
+  const hasEditedForm = useRef(false)
 
   const [errors, setErrors] = useState<FormErrors>({})
   const [submitting, setSubmitting] = useState(false)
@@ -155,20 +183,44 @@ function AuthenticatedCheckout() {
   /** Cupón validado en servidor; placeOrder lo revalida y recalcula el descuento */
   const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null)
 
-  const [values, setValues] = useState<FormValues>({
-    email: "",
-    newsletter: false,
-    name: "",
-    lastName: "",
-    phone: "",
-    address: "",
-    apartment: "",
-    city: "",
-    department: "",
-    postalCode: "",
-    saveAddress: false,
-    shippingMethod: "standard",
-  })
+  const [values, setValues] = useState<FormValues>(INITIAL_FORM_VALUES)
+
+  useEffect(() => {
+    if (!canCreateOrder || !sessionEmail) return
+
+    const storage = getCheckoutSessionStorage()
+    const draft = loadCheckoutDraft(storage, sessionEmail)
+    if (!draft) return
+    clearCheckoutDraft(storage)
+
+    let cancelled = false
+    const restoreDraft = async () => {
+      await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()))
+      if (cancelled) return
+
+      if (!hasEditedForm.current) setValues(draft.form)
+      if (!draft.couponCode) return
+
+      const currentSubtotal = useCartStore.getState().subtotal
+      if (currentSubtotal <= 0) return
+
+      const couponResult = await validateCouponAction(draft.couponCode, currentSubtotal)
+      if (cancelled) return
+      if (couponResult.valid && couponResult.code && couponResult.discountAmount !== undefined) {
+        setAppliedCoupon({
+          code: couponResult.code,
+          discountAmount: couponResult.discountAmount,
+        })
+      } else {
+        setServerError("El cupón guardado ya no está disponible y no fue aplicado.")
+      }
+    }
+
+    void restoreDraft()
+    return () => {
+      cancelled = true
+    }
+  }, [canCreateOrder, sessionEmail])
 
   const shippingCost = getShippingCost(values.shippingMethod, subtotal)
   const discount = appliedCoupon?.discountAmount ?? 0
@@ -198,6 +250,7 @@ function AuthenticatedCheckout() {
   }, [email, items, epaycoData])
 
   const set = useCallback(<K extends keyof FormValues>(key: K, value: FormValues[K]) => {
+    hasEditedForm.current = true
     setValues((prev) => ({ ...prev, [key]: value }))
     setErrors((prev) => {
       if (!prev[key]) return prev
@@ -210,6 +263,17 @@ function AuthenticatedCheckout() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setServerError("")
+
+    if (isSessionPending) return
+    if (!canCreateOrder) {
+      const draftSaved = saveCheckoutDraft(getCheckoutSessionStorage(), {
+        form: values,
+        couponCode: appliedCoupon?.code ?? null,
+      })
+      onAuthRequired(draftSaved)
+      window.scrollTo({ top: 0, behavior: "smooth" })
+      return
+    }
 
     const validationErrors = validateForm(values)
     if (Object.keys(validationErrors).length > 0) {
@@ -259,7 +323,15 @@ function AuthenticatedCheckout() {
 
     if (result.success && result.epaycoData) {
       // Pedido creado — pasamos al paso de pago
+      clearCheckoutDraft(getCheckoutSessionStorage())
       setEpaycoData(result.epaycoData)
+      window.scrollTo({ top: 0, behavior: "smooth" })
+    } else if (result.code === "AUTH_REQUIRED") {
+      const draftSaved = saveCheckoutDraft(getCheckoutSessionStorage(), {
+        form: values,
+        couponCode: appliedCoupon?.code ?? null,
+      })
+      onAuthRequired(draftSaved)
       window.scrollTo({ top: 0, behavior: "smooth" })
     } else {
       setServerError(result.error ?? "Error al procesar el pedido")
@@ -497,7 +569,7 @@ function AuthenticatedCheckout() {
 
               <button
                 type="submit"
-                disabled={submitting}
+                disabled={submitting || isSessionPending}
                 className="w-full bg-[#E31C23] hover:bg-[#c21920] disabled:bg-[#4A4A4A] text-white font-barlow font-bold text-base uppercase tracking-wider py-4 rounded-lg transition-colors flex items-center justify-center gap-2"
               >
                 {submitting ? (
@@ -508,6 +580,8 @@ function AuthenticatedCheckout() {
                     </svg>
                     Procesando...
                   </>
+                ) : isSessionPending ? (
+                  "Verificando sesión..."
                 ) : (
                   <>
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
