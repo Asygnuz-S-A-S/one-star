@@ -15,7 +15,9 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "test:e2e:debug": "playwright test --debug"
+    "test:e2e:debug": "playwright test --debug",
+    "db:seed:demo": "tsx prisma/seed-demo.ts",
+    "db:seed:demo:clean": "tsx prisma/seed-demo.ts --clean"
   },
   "dependencies": {
     "@atlaskit/pragmatic-drag-and-drop": "^1.8.1",

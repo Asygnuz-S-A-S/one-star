@@ -32,6 +32,7 @@ services:
       sh -c "npx prisma migrate deploy && npx prisma db seed"
     environment:
       DATABASE_URL: "postgresql://onestar:onestar_pass@db:5432/onestar?schema=public"
+      DIRECT_URL: "postgresql://onestar:onestar_pass@db:5432/onestar?schema=public"
     depends_on:
       db:
         condition: service_healthy
@@ -48,6 +49,7 @@ services:
       - "3000:3000"
     environment:
       DATABASE_URL: "postgresql://onestar:onestar_pass@db:5432/onestar?schema=public"
+      DIRECT_URL: "postgresql://onestar:onestar_pass@db:5432/onestar?schema=public"
       NODE_ENV: production
       AUTH_SECRET: ${AUTH_SECRET}
       BETTER_AUTH_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}

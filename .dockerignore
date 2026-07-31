@@ -8,3 +8,4 @@ node_modules
 npm-debug.log*
 *.md
 prisma/dev.db
+.claude
