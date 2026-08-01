@@ -128,6 +128,73 @@ test.describe("Registro", () => {
     await expect(page).toHaveURL(/\/login\?callbackUrl=%2Fcheckout$/)
   })
 
+  test("prellena el registro desde checkout sin consumir el borrador", async ({ page }) => {
+    await page.goto("/checkout")
+    const confirmButton = page.getByRole("button", { name: /confirmar datos/i })
+    await expect(confirmButton).toBeEnabled()
+
+    await page.getByRole("textbox", { name: /email/i }).fill("cliente@example.com")
+    await page.getByRole("checkbox", { name: /recibir novedades/i }).check()
+    await page.getByRole("textbox", { name: /^nombre/i }).fill("Ana")
+    await page.getByRole("textbox", { name: /apellido/i }).fill("Pérez")
+    await page.getByRole("textbox", { name: /teléfono/i }).fill("3001234567")
+    await page.getByRole("textbox", { name: /dirección/i }).fill("Calle 1 # 2-3")
+    await page.getByRole("radio", { name: /envío express/i }).check()
+    await confirmButton.click()
+
+    const savedDraft = await page.evaluate(() =>
+      window.sessionStorage.getItem("onestar_checkout_draft"),
+    )
+    expect(savedDraft).not.toBeNull()
+
+    await page.getByRole("link", { name: /crear cuenta/i }).click()
+
+    await expect(page).toHaveURL(/\/registro\?callbackUrl=%2Fcheckout$/)
+    expect(
+      await page.evaluate(() => window.sessionStorage.getItem("onestar_checkout_draft")),
+    ).toBe(savedDraft)
+    await expect(page.getByLabel("Nombre")).toHaveValue("Ana")
+    await expect(page.getByLabel("Apellido")).toHaveValue("Pérez")
+    await expect(page.getByLabel("Teléfono")).toHaveValue("3001234567")
+    await expect(page.getByLabel(/correo electrónico/i)).toHaveValue("cliente@example.com")
+    await expect(page.getByRole("checkbox", { name: /quiero recibir ofertas/i })).toBeChecked()
+    await expect(page.getByLabel("Contraseña", { exact: true })).toHaveValue("")
+    await expect(page.getByLabel("Cédula")).toHaveValue("")
+
+    const storedDraft = await page.evaluate(() =>
+      window.sessionStorage.getItem("onestar_checkout_draft"),
+    )
+    expect(storedDraft).toContain("Calle 1 # 2-3")
+    expect(storedDraft).toContain('"shippingMethod":"express"')
+  })
+
+  test("no prellena un registro directo aunque exista un borrador de checkout", async ({ page }) => {
+    await page.goto("/checkout")
+    const confirmButton = page.getByRole("button", { name: /confirmar datos/i })
+    await expect(confirmButton).toBeEnabled()
+
+    await page.getByRole("textbox", { name: /email/i }).fill("cliente@example.com")
+    await page.getByRole("textbox", { name: /^nombre/i }).fill("Ana")
+    await page.getByRole("textbox", { name: /apellido/i }).fill("Pérez")
+    await confirmButton.click()
+
+    const savedDraft = await page.evaluate(() =>
+      window.sessionStorage.getItem("onestar_checkout_draft"),
+    )
+    expect(savedDraft).not.toBeNull()
+
+    await page.goto("/registro")
+
+    await expect(page.getByLabel("Nombre")).toHaveValue("")
+    await expect(page.getByLabel("Apellido")).toHaveValue("")
+    await expect(page.getByLabel("Teléfono")).toHaveValue("")
+    await expect(page.getByLabel(/correo electrónico/i)).toHaveValue("")
+    await expect(page.getByRole("checkbox", { name: /quiero recibir ofertas/i })).not.toBeChecked()
+    expect(
+      await page.evaluate(() => window.sessionStorage.getItem("onestar_checkout_draft")),
+    ).toBe(savedDraft)
+  })
+
   test("registro y login exitosos regresan al checkout", async ({ page }) => {
     test.setTimeout(30_000)
     const unique = `${Date.now()}-${test.info().workerIndex}`

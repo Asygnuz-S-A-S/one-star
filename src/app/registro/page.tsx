@@ -1,11 +1,16 @@
 "use client"
 
-import { Suspense, useState, useEffect, useCallback } from "react"
+import { Suspense, useState, useEffect, useCallback, useRef } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { prepareCustomerSignIn } from "@/lib/auth-actions"
 import { authClient } from "@/lib/auth-client"
 import { getSafeCallbackUrl } from "@/lib/auth-redirect"
+import {
+  getCheckoutSessionStorage,
+  peekCheckoutRegistrationPrefill,
+  type CheckoutRegistrationPrefill,
+} from "@/lib/checkout-draft"
 import { registerCustomer } from "./actions"
 
 const BRANDS = [
@@ -154,6 +159,7 @@ function RegistroForm() {
   const searchParams = useSearchParams()
   const callbackUrl = getSafeCallbackUrl(searchParams.get("callbackUrl"))
   const loginUrl = `/login?callbackUrl=${encodeURIComponent(callbackUrl)}`
+  const editedPrefillFields = useRef(new Set<keyof CheckoutRegistrationPrefill>())
 
   const [name, setName] = useState("")
   const [lastName, setLastName] = useState("")
@@ -173,6 +179,19 @@ function RegistroForm() {
   const [loading, setLoading] = useState(false)
   const [emailChecking, setEmailChecking] = useState(false)
   const [emailExists, setEmailExists] = useState(false)
+
+  useEffect(() => {
+    if (callbackUrl !== "/checkout") return
+
+    const prefill = peekCheckoutRegistrationPrefill(getCheckoutSessionStorage())
+    if (!prefill) return
+
+    if (!editedPrefillFields.current.has("name")) setName(prefill.name)
+    if (!editedPrefillFields.current.has("lastName")) setLastName(prefill.lastName)
+    if (!editedPrefillFields.current.has("phone")) setPhone(prefill.phone)
+    if (!editedPrefillFields.current.has("email")) setEmail(prefill.email)
+    if (!editedPrefillFields.current.has("newsletter")) setNewsletter(prefill.newsletter)
+  }, [callbackUrl])
 
   // Real-time email check with debounce
   const checkEmail = useCallback(async (value: string) => {
@@ -302,7 +321,10 @@ function RegistroForm() {
               id="name"
               type="text"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                editedPrefillFields.current.add("name")
+                setName(e.target.value)
+              }}
               placeholder="Tu nombre"
               className={inputClass(errors.name)}
             />
@@ -314,7 +336,10 @@ function RegistroForm() {
               id="lastName"
               type="text"
               value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
+              onChange={(e) => {
+                editedPrefillFields.current.add("lastName")
+                setLastName(e.target.value)
+              }}
               placeholder="Tu apellido"
               className={inputClass(errors.lastName)}
             />
@@ -340,7 +365,10 @@ function RegistroForm() {
               type="tel"
               inputMode="numeric"
               value={phone}
-              onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+              onChange={(e) => {
+                editedPrefillFields.current.add("phone")
+                setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))
+              }}
               placeholder="3001234567 (10 dígitos)"
               className={inputClass(errors.phone)}
             />
@@ -370,7 +398,10 @@ function RegistroForm() {
                 id="email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  editedPrefillFields.current.add("email")
+                  setEmail(e.target.value)
+                }}
                 autoComplete="email"
                 placeholder="tu@email.com"
                 className={`w-full ${inputClass(errors.email)}`}
@@ -486,7 +517,10 @@ function RegistroForm() {
             <input
               type="checkbox"
               checked={newsletter}
-              onChange={(e) => setNewsletter(e.target.checked)}
+              onChange={(e) => {
+                editedPrefillFields.current.add("newsletter")
+                setNewsletter(e.target.checked)
+              }}
               className="mt-0.5 accent-[#E31C23] shrink-0"
             />
             <span className="font-montserrat text-xs text-[#4A4A4A]">

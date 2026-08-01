@@ -19,3 +19,7 @@
 ## 2026-07-31 — Inicio de sesión al confirmar checkout
 
 - Persistir y recuperar el pedido `PENDING`/los datos de ePayco cuando la página se recarga después de crear el pedido pero antes de completar el pago; el flujo preexistente vuelve al formulario y puede crear un pedido duplicado.
+
+## 2026-07-31 — Prellenado de registro desde checkout
+
+- Persistir realmente la preferencia de recibir novedades al crear una cuenta. El checkbox y su estado ya existían en registro, pero `registerCustomer` y el modelo de usuario no consumen ese valor; queda fuera del prellenado visual y no debe mezclarse con este cambio.

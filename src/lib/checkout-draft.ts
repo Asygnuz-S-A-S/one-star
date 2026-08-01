@@ -26,6 +26,14 @@ export interface CheckoutDraft {
   couponCode: string | null
 }
 
+export interface CheckoutRegistrationPrefill {
+  email: string
+  newsletter: boolean
+  name: string
+  lastName: string
+  phone: string
+}
+
 interface CheckoutDraftEnvelope {
   version: number
   savedAt: number
@@ -160,6 +168,42 @@ export function loadCheckoutDraft(
     } catch {
       // El almacenamiento puede estar completamente bloqueado.
     }
+    return null
+  }
+}
+
+export function peekCheckoutRegistrationPrefill(
+  storage: Pick<Storage, "getItem"> | null,
+  now = Date.now(),
+): CheckoutRegistrationPrefill | null {
+  if (!storage) return null
+
+  try {
+    const serialized = storage.getItem(CHECKOUT_DRAFT_STORAGE_KEY)
+    if (!serialized || serialized.length > MAX_SERIALIZED_DRAFT_LENGTH) return null
+
+    const parsed: unknown = JSON.parse(serialized)
+    if (!isCheckoutDraftEnvelope(parsed)) return null
+
+    const ownerEmail = normalizeEmail(parsed.ownerEmail)
+    const formEmail = normalizeEmail(parsed.data.form.email)
+    const isCurrent =
+      ownerEmail.length > 0 &&
+      parsed.savedAt <= now &&
+      now - parsed.savedAt <= CHECKOUT_DRAFT_TTL_MS &&
+      parsed.ownerEmail === ownerEmail &&
+      formEmail === ownerEmail
+    if (!isCurrent) return null
+
+    const phone = parsed.data.form.phone.replace(/\D/g, "")
+    return {
+      email: formEmail,
+      newsletter: parsed.data.form.newsletter,
+      name: parsed.data.form.name,
+      lastName: parsed.data.form.lastName,
+      phone: /^\d{10}$/.test(phone) ? phone : "",
+    }
+  } catch {
     return null
   }
 }
