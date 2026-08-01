@@ -92,6 +92,26 @@ test.describe("Registro", () => {
     await expect(page.getByLabel(/correo electrónico/i)).toBeVisible()
   })
 
+  test("mantiene legibles los campos al activar el tema oscuro", async ({ page }) => {
+    await page.getByRole("button", { name: /cambiar tema/i }).click()
+
+    const nameInput = page.getByLabel("Nombre")
+    await nameInput.fill("Ana")
+
+    await expect(nameInput).toHaveCSS("background-color", "rgb(30, 30, 30)")
+    await expect(nameInput).toHaveCSS("color", "rgb(240, 240, 242)")
+  })
+
+  test("mantiene legibles los mensajes de validación en tema oscuro", async ({ page }) => {
+    await page.getByRole("button", { name: /cambiar tema/i }).click()
+    await page.getByRole("button", { name: /crear cuenta/i }).click()
+
+    await expect(page.getByText(/el nombre es requerido/i)).toHaveCSS(
+      "color",
+      "rgb(255, 115, 119)",
+    )
+  })
+
   test("muestra errores de validación al enviar vacío", async ({ page }) => {
     await page.getByRole("button", { name: /crear cuenta/i }).click()
 

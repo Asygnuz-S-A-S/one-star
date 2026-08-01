@@ -60,7 +60,7 @@ function PasswordInput({
     <div className="flex flex-col gap-1">
       <label
         htmlFor={id}
-        className="font-montserrat text-xs font-semibold text-[#4A4A4A] uppercase tracking-wide"
+        className="font-montserrat text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide"
       >
         {label}
       </label>
@@ -72,15 +72,15 @@ function PasswordInput({
           onChange={(e) => onChange(e.target.value)}
           autoComplete={autoComplete}
           placeholder={placeholder}
-          className={`w-full border rounded-lg px-4 py-3 pr-12 font-montserrat text-sm text-[#1C1C1C] placeholder:text-[#AAAAAA] focus:outline-none transition-colors ${
-            error ? "border-[#E31C23]" : "border-[#E0E0E0] focus:border-[#E31C23]"
+          className={`w-full rounded-lg border bg-[var(--input-bg)] px-4 py-3 pr-12 font-montserrat text-sm text-[var(--input-text)] placeholder:text-[var(--text-secondary)] focus:border-[#E31C23] focus:outline-none transition-colors ${
+            error ? "border-[#E31C23]" : "border-[var(--input-border)]"
           }`}
         />
         <button
           type="button"
           onClick={() => setShow(!show)}
           aria-label={show ? "Ocultar contraseña" : "Mostrar contraseña"}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-[#4A4A4A] hover:text-[#E31C23] transition-colors"
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[#E31C23] transition-colors"
         >
           {show ? (
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -96,7 +96,9 @@ function PasswordInput({
           )}
         </button>
       </div>
-      {error && <p className="font-montserrat text-xs text-[#E31C23]">{error}</p>}
+      {error && (
+        <p className="font-montserrat text-xs text-[#E31C23] dark:text-[#ff7377]">{error}</p>
+      )}
     </div>
   )
 }
@@ -116,19 +118,21 @@ function Field({
     <div className="flex flex-col gap-1">
       <label
         htmlFor={id}
-        className="font-montserrat text-xs font-semibold text-[#4A4A4A] uppercase tracking-wide"
+        className="font-montserrat text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide"
       >
         {label}
       </label>
       {children}
-      {error && <p className="font-montserrat text-xs text-[#E31C23]">{error}</p>}
+      {error && (
+        <p className="font-montserrat text-xs text-[#E31C23] dark:text-[#ff7377]">{error}</p>
+      )}
     </div>
   )
 }
 
 const inputClass = (error?: string) =>
-  `border rounded-lg px-4 py-3 font-montserrat text-sm text-[#1C1C1C] placeholder:text-[#AAAAAA] focus:outline-none transition-colors ${
-    error ? "border-[#E31C23]" : "border-[#E0E0E0] focus:border-[#E31C23]"
+  `rounded-lg border bg-[var(--input-bg)] px-4 py-3 font-montserrat text-sm text-[var(--input-text)] placeholder:text-[var(--text-secondary)] focus:border-[#E31C23] focus:outline-none transition-colors ${
+    error ? "border-[#E31C23]" : "border-[var(--input-border)]"
   }`
 
 export default function RegistroPage() {
@@ -141,14 +145,14 @@ export default function RegistroPage() {
 
 function RegistroFallback() {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#F5F5F5] px-4 py-12">
+    <main className="flex min-h-screen items-center justify-center bg-surface-2 px-4 py-12 text-[var(--text-primary)]">
       <div
-        className="w-full max-w-md rounded-2xl bg-white px-8 py-10 text-center shadow-sm"
+        className="w-full max-w-md rounded-2xl border border-[var(--border)] bg-surface-1 px-8 py-10 text-center shadow-sm"
         aria-busy="true"
         aria-live="polite"
       >
         <div className="mx-auto mb-5 h-12 w-12 animate-pulse rounded-full bg-[#E31C23]/10" />
-        <p className="font-montserrat text-sm text-[#4A4A4A]">Preparando el registro...</p>
+        <p className="font-montserrat text-sm text-[var(--text-secondary)]">Preparando el registro...</p>
       </div>
     </main>
   )
@@ -297,19 +301,19 @@ function RegistroForm() {
   }
 
   return (
-    <main className="min-h-screen bg-[#F5F5F5] flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-sm px-8 py-10">
+    <main className="flex min-h-screen items-center justify-center bg-surface-2 px-4 py-12 text-[var(--text-primary)]">
+      <div className="w-full max-w-md rounded-2xl border border-[var(--border)] bg-surface-1 px-8 py-10 shadow-sm">
         {/* Header */}
         <div className="flex flex-col items-center gap-2 mb-8">
           <div className="flex items-center gap-2">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="#E31C23" aria-hidden="true">
               <polygon points="10,1 12.9,7 19.5,7.6 14.5,12 16.2,18.5 10,15 3.8,18.5 5.5,12 0.5,7.6 7.1,7" />
             </svg>
-            <span className="font-barlow font-bold text-2xl tracking-widest text-[#1C1C1C] uppercase">
+            <span className="font-barlow font-bold text-2xl tracking-widest text-[var(--text-primary)] uppercase">
               One Star
             </span>
           </div>
-          <h1 className="font-barlow font-bold text-xl tracking-wide text-[#1C1C1C] uppercase mt-2">
+          <h1 className="mt-2 font-barlow text-xl font-bold uppercase tracking-wide text-[var(--text-primary)]">
             Crear cuenta
           </h1>
         </div>
@@ -381,7 +385,7 @@ function RegistroForm() {
               type="date"
               value={birthDate}
               onChange={(e) => setBirthDate(e.target.value)}
-              className={inputClass(errors.birthDate)}
+              className={`${inputClass(errors.birthDate)} dark:[color-scheme:dark]`}
             />
           </Field>
 
@@ -389,7 +393,7 @@ function RegistroForm() {
           <div className="flex flex-col gap-1">
             <label
               htmlFor="email"
-              className="font-montserrat text-xs font-semibold text-[#4A4A4A] uppercase tracking-wide"
+              className="font-montserrat text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide"
             >
               Correo electrónico
             </label>
@@ -407,13 +411,15 @@ function RegistroForm() {
                 className={`w-full ${inputClass(errors.email)}`}
               />
               {emailChecking && (
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[#4A4A4A] text-xs font-montserrat">
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 font-montserrat text-xs text-[var(--text-secondary)]">
                   ...
                 </span>
               )}
             </div>
             {errors.email && (
-              <p className="font-montserrat text-xs text-[#E31C23]">{errors.email}</p>
+              <p className="font-montserrat text-xs text-[#E31C23] dark:text-[#ff7377]">
+                {errors.email}
+              </p>
             )}
           </div>
 
@@ -445,7 +451,7 @@ function RegistroForm() {
               id="preferredBrand"
               value={preferredBrand}
               onChange={(e) => setPreferredBrand(e.target.value)}
-              className={inputClass(errors.preferredBrand)}
+              className={`${inputClass(errors.preferredBrand)} dark:[color-scheme:dark]`}
             >
               <option value="">Selecciona una marca</option>
               {BRANDS.map((b) => (
@@ -458,7 +464,7 @@ function RegistroForm() {
 
           {/* Género */}
           <div className="flex flex-col gap-2">
-            <span className="font-montserrat text-xs font-semibold text-[#4A4A4A] uppercase tracking-wide">
+            <span className="font-montserrat text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide">
               Género
             </span>
             <div className="flex gap-6">
@@ -468,7 +474,7 @@ function RegistroForm() {
               ].map((g) => (
                 <label
                   key={g.value}
-                  className="flex items-center gap-2 cursor-pointer font-montserrat text-sm text-[#1C1C1C]"
+                  className="flex cursor-pointer items-center gap-2 font-montserrat text-sm text-[var(--text-primary)]"
                 >
                   <input
                     type="radio"
@@ -483,7 +489,9 @@ function RegistroForm() {
               ))}
             </div>
             {errors.gender && (
-              <p className="font-montserrat text-xs text-[#E31C23]">{errors.gender}</p>
+              <p className="font-montserrat text-xs text-[#E31C23] dark:text-[#ff7377]">
+                {errors.gender}
+              </p>
             )}
           </div>
 
@@ -496,19 +504,27 @@ function RegistroForm() {
                 onChange={(e) => setTerms(e.target.checked)}
                 className="mt-0.5 accent-[#E31C23] shrink-0"
               />
-              <span className="font-montserrat text-xs text-[#4A4A4A]">
+              <span className="font-montserrat text-xs text-[var(--text-secondary)]">
                 Acepto los{" "}
-                <Link href="/terminos" className="text-[#E31C23] hover:underline">
+                <Link
+                  href="/terminos"
+                  className="text-[#E31C23] hover:underline dark:text-[#ff7377]"
+                >
                   términos y condiciones
                 </Link>{" "}
                 y la{" "}
-                <Link href="/privacidad" className="text-[#E31C23] hover:underline">
+                <Link
+                  href="/privacidad"
+                  className="text-[#E31C23] hover:underline dark:text-[#ff7377]"
+                >
                   política de privacidad
                 </Link>
               </span>
             </label>
             {errors.terms && (
-              <p className="font-montserrat text-xs text-[#E31C23] ml-6">{errors.terms}</p>
+              <p className="ml-6 font-montserrat text-xs text-[#E31C23] dark:text-[#ff7377]">
+                {errors.terms}
+              </p>
             )}
           </div>
 
@@ -523,14 +539,17 @@ function RegistroForm() {
               }}
               className="mt-0.5 accent-[#E31C23] shrink-0"
             />
-            <span className="font-montserrat text-xs text-[#4A4A4A]">
+            <span className="font-montserrat text-xs text-[var(--text-secondary)]">
               Quiero recibir ofertas y novedades
             </span>
           </label>
 
           {/* Submit error */}
           {submitError && (
-            <p className="font-montserrat text-xs text-[#E31C23] text-center" role="alert">
+            <p
+              className="text-center font-montserrat text-xs text-[#E31C23] dark:text-[#ff7377]"
+              role="alert"
+            >
               {submitError}
             </p>
           )}
@@ -545,9 +564,12 @@ function RegistroForm() {
           </button>
         </form>
 
-        <p className="mt-8 text-center font-montserrat text-sm text-[#4A4A4A]">
+        <p className="mt-8 text-center font-montserrat text-sm text-[var(--text-secondary)]">
           ¿Ya tienes cuenta?{" "}
-          <Link href={loginUrl} className="text-[#E31C23] font-semibold hover:underline">
+          <Link
+            href={loginUrl}
+            className="font-semibold text-[#E31C23] hover:underline dark:text-[#ff7377]"
+          >
             Inicia sesión
           </Link>
         </p>
