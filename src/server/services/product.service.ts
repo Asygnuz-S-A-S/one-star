@@ -27,10 +27,30 @@ export interface ProductImageDTO {
   color: string | null
 }
 
+/**
+ * Datos de la sede dueña de un nivel de inventario. La ficha de producto los
+ * necesita completos para dibujar el mapa de disponibilidad, no solo el nombre.
+ */
+export interface InventoryStoreDTO {
+  id: string
+  name: string
+  address: string
+  city: string
+  phone: string | null
+  schedule: string | null
+  googleMapsUrl: string | null
+  latitude: number | null
+  longitude: number | null
+  isWebWarehouse: boolean
+  isActive: boolean
+}
+
 export interface InventoryLevelDTO {
   id: string
   storeLocationId: string | null
   storeName: string | null
+  /** `null` cuando el nivel corresponde a la bodega web (sin sede física). */
+  storeLocation: InventoryStoreDTO | null
   stock: number
 }
 
@@ -160,7 +180,7 @@ type RawVariant = {
     id: string
     storeLocationId: string | null
     stock: number
-    storeLocation?: { name: string } | null
+    storeLocation?: InventoryStoreDTO | null
   }>
 }
 
@@ -220,6 +240,7 @@ function mapVariant(v: RawVariant): VariantDTO {
     id: inv.id,
     storeLocationId: inv.storeLocationId,
     storeName: inv.storeLocation?.name ?? null,
+    storeLocation: inv.storeLocation ?? null,
     stock: inv.stock
   }))
   

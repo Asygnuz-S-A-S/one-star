@@ -4,7 +4,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { motion } from "motion/react"
-import { useRef, useState, useSyncExternalStore } from "react"
+import { useMemo, useRef, useState, useSyncExternalStore } from "react"
 import { useSession } from "@/lib/auth-client"
 import { useWishlistStore } from "@/store"
 import { PLACEHOLDER_IMAGE_URL } from "@/lib/product-image"
@@ -80,23 +80,40 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
   const realFrames = [imageUrl, secondaryImageUrl, ...(gallery || [])].filter(Boolean) as string[]
   // Producto sin fotos: imagen predeterminada de la tienda en vez de un hueco.
   const hasRealImages = realFrames.length > 0
-  const frames = hasRealImages ? realFrames : [PLACEHOLDER_IMAGE_URL]
+  const allFrames = hasRealImages ? realFrames : [PLACEHOLDER_IMAGE_URL]
   const [activeFrame, setActiveFrame] = useState(0)
   const [activeColorName, setActiveColorName] = useState<string | null>(null)
   const imageFrameRef = useRef<HTMLDivElement | null>(null)
   const imageColorOptions = (colorSummary?.imageOptions ?? []).filter((option) =>
-    frames.includes(option.imageUrl)
+    allFrames.includes(option.imageUrl)
   )
+
+  /**
+   * Con un color activo la secuencia se limita a las fotos de ese color: pasar
+   * el cursor recorre solo ese modelo en vez de mezclar todos los colores.
+   * Sin color activo se recorre la galería completa, como antes.
+   */
+  const frames = useMemo(() => {
+    if (!activeColorName) return allFrames
+    const option = colorSummary?.options.find((item) => item.name === activeColorName)
+    const colorFrames = (option?.imageUrls ?? []).filter((url) => allFrames.includes(url))
+    return colorFrames.length > 0 ? colorFrames : allFrames
+    // `allFrames` se reconstruye en cada render; su contenido depende de estas props.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeColorName, colorSummary, imageUrl, secondaryImageUrl, gallery])
+
+  // Al cambiar de color el conjunto se acorta: el índice previo podría quedar fuera.
+  const visibleFrame = Math.min(activeFrame, frames.length - 1)
 
   const handleMouseMoveSequence = (e: React.MouseEvent<HTMLElement>) => {
     if (frames.length <= 1) return
     const rect = imageFrameRef.current?.getBoundingClientRect()
     if (!rect) return
     const x = Math.max(0, Math.min(0.9999, (e.clientX - rect.left) / rect.width))
-    // Distribuir las N imágenes de forma uniforme a lo largo del ancho
-    const frameIndex = Math.floor(x * frames.length)
-    setActiveColorName(null)
-    setActiveFrame(frameIndex)
+    // Distribuir las N imágenes de forma uniforme a lo largo del ancho.
+    // El color activo se conserva: recorrer la imagen no debe reintroducir
+    // las fotos de los demás colores.
+    setActiveFrame(Math.floor(x * frames.length))
   }
 
   const handleMouseEnterSequence = () => {
@@ -116,11 +133,12 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
   }
 
   const previewColorImage = (option: ProductCardColorImageOption) => {
-    const frameIndex = frames.indexOf(option.imageUrl)
-    if (frameIndex < 0) return
+    if (!allFrames.includes(option.imageUrl)) return
 
+    // Al fijar el color, `frames` pasa a ser el de ese color y su primera
+    // foto es justamente la de la miniatura.
     setActiveColorName(option.name)
-    setActiveFrame(frameIndex)
+    setActiveFrame(0)
   }
 
   return (
@@ -159,7 +177,7 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
                 priority={priority && index === 0}
                 className={`object-center transition-opacity duration-150 ease-in-out ${
                   hasRealImages ? "object-cover" : "object-contain"
-                } ${index === activeFrame ? "opacity-100" : "opacity-0"}`}
+                } ${index === visibleFrame ? "opacity-100" : "opacity-0"}`}
                 sizes="(max-width: 768px) 50vw, 25vw"
               />
             ))}
@@ -194,7 +212,7 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
         )}
       </div>
 
-      {imageColorOptions.length > 0 && colorSummary?.label && (
+      {href && imageColorOptions.length > 0 && colorSummary?.label && (
         <div
           className="relative z-30 px-1"
           onMouseMove={(event) => event.stopPropagation()}
@@ -207,27 +225,29 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
             {imageColorOptions.map((option) => {
               const isActive = activeColorName
                 ? activeColorName === option.name
-                : frames[activeFrame] === option.imageUrl
+                : frames[visibleFrame] === option.imageUrl
 
+              // Enlace en vez de botón: al hacer clic se abre la ficha ya
+              // posicionada en ese color. Pasar el cursor sigue mostrando la
+              // vista previa sobre la tarjeta, sin salir del catálogo.
               return (
-                <button
+                <Link
                   key={option.name}
-                  type="button"
+                  href={`${href}?color=${encodeURIComponent(option.name)}`}
+                  prefetch={false}
                   className={`relative h-10 w-10 shrink-0 overflow-hidden rounded-sm bg-[#F5F5F5] transition-[box-shadow,opacity] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E31C23] focus-visible:ring-offset-2 dark:bg-white/5 dark:focus-visible:ring-offset-[#0F0F0F] ${
                     isActive
                       ? "ring-2 ring-[#1C1C1C] dark:ring-white"
                       : "opacity-75 ring-1 ring-[#D4D4D4] hover:opacity-100 dark:ring-white/25"
                   }`}
                   aria-label={`Ver ${name} en color ${option.name}`}
-                  aria-pressed={isActive}
+                  aria-current={isActive ? "true" : undefined}
                   title={option.name}
                   onPointerEnter={() => previewColorImage(option)}
                   onFocus={() => previewColorImage(option)}
-                  onClick={(event) => {
-                    event.preventDefault()
-                    event.stopPropagation()
-                    previewColorImage(option)
-                  }}
+                  // El clic navega por su cuenta; solo se frena la propagación
+                  // para que no lo capture el enlace que cubre toda la tarjeta.
+                  onClick={(event) => event.stopPropagation()}
                 >
                   <Image
                     src={option.imageUrl}
@@ -236,7 +256,7 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
                     sizes="40px"
                     className="object-cover"
                   />
-                </button>
+                </Link>
               )
             })}
           </div>

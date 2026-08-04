@@ -2,7 +2,7 @@ import { notFound } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
 import type { Metadata } from "next"
-import { getProductBySlug } from "@/server/services/product.service"
+import { getProductBySlug, type InventoryStoreDTO } from "@/server/services/product.service"
 import { getProductReviews, getProductReviewStats } from "@/server/services/review.service"
 import ProductDetail from "@/components/product/ProductDetail"
 import CrossSelling from "@/components/product/CrossSelling"
@@ -13,6 +13,8 @@ import Reveal from "@/components/ui/Reveal"
 
 interface PageProps {
   params: Promise<{ slug: string }>
+  /** `?color=` llega desde las miniaturas del catálogo para abrir ese color. */
+  searchParams?: Promise<{ color?: string }>
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -34,8 +36,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 }
 
-export default async function ProductPage({ params }: PageProps) {
+export default async function ProductPage({ params, searchParams }: PageProps) {
   const { slug } = await params
+  const { color: initialColor } = (await searchParams) ?? {}
   const product = await getProductBySlug(slug)
 
   if (!product) notFound()
@@ -72,10 +75,10 @@ export default async function ProductPage({ params }: PageProps) {
   }
 
   // Compute store availability from variants inventory
-  const storeMap = new Map<string, { store: any; stock: number }>()
+  const storeMap = new Map<string, { store: InventoryStoreDTO; stock: number }>()
   let webStock = 0
   for (const variant of product.variants) {
-    for (const inv of (variant as any).inventory ?? []) {
+    for (const inv of variant.inventory ?? []) {
       if (!inv.storeLocation || inv.storeLocation.isWebWarehouse) {
         webStock += inv.stock
       } else if (inv.storeLocation.isActive) {
@@ -131,7 +134,11 @@ export default async function ProductPage({ params }: PageProps) {
         </nav>
 
         {/* ── Main product grid ── */}
-        <ProductDetail product={product} reviewStats={productReviewStats} />
+        <ProductDetail
+          product={product}
+          reviewStats={productReviewStats}
+          initialColor={initialColor}
+        />
 
         {/* ── Extended description hero (Nike-style) ── */}
         {(product.extendedDescription || product.description) && (

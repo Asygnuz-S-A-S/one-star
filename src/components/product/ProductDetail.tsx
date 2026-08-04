@@ -9,16 +9,25 @@ import { filterImagesByColor } from "@/lib/product-image"
 interface ProductDetailProps {
   product: ProductWithRelations
   reviewStats?: { avg: number; count: number; distribution: number[] }
+  /**
+   * Color con el que abrir la ficha, tomado de `?color=` en la URL. Permite
+   * que una miniatura del catálogo lleve directo a ese color. Si no coincide
+   * con ninguna variante se ignora y se usa el primero.
+   */
+  initialColor?: string
 }
 
 /**
  * Une galería e información porque comparten el color seleccionado:
  * al cambiar de color, la galería pasa a mostrar las fotos de ese color.
  */
-export default function ProductDetail({ product, reviewStats }: ProductDetailProps) {
-  const [selectedColor, setSelectedColor] = useState<string>(
-    product.variants[0]?.color ?? ""
-  )
+export default function ProductDetail({ product, reviewStats, initialColor }: ProductDetailProps) {
+  const [selectedColor, setSelectedColor] = useState<string>(() => {
+    const match = product.variants.find(
+      (variant) => variant.color?.toLowerCase() === initialColor?.trim().toLowerCase()
+    )
+    return match?.color ?? product.variants[0]?.color ?? ""
+  })
 
   const visibleImages = useMemo(
     () => filterImagesByColor(product.images, selectedColor),

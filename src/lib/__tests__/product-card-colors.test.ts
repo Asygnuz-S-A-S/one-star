@@ -35,7 +35,7 @@ describe("buildProductCardColorSummary", () => {
       []
     )
 
-    expect(summary.options).toEqual([{ name: "Azul" }])
+    expect(summary.options).toEqual([{ name: "Azul", imageUrls: [] }])
     expect(summary.label).toBe("1 color")
   })
 
@@ -50,12 +50,32 @@ describe("buildProductCardColorSummary", () => {
     )
 
     expect(summary.options).toEqual([
-      { name: "Café", imageUrl: "/cafe-1.jpg" },
-      { name: "Negro" },
+      { name: "Café", imageUrl: "/cafe-1.jpg", imageUrls: ["/cafe-1.jpg", "/cafe-2.jpg"] },
+      { name: "Negro", imageUrls: [] },
     ])
     expect(summary.imageOptions).toEqual([
-      { name: "Café", imageUrl: "/cafe-1.jpg" },
+      { name: "Café", imageUrl: "/cafe-1.jpg", imageUrls: ["/cafe-1.jpg", "/cafe-2.jpg"] },
     ])
+  })
+
+  test("reúne todas las fotos de cada color, en orden, para recorrerlas al pasar el cursor", () => {
+    const summary = buildProductCardColorSummary(
+      [{ color: "Azul" }, { color: "Rosa" }, { color: "Verde" }],
+      [
+        { url: "/azul-1.jpg", color: "Azul" },
+        { url: "/rosa-1.jpg", color: "rosa" },
+        { url: "/azul-2.jpg", color: "azul" },
+        { url: "/general.jpg", color: null },
+        { url: "/rosa-2.jpg", color: "Rosa" },
+      ]
+    )
+
+    const byName = new Map(summary.options.map((option) => [option.name, option.imageUrls]))
+
+    expect(byName.get("Azul")).toEqual(["/azul-1.jpg", "/azul-2.jpg"])
+    expect(byName.get("Rosa")).toEqual(["/rosa-1.jpg", "/rosa-2.jpg"])
+    // Un color sin fotos propias no hereda las generales.
+    expect(byName.get("Verde")).toEqual([])
   })
 
   test("limita las opciones visibles sin perder el total real", () => {
@@ -77,6 +97,7 @@ describe("buildProductCardColorSummary", () => {
       colors.map((color) => ({
         name: color,
         imageUrl: `/${color.toLowerCase()}.jpg`,
+        imageUrls: [`/${color.toLowerCase()}.jpg`],
       }))
     )
   })

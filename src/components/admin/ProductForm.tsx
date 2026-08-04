@@ -1,12 +1,11 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useState, useTransition, useCallback, useMemo, useRef, useEffect } from "react"
+import { useState, useTransition, useCallback, useMemo, useEffect } from "react"
 import type { Category, StoreLocation } from "@prisma/client"
 import type { ProductWithRelations } from "@/types/admin"
 import { createProduct, updateProduct, deleteProduct, searchProducts } from "@/app/admin/productos/actions"
-import { draggable, dropTargetForElements, monitorForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
-import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine"
+import { monitorForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
 import {
   PRODUCT_COLORS,
   buildColorSelectGroups,
@@ -15,6 +14,13 @@ import {
   isRealColor,
   type ColorPalette,
 } from "@/lib/colors"
+import ProductImagesByColor from "./images/ProductImagesByColor"
+import {
+  MIN_PRODUCT_IMAGES,
+  isColorPanelDropData,
+  isImageDragData,
+  type ImageRow,
+} from "./images/types"
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -29,18 +35,6 @@ interface VariantRow {
   sizeCM: string
   sizeEUR: string
 }
-
-interface ImageRow {
-  id?: string
-  url: string
-  alt: string
-  position: number
-  /** Color de variante al que pertenece la foto. null = imagen general del producto. */
-  color: string | null
-}
-
-/** Valor del selector que representa "imagen general, sin color asignado". */
-const NO_COLOR = "__general__"
 
 interface CrossSellItem {
   id: string
@@ -106,148 +100,6 @@ function Field({ label, required, children, hint }: { label: string; required?: 
 
 const inputClass =
   "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-[#1C1C1C] bg-white focus:outline-none focus:ring-2 focus:ring-[#E31C23] placeholder:text-gray-400"
-
-// ─── Image Drag & Drop ─────────────────────────────────────────────────────────
-
-interface ImageDragData {
-  type: "image-card"
-  index: number
-  [key: string]: unknown
-}
-
-function isImageDragData(data: Record<string, unknown>): data is ImageDragData {
-  return data.type === "image-card" && typeof data.index === "number"
-}
-
-interface DraggableImageCardProps {
-  image: ImageRow
-  index: number
-  total: number
-  isDragSource: boolean
-  isDragTarget: boolean
-  availableColors: string[]
-  onRemove: () => void
-  onMove: (dir: -1 | 1) => void
-  onColorChange: (color: string | null) => void
-  onDragEnter: (index: number) => void
-  onDragLeave: () => void
-}
-
-function DraggableImageCard({
-  image, index, total, isDragSource, isDragTarget, availableColors,
-  onRemove, onMove, onColorChange, onDragEnter, onDragLeave,
-}: DraggableImageCardProps) {
-  const cardRef = useRef<HTMLDivElement>(null)
-  const handleRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const card = cardRef.current
-    const handle = handleRef.current
-    if (!card || !handle) return
-
-    return combine(
-      draggable({
-        element: card,
-        dragHandle: handle,
-        getInitialData: (): Record<string, unknown> => ({ type: "image-card", index }),
-      }),
-      dropTargetForElements({
-        element: card,
-        canDrop: ({ source }) =>
-          isImageDragData(source.data) && source.data.index !== index,
-        getData: (): Record<string, unknown> => ({ type: "image-card", index }),
-        onDragEnter: () => onDragEnter(index),
-        onDragLeave: () => onDragLeave(),
-      }),
-    )
-  }, [index, onDragEnter, onDragLeave])
-
-  return (
-    <div
-      ref={cardRef}
-      className={`relative group select-none transition-opacity duration-150 ${isDragSource ? "opacity-30" : ""}`}
-    >
-      {/* Drop indicator line */}
-      {isDragTarget && (
-        <span className="pointer-events-none absolute -left-1.5 top-0 bottom-0 w-0.5 rounded-full bg-[#E31C23] z-20" />
-      )}
-
-      {/* Drag handle */}
-      <div
-        ref={handleRef}
-        title="Arrastrar para reordenar"
-        className="absolute top-1 left-1 z-10 p-0.5 bg-black/50 rounded cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity"
-      >
-        <svg className="w-3.5 h-3.5 text-white" fill="currentColor" viewBox="0 0 16 16" aria-hidden>
-          <circle cx="5"  cy="4"  r="1.2" />
-          <circle cx="5"  cy="8"  r="1.2" />
-          <circle cx="5"  cy="12" r="1.2" />
-          <circle cx="11" cy="4"  r="1.2" />
-          <circle cx="11" cy="8"  r="1.2" />
-          <circle cx="11" cy="12" r="1.2" />
-        </svg>
-      </div>
-
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={image.url}
-        alt={image.alt}
-        draggable={false}
-        className={`w-20 h-20 object-cover rounded-lg border transition-all ${
-          isDragTarget ? "border-[#E31C23] shadow-md" : "border-gray-200"
-        }`}
-        onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder-product.svg" }}
-      />
-
-      {index === 0 && (
-        <span className="absolute top-1 right-1 bg-[#E31C23] text-white text-[10px] px-1 rounded leading-tight">
-          Principal
-        </span>
-      )}
-
-      <div className="absolute inset-0 rounded-lg bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
-        <button
-          type="button"
-          onClick={() => onMove(-1)}
-          disabled={index === 0}
-          className="text-white text-sm disabled:opacity-30"
-          title="Mover izquierda"
-        >←</button>
-        <button
-          type="button"
-          onClick={onRemove}
-          className="text-white text-sm bg-[#E31C23] rounded-full w-5 h-5 flex items-center justify-center"
-          title="Eliminar"
-        >×</button>
-        <button
-          type="button"
-          onClick={() => onMove(1)}
-          disabled={index === total - 1}
-          className="text-white text-sm disabled:opacity-30"
-          title="Mover derecha"
-        >→</button>
-      </div>
-
-      {/* Color de la foto — define con qué variante se muestra en la ficha */}
-      <select
-        value={image.color ?? NO_COLOR}
-        onChange={(e) => onColorChange(e.target.value === NO_COLOR ? null : e.target.value)}
-        className="mt-1 w-20 text-[10px] border border-gray-200 rounded px-1 py-0.5 bg-white text-[#1C1C1C] focus:outline-none focus:ring-1 focus:ring-[#E31C23]"
-        title="Color al que pertenece esta foto"
-        aria-label={`Color de la imagen ${index + 1}`}
-      >
-        <option value={NO_COLOR}>General</option>
-        {availableColors.map((c) => (
-          <option key={c} value={c}>{c}</option>
-        ))}
-      </select>
-
-      <p className="text-[10px] text-[#4A4A4A] mt-0.5 text-center truncate max-w-[80px]">
-        {image.alt || "sin alt"}
-      </p>
-    </div>
-  )
-}
 
 // ─── Main Component ────────────────────────────────────────────────────────────
 
@@ -329,12 +181,9 @@ export default function ProductForm({
       color: img.color ?? null,
     })) ?? []
   )
-  const [imageUrlInput, setImageUrlInput] = useState("")
-  const [imageAltInput, setImageAltInput] = useState("")
-  // Color asignado a las fotos que se suban a continuación
-  const [uploadColor, setUploadColor] = useState<string>(NO_COLOR)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const [uploadingFiles, setUploadingFiles] = useState(false)
+  // Color del panel que está subiendo ahora mismo (null = el panel "General").
+  // `undefined` significa que no hay ninguna subida en curso.
+  const [uploadingColor, setUploadingColor] = useState<string | null | undefined>(undefined)
   const [uploadError, setUploadError] = useState<string | null>(null)
 
   // Cross-sells
@@ -362,19 +211,6 @@ export default function ProductForm({
     [variants]
   )
 
-  // Cuántas fotos tiene cada color — permite avisar de colores sin foto
-  const imageCountByColor = useMemo(() => {
-    const counts = new Map<string, number>()
-    for (const img of images) {
-      if (!img.color) continue
-      counts.set(img.color, (counts.get(img.color) ?? 0) + 1)
-    }
-    return counts
-  }, [images])
-
-  const generalImageCount = images.filter((img) => !img.color).length
-  const colorsWithoutImages = variantColors.filter((c) => !imageCountByColor.has(c))
-
   useEffect(() => {
     return monitorForElements({
       onDragStart: ({ source }) => {
@@ -384,17 +220,41 @@ export default function ProductForm({
         setDraggingIdx(null)
         setDragOverIdx(null)
         if (!isImageDragData(source.data)) return
+
+        // El primer destino es el más interno: una tarjeta si se soltó encima
+        // de otra foto, o el panel del color si se soltó en su zona libre.
         const [target] = location.current.dropTargets
-        if (!target || !isImageDragData(target.data)) return
+        if (!target) return
         const from = source.data.index
-        const to = target.data.index
-        if (from === to) return
-        setImages((prev) => {
-          const next = [...prev]
-          const [moved] = next.splice(from, 1)
-          next.splice(to, 0, moved)
-          return next.map((img, i) => ({ ...img, position: i }))
-        })
+
+        // Sobre otra foto: se reordena y, si esa foto es de otro color, la
+        // arrastrada adopta ese color (arrastrar entre secciones la traslada).
+        if (isImageDragData(target.data)) {
+          const to = target.data.index
+          if (from === to) return
+          setImages((prev) => {
+            const targetColor = prev[to]?.color ?? null
+            const next = [...prev]
+            const [moved] = next.splice(from, 1)
+            // Tras quitar el origen, todo lo que estaba detrás corre una posición.
+            const insertAt = from < to ? to - 1 : to
+            next.splice(insertAt, 0, { ...moved, color: targetColor })
+            return next.map((img, i) => ({ ...img, position: i }))
+          })
+          return
+        }
+
+        // Sobre la zona libre de un panel: la foto pasa al final de ese color.
+        if (isColorPanelDropData(target.data)) {
+          const targetColor = target.data.color
+          setImages((prev) => {
+            if (prev[from]?.color === targetColor) return prev
+            const next = [...prev]
+            const [moved] = next.splice(from, 1)
+            next.push({ ...moved, color: targetColor })
+            return next.map((img, i) => ({ ...img, position: i }))
+          })
+        }
       },
     })
   }, [])
@@ -460,12 +320,11 @@ export default function ProductForm({
     return new Set(skus).size !== skus.length
   }
 
-  async function handleFileUpload(files: FileList | null) {
+  async function handleFileUpload(files: FileList | null, targetColor: string | null) {
     if (!files || files.length === 0) return
-    setUploadingFiles(true)
+    setUploadingColor(targetColor)
     setUploadError(null)
 
-    const targetColor = uploadColor === NO_COLOR ? null : uploadColor
     const results: ImageRow[] = []
     for (const file of Array.from(files)) {
       const fd = new FormData()
@@ -495,22 +354,15 @@ export default function ProductForm({
         return next.map((img, i) => ({ ...img, position: i }))
       })
     }
-    setUploadingFiles(false)
+    setUploadingColor(undefined)
   }
 
-  function addImageFromUrl() {
-    if (!imageUrlInput.trim()) return
+  function addImageFromUrl(url: string, alt: string, color: string | null) {
+    if (!url.trim()) return
     setImages((prev) => [
       ...prev,
-      {
-        url: imageUrlInput.trim(),
-        alt: imageAltInput.trim() || name,
-        position: prev.length,
-        color: uploadColor === NO_COLOR ? null : uploadColor,
-      },
+      { url: url.trim(), alt: alt.trim() || name, position: prev.length, color },
     ])
-    setImageUrlInput("")
-    setImageAltInput("")
   }
 
   function removeImage(idx: number) {
@@ -521,24 +373,27 @@ export default function ProductForm({
     setImages((prev) => prev.map((img, i) => (i === idx ? { ...img, color } : img)))
   }
 
-  /** Reordena la lista agrupando las fotos por color, respetando el orden de las variantes. */
-  function groupImagesByColor() {
-    setImages((prev) => {
-      const order = new Map(variantColors.map((c, i) => [c, i]))
-      const rank = (img: ImageRow) =>
-        img.color === null ? Number.MAX_SAFE_INTEGER : order.get(img.color) ?? Number.MAX_SAFE_INTEGER - 1
-      return [...prev]
-        .sort((a, b) => rank(a) - rank(b))
-        .map((img, i) => ({ ...img, position: i }))
-    })
-  }
+  /**
+   * Mueve una foto dentro de su propia sección de color. Se busca el vecino del
+   * mismo color en la dirección pedida: como las fotos de distintos colores están
+   * intercaladas en la lista, un simple `idx ± 1` la sacaría de su sección.
+   */
+  function moveImageWithinGroup(idx: number, dir: -1 | 1) {
+    const current = images[idx]
+    if (!current) return
 
-  function moveImage(idx: number, dir: -1 | 1) {
-    const newImages = [...images]
-    const target = idx + dir
-    if (target < 0 || target >= newImages.length) return
-    ;[newImages[idx], newImages[target]] = [newImages[target], newImages[idx]]
-    setImages(newImages.map((img, i) => ({ ...img, position: i })))
+    let neighbor = -1
+    for (let i = idx + dir; i >= 0 && i < images.length; i += dir) {
+      if (images[i].color === current.color) {
+        neighbor = i
+        break
+      }
+    }
+    if (neighbor < 0) return
+
+    const next = [...images]
+    ;[next[idx], next[neighbor]] = [next[neighbor], next[idx]]
+    setImages(next.map((img, i) => ({ ...img, position: i })))
   }
 
   const handleCrossSearch = useCallback(async (q: string) => {
@@ -581,7 +436,18 @@ export default function ProductForm({
     if (!basePrice || isNaN(parseFloat(basePrice))) { setError("El precio base es requerido."); return }
     if (isOnSale && (!salePrice || isNaN(parseFloat(salePrice)))) { setError("Ingresa el precio de oferta."); return }
     if (hasDuplicateSkus()) { setError("Hay SKUs duplicados en las variantes."); return }
-    if (images.length < 5) { setError("Sube al menos 5 imágenes del producto."); return }
+    if (images.length < MIN_PRODUCT_IMAGES) {
+      setError(`Sube al menos ${MIN_PRODUCT_IMAGES} imágenes del producto.`)
+      return
+    }
+    // Las fotos se publican por color: una sin asignar no se vería en la ficha.
+    const unassignedImages = images.filter((img) => !img.color).length
+    if (unassignedImages > 0) {
+      setError(
+        `Hay ${unassignedImages} foto(s) sin color asignado. Arrástralas a la sección del color que corresponda antes de guardar.`
+      )
+      return
+    }
 
     const formData = new FormData()
     formData.set("name", name)
@@ -1008,163 +874,22 @@ export default function ProductForm({
 
       {/* E. Imágenes */}
       <Section title="Imágenes por color">
-        <p className="text-xs text-[#4A4A4A] mb-4">
-          Mínimo 5 fotos requeridas · {images.length} cargada(s)
-          {images.length < 5 && (
-            <span className="text-[#E31C23] ml-1">— faltan {5 - images.length}</span>
-          )}
-        </p>
-
-        {/* Selector del color al que se asignarán las fotos que se suban */}
-        {variantColors.length > 0 ? (
-          <div className="mb-4 bg-gray-50 border border-gray-200 rounded-lg p-3">
-            <div className="flex items-center gap-3 flex-wrap">
-              <label htmlFor="upload-color" className="text-sm font-medium text-[#1C1C1C]">
-                Subir fotos para el color:
-              </label>
-              <select
-                id="upload-color"
-                value={uploadColor}
-                onChange={(e) => setUploadColor(e.target.value)}
-                className={`${inputClass} w-auto min-w-[160px]`}
-              >
-                <option value={NO_COLOR}>General (todos los colores)</option>
-                {variantColors.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-              {images.length > 1 && (
-                <button
-                  type="button"
-                  onClick={groupImagesByColor}
-                  className="text-xs font-semibold text-[#1C1C1C] border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-white transition-colors"
-                >
-                  Agrupar por color
-                </button>
-              )}
-            </div>
-            <p className="text-xs text-[#4A4A4A] mt-2">
-              En la ficha del producto, al elegir un color el cliente verá solo las fotos de ese
-              color más las marcadas como <strong>General</strong>. Puedes cambiar el color de cada
-              foto en su tarjeta.
-            </p>
-
-            {/* Resumen por color */}
-            <div className="flex flex-wrap gap-2 mt-3">
-              <span className="text-[11px] bg-white border border-gray-200 text-[#4A4A4A] rounded-full px-2.5 py-0.5">
-                General: {generalImageCount}
-              </span>
-              {variantColors.map((c) => {
-                const count = imageCountByColor.get(c) ?? 0
-                return (
-                  <span
-                    key={c}
-                    className={`text-[11px] rounded-full px-2.5 py-0.5 border ${
-                      count === 0
-                        ? "bg-red-50 border-red-200 text-[#E31C23]"
-                        : "bg-white border-gray-200 text-[#4A4A4A]"
-                    }`}
-                  >
-                    {c}: {count}
-                  </span>
-                )
-              })}
-            </div>
-
-            {colorsWithoutImages.length > 0 && (
-              <p className="text-xs text-[#E31C23] mt-2">
-                Sin fotos propias: {colorsWithoutImages.join(", ")}. Se mostrarán las fotos generales.
-              </p>
-            )}
-          </div>
-        ) : (
-          <p className="text-xs text-[#4A4A4A] mb-4">
-            Este producto aún no tiene variantes sincronizadas, así que no hay colores a los cuales
-            asignar fotos. Las imágenes se guardarán como generales.
-          </p>
-        )}
-
-        <div
-          className={`border-2 border-dashed rounded-xl p-8 text-center mb-4 cursor-pointer transition-colors ${uploadingFiles ? "border-gray-300 bg-gray-50 cursor-wait" : "border-gray-200 hover:border-[#E31C23]"}`}
-          onClick={() => !uploadingFiles && fileInputRef.current?.click()}
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => {
-            e.preventDefault()
-            void handleFileUpload(e.dataTransfer.files)
-          }}
-        >
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            className="hidden"
-            onChange={(e) => void handleFileUpload(e.target.files)}
-          />
-          {uploadingFiles ? (
-            <p className="text-[#4A4A4A] text-sm animate-pulse">Subiendo imágenes…</p>
-          ) : (
-            <>
-              <p className="text-[#4A4A4A] text-sm">
-                <span className="font-semibold">Arrastra o haz click</span> — mínimo 5 fotos
-                {uploadColor !== NO_COLOR && (
-                  <span className="text-[#1C1C1C] font-semibold"> · color {uploadColor}</span>
-                )}
-              </p>
-              <p className="text-xs text-gray-400 mt-1">JPG, PNG, WEBP · máx 10 MB por imagen</p>
-            </>
-          )}
-        </div>
-        {uploadError && (
-          <p className="text-[#E31C23] text-sm mb-4">{uploadError}</p>
-        )}
-
-        {/* URL manual */}
-        <div className="flex gap-2 mb-4">
-          <input
-            type="text"
-            value={imageUrlInput}
-            onChange={(e) => setImageUrlInput(e.target.value)}
-            placeholder="URL de imagen (https://…)"
-            className={`${inputClass} flex-1`}
-          />
-          <input
-            type="text"
-            value={imageAltInput}
-            onChange={(e) => setImageAltInput(e.target.value)}
-            placeholder="Texto alternativo"
-            className={`${inputClass} w-40`}
-          />
-          <button
-            type="button"
-            onClick={addImageFromUrl}
-            className="bg-[#1C1C1C] text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-[#4A4A4A] transition-colors whitespace-nowrap"
-          >
-            Agregar URL
-          </button>
-        </div>
-
-        {/* Image list */}
-        {images.length > 0 && (
-          <div className="flex flex-wrap gap-4">
-            {images.map((img, idx) => (
-              <DraggableImageCard
-                key={img.id ?? img.url}
-                image={img}
-                index={idx}
-                total={images.length}
-                isDragSource={draggingIdx === idx}
-                isDragTarget={dragOverIdx === idx && draggingIdx !== idx}
-                availableColors={variantColors}
-                onRemove={() => removeImage(idx)}
-                onMove={(dir) => moveImage(idx, dir)}
-                onColorChange={(color) => setImageColor(idx, color)}
-                onDragEnter={handleDragEnterCard}
-                onDragLeave={handleDragLeaveCard}
-              />
-            ))}
-          </div>
-        )}
+        <ProductImagesByColor
+          images={images}
+          variantColors={variantColors}
+          uploadingColor={uploadingColor ?? null}
+          isUploading={uploadingColor !== undefined}
+          uploadError={uploadError}
+          onUpload={(files, color) => void handleFileUpload(files, color)}
+          onAddUrl={addImageFromUrl}
+          onRemove={removeImage}
+          onColorChange={setImageColor}
+          onMoveWithinGroup={moveImageWithinGroup}
+          draggingIdx={draggingIdx}
+          dragOverIdx={dragOverIdx}
+          onDragEnter={handleDragEnterCard}
+          onDragLeave={handleDragLeaveCard}
+        />
       </Section>
 
       {/* F. Cross-selling */}

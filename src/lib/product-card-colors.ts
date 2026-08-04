@@ -12,7 +12,13 @@ export interface ProductCardColorImage {
 
 export interface ProductCardColorOption {
   name: string
+  /** Primera foto del color: la que representa la miniatura. */
   imageUrl?: string
+  /**
+   * Todas las fotos de ese color, en el orden en que llegan. La tarjeta las
+   * recorre al pasar el cursor, para no mezclar fotos de colores distintos.
+   */
+  imageUrls: string[]
 }
 
 export interface ProductCardColorImageOption extends ProductCardColorOption {
@@ -36,15 +42,15 @@ export function buildProductCardColorSummary(
 ): ProductCardColorSummary {
   const seen = new Set<string>()
   const options: ProductCardColorOption[] = []
-  const firstImageByColor = new Map<string, string>()
+  const imagesByColor = new Map<string, string[]>()
 
   for (const image of images) {
     const imageUrl = image.url.trim()
     if (typeof image.color !== "string" || !isRealColor(image.color) || !imageUrl) continue
     const normalized = normalizeColor(image.color)
-    if (!firstImageByColor.has(normalized)) {
-      firstImageByColor.set(normalized, imageUrl)
-    }
+    const bucket = imagesByColor.get(normalized)
+    if (bucket) bucket.push(imageUrl)
+    else imagesByColor.set(normalized, [imageUrl])
   }
 
   for (const variant of variants) {
@@ -54,8 +60,8 @@ export function buildProductCardColorSummary(
     if (!normalized || seen.has(normalized)) continue
 
     seen.add(normalized)
-    const imageUrl = firstImageByColor.get(normalized)
-    options.push({ name, ...(imageUrl ? { imageUrl } : {}) })
+    const imageUrls = imagesByColor.get(normalized) ?? []
+    options.push({ name, ...(imageUrls[0] ? { imageUrl: imageUrls[0] } : {}), imageUrls })
   }
 
   const total = options.length

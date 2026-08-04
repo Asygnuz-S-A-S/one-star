@@ -7,8 +7,8 @@
  *   npx tsx prisma/seed-demo.ts          → crea/actualiza el catálogo demo
  *   npx tsx prisma/seed-demo.ts --clean  → elimina SOLO lo demo
  *
- * Las fotos son URLs remotas de Unsplash (licencia libre, ya permitido en
- * `next.config.ts` → images.remotePatterns). No se descarga nada al repo.
+ * Los productos se crean SIN fotos: las imágenes de banco no corresponden al
+ * modelo real y desentonan en la ficha. Se suben a mano desde /admin/productos.
  */
 
 import { PrismaClient, Prisma, type Gender } from "@prisma/client"
@@ -18,33 +18,6 @@ const prisma = new PrismaClient()
 /** Prefijos que identifican los registros de demo (usados también al limpiar). */
 const SLUG_PREFIX = "demo-"
 const SKU_PREFIX = "DEMO-"
-
-/** Pool de fotos verificadas (HTTP 200) de Unsplash. */
-const PHOTOS = [
-  "photo-1542291026-7eec264c27ff", "photo-1600185365483-26d7a4cc7519",
-  "photo-1595950653106-6c9ebd614d3a", "photo-1560769629-975ec94e6a86",
-  "photo-1549298916-b41d501d3772", "photo-1608231387042-66d1773070a5",
-  "photo-1552346154-21d32810aba3", "photo-1606107557195-0e29a4b5b4aa",
-  "photo-1514989940723-e8e51635b782", "photo-1525966222134-fcfa99b8ae77",
-  "photo-1551107696-a4b0c5a0d9a2", "photo-1587563871167-1ee9c731aefb",
-  "photo-1600269452121-4f2416e55c28", "photo-1584735175315-9d5df23860e6",
-  "photo-1595341888016-a392ef81b7de", "photo-1539185441755-769473a23570",
-  "photo-1618354691373-d851c5c3a990", "photo-1543508282-6319a3e2621f",
-  "photo-1520639888713-7851133b1ed0", "photo-1491553895911-0055eca6402d",
-  "photo-1460353581641-37baddab0fa2", "photo-1556906781-9a412961c28c",
-  "photo-1465453869711-7e174808ace9", "photo-1562183241-b937e95585b6",
-  "photo-1533681904393-9ab6eee7e408", "photo-1512374382149-233c42b6a83b",
-  "photo-1608667508764-33cf0726b13a", "photo-1595777457583-95e059d581b8",
-  "photo-1603787081207-362bcef7c144", "photo-1596704017254-9b121068fb31",
-  "photo-1614252369475-531eba835eb1", "photo-1552066344-2464c1135c32",
-  "photo-1610398752800-146f269dfcc8",
-] as const
-
-/** Toma una foto del pool de forma estable (rota si se piden más de las que hay). */
-function photoUrl(index: number): string {
-  const id = PHOTOS[index % PHOTOS.length]
-  return `https://images.unsplash.com/${id}?auto=format&fit=crop&q=80&w=900`
-}
 
 /** Tallas por tipo de horma. */
 const SIZES = {
@@ -143,6 +116,28 @@ const PRODUCTS: DemoProduct[] = [
   },
 ]
 
+/**
+ * Tiendas físicas. Coinciden con los establecimientos reales que expone Loggro,
+ * para que el mapa de disponibilidad se parezca a lo que habrá en producción.
+ */
+const STORES = [
+  {
+    name: "One Star Centro", city: "Medellín",
+    address: "Cra. 50 #50-20, La Candelaria", phone: "+57 604 000 0001",
+    schedule: "Lun a Sáb 9:00 – 20:00 · Dom 10:00 – 18:00",
+  },
+  {
+    name: "One Star Unicentro", city: "Medellín",
+    address: "Cra. 66B #34A-76, Local 220", phone: "+57 604 000 0002",
+    schedule: "Lun a Dom 10:00 – 21:00",
+  },
+  {
+    name: "One Star Fundadores", city: "Medellín",
+    address: "Cl. 50 #46-36, Centro Comercial Fundadores", phone: "+57 604 000 0003",
+    schedule: "Lun a Sáb 9:00 – 20:00",
+  },
+]
+
 /** Stock pseudoaleatorio pero determinista: mismo SKU → mismo stock en cada corrida. */
 function stockFor(sku: string): number {
   let hash = 0
@@ -170,8 +165,18 @@ async function seed(): Promise<void> {
     brands.set(name, brand.id)
   }
 
-  let photoIndex = 0
+  // Tiendas físicas: sin índice único por nombre, así que se busca antes de crear.
+  const storeIds: string[] = []
+  for (const store of STORES) {
+    const existing = await prisma.storeLocation.findFirst({ where: { name: store.name } })
+    const record = existing
+      ? await prisma.storeLocation.update({ where: { id: existing.id }, data: store })
+      : await prisma.storeLocation.create({ data: store })
+    storeIds.push(record.id)
+  }
+
   let variantCount = 0
+  let inventoryCount = 0
 
   for (const item of PRODUCTS) {
     const slug = `${SLUG_PREFIX}${item.slug}`
@@ -199,43 +204,52 @@ async function seed(): Promise<void> {
       },
     })
 
-    // Las imágenes se regeneran completas: es la forma simple de mantenerlas
-    // sincronizadas con la lista de colores sin acumular huérfanas.
+    // Los productos demo se crean SIN fotos a propósito: las de banco no
+    // corresponden al modelo real y se ven fuera de lugar. Las imágenes se
+    // suben a mano desde /admin/productos.
     await prisma.productImage.deleteMany({ where: { productId: product.id } })
-
-    let position = 0
-    for (const color of item.colors) {
-      // Dos fotos por color permite probar la galería y el cambio de miniaturas.
-      for (let i = 0; i < 2; i++) {
-        await prisma.productImage.create({
-          data: {
-            productId: product.id,
-            url: photoUrl(photoIndex++),
-            alt: `${item.name} ${color}`,
-            position: position++,
-            color,
-          },
-        })
-      }
-    }
 
     for (const color of item.colors) {
       for (const size of SIZES[item.sizes]) {
         const colorCode = color.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 3)
         const sku = `${SKU_PREFIX}${item.slug.toUpperCase().replace(/[^A-Z0-9]/g, "")}-${colorCode}-${size}`
-        await prisma.variant.upsert({
+        const stock = stockFor(sku)
+        const variant = await prisma.variant.upsert({
           where: { sku },
-          update: { stock: stockFor(sku) },
-          create: { sku, size, color, stock: stockFor(sku), productId: product.id },
+          update: { stock },
+          create: { sku, size, color, stock, productId: product.id },
         })
         variantCount++
+
+        // El inventario se regenera completo. `@@unique([variantId, storeLocationId])`
+        // no protege contra duplicados cuando la tienda es NULL (bodega web), así
+        // que borrar y recrear es la vía fiable para mantener la idempotencia.
+        await prisma.inventoryLevel.deleteMany({ where: { variantId: variant.id } })
+
+        // storeLocationId null = bodega web: es el stock que habilita la venta en línea.
+        await prisma.inventoryLevel.create({
+          data: { variantId: variant.id, storeLocationId: null, stock },
+        })
+        inventoryCount++
+
+        // Reparto en tiendas físicas: no todas las sedes tienen todas las tallas,
+        // para que el mapa de disponibilidad muestre resultados variados.
+        for (const [i, storeLocationId] of storeIds.entries()) {
+          if ((stock + i) % 3 === 0) continue
+          await prisma.inventoryLevel.create({
+            data: { variantId: variant.id, storeLocationId, stock: Math.max(0, stock - i * 2) },
+          })
+          inventoryCount++
+        }
       }
     }
   }
 
   console.log(`✓ ${PRODUCTS.length} productos demo`)
   console.log(`✓ ${variantCount} variantes (talla × color)`)
-  console.log(`✓ ${photoIndex} imágenes asociadas por color`)
+  console.log("✓ sin imágenes — se suben a mano desde /admin/productos")
+  console.log(`✓ ${STORES.length} tiendas físicas`)
+  console.log(`✓ ${inventoryCount} registros de inventario (web + tiendas)`)
 }
 
 async function clean(): Promise<void> {

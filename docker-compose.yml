@@ -64,6 +64,11 @@ services:
       # ── Correos transaccionales (Resend) ──
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       EMAIL_FROM: ${EMAIL_FROM:-One Star <onboarding@resend.dev>}
+      # ── Almacenamiento de imágenes (Cloudinary) ──
+      # Sin estas tres, /api/upload responde 503 y el admin no deja subir fotos.
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
     depends_on:
       migrate:
         condition: service_completed_successfully
