@@ -15,3 +15,8 @@ export function scheduleDraftFromSnapshot(snapshot: ErpSyncScheduleSnapshot) {
     intervalMinutes: snapshot.intervalMinutes,
   }
 }
+
+/** Fuerza un remount del editor únicamente cuando cambia la verdad persistida. */
+export function erpSyncScheduleSnapshotKey(snapshot: ErpSyncScheduleSnapshot): string {
+  return `${snapshot.enabled}:${snapshot.intervalMinutes}:${snapshot.nextRunAt ?? "none"}`
+}

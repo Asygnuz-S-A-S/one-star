@@ -1,6 +1,7 @@
 import { getErpSyncStatus } from "@/server/services/erp-sync.service"
 import { getAdminSession } from "@/server/auth/require-admin"
 import SyncPanel from "@/components/admin/SyncPanel"
+import { erpSyncScheduleSnapshotKey } from "@/lib/erp-sync-schedule"
 
 // Datos en vivo (estado del ERP + historial): nunca pre-generar.
 export const dynamic = "force-dynamic"
@@ -14,5 +15,14 @@ export default async function IntegrationsPage() {
   }
 
   const status = await getErpSyncStatus()
-  return <SyncPanel initialStatus={status} />
+  return (
+    <SyncPanel
+      key={erpSyncScheduleSnapshotKey({
+        enabled: status.autoSyncEnabled,
+        intervalMinutes: status.autoSyncMinutes,
+        nextRunAt: status.nextAutoSyncAt,
+      })}
+      initialStatus={status}
+    />
+  )
 }
