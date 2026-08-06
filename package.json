@@ -11,6 +11,7 @@
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
     "test": "vitest run",
+    "test:integration:erp-scheduler": "vitest run --config vitest.integration.config.ts",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
