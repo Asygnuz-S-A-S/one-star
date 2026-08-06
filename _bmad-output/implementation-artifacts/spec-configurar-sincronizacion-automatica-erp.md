@@ -2,7 +2,7 @@
 title: 'Configurar la sincronización automática del ERP'
 type: 'feature'
 created: '2026-08-06'
-status: 'in-review'
+status: 'done'
 baseline_commit: '458070bfddb2acc6584cbdf61622b5724ac3a6e2'
 context:
   - '{project-root}/docs/architecture.md'
@@ -85,7 +85,51 @@ context:
 - En `/admin/integraciones`, guardar otro intervalo, recargar y confirmar persistencia; desactivar y comprobar estado; ejecutar manualmente y verificar que sigue disponible.
 
 **Resultado (2026-08-06):**
-- 321 pruebas en verde; cobertura focalizada de los módulos nuevos: 100% líneas, funciones y ramas.
-- Prisma validate, TypeScript, ESLint, build local y build Docker en verde; migración aplicada correctamente.
+- 323 pruebas unitarias en verde y una prueba de integración PostgreSQL concurrente; cobertura focalizada de los módulos nuevos: 100% líneas, funciones y ramas.
+- Prisma validate, TypeScript, ESLint focalizado, build local y build Docker en verde; migración aplicada correctamente.
 - UI autenticada verificada: cambio de intervalo persistente, pausa persistente, ejecución manual habilitada y restauración final a activa cada 30 minutos.
 - La cobertura global permanece en 50,79% por deuda histórica fuera de esta especificación; el código nuevo cumple el umbral solicitado.
+- El lint global continúa incluyendo errores históricos y artefactos `.next` de worktrees ajenos; los 12 archivos TypeScript modificados pasan ESLint focalizado.
+
+## Suggested Review Order
+
+**Coordinación y exclusión**
+
+- Punto de entrada central: reclama antes de ejecutar y omite ciclos no vencidos.
+  [`erp-sync-scheduler.service.ts:58`](../../src/server/services/erp-sync-scheduler.service.ts#L58)
+
+- El `UPDATE … RETURNING` garantiza un único consumidor por vencimiento.
+  [`erp-sync-config.repository.ts:57`](../../src/server/repositories/erp-sync-config.repository.ts#L57)
+
+- El modelo singleton conserva activación, intervalo y próximo vencimiento.
+  [`schema.prisma:540`](../../prisma/schema.prisma#L540)
+
+**Entradas automáticas y administración**
+
+- El despertador interno delega cada minuto sin fijar frecuencia de negocio.
+  [`instrumentation-node.ts:43`](../../src/instrumentation-node.ts#L43)
+
+- El endpoint externo reutiliza el coordinador y mantiene seguridad fail-closed.
+  [`route.ts:29`](../../src/app/api/cron/sync-erp/route.ts#L29)
+
+- La acción autentica al administrador antes de validar y persistir.
+  [`erp.actions.ts:51`](../../src/server/actions/erp.actions.ts#L51)
+
+**Experiencia del panel**
+
+- El guardado separa borrador y snapshot confirmado, restaurando ante fallos.
+  [`SyncPanel.tsx:216`](../../src/components/admin/SyncPanel.tsx#L216)
+
+- Los controles muestran activación, frecuencia, próxima ejecución y cambios pendientes.
+  [`SyncPanel.tsx:349`](../../src/components/admin/SyncPanel.tsx#L349)
+
+- La clave persistida adopta cambios reales del servidor tras un refresh.
+  [`page.tsx:20`](../../src/app/admin/integraciones/page.tsx#L20)
+
+**Cobertura de límites**
+
+- Dos conexiones PostgreSQL demuestran que solo una reclama el vencimiento.
+  [`erp-sync-config.concurrent.test.ts:46`](../../integration-tests/erp-sync-config.concurrent.test.ts#L46)
+
+- La ruta prueba explícitamente el cierre seguro sin secreto en producción.
+  [`route.test.ts:45`](../../src/app/api/cron/sync-erp/route.test.ts#L45)
