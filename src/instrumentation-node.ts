@@ -39,14 +39,17 @@ if (!isServerless && !globalWithCron.__cronInitialized) {
     // es serverless y nunca va a usarlo.
     const cron = await import("node-cron")
 
-    // Ejecuta la sincronización cada 30 minutos
-    cron.schedule("*/30 * * * *", async () => {
-      console.log("[Cron] Ejecutando sincronización automática con el ERP...")
+    // Despierta cada minuto; la frecuencia real y el apagado viven en PostgreSQL.
+    cron.schedule("* * * * *", async () => {
       try {
-        // Como estamos dentro del proceso Node, podemos llamar directamente al servicio
-        // en vez de hacer fetch a la API (lo cual fallaría si el servidor aún está arrancando)
-        const { syncCatalogFromERP } = await import("./server/services/erp-sync.service")
-        const result = await syncCatalogFromERP()
+        const { runDueErpSync } = await import(
+          "./server/services/erp-sync-scheduler.service"
+        )
+        const scheduled = await runDueErpSync()
+
+        if (!scheduled.executed) return
+
+        const result = scheduled.result
 
         if (result.success) {
           console.log(`[Cron] Sincronización exitosa: ${result.processedCount} ítems procesados.`)

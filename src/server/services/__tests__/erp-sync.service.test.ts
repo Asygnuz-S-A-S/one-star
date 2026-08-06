@@ -30,12 +30,16 @@ vi.mock("@/server/repositories/erp-color-family.repository", () => ({
     reconciliation: { plan: { actions: [], omissions: [], unchangedKeys: [] } },
   }),
 }))
+vi.mock("@/server/services/erp-sync-scheduler.service", () => ({
+  getErpSyncSchedule: vi.fn(),
+}))
 
 import { getERPAdapter } from "@/server/erp"
 import { createErpSyncLog } from "@/server/repositories/erp-sync-log.repository"
 import { findRecentErpSyncLogs } from "@/server/repositories/erp-sync-log.repository"
 import { findDefaultImportCategory } from "@/server/repositories/erp-catalog.repository"
 import { applyErpColorFamilyKeyUpdates } from "@/server/repositories/erp-color-family.repository"
+import { getErpSyncSchedule } from "@/server/services/erp-sync-scheduler.service"
 import { getErpSyncStatus, runErpEndpointDiagnostics, syncCatalogFromERP } from "../erp-sync.service"
 
 const mockGetERPAdapter = vi.mocked(getERPAdapter)
@@ -43,6 +47,7 @@ const mockCreateErpSyncLog = vi.mocked(createErpSyncLog)
 const mockFindRecentErpSyncLogs = vi.mocked(findRecentErpSyncLogs)
 const mockFindDefaultImportCategory = vi.mocked(findDefaultImportCategory)
 const mockApplyColorFamilyKeys = vi.mocked(applyErpColorFamilyKeyUpdates)
+const mockGetErpSyncSchedule = vi.mocked(getErpSyncSchedule)
 
 describe("syncCatalogFromERP", () => {
   afterEach(() => vi.useRealTimers())
@@ -50,6 +55,29 @@ describe("syncCatalogFromERP", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     delete process.env.ERP_CATALOG_WRITES_ENABLED
+    mockGetErpSyncSchedule.mockResolvedValue({
+      enabled: true,
+      intervalMinutes: 30,
+      nextRunAt: "2026-08-06T12:30:00.000Z",
+    })
+  })
+
+  it("expone la configuración automática persistida en el DTO del panel", async () => {
+    mockGetERPAdapter.mockReturnValue({ ping: vi.fn().mockResolvedValue(true) } as never)
+    mockFindRecentErpSyncLogs.mockResolvedValue([])
+    mockGetErpSyncSchedule.mockResolvedValue({
+      enabled: false,
+      intervalMinutes: 120,
+      nextRunAt: null,
+    })
+
+    const status = await getErpSyncStatus()
+
+    expect(status).toMatchObject({
+      autoSyncEnabled: false,
+      autoSyncMinutes: 120,
+      nextAutoSyncAt: null,
+    })
   })
 
   it("bloquea escrituras cuando Loggro responde stock completo pero todo en cero", async () => {

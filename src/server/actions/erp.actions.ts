@@ -6,6 +6,8 @@ import {
 } from "@/server/services/erp-sync.service"
 import { requireAdmin, UnauthorizedError } from "@/server/auth/require-admin"
 import { sanitizeErpError } from "@/server/erp/erp-error"
+import { updateErpSyncSchedule } from "@/server/services/erp-sync-scheduler.service"
+import type { ErpSyncConfigInput } from "@/server/validators/erp-sync-config.validator"
 
 export async function syncCatalogAction() {
   try {
@@ -42,5 +44,16 @@ export async function diagnoseErpEndpointsAction() {
         detail,
       })),
     }
+  }
+}
+
+/** Guarda la programación automática; la sincronización manual no depende de ella. */
+export async function saveErpSyncConfigAction(input: ErpSyncConfigInput) {
+  try {
+    await requireAdmin()
+    const schedule = await updateErpSyncSchedule(input)
+    return { success: true as const, schedule }
+  } catch (error) {
+    return { success: false as const, error: sanitizeErpError(error) }
   }
 }

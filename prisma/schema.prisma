@@ -535,3 +535,14 @@ model ErpSyncLog {
 
   @@index([createdAt])
 }
+
+// Configuración singleton del coordinador de sincronizaciones automáticas.
+model ErpSyncConfig {
+  id              String   @id @default("default")
+  enabled         Boolean  @default(true)
+  intervalMinutes Int      @default(30)
+  nextRunAt       DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+

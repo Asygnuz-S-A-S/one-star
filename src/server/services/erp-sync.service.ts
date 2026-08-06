@@ -32,9 +32,8 @@ import {
   updateCatalogVariant,
 } from "@/server/repositories/erp-catalog.repository"
 import { applyErpColorFamilyKeyUpdates } from "@/server/repositories/erp-color-family.repository"
-
-/** Minutos entre sincronizaciones automáticas (refleja el cron de instrumentation-node.ts). */
-export const ERP_AUTO_SYNC_MINUTES = 30
+import { getErpSyncSchedule } from "@/server/services/erp-sync-scheduler.service"
+import type { ErpSyncInterval } from "@/lib/erp-sync-schedule"
 
 export interface CatalogSyncOptions {
   /** Descarga y valida el catálogo, pero no escribe en PostgreSQL. */
@@ -398,8 +397,12 @@ export interface ErpSyncStatus {
   provider: string
   /** ¿El ERP respondió al healthcheck? */
   connected: boolean
+  /** ¿Está habilitado el coordinador automático? */
+  autoSyncEnabled: boolean
   /** Intervalo del auto-sync, en minutos. */
-  autoSyncMinutes: number
+  autoSyncMinutes: ErpSyncInterval
+  /** Próximo vencimiento reclamable, en ISO; null cuando está desactivado. */
+  nextAutoSyncAt: string | null
   /** Última sincronización registrada, o null si nunca se ha corrido. */
   last: ErpSyncLogDTO | null
   /** Historial reciente (más nueva primero). */
@@ -532,13 +535,14 @@ export async function runErpEndpointDiagnostics(): Promise<ERPEndpointDiagnostic
 export async function getErpSyncStatus(): Promise<ErpSyncStatus> {
   const adapter = getERPAdapter()
 
-  const [connected, logs] = await Promise.all([
+  const [connected, logs, schedule] = await Promise.all([
     // No dejamos que un ERP lento/caído cuelgue la carga del panel.
     Promise.race([
       adapter.ping().catch(() => false),
       new Promise<boolean>((resolve) => setTimeout(() => resolve(false), PING_TIMEOUT_MS)),
     ]),
     findRecentErpSyncLogs(10),
+    getErpSyncSchedule(),
   ])
 
   const history = logs.map(mapErpSyncLog)
@@ -546,7 +550,9 @@ export async function getErpSyncStatus(): Promise<ErpSyncStatus> {
   return {
     provider: erpProviderName(),
     connected,
-    autoSyncMinutes: ERP_AUTO_SYNC_MINUTES,
+    autoSyncEnabled: schedule.enabled,
+    autoSyncMinutes: schedule.intervalMinutes,
+    nextAutoSyncAt: schedule.nextRunAt,
     last: history[0] ?? null,
     history,
   }

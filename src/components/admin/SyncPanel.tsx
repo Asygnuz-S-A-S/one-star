@@ -1,12 +1,15 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import {
   diagnoseErpEndpointsAction,
+  saveErpSyncConfigAction,
   syncCatalogAction,
 } from "@/server/actions/erp.actions"
+import { ERP_SYNC_INTERVALS } from "@/lib/erp-sync-schedule"
+import type { ErpSyncInterval } from "@/lib/erp-sync-schedule"
 import type {
   ErpSyncLogDTO,
   ErpSyncStatus,
@@ -33,6 +36,16 @@ interface SyncResult {
 }
 
 type EndpointDiagnosticsState = ERPEndpointDiagnostics & { accessDenied?: boolean }
+
+const INTERVAL_LABELS: Record<(typeof ERP_SYNC_INTERVALS)[number], string> = {
+  15: "Cada 15 minutos",
+  30: "Cada 30 minutos",
+  60: "Cada hora",
+  120: "Cada 2 horas",
+  360: "Cada 6 horas",
+  720: "Cada 12 horas",
+  1440: "Cada 24 horas",
+}
 
 const BOGOTA_TZ = "America/Bogota"
 
@@ -127,9 +140,25 @@ export default function SyncPanel({ initialStatus }: SyncPanelProps) {
   const [diagnosticLoading, setDiagnosticLoading] = useState(false)
   const [result, setResult] = useState<SyncResult | null>(null)
   const [diagnostics, setDiagnostics] = useState<EndpointDiagnosticsState | null>(null)
+  const [scheduleEnabled, setScheduleEnabled] = useState(initialStatus.autoSyncEnabled)
+  const [scheduleInterval, setScheduleInterval] = useState<ErpSyncInterval>(
+    initialStatus.autoSyncMinutes
+  )
+  const [nextAutoSyncAt, setNextAutoSyncAt] = useState(initialStatus.nextAutoSyncAt)
+  const [scheduleSaving, setScheduleSaving] = useState(false)
+  const [scheduleMessage, setScheduleMessage] = useState<{
+    success: boolean
+    text: string
+  } | null>(null)
 
   const status = initialStatus
   const { last } = status
+
+  useEffect(() => {
+    setScheduleEnabled(initialStatus.autoSyncEnabled)
+    setScheduleInterval(initialStatus.autoSyncMinutes)
+    setNextAutoSyncAt(initialStatus.nextAutoSyncAt)
+  }, [initialStatus])
 
   const handleSync = async () => {
     setSyncLoading(true)
@@ -171,6 +200,40 @@ export default function SyncPanel({ initialStatus }: SyncPanelProps) {
     }
   }
 
+  const handleSaveSchedule = async () => {
+    setScheduleSaving(true)
+    setScheduleMessage(null)
+    try {
+      const response = await saveErpSyncConfigAction({
+        enabled: scheduleEnabled,
+        intervalMinutes: scheduleInterval,
+      })
+
+      if (!response.success) {
+        setScheduleMessage({ success: false, text: response.error })
+        return
+      }
+
+      setScheduleEnabled(response.schedule.enabled)
+      setScheduleInterval(response.schedule.intervalMinutes)
+      setNextAutoSyncAt(response.schedule.nextRunAt)
+      setScheduleMessage({
+        success: true,
+        text: response.schedule.enabled
+          ? "Programación automática guardada."
+          : "Sincronizaciones automáticas desactivadas.",
+      })
+      router.refresh()
+    } catch {
+      setScheduleMessage({
+        success: false,
+        text: "No fue posible guardar la programación. El valor anterior se conserva.",
+      })
+    } finally {
+      setScheduleSaving(false)
+    }
+  }
+
   return (
     <div className="mx-auto max-w-5xl p-6 sm:p-8">
       <header className="mb-8">
@@ -205,10 +268,21 @@ export default function SyncPanel({ initialStatus }: SyncPanelProps) {
             Sincronización automática
           </p>
           <div className="mt-2 flex items-center gap-2">
-            <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-500" aria-hidden />
-            <span className="text-lg font-semibold text-[#1C1C1C]">Activa</span>
+            <span
+              className={`inline-block h-2.5 w-2.5 rounded-full ${
+                status.autoSyncEnabled ? "bg-emerald-500" : "bg-gray-400"
+              }`}
+              aria-hidden
+            />
+            <span className="text-lg font-semibold text-[#1C1C1C]">
+              {status.autoSyncEnabled ? "Activa" : "Inactiva"}
+            </span>
           </div>
-          <p className="mt-1 text-sm text-gray-500">Cada {status.autoSyncMinutes} minutos</p>
+          <p className="mt-1 text-sm text-gray-500">
+            {status.autoSyncEnabled
+              ? INTERVAL_LABELS[status.autoSyncMinutes as keyof typeof INTERVAL_LABELS]
+              : "Inactiva"}
+          </p>
         </div>
 
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
@@ -252,6 +326,85 @@ export default function SyncPanel({ initialStatus }: SyncPanelProps) {
           <ErrorExplanation error={last.error} compact />
         </section>
       )}
+
+      <section className="mt-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-xl">
+            <h2 className="text-lg font-semibold text-[#1C1C1C]">Programación automática</h2>
+            <p className="mt-1 text-sm text-gray-500">
+              Pausa las ejecuciones automáticas o decide cada cuánto deben comprobarse. La
+              sincronización manual seguirá disponible.
+            </p>
+
+            <label className="mt-5 flex cursor-pointer items-center gap-3 text-sm font-medium text-gray-800">
+              <input
+                type="checkbox"
+                role="switch"
+                checked={scheduleEnabled}
+                onChange={(event) => setScheduleEnabled(event.target.checked)}
+                disabled={scheduleSaving}
+                className="h-5 w-5 accent-[#1C1C1C]"
+              />
+              Activar sincronizaciones automáticas
+            </label>
+
+            <label className="mt-4 block text-sm font-medium text-gray-800">
+              Frecuencia
+              <select
+                value={scheduleInterval}
+                onChange={(event) =>
+                  setScheduleInterval(Number(event.target.value) as ErpSyncInterval)
+                }
+                disabled={scheduleSaving}
+                className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#1C1C1C] focus:outline-none focus:ring-2 focus:ring-[#1C1C1C]/20 disabled:cursor-not-allowed disabled:opacity-60 sm:w-64"
+              >
+                {ERP_SYNC_INTERVALS.map((interval) => (
+                  <option key={interval} value={interval}>
+                    {INTERVAL_LABELS[interval]}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleSaveSchedule}
+            disabled={scheduleSaving || syncLoading || diagnosticLoading}
+            className="inline-flex shrink-0 items-center justify-center rounded-lg bg-[#1C1C1C] px-6 py-2.5 font-medium text-white transition-colors hover:bg-black focus:outline-none focus:ring-2 focus:ring-[#1C1C1C] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {scheduleSaving ? "Guardando…" : "Guardar programación"}
+          </button>
+        </div>
+
+        <div className="mt-5 border-t border-gray-100 pt-4 text-sm text-gray-600">
+          <p>
+            <span className="font-medium text-gray-800">Próxima ejecución:</span>{" "}
+            {scheduleEnabled && nextAutoSyncAt
+              ? formatAbsolute(nextAutoSyncAt)
+              : "No programada"}
+          </p>
+          <p className="mt-2 text-xs text-amber-800">
+            En despliegues serverless, la frecuencia efectiva depende de cada cuánto el scheduler
+            externo invoque el endpoint de cron.
+          </p>
+        </div>
+
+        <div aria-live="polite">
+          {scheduleMessage && (
+            <p
+              className={`mt-4 rounded-lg border p-3 text-sm ${
+                scheduleMessage.success
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                  : "border-red-200 bg-red-50 text-red-900"
+              }`}
+              role={scheduleMessage.success ? "status" : "alert"}
+            >
+              {scheduleMessage.text}
+            </p>
+          )}
+        </div>
+      </section>
 
       <section className="mt-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

@@ -181,6 +181,11 @@ pedidos y panel admin.
 - **Banner** → url, imageUrl, position, isActive, fechas
 - **Coupon** → code único, PERCENTAGE | FIXED_AMOUNT, validaciones de fecha y uso
 
+### Programación ERP
+- **ErpSyncConfig** → singleton persistente (`id=default`) con activación, intervalo permitido y próximo vencimiento.
+- El repositorio reclama un vencimiento con un `UPDATE ... WHERE nextRunAt <= now RETURNING` y adelanta `nextRunAt` antes de consultar el ERP. Así dos procesos no ejecutan el mismo vencimiento y no se mantiene una transacción durante llamadas HTTP.
+- Desactivar el automático pone `nextRunAt=null`; la sincronización manual permanece independiente.
+
 ## Decisiones Arquitectónicas Tomadas
 
 | # | Decisión | Justificación |
@@ -292,19 +297,26 @@ detecta en tiempo de ejecución con `process.env.VERCEL`.
 |---|---|---|
 | Dónde | local, Docker, VPS, Lightsail | Vercel |
 | Postgres | contenedor `db` | Supabase (pooler 6543 en runtime + pooler 5432 para migraciones) |
-| Sync ERP | `node-cron` cada 30 min en `src/instrumentation-node.ts` | disparador externo → `GET /api/cron/sync-erp` |
+| Sync ERP | `node-cron` despierta cada minuto; PostgreSQL decide el vencimiento | disparador externo → `GET /api/cron/sync-erp`; PostgreSQL decide el vencimiento |
 
 **Programación del cron.** `node-cron` requiere un proceso vivo entre
 ejecuciones, algo que no existe en serverless: allí cada request crea y destruye
 su propia instancia, así que el `schedule` nunca dispara. Por eso
 `instrumentation-node.ts` se salta la inicialización cuando `VERCEL === "1"`, y
-la programación pasa a `vercel.json`, que llama al endpoint con
+el despertador pasa a `vercel.json`, que llama al endpoint con
 `Authorization: Bearer $CRON_SECRET`.
 
 Consecuencia a tener presente: **el plan Hobby de Vercel solo permite una
-ejecución diaria**, contra los 30 minutos de `node-cron`. Si la frecuencia de
-sincronización con el ERP se vuelve un requisito del negocio, la topología
-serverless deja de servir.
+ejecución diaria**. El administrador puede guardar intervalos de 15 minutos a
+24 horas, pero la frecuencia efectiva nunca será mayor que la cadencia del
+scheduler externo: un vencimiento de 15 minutos invocado una vez al día se
+ejecutará, como máximo, una vez al día. Si la frecuencia configurada es un
+requisito estricto del negocio, se necesita un scheduler externo con esa misma
+cadencia o un proceso Node persistente.
+
+En ambas topologías, `erp-sync-scheduler.service.ts` usa `ErpSyncConfig` como
+fuente de verdad. `instrumentation-node.ts` y `/api/cron/sync-erp` solo despiertan
+el coordinador; no contienen una frecuencia de negocio fija.
 
 `CRON_SECRET` es *fail-closed*: en producción, sin ella el endpoint responde
 `503` en vez de ejecutar la sincronización sin autenticar.

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { syncCatalogFromERP } from "@/server/services/erp-sync.service"
+import { runDueErpSync } from "@/server/services/erp-sync-scheduler.service"
 
 /**
  * Endpoint para Sincronización Automática (Cron Job).
@@ -25,8 +25,18 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 })
     }
 
-    // Ejecutar sincronización
-    const result = await syncCatalogFromERP()
+    const scheduled = await runDueErpSync()
+
+    if (!scheduled.executed) {
+      return NextResponse.json({
+        success: true,
+        executed: false,
+        reason: scheduled.reason,
+        timestamp: new Date().toISOString(),
+      })
+    }
+
+    const result = scheduled.result
 
     if (!result.success) {
       return NextResponse.json(
@@ -37,6 +47,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       success: true,
+      executed: true,
       processed: result.processedCount,
       timestamp: new Date().toISOString()
     })
