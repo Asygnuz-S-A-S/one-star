@@ -3,9 +3,22 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { syncCatalogAction } from "@/server/actions/erp.actions"
-import type { ErpSyncStatus, ErpSyncLogDTO } from "@/server/services/erp-sync.service"
-import { formatErpSyncCount } from "@/lib/erp-sync-display"
+import {
+  diagnoseErpEndpointsAction,
+  syncCatalogAction,
+} from "@/server/actions/erp.actions"
+import type {
+  ErpSyncLogDTO,
+  ErpSyncStatus,
+} from "@/server/services/erp-sync.service"
+import type {
+  ERPEndpointDiagnostic,
+  ERPEndpointDiagnostics,
+} from "@/server/erp"
+import {
+  formatErpSyncCount,
+  getErpErrorPresentation,
+} from "@/lib/erp-sync-display"
 
 interface SyncPanelProps {
   initialStatus: ErpSyncStatus
@@ -18,6 +31,8 @@ interface SyncResult {
   variantCount?: number
   error?: string
 }
+
+type EndpointDiagnosticsState = ERPEndpointDiagnostics & { accessDenied?: boolean }
 
 const BOGOTA_TZ = "America/Bogota"
 
@@ -40,21 +55,120 @@ function providerLabel(provider: string): string {
   return map[provider] ?? provider
 }
 
+function ErrorExplanation({ error, compact = false }: { error: string | null; compact?: boolean }) {
+  const presentation = getErpErrorPresentation(error)
+
+  return (
+    <div className={compact ? "mt-3 max-w-xl" : ""}>
+      <p className="font-semibold">{presentation.title}</p>
+      <p className="mt-1">{presentation.explanation}</p>
+      <p className="mt-2">
+        <span className="font-semibold">Qué hacer:</span> {presentation.action}
+      </p>
+      {error && presentation.explanation !== error && (
+        <details className="mt-2">
+          <summary className="cursor-pointer font-medium underline underline-offset-2">
+            Ver detalle técnico
+          </summary>
+          <p className="mt-1 break-words">{error}</p>
+        </details>
+      )}
+    </div>
+  )
+}
+
+const DIAGNOSTIC_LABELS: Record<ERPEndpointDiagnostic["endpoint"], string> = {
+  connection: "Conexión API",
+  catalog: "Catálogo",
+  stock: "Disponibilidad / stock",
+}
+
+const DIAGNOSTIC_STYLES: Record<ERPEndpointDiagnostic["status"], string> = {
+  healthy: "border-emerald-200 bg-emerald-50 text-emerald-800",
+  warning: "border-amber-200 bg-amber-50 text-amber-900",
+  error: "border-red-200 bg-red-50 text-red-800",
+  unsupported: "border-gray-200 bg-gray-50 text-gray-700",
+}
+
+const DIAGNOSTIC_STATUS_LABELS: Record<ERPEndpointDiagnostic["status"], string> = {
+  healthy: "Correcto",
+  warning: "Advertencia",
+  error: "Error",
+  unsupported: "No disponible",
+}
+
+function EndpointDiagnosticCard({ probe }: { probe: ERPEndpointDiagnostic }) {
+  return (
+    <article className={`rounded-lg border p-4 ${DIAGNOSTIC_STYLES[probe.status]}`}>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <h3 className="font-semibold">{DIAGNOSTIC_LABELS[probe.endpoint]}</h3>
+        <span className="rounded-full bg-white/70 px-2 py-0.5 text-xs font-semibold">
+          {DIAGNOSTIC_STATUS_LABELS[probe.status]}
+        </span>
+      </div>
+      <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
+        <div>
+          <dt className="font-medium opacity-70">Respuesta</dt>
+          <dd>{probe.httpStatus == null ? "No alcanzado" : `HTTP ${probe.httpStatus}`}</dd>
+        </div>
+        <div>
+          <dt className="font-medium opacity-70">Latencia</dt>
+          <dd>{formatDuration(probe.latencyMs)}</dd>
+        </div>
+      </dl>
+      <p className="mt-3 break-words text-sm">{probe.detail}</p>
+    </article>
+  )
+}
+
 export default function SyncPanel({ initialStatus }: SyncPanelProps) {
   const router = useRouter()
-  const [loading, setLoading] = useState(false)
+  const [syncLoading, setSyncLoading] = useState(false)
+  const [diagnosticLoading, setDiagnosticLoading] = useState(false)
   const [result, setResult] = useState<SyncResult | null>(null)
+  const [diagnostics, setDiagnostics] = useState<EndpointDiagnosticsState | null>(null)
 
   const status = initialStatus
   const { last } = status
 
   const handleSync = async () => {
-    setLoading(true)
+    setSyncLoading(true)
     setResult(null)
-    const res = await syncCatalogAction()
-    setResult(res)
-    setLoading(false)
-    router.refresh() // recarga el server component → estado e historial frescos
+    try {
+      const response = await syncCatalogAction()
+      setResult(response)
+      router.refresh()
+    } catch {
+      setResult({
+        success: false,
+        processedCount: 0,
+        error: "No fue posible completar la solicitud. Revisa la conexión e inténtalo nuevamente.",
+      })
+    } finally {
+      setSyncLoading(false)
+    }
+  }
+
+  const handleDiagnostics = async () => {
+    setDiagnosticLoading(true)
+    setDiagnostics(null)
+    try {
+      setDiagnostics(await diagnoseErpEndpointsAction())
+    } catch {
+      const detail = "No fue posible completar la prueba. Revisa la conexión e inténtalo nuevamente."
+      setDiagnostics({
+        checkedAt: new Date().toISOString(),
+        results: (["connection", "catalog", "stock"] as const).map((endpoint) => ({
+          endpoint,
+          status: "error",
+          httpStatus: null,
+          latencyMs: 0,
+          detail,
+        })),
+      })
+    } finally {
+      setDiagnosticLoading(false)
+    }
   }
 
   return (
@@ -67,11 +181,9 @@ export default function SyncPanel({ initialStatus }: SyncPanelProps) {
         </p>
       </header>
 
-      {/* Tarjetas de estado */}
       <div className="grid gap-4 sm:grid-cols-3">
-        {/* Conexión */}
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-wide text-gray-400">Conexión</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-gray-400">API ERP</p>
           <div className="mt-2 flex items-center gap-2">
             <span
               className={`inline-block h-2.5 w-2.5 rounded-full ${
@@ -80,13 +192,14 @@ export default function SyncPanel({ initialStatus }: SyncPanelProps) {
               aria-hidden
             />
             <span className="text-lg font-semibold text-[#1C1C1C]">
-              {status.connected ? "Conectado" : "Sin conexión"}
+              {status.connected ? "Responde" : "Sin respuesta"}
             </span>
           </div>
-          <p className="mt-1 text-sm text-gray-500">{providerLabel(status.provider)}</p>
+          <p className="mt-1 text-sm text-gray-500">
+            Healthcheck de {providerLabel(status.provider)}; no valida catálogo ni stock.
+          </p>
         </div>
 
-        {/* Auto-sync */}
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
           <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
             Sincronización automática
@@ -98,7 +211,6 @@ export default function SyncPanel({ initialStatus }: SyncPanelProps) {
           <p className="mt-1 text-sm text-gray-500">Cada {status.autoSyncMinutes} minutos</p>
         </div>
 
-        {/* Última sincronización */}
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
           <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
             Última sincronización
@@ -117,7 +229,7 @@ export default function SyncPanel({ initialStatus }: SyncPanelProps) {
                 </span>
               </div>
               <p className="mt-1 text-sm text-gray-500">
-                {last.success ? formatErpSyncCount(last) : "Falló"}
+                {last.success ? formatErpSyncCount(last) : "Sincronización con error"}
               </p>
             </>
           ) : (
@@ -129,8 +241,61 @@ export default function SyncPanel({ initialStatus }: SyncPanelProps) {
         </div>
       </div>
 
-      {/* Acción de sincronizar */}
-      <div className="mt-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+      {last && !last.success && (
+        <section
+          className="mt-6 rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-900"
+          aria-labelledby="last-erp-error"
+        >
+          <h2 id="last-erp-error" className="text-lg font-semibold">
+            Último error de sincronización
+          </h2>
+          <ErrorExplanation error={last.error} compact />
+        </section>
+      )}
+
+      <section className="mt-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-[#1C1C1C]">Probar endpoints</h2>
+            <p className="mt-1 max-w-xl text-sm text-gray-500">
+              Comprueba conexión, catálogo y disponibilidad por separado. La prueba es de solo
+              lectura y no modifica productos, inventario ni movimientos en el ERP.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleDiagnostics}
+            disabled={diagnosticLoading || syncLoading}
+            className="inline-flex shrink-0 items-center justify-center rounded-lg border border-gray-300 bg-white px-5 py-2.5 font-medium text-gray-800 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#1C1C1C] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {diagnosticLoading ? "Probando…" : "Probar endpoints"}
+          </button>
+        </div>
+
+        <div aria-live="polite" aria-busy={diagnosticLoading}>
+          {diagnostics && (
+            <div className="mt-5">
+              <p className="mb-3 text-xs text-gray-500" suppressHydrationWarning>
+                Comprobado el {formatAbsolute(diagnostics.checkedAt)}
+              </p>
+              {diagnostics.accessDenied ? (
+                <p className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                  Tu sesión de administrador expiró. Actualiza la página e inicia sesión nuevamente
+                  para ejecutar la prueba.
+                </p>
+              ) : (
+                <div className="grid gap-3 md:grid-cols-3">
+                  {diagnostics.results.map((probe) => (
+                    <EndpointDiagnosticCard key={probe.endpoint} probe={probe} />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="mt-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-lg font-semibold text-[#1C1C1C]">Sincronizar ahora</h2>
@@ -140,11 +305,12 @@ export default function SyncPanel({ initialStatus }: SyncPanelProps) {
             </p>
           </div>
           <button
+            type="button"
             onClick={handleSync}
-            disabled={loading}
-            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-[#1C1C1C] px-6 py-2.5 font-medium text-white transition-colors hover:bg-black focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1C1C1C] disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={syncLoading || diagnosticLoading}
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-[#1C1C1C] px-6 py-2.5 font-medium text-white transition-colors hover:bg-black focus:outline-none focus:ring-2 focus:ring-[#1C1C1C] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {loading ? "Sincronizando…" : "Sincronizar catálogo"}
+            {syncLoading ? "Sincronizando…" : "Sincronizar catálogo"}
           </button>
         </div>
 
@@ -153,8 +319,9 @@ export default function SyncPanel({ initialStatus }: SyncPanelProps) {
             className={`mt-5 rounded-lg border p-4 text-sm ${
               result.success
                 ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                : "border-red-200 bg-red-50 text-red-800"
+                : "border-red-200 bg-red-50 text-red-900"
             }`}
+            role={result.success ? "status" : "alert"}
           >
             {result.success ? (
               <p>
@@ -169,15 +336,12 @@ export default function SyncPanel({ initialStatus }: SyncPanelProps) {
                 </Link>
               </p>
             ) : (
-              <p>
-                <span className="font-semibold">Ocurrió un error:</span> {result.error}
-              </p>
+              <ErrorExplanation error={result.error ?? null} />
             )}
           </div>
         )}
-      </div>
+      </section>
 
-      {/* Historial */}
       <section className="mt-8">
         <h2 className="mb-3 text-lg font-semibold text-[#1C1C1C]">Historial reciente</h2>
         <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
@@ -197,8 +361,8 @@ export default function SyncPanel({ initialStatus }: SyncPanelProps) {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {status.history.map((log: ErpSyncLogDTO) => (
-                    <tr key={log.id} className="transition-colors hover:bg-gray-50">
-                      <td className="px-4 py-3 text-gray-700" suppressHydrationWarning>
+                    <tr key={log.id} className="align-top transition-colors hover:bg-gray-50">
+                      <td className="whitespace-nowrap px-4 py-3 text-gray-700" suppressHydrationWarning>
                         {formatAbsolute(log.createdAt)}
                       </td>
                       <td className="px-4 py-3">
@@ -213,23 +377,24 @@ export default function SyncPanel({ initialStatus }: SyncPanelProps) {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-gray-700">{log.processedCount}</td>
-                      <td className="px-4 py-3">
+                      <td className="min-w-56 px-4 py-3">
                         {log.success ? (
                           <span className="inline-flex items-center gap-1.5 text-emerald-700">
                             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
                             Éxito
                           </span>
                         ) : (
-                          <span
-                            className="inline-flex items-center gap-1.5 text-red-700"
-                            title={log.error ?? undefined}
-                          >
-                            <span className="h-1.5 w-1.5 rounded-full bg-red-500" aria-hidden />
-                            Error
-                          </span>
+                          <details className="text-red-800">
+                            <summary className="cursor-pointer font-medium underline underline-offset-2">
+                              Ver detalle del error
+                            </summary>
+                            <ErrorExplanation error={log.error} compact />
+                          </details>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-gray-500">{formatDuration(log.durationMs)}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-gray-500">
+                        {formatDuration(log.durationMs)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

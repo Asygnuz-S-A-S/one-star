@@ -1,3 +1,5 @@
+import "server-only"
+
 /**
  * Tipos compartidos de la capa ERP.
  *
@@ -114,4 +116,23 @@ export interface ERPCatalogSyncResult {
     omitted: number
   }
   error?: string
+}
+
+export type ERPEndpointName = "connection" | "catalog" | "stock"
+export type ERPEndpointStatus = "healthy" | "warning" | "error" | "unsupported"
+
+/** Resultado seguro y serializable de un probe de solo lectura. */
+export interface ERPEndpointDiagnostic {
+  endpoint: ERPEndpointName
+  status: ERPEndpointStatus
+  /** Código HTTP del endpoint probado; null cuando no se alcanzó a llamar. */
+  httpStatus: number | null
+  latencyMs: number
+  /** Resumen operacional; nunca contiene cuerpos crudos ni credenciales. */
+  detail: string
+}
+
+export interface ERPEndpointDiagnostics {
+  checkedAt: string
+  results: ERPEndpointDiagnostic[]
 }

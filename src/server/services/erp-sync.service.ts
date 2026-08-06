@@ -5,7 +5,10 @@ import type {
   ERPCatalogProductGroup,
   ERPCatalogSyncResult,
   ERPCatalogVariant,
+  ERPEndpointDiagnostic,
+  ERPEndpointDiagnostics,
 } from "@/server/erp/erp.types"
+import { sanitizeErpError } from "@/server/erp/erp-error"
 import { parseSku, DEFAULT_SIZE } from "@/lib/sku"
 import { detectColorFromText } from "@/lib/color-detect"
 import { isRealColor } from "@/lib/colors"
@@ -63,6 +66,14 @@ function erpProviderName(): string {
   return (process.env.ERP_PROVIDER ?? "null").toLowerCase().trim()
 }
 
+function sanitizeCatalogSyncResult(result: ERPCatalogSyncResult): ERPCatalogSyncResult {
+  return {
+    ...result,
+    error: result.error == null ? undefined : sanitizeErpError(result.error),
+    warnings: result.warnings?.map(sanitizeErpError),
+  }
+}
+
 /**
  * Sincroniza el catálogo desde el ERP y registra el resultado en la BD para
  * alimentar el panel de estado e historial de /admin/integraciones.
@@ -85,7 +96,7 @@ export async function syncCatalogFromERP(
   catalogSyncInProgress = true
   try {
     const startedAt = Date.now()
-    const result = await runCatalogSync(options)
+    const result = sanitizeCatalogSyncResult(await runCatalogSync(options))
 
     if (!options.dryRun) {
       try {
@@ -360,7 +371,7 @@ async function runCatalogSync(options: CatalogSyncOptions): Promise<ERPCatalogSy
       },
     }
   } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error)
+    const msg = sanitizeErpError(error)
     console.error("[ERP Sync Service] Error sincronizando catálogo:", msg)
     return { success: false, processedCount: 0, error: msg }
   }
@@ -402,9 +413,115 @@ function mapErpSyncLog(log: ErpSyncLog): ErpSyncLogDTO {
     trigger: log.trigger,
     success: log.success,
     processedCount: log.processedCount,
-    error: log.error,
+    error: log.error == null ? null : sanitizeErpError(log.error),
     durationMs: log.durationMs,
     createdAt: log.createdAt.toISOString(),
+  }
+}
+
+const DIAGNOSTIC_ENDPOINTS = ["connection", "catalog", "stock"] as const
+const DIAGNOSTIC_STATUSES = ["healthy", "warning", "error", "unsupported"] as const
+let erpDiagnosticsInProgress = false
+
+function failedDiagnostics(detail: string, status: "error" | "unsupported"): ERPEndpointDiagnostic[] {
+  return DIAGNOSTIC_ENDPOINTS.map((endpoint) => ({
+    endpoint,
+    status,
+    httpStatus: null,
+    latencyMs: 0,
+    detail,
+  }))
+}
+
+function invalidDiagnostic(endpoint: ERPEndpointDiagnostic["endpoint"]): ERPEndpointDiagnostic {
+  return {
+    endpoint,
+    status: "error",
+    httpStatus: null,
+    latencyMs: 0,
+    detail: "El adaptador ERP no entregó un resultado de diagnóstico válido para este endpoint.",
+  }
+}
+
+function normalizeDiagnostics(value: unknown): ERPEndpointDiagnostic[] {
+  const candidates = Array.isArray(value) ? value : []
+
+  return DIAGNOSTIC_ENDPOINTS.map((endpoint) => {
+    const matches = candidates.filter(
+      (candidate) =>
+        candidate != null &&
+        typeof candidate === "object" &&
+        !Array.isArray(candidate) &&
+        (candidate as { endpoint?: unknown }).endpoint === endpoint
+    )
+    if (matches.length !== 1) return invalidDiagnostic(endpoint)
+
+    const candidate = matches[0] as Record<string, unknown>
+    const statusValid = DIAGNOSTIC_STATUSES.includes(
+      candidate.status as (typeof DIAGNOSTIC_STATUSES)[number]
+    )
+    const httpStatusValid =
+      candidate.httpStatus === null ||
+      (Number.isInteger(candidate.httpStatus) &&
+        Number(candidate.httpStatus) >= 100 &&
+        Number(candidate.httpStatus) <= 599)
+    const latencyValid =
+      typeof candidate.latencyMs === "number" &&
+      Number.isFinite(candidate.latencyMs) &&
+      candidate.latencyMs >= 0
+    const detailValid = typeof candidate.detail === "string" && candidate.detail.trim().length > 0
+
+    if (!statusValid || !httpStatusValid || !latencyValid || !detailValid) {
+      return invalidDiagnostic(endpoint)
+    }
+
+    return {
+      endpoint,
+      status: candidate.status as ERPEndpointDiagnostic["status"],
+      httpStatus: candidate.httpStatus as number | null,
+      latencyMs: Math.round(candidate.latencyMs as number),
+      detail: sanitizeErpError(candidate.detail),
+    }
+  })
+}
+
+/** Ejecuta bajo demanda los probes genéricos del adaptador sin escribir datos. */
+export async function runErpEndpointDiagnostics(): Promise<ERPEndpointDiagnostics> {
+  if (erpDiagnosticsInProgress) {
+    return {
+      checkedAt: new Date().toISOString(),
+      results: failedDiagnostics("Ya hay un diagnóstico ERP en curso.", "error"),
+    }
+  }
+
+  erpDiagnosticsInProgress = true
+  try {
+    const adapter = getERPAdapter()
+
+    if (!adapter.diagnoseEndpoints) {
+      return {
+        checkedAt: new Date().toISOString(),
+        results: failedDiagnostics(
+          "El ERP configurado no ofrece pruebas detalladas de endpoints.",
+          "unsupported"
+        ),
+      }
+    }
+
+    try {
+      const results = await adapter.diagnoseEndpoints()
+      return {
+        checkedAt: new Date().toISOString(),
+        results: normalizeDiagnostics(results),
+      }
+    } catch (error) {
+      return {
+        checkedAt: new Date().toISOString(),
+        results: failedDiagnostics(sanitizeErpError(error), "error"),
+      }
+    }
+  } finally {
+    erpDiagnosticsInProgress = false
   }
 }
 

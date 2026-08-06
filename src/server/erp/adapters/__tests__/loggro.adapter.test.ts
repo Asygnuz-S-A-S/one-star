@@ -42,4 +42,20 @@ describe("LoggroERPAdapter.fetchCatalog", () => {
     expect(snapshot.groups).toHaveLength(1)
     expect(snapshot.groups[0].variants).toHaveLength(1)
   })
+
+  it("expone los probes de solo lectura del cliente mediante el contrato genérico", async () => {
+    const probes = [
+      {
+        endpoint: "connection" as const,
+        status: "healthy" as const,
+        httpStatus: 200,
+        latencyMs: 12,
+        detail: "API disponible.",
+      },
+    ]
+    const client = { diagnoseEndpoints: vi.fn().mockResolvedValue(probes) } as unknown as LoggroClient
+    const adapter = new LoggroERPAdapter("token", client)
+
+    await expect(adapter.diagnoseEndpoints()).resolves.toEqual(probes)
+  })
 })

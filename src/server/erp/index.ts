@@ -1,3 +1,5 @@
+import "server-only"
+
 /**
  * Barrel export de la capa ERP.
  *
@@ -16,4 +18,8 @@ export type {
   ERPOrderItem,
   ERPSyncResult,
   ERPStockItem,
+  ERPEndpointDiagnostic,
+  ERPEndpointDiagnostics,
+  ERPEndpointName,
+  ERPEndpointStatus,
 } from "./erp.types"

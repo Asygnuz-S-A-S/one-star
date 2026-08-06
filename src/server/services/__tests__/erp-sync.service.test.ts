@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 vi.mock("server-only", () => ({}))
 
@@ -33,16 +33,20 @@ vi.mock("@/server/repositories/erp-color-family.repository", () => ({
 
 import { getERPAdapter } from "@/server/erp"
 import { createErpSyncLog } from "@/server/repositories/erp-sync-log.repository"
+import { findRecentErpSyncLogs } from "@/server/repositories/erp-sync-log.repository"
 import { findDefaultImportCategory } from "@/server/repositories/erp-catalog.repository"
 import { applyErpColorFamilyKeyUpdates } from "@/server/repositories/erp-color-family.repository"
-import { syncCatalogFromERP } from "../erp-sync.service"
+import { getErpSyncStatus, runErpEndpointDiagnostics, syncCatalogFromERP } from "../erp-sync.service"
 
 const mockGetERPAdapter = vi.mocked(getERPAdapter)
 const mockCreateErpSyncLog = vi.mocked(createErpSyncLog)
+const mockFindRecentErpSyncLogs = vi.mocked(findRecentErpSyncLogs)
 const mockFindDefaultImportCategory = vi.mocked(findDefaultImportCategory)
 const mockApplyColorFamilyKeys = vi.mocked(applyErpColorFamilyKeyUpdates)
 
 describe("syncCatalogFromERP", () => {
+  afterEach(() => vi.useRealTimers())
+
   beforeEach(() => {
     vi.clearAllMocks()
     delete process.env.ERP_CATALOG_WRITES_ENABLED
@@ -326,5 +330,186 @@ describe("syncCatalogFromERP", () => {
     expect(mockApplyColorFamilyKeys).toHaveBeenCalledWith([
       { productId: "product-a", key: "loggro:004:180361" },
     ])
+  })
+
+  it("sanea el error antes de persistirlo y devolverlo", async () => {
+    mockGetERPAdapter.mockReturnValue({
+      fetchCatalog: vi.fn().mockRejectedValue(
+        new Error("Bearer secret-token https://user:pass@api.loggro.com/items?token=abc")
+      ),
+      ping: vi.fn(),
+    } as never)
+
+    const result = await syncCatalogFromERP("MANUAL")
+
+    expect(result.error).toContain("[REDACTADO]")
+    expect(result.error).not.toContain("secret-token")
+    expect(result.error).not.toContain("user:pass")
+    expect(mockCreateErpSyncLog).toHaveBeenCalledWith(
+      expect.objectContaining({ error: result.error })
+    )
+  })
+
+  it("sanea también los errores históricos al construir el DTO del panel", async () => {
+    mockGetERPAdapter.mockReturnValue({ ping: vi.fn().mockResolvedValue(true) } as never)
+    mockFindRecentErpSyncLogs.mockResolvedValue([
+      {
+        id: "log-1",
+        provider: "loggro",
+        trigger: "AUTO",
+        success: false,
+        processedCount: 0,
+        error: "token=historical-secret",
+        durationMs: 50,
+        createdAt: new Date("2026-08-06T12:00:00Z"),
+      },
+    ] as never)
+
+    const status = await getErpSyncStatus()
+
+    expect(status.last?.error).toContain("[REDACTADO]")
+    expect(status.last?.error).not.toContain("historical-secret")
+  })
+
+  it("conserva resultados parciales del diagnóstico y sanea cada detalle", async () => {
+    mockGetERPAdapter.mockReturnValue({
+      ping: vi.fn(),
+      diagnoseEndpoints: vi.fn().mockResolvedValue([
+        {
+          endpoint: "connection",
+          status: "healthy",
+          httpStatus: 200,
+          latencyMs: 8,
+          detail: "Bearer secret connection ok",
+        },
+        {
+          endpoint: "stock",
+          status: "error",
+          httpStatus: 503,
+          latencyMs: 30,
+          detail: "token=private stock unavailable",
+        },
+      ]),
+    } as never)
+
+    const result = await runErpEndpointDiagnostics()
+
+    expect(result.results).toHaveLength(3)
+    expect(result.results.map((probe) => probe.endpoint)).toEqual([
+      "connection",
+      "catalog",
+      "stock",
+    ])
+    expect(result.results[0].detail).not.toContain("secret")
+    expect(result.results[1]).toMatchObject({ endpoint: "catalog", status: "error" })
+    expect(result.results[2]).toMatchObject({ endpoint: "stock", httpStatus: 503 })
+    expect(result.results[2].detail).not.toContain("private")
+  })
+
+  it("informa que el diagnóstico detallado no está soportado por el adaptador", async () => {
+    mockGetERPAdapter.mockReturnValue({ ping: vi.fn() } as never)
+
+    const result = await runErpEndpointDiagnostics()
+
+    expect(result.results).toHaveLength(3)
+    expect(result.results.every((probe) => probe.status === "unsupported")).toBe(true)
+  })
+
+  it("convierte un fallo general del adaptador en tres resultados seguros", async () => {
+    mockGetERPAdapter.mockReturnValue({
+      ping: vi.fn(),
+      diagnoseEndpoints: vi.fn().mockRejectedValue(new Error("token=private")),
+    } as never)
+
+    const result = await runErpEndpointDiagnostics()
+
+    expect(result.results).toHaveLength(3)
+    expect(result.results.every((probe) => probe.status === "error")).toBe(true)
+    expect(result.results.every((probe) => !probe.detail.includes("private"))).toBe(true)
+  })
+
+  it("normaliza duplicados, faltantes y campos runtime inválidos a tres probes seguros", async () => {
+    mockGetERPAdapter.mockReturnValue({
+      ping: vi.fn(),
+      diagnoseEndpoints: vi.fn().mockResolvedValue([
+        {
+          endpoint: "connection",
+          status: "healthy",
+          httpStatus: 200,
+          latencyMs: 5,
+          detail: "Conexión válida.",
+        },
+        {
+          endpoint: "connection",
+          status: "healthy",
+          httpStatus: 200,
+          latencyMs: 6,
+          detail: "Duplicado.",
+        },
+        {
+          endpoint: "stock",
+          status: "inventado",
+          httpStatus: 999,
+          latencyMs: Number.NaN,
+          detail: { raw: "private" },
+        },
+        {
+          endpoint: "unknown",
+          status: "healthy",
+          httpStatus: 200,
+          latencyMs: 1,
+          detail: "No debe salir",
+        },
+      ]),
+    } as never)
+
+    const result = await runErpEndpointDiagnostics()
+
+    expect(result.results.map((probe) => probe.endpoint)).toEqual([
+      "connection",
+      "catalog",
+      "stock",
+    ])
+    expect(result.results.every((probe) => probe.status === "error")).toBe(true)
+    expect(result.results.every((probe) => probe.httpStatus === null)).toBe(true)
+    expect(result.results.every((probe) => probe.latencyMs === 0)).toBe(true)
+    expect(JSON.stringify(result)).not.toContain("private")
+    expect(JSON.stringify(result)).not.toContain("unknown")
+  })
+
+  it("asigna checkedAt cuando finaliza el adaptador", async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-08-06T12:00:00.000Z"))
+    mockGetERPAdapter.mockReturnValue({
+      ping: vi.fn(),
+      diagnoseEndpoints: vi.fn().mockImplementation(async () => {
+        vi.setSystemTime(new Date("2026-08-06T12:00:05.000Z"))
+        return []
+      }),
+    } as never)
+
+    const result = await runErpEndpointDiagnostics()
+
+    expect(result.checkedAt).toBe("2026-08-06T12:00:05.000Z")
+    vi.useRealTimers()
+  })
+
+  it("rechaza una segunda ejecución concurrente sin invocar dos veces el adaptador", async () => {
+    let release: ((value: unknown[]) => void) | undefined
+    const diagnoseEndpoints = vi.fn().mockImplementation(
+      () => new Promise<unknown[]>((resolve) => { release = resolve })
+    )
+    mockGetERPAdapter.mockReturnValue({ ping: vi.fn(), diagnoseEndpoints } as never)
+
+    const first = runErpEndpointDiagnostics()
+    await vi.waitFor(() => expect(diagnoseEndpoints).toHaveBeenCalledOnce())
+    const second = await runErpEndpointDiagnostics()
+
+    expect(diagnoseEndpoints).toHaveBeenCalledOnce()
+    expect(second.results).toHaveLength(3)
+    expect(second.results.every((probe) => probe.status === "error")).toBe(true)
+
+    release?.([])
+    await first
   })
 })

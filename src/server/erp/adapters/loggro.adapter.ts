@@ -4,6 +4,7 @@ import type { IERPAdapter } from "../ports/erp.port"
 import type {
   ERPCatalogSnapshot,
   ERPCustomer,
+  ERPEndpointDiagnostic,
   ERPInvoice,
   ERPSyncResult,
   ERPStockItem,
@@ -105,6 +106,10 @@ export class LoggroERPAdapter implements IERPAdapter {
 
   async ping(): Promise<boolean> {
     return this.client.ping()
+  }
+
+  async diagnoseEndpoints(): Promise<ERPEndpointDiagnostic[]> {
+    return this.client.diagnoseEndpoints()
   }
 
   async fetchCatalog(): Promise<ERPCatalogSnapshot> {

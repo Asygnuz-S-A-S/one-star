@@ -19,8 +19,14 @@ import "server-only"
  *   - POST /productos/disponibilidad-productos           → EXISTENCIAS (stock)
  */
 
-import type { ERPCustomer, ERPOrderItem, ERPStockItem } from "../erp.types"
+import type {
+  ERPCustomer,
+  ERPEndpointDiagnostic,
+  ERPOrderItem,
+  ERPStockItem,
+} from "../erp.types"
 import type { LoggroStockSnapshot } from "./loggro-catalog.normalizer"
+import { sanitizeErpError } from "../erp-error"
 
 // Base URL oficial para el API Pymes de Loggro
 const LOGGRO_BASE_URL = (process.env.LOGGRO_BASE_URL || "https://api.loggro.com").replace(/\/$/, "")
@@ -49,6 +55,11 @@ const CATALOG_PAGE_SIZE = 100
 const MAX_CATALOG_PAGES = 100
 /** Evita que una llamada individual deje la sincronización colgada indefinidamente. */
 const REQUEST_TIMEOUT_MS = 30_000
+/** Presupuesto total del diagnóstico para funcionar en runtimes serverless. */
+const DIAGNOSTIC_TIMEOUT_MS = 15_000
+const DIAGNOSTIC_MAX_CATALOG_PAGES = 5
+const DIAGNOSTIC_SAMPLE_SIZE = 5
+const DIAGNOSTIC_MAX_LOCATIONS = 10
 
 // ─── Tipos internos de la API de Loggro ──────────────────────────────────────
 
@@ -75,7 +86,7 @@ export interface LoggroUnidadMedida {
 export interface LoggroCatalogItem {
   uuid?: string
   id?: string
-  codigo?: string
+  codigo?: string | number
   descripcion?: string
   /** Descripción larga; suele incluir talla y color (ej. "... 39 Azul Unisex"). */
   descripcionDetallada?: string
@@ -118,7 +129,7 @@ interface LoggroDisponibilidadItem {
   uuid?: string
   codigo?: string
   descripcion?: string
-  cantidadDisponible?: number
+  cantidadDisponible?: number | string
 }
 
 /** Ubicación de inventario resuelta (establecimiento + bodega) */
@@ -161,6 +172,7 @@ interface RawResponse {
   ok: boolean
   status: number
   text: string
+  failure?: "timeout" | "network"
 }
 
 // ─── Cliente ──────────────────────────────────────────────────────────────────
@@ -187,13 +199,18 @@ export class LoggroClient {
   }
 
   /** Petición que lanza si la respuesta no es 2xx. */
-  private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  private async request<T>(
+    method: string,
+    path: string,
+    body?: unknown,
+    timeoutMs = REQUEST_TIMEOUT_MS
+  ): Promise<T> {
     const res = await fetch(`${LOGGRO_BASE_URL}${path}`, {
       method,
       headers: this.headers(),
       body: body ? JSON.stringify(body) : undefined,
       cache: "no-store",
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      signal: AbortSignal.timeout(Math.max(1, Math.min(REQUEST_TIMEOUT_MS, timeoutMs))),
     })
 
     if (!res.ok) {
@@ -205,20 +222,45 @@ export class LoggroClient {
   }
 
   /** Petición cruda que NO lanza: devuelve status + cuerpo para manejo fino. */
-  private async requestSafe(method: string, path: string, body?: unknown): Promise<RawResponse> {
+  private async requestSafe(
+    method: string,
+    path: string,
+    body?: unknown,
+    timeoutMs = REQUEST_TIMEOUT_MS
+  ): Promise<RawResponse> {
     try {
       const res = await fetch(`${LOGGRO_BASE_URL}${path}`, {
         method,
         headers: this.headers(),
         body: body ? JSON.stringify(body) : undefined,
         cache: "no-store",
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        signal: AbortSignal.timeout(Math.max(1, Math.min(REQUEST_TIMEOUT_MS, timeoutMs))),
       })
       return { ok: res.ok, status: res.status, text: await res.text() }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
-      return { ok: false, status: 0, text: message }
+      const name = err && typeof err === "object" && "name" in err ? String(err.name) : ""
+      const failure = name === "TimeoutError" || name === "AbortError" ? "timeout" : "network"
+      return { ok: false, status: 0, text: message, failure }
     }
+  }
+
+  /** Extrae únicamente mensajes estructurados conocidos; nunca devuelve el cuerpo crudo. */
+  private safeErrorDetail(text: string): string {
+    const body = this.parseJson<LoggroErrorBody>(text)
+    const errors = Array.isArray(body?.errores) ? body.errores : []
+    const details = errors
+      .map((error) => {
+        if (!error || typeof error !== "object") return null
+        const message = typeof error.mensaje === "string" ? error.mensaje : null
+        const code = typeof error.codigo === "string" ? error.codigo : null
+        return message ?? code
+      })
+      .filter((value): value is string => Boolean(value))
+      .filter((value) => /^Producto no encontrado:\s*[A-Za-z0-9._-]{1,100}$/i.test(value))
+    return details.length > 0
+      ? sanitizeErpError(details.join(" · "))
+      : "El proveedor no entregó un detalle seguro."
   }
 
   // ── Healthcheck ──────────────────────────────────────────────────────────────
@@ -228,13 +270,296 @@ export class LoggroClient {
     return res.ok
   }
 
+  /**
+   * Probes acotados y bajo demanda. Solo usa endpoints de lectura; el POST de
+   * disponibilidad es una consulta y nunca crea movimientos de inventario.
+   */
+  async diagnoseEndpoints(): Promise<ERPEndpointDiagnostic[]> {
+    const results: ERPEndpointDiagnostic[] = []
+    const deadline = Date.now() + DIAGNOSTIC_TIMEOUT_MS
+    const remainingMs = () => Math.max(1, Math.min(REQUEST_TIMEOUT_MS, deadline - Date.now()))
+    const budgetExhausted = () => Date.now() >= deadline
+    const withinRemainingBudget = <T>(promise: Promise<T>): Promise<T> =>
+      new Promise<T>((resolve, reject) => {
+        const timer = setTimeout(
+          () => reject(new Error("Se agotó el tiempo del diagnóstico.")),
+          remainingMs()
+        )
+        promise.then(
+          (value) => {
+            clearTimeout(timer)
+            resolve(value)
+          },
+          (error) => {
+            clearTimeout(timer)
+            reject(error)
+          }
+        )
+      })
+
+    const connectionStartedAt = Date.now()
+    const connection = await this.requestSafe(
+      "GET",
+      `${INV}/estructura-empresarial/establecimientos`,
+      undefined,
+      remainingMs()
+    )
+    const connectionBody = this.parseJson<LoggroContenidoResponse<LoggroEstablecimiento>>(
+      connection.text
+    )
+    const establishments = Array.isArray(connectionBody?.contenido)
+      ? connectionBody.contenido
+      : []
+    const connectionBodyValid = Array.isArray(connectionBody?.contenido)
+    results.push({
+      endpoint: "connection",
+      status: connection.ok ? (connectionBodyValid ? "healthy" : "warning") : "error",
+      httpStatus: connection.status || null,
+      latencyMs: Date.now() - connectionStartedAt,
+      detail: connection.ok
+        ? connectionBodyValid
+          ? `La API respondió y devolvió ${establishments.length} establecimiento(s).`
+          : "La API respondió, pero el formato de establecimientos no fue válido."
+        : connection.status
+          ? `El endpoint de conexión respondió HTTP ${connection.status}.`
+          : "No fue posible alcanzar el endpoint de conexión.",
+    })
+
+    const catalogStartedAt = Date.now()
+    const sampleCodeSet = new Set<string>()
+    let catalogCount = 0
+    let catalogHttpStatus: number | null = null
+    let catalogRequestFailed = false
+    let catalogFailure: RawResponse["failure"]
+    let failedPageNumber: number | null = null
+    let catalogMalformed = false
+    let catalogItemIssues = 0
+    let scannedPages = 0
+
+    for (let pageNumber = 0; pageNumber < DIAGNOSTIC_MAX_CATALOG_PAGES; pageNumber++) {
+      if (budgetExhausted()) break
+      const catalog = await this.requestSafe(
+        "GET",
+        `${INV}/items?pagina=${pageNumber}&tamano=${CATALOG_PAGE_SIZE}`,
+        undefined,
+        remainingMs()
+      )
+      scannedPages += 1
+      catalogHttpStatus = catalog.status || null
+      if (!catalog.ok) {
+        catalogRequestFailed = true
+        catalogFailure = catalog.failure
+        failedPageNumber = pageNumber
+        break
+      }
+
+      const catalogBody = this.parseJson<LoggroCatalogResponse>(catalog.text)
+      const page = catalogBody?.contenido ?? catalogBody?.datos
+      if (!page || !Array.isArray(page.content)) {
+        catalogMalformed = true
+        break
+      }
+
+      const reportedCount = Number(page.totalElements ?? page.content.length)
+      if (Number.isFinite(reportedCount) && reportedCount >= 0) {
+        catalogCount = Math.max(catalogCount, reportedCount)
+      } else {
+        catalogItemIssues += 1
+      }
+      for (const item of page.content) {
+        if (!item || typeof item !== "object" || Array.isArray(item)) {
+          catalogItemIssues += 1
+          continue
+        }
+        if (item.definicion !== undefined && typeof item.definicion !== "boolean") {
+          catalogItemIssues += 1
+        }
+        if (item.definicion === true) continue
+        const rawCode = item.codigo
+        const validCode =
+          (typeof rawCode === "string" && rawCode.trim().length > 0) ||
+          (typeof rawCode === "number" && Number.isFinite(rawCode))
+        if (!validCode) {
+          catalogItemIssues += 1
+          continue
+        }
+        const code = String(rawCode).trim()
+        if (code) sampleCodeSet.add(code)
+        if (sampleCodeSet.size === DIAGNOSTIC_SAMPLE_SIZE) break
+      }
+
+      if (sampleCodeSet.size === DIAGNOSTIC_SAMPLE_SIZE) break
+      const totalPages = Number(page.totalPages)
+      const reachedReportedEnd =
+        page.last === true ||
+        (Number.isFinite(totalPages) && pageNumber + 1 >= totalPages) ||
+        (Number.isFinite(page.totalElements) &&
+          (pageNumber + 1) * CATALOG_PAGE_SIZE >= Number(page.totalElements))
+      if (reachedReportedEnd) break
+    }
+
+    const sampleCodes = [...sampleCodeSet]
+    const catalogNotExecuted = scannedPages === 0 && budgetExhausted()
+    const catalogFunctionalIssue =
+      catalogMalformed ||
+      catalogRequestFailed ||
+      catalogNotExecuted ||
+      budgetExhausted() ||
+      catalogCount === 0 ||
+      catalogItemIssues > 0
+    results.push({
+      endpoint: "catalog",
+      status: catalogNotExecuted || (catalogRequestFailed && scannedPages <= 1)
+        ? "error"
+        : catalogFunctionalIssue || sampleCodes.length === 0
+          ? "warning"
+          : "healthy",
+      httpStatus: catalogHttpStatus,
+      latencyMs: Date.now() - catalogStartedAt,
+      detail: catalogNotExecuted
+        ? "No se ejecutó el endpoint de catálogo porque se agotó el presupuesto del diagnóstico."
+        : catalogRequestFailed
+          ? catalogHttpStatus
+            ? `La página ${(failedPageNumber ?? 0) + 1} del catálogo respondió HTTP ${catalogHttpStatus}; se conservaron ${sampleCodes.length} SKU previos.`
+            : catalogFailure === "timeout"
+              ? `La página ${(failedPageNumber ?? 0) + 1} del catálogo agotó el tiempo de espera; se conservaron ${sampleCodes.length} SKU previos.`
+              : `No fue posible alcanzar la página ${(failedPageNumber ?? 0) + 1} del catálogo; se conservaron ${sampleCodes.length} SKU previos.`
+        : budgetExhausted()
+          ? `Se agotó el presupuesto del diagnóstico tras ${scannedPages} página(s); se conservaron ${sampleCodes.length} SKU previos.`
+        : catalogMalformed
+          ? "El catálogo respondió, pero su formato no fue válido."
+          : catalogItemIssues > 0
+            ? `El catálogo respondió con ${catalogItemIssues} inconsistencia(s); se conservaron ${sampleCodes.length} SKU válidos.`
+          : catalogCount === 0
+            ? "El catálogo respondió correctamente, pero no devolvió ítems."
+            : `El catálogo reportó ${catalogCount} ítem(s); se tomaron ${sampleCodes.length} SKU vendibles en ${scannedPages} página(s).`,
+    })
+
+    const stockStartedAt = Date.now()
+    if (sampleCodes.length === 0 || budgetExhausted()) {
+      results.push({
+        endpoint: "stock",
+        status: "error",
+        httpStatus: null,
+        latencyMs: Date.now() - stockStartedAt,
+        detail: "No se pudo seleccionar una muestra de SKU vendibles para probar disponibilidad.",
+      })
+      return results
+    }
+
+    let resolvedLocations: InventoryLocation[]
+    try {
+      resolvedLocations = await withinRemainingBudget(
+        this.resolveStockLocations(remainingMs(), false)
+      )
+    } catch {
+      resolvedLocations = []
+    }
+    const locationsTruncated = resolvedLocations.length > DIAGNOSTIC_MAX_LOCATIONS
+    const scopedLocations = resolvedLocations.slice(0, DIAGNOSTIC_MAX_LOCATIONS)
+
+    if (scopedLocations.length === 0 || budgetExhausted()) {
+      results.push({
+        endpoint: "stock",
+        status: "error",
+        httpStatus: null,
+        latencyMs: Date.now() - stockStartedAt,
+        detail: budgetExhausted()
+          ? "Se agotó el tiempo del diagnóstico antes de probar disponibilidad."
+          : "No se encontraron ubicaciones de inventario consultables.",
+      })
+      return results
+    }
+
+    const expectedCodes = new Set(sampleCodes)
+    const locationResults = await Promise.all(scopedLocations.map(async (location) => {
+      const response = await this.requestSafe(
+        "POST",
+        `${INV}/productos/disponibilidad-productos`,
+        {
+          establecimientoUuid: location.establecimientoUuid,
+          bodegaUuid: location.bodegaUuid,
+          items: sampleCodes.map((codigoItem) => ({ codigoItem })),
+        },
+        remainingMs()
+      )
+      if (!response.ok) {
+        return { ok: false, status: response.status, totalStock: 0, issues: 0 }
+      }
+
+      const body = this.parseJson<LoggroContenidoResponse<LoggroDisponibilidadItem>>(response.text)
+      if (!Array.isArray(body?.contenido)) {
+        return { ok: true, status: response.status, totalStock: 0, issues: 1 }
+      }
+
+      const seen = new Set<string>()
+      let issues = 0
+      let totalStock = 0
+      for (const row of body.contenido) {
+        if (!row || typeof row !== "object" || Array.isArray(row)) {
+          issues += 1
+          continue
+        }
+        const code = row.codigo == null ? "" : String(row.codigo)
+        if (!code || !expectedCodes.has(code) || seen.has(code)) {
+          issues += 1
+          continue
+        }
+        seen.add(code)
+        const rawQuantity = row.cantidadDisponible
+        const quantity = typeof rawQuantity === "number"
+          ? rawQuantity
+          : typeof rawQuantity === "string" && rawQuantity.trim()
+            ? Number(rawQuantity)
+            : Number.NaN
+        if (!Number.isFinite(quantity) || quantity < 0) {
+          issues += 1
+          continue
+        }
+        totalStock += quantity
+      }
+      for (const code of expectedCodes) {
+        if (!seen.has(code)) issues += 1
+      }
+      return { ok: true, status: response.status, totalStock, issues }
+    }))
+
+    const failedLocations = locationResults.filter((result) => !result.ok).length
+    const allLocationsFailed = failedLocations === scopedLocations.length
+    const validationIssues = locationResults.reduce((sum, result) => sum + result.issues, 0)
+    const totalStock = locationResults.reduce((sum, result) => sum + result.totalStock, 0)
+    const failedResult = locationResults.find((result) => !result.ok)
+    const stockHttpStatus = failedResult
+      ? failedResult.status || null
+      : locationResults[0]?.status || null
+    const truncatedLocations = Math.max(0, resolvedLocations.length - scopedLocations.length)
+    const incomplete = failedLocations > 0 || validationIssues > 0 || locationsTruncated
+    results.push({
+      endpoint: "stock",
+      status: allLocationsFailed ? "error" : incomplete || totalStock === 0 ? "warning" : "healthy",
+      httpStatus: stockHttpStatus,
+      latencyMs: Date.now() - stockStartedAt,
+      detail: allLocationsFailed
+        ? `El endpoint de disponibilidad falló en ${failedLocations} bodega(s).`
+        : incomplete
+          ? `La disponibilidad quedó parcial: ${failedLocations} sede(s) fallida(s), ${validationIssues} inconsistencia(s) y ${truncatedLocations} truncada(s) por límite.`
+          : totalStock === 0
+            ? `El endpoint respondió, pero la muestra de ${sampleCodes.length} SKU sumó stock total cero.`
+            : `El endpoint respondió para ${sampleCodes.length} SKU con ${totalStock} unidad(es) disponibles.`,
+    })
+
+    return results
+  }
+
   // ── Estructura empresarial (establecimientos y bodegas) ──────────────────────
 
-  async getEstablecimientos(): Promise<LoggroEstablecimiento[]> {
+  async getEstablecimientos(timeoutMs = REQUEST_TIMEOUT_MS): Promise<LoggroEstablecimiento[]> {
     try {
       const data = await this.request<LoggroContenidoResponse<LoggroEstablecimiento>>(
         "GET",
-        `${INV}/estructura-empresarial/establecimientos`
+        `${INV}/estructura-empresarial/establecimientos`,
+        undefined,
+        timeoutMs
       )
       return data?.contenido ?? []
     } catch (err) {
@@ -243,11 +568,13 @@ export class LoggroClient {
     }
   }
 
-  async getBodegas(): Promise<LoggroBodega[]> {
+  async getBodegas(timeoutMs = REQUEST_TIMEOUT_MS): Promise<LoggroBodega[]> {
     try {
       const data = await this.request<LoggroContenidoResponse<LoggroBodega>>(
         "GET",
-        `${INV}/estructura-empresarial/bodegas`
+        `${INV}/estructura-empresarial/bodegas`,
+        undefined,
+        timeoutMs
       )
       return data?.contenido ?? []
     } catch (err) {
@@ -265,15 +592,18 @@ export class LoggroClient {
    *
    * El resultado se cachea: la topología de sedes cambia rara vez.
    */
-  private resolveLocation(): Promise<InventoryLocation> {
-    if (this.locationPromise) return this.locationPromise
+  private resolveLocation(
+    timeoutMs = REQUEST_TIMEOUT_MS,
+    useCache = true
+  ): Promise<InventoryLocation> {
+    if (useCache && this.locationPromise) return this.locationPromise
 
-    this.locationPromise = (async () => {
+    const operation = (async () => {
       // Siempre listamos la estructura empresarial: además del uuid necesitamos
       // el NOMBRE del establecimiento (requerido por el endpoint de salidas).
       const [establecimientos, bodegas] = await Promise.all([
-        this.getEstablecimientos(),
-        this.getBodegas(),
+        this.getEstablecimientos(timeoutMs),
+        this.getBodegas(timeoutMs),
       ])
 
       const establecimiento =
@@ -311,11 +641,12 @@ export class LoggroClient {
       return { establecimientoUuid, establecimientoNombre, bodegaUuid }
     })().catch((err) => {
       // No cachear el fallo: permitir reintento en la siguiente llamada.
-      this.locationPromise = null
+      if (useCache) this.locationPromise = null
       throw err
     })
 
-    return this.locationPromise
+    if (useCache) this.locationPromise = operation
+    return operation
   }
 
   /**
@@ -326,15 +657,22 @@ export class LoggroClient {
    * muestre la disponibilidad consolidada de la cadena. Con `primary` se limita
    * a la sede principal (la misma que registra las salidas por venta).
    */
-  private resolveStockLocations(): Promise<InventoryLocation[]> {
-    if (this.stockLocationsPromise) return this.stockLocationsPromise
+  private resolveStockLocations(
+    timeoutMs = REQUEST_TIMEOUT_MS,
+    useCache = true
+  ): Promise<InventoryLocation[]> {
+    if (useCache && this.stockLocationsPromise) return this.stockLocationsPromise
 
-    this.stockLocationsPromise = (async () => {
-      if (STOCK_SCOPE === "primary") return [await this.resolveLocation()]
+    const operation = (async () => {
+      const deadline = Date.now() + timeoutMs
+      const remainingMs = () => Math.max(1, deadline - Date.now())
+      if (STOCK_SCOPE === "primary") {
+        return [await this.resolveLocation(remainingMs(), useCache)]
+      }
 
       const [establecimientos, bodegas] = await Promise.all([
-        this.getEstablecimientos(),
-        this.getBodegas(),
+        this.getEstablecimientos(remainingMs()),
+        this.getBodegas(remainingMs()),
       ])
 
       const tiendas = establecimientos.filter((e) => e.tipoNodo === "EST")
@@ -351,7 +689,9 @@ export class LoggroClient {
       }
 
       // Sin tiendas utilizables, se cae a la ubicación principal.
-      if (locations.length === 0) return [await this.resolveLocation()]
+      if (locations.length === 0) {
+        return [await this.resolveLocation(remainingMs(), useCache)]
+      }
 
       console.info(
         `[LoggroClient] Stock consolidado de ${locations.length} tienda(s): ` +
@@ -359,11 +699,12 @@ export class LoggroClient {
       )
       return locations
     })().catch((err) => {
-      this.stockLocationsPromise = null
+      if (useCache) this.stockLocationsPromise = null
       throw err
     })
 
-    return this.stockLocationsPromise
+    if (useCache) this.stockLocationsPromise = operation
+    return operation
   }
 
   // ── Contactos (clientes) ─────────────────────────────────────────────────────
@@ -598,7 +939,9 @@ export class LoggroClient {
         continue
       }
 
-      const error = `[LoggroClient] disponibilidad-productos → ${res.status}: ${res.text.slice(0, 200)}`
+      const error = sanitizeErpError(
+        `[LoggroClient] disponibilidad-productos → ${res.status}. ${this.safeErrorDetail(res.text)}`
+      )
       console.error(error)
       return { missingCodes: [...missingCodes, ...pending], errors: [error] }
     }

@@ -1,3 +1,5 @@
+import "server-only"
+
 import type {
   ERPCustomer,
   ERPInvoice,
@@ -74,4 +76,10 @@ export interface IERPAdapter {
    * Útil para traer nuevos productos o actualizar precios mediante un servicio externo.
    */
   fetchCatalog?(): Promise<import("../erp.types").ERPCatalogSnapshot>
+
+  /**
+   * Prueba explícita y de solo lectura de las capacidades operativas del ERP.
+   * Es opcional para conservar compatibilidad con adaptadores existentes.
+   */
+  diagnoseEndpoints?(): Promise<import("../erp.types").ERPEndpointDiagnostic[]>
 }
