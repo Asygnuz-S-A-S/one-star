@@ -2,7 +2,7 @@
 title: 'Configurar la sincronización automática del ERP'
 type: 'feature'
 created: '2026-08-06'
-status: 'in-progress'
+status: 'in-review'
 baseline_commit: '458070bfddb2acc6584cbdf61622b5724ac3a6e2'
 context:
   - '{project-root}/docs/architecture.md'
@@ -53,12 +53,12 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] Pruebas de validador/repositorio/servicio/action -- cubrir matriz, permisos y reclamación concurrente antes de producción.
-- [ ] Prisma + repositorio -- persistir un único registro y reclamar vencimientos sin mantener locks durante HTTP.
-- [ ] Validador + servicio -- aplicar defaults, intervalos permitidos y cálculo estable de `nextRunAt`.
-- [ ] Action + cron interno/externo -- autorizar cambios y respetar apagado/vencimiento en ambos disparadores.
-- [ ] Estado + `SyncPanel` -- guardar accesiblemente, reflejar éxito/error y conservar el control manual.
-- [ ] Arquitectura + verificación UI -- explicar limitaciones y comprobar el flujo completo en Docker.
+- [x] Pruebas de validador/repositorio/servicio/action -- cubrir matriz, permisos y reclamación concurrente antes de producción.
+- [x] Prisma + repositorio -- persistir un único registro y reclamar vencimientos sin mantener locks durante HTTP.
+- [x] Validador + servicio -- aplicar defaults, intervalos permitidos y cálculo estable de `nextRunAt`.
+- [x] Action + cron interno/externo -- autorizar cambios y respetar apagado/vencimiento en ambos disparadores.
+- [x] Estado + `SyncPanel` -- guardar accesiblemente, reflejar éxito/error y conservar el control manual.
+- [x] Arquitectura + verificación UI -- explicar limitaciones y comprobar el flujo completo en Docker.
 
 **Acceptance Criteria:**
 - Given un administrador, when desactiva la sincronización y guarda, then el estado queda “Inactiva” y los siguientes disparadores no llaman al ERP.
@@ -83,3 +83,9 @@ context:
 
 **Manual checks (if no CLI):**
 - En `/admin/integraciones`, guardar otro intervalo, recargar y confirmar persistencia; desactivar y comprobar estado; ejecutar manualmente y verificar que sigue disponible.
+
+**Resultado (2026-08-06):**
+- 321 pruebas en verde; cobertura focalizada de los módulos nuevos: 100% líneas, funciones y ramas.
+- Prisma validate, TypeScript, ESLint, build local y build Docker en verde; migración aplicada correctamente.
+- UI autenticada verificada: cambio de intervalo persistente, pausa persistente, ejecución manual habilitada y restauración final a activa cada 30 minutos.
+- La cobertura global permanece en 50,79% por deuda histórica fuera de esta especificación; el código nuevo cumple el umbral solicitado.
