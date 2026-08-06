@@ -1,11 +1,15 @@
+import "server-only"
+
 import type { IERPAdapter } from "../ports/erp.port"
 import type {
+  ERPCatalogSnapshot,
   ERPCustomer,
   ERPInvoice,
   ERPSyncResult,
   ERPStockItem,
 } from "../erp.types"
 import { LoggroClient } from "./loggro.client"
+import { normalizeLoggroCatalog } from "./loggro-catalog.normalizer"
 
 /**
  * Adaptador ERP para Loggro Pymes.
@@ -20,8 +24,8 @@ import { LoggroClient } from "./loggro.client"
 export class LoggroERPAdapter implements IERPAdapter {
   private client: LoggroClient
 
-  constructor(token: string) {
-    this.client = new LoggroClient(token)
+  constructor(token: string, client?: LoggroClient) {
+    this.client = client ?? new LoggroClient(token)
   }
 
   async onOrderConfirmed(invoice: ERPInvoice): Promise<ERPSyncResult> {
@@ -103,31 +107,17 @@ export class LoggroERPAdapter implements IERPAdapter {
     return this.client.ping()
   }
 
-  async fetchCatalog(): Promise<import("../erp.types").ERPProduct[]> {
+  async fetchCatalog(): Promise<ERPCatalogSnapshot> {
     const loggroItems = await this.client.getProducts()
 
     // El catálogo (/items) NO trae existencias: el stock se consulta aparte
     // contra el endpoint de disponibilidad y se cruza por código de ítem.
-    const codigos = loggroItems.map((item) => String(item.codigo ?? "")).filter(Boolean)
-    const stockByCodigo = await this.client.getDisponibilidad(codigos)
+    const codigos = loggroItems
+      .filter((item) => item.definicion !== true)
+      .map((item) => String(item.codigo ?? ""))
+      .filter(Boolean)
+    const stock = await this.client.getDisponibilidadSnapshot(codigos)
 
-    return loggroItems.map((item) => {
-      const codigo = String(item.codigo ?? item.uuid ?? "")
-      return {
-        // El identificador estable de Loggro es `uuid`; `codigo` es el SKU.
-        erpId: String(item.uuid ?? item.codigo ?? ""),
-        sku: codigo,
-        name: item.descripcion || "Sin Nombre",
-        detailedName: item.descripcionDetallada || undefined,
-        basePrice: Number(item.precioDefecto || item.precioBase || item.precioVta || 0),
-        stock: stockByCodigo.get(codigo) ?? 0,
-        unitOfMeasure:
-          item.codigoUnidad || item.unidadMedida
-            ? String(item.codigoUnidad || item.unidadMedida)
-            : undefined,
-        categoryName: item.categoria || item.nombreCategoria || item.codigoCategoria || undefined,
-        brandErpId: item.codigoCategoria || item.categoriaProducto_uuid || undefined,
-      }
-    })
+    return normalizeLoggroCatalog(loggroItems, stock)
   }
 }

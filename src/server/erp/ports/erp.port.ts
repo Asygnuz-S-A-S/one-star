@@ -73,5 +73,5 @@ export interface IERPAdapter {
    * Obtiene el catálogo completo de productos del ERP.
    * Útil para traer nuevos productos o actualizar precios mediante un servicio externo.
    */
-  fetchCatalog?(): Promise<import("../erp.types").ERPProduct[]>
+  fetchCatalog?(): Promise<import("../erp.types").ERPCatalogSnapshot>
 }

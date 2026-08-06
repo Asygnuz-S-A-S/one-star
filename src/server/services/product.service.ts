@@ -1,6 +1,8 @@
 import "server-only"
 import {
   findManyProducts,
+  findProductCatalogCandidates,
+  findProductsByIds,
   findProductBySlug,
   findProductByIdForAdmin,
   countProducts,
@@ -8,9 +10,10 @@ import {
   createProductRecord,
   deleteProductRecord,
   searchProductsByName,
-  runInTransaction,
+  updateProductWithAdminRelations,
 } from "../repositories/product.repository"
 import type { Prisma, Gender } from "@prisma/client"
+import { buildVisibleProductPage } from "@/server/domain/product-color-family.plan"
 
 export interface CategoryDTO {
   id: string
@@ -80,6 +83,8 @@ export interface CrossSellDTO {
   variants: VariantDTO[]
 }
 
+export type ColorSiblingDTO = CrossSellDTO
+
 export interface ProductDTO {
   id: string
   slug: string
@@ -103,6 +108,7 @@ export interface ProductDTO {
   availableInStores: boolean
   images: ProductImageDTO[]
   variants: VariantDTO[]
+  colorSiblings: ColorSiblingDTO[]
   crossSells: CrossSellDTO[]
   hasStock: boolean
   isNew: boolean
@@ -164,6 +170,8 @@ export interface ProductInput {
   availableInStores: boolean
   variants: VariantInput[]
   images: ImageInput[]
+  colorFamilyProductIds?: string[]
+  colorFamilyBaselineProductIds?: string[]
   crossSellIds?: string[]
 }
 
@@ -188,6 +196,20 @@ type RawImage = { id: string; url: string; alt: string; position: number; color?
 
 type RawPrice = { toNumber: () => number }
 
+type RawRelatedProduct = {
+  id: string
+  slug: string
+  name: string
+  brandId: string | null
+  brand: { id: string; name: string } | null
+  basePrice: RawPrice
+  isOnSale: boolean
+  salePrice: RawPrice | null
+  availableOnline?: boolean
+  images: RawImage[]
+  variants: RawVariant[]
+}
+
 type RawProduct = {
   id: string
   slug: string
@@ -209,18 +231,8 @@ type RawProduct = {
   availableInStores?: boolean
   images: RawImage[]
   variants: RawVariant[]
-  crossSells?: Array<{
-    id: string
-    slug: string
-    name: string
-    brandId: string | null
-    brand: { id: string; name: string } | null
-    basePrice: RawPrice
-    isOnSale: boolean
-    salePrice: RawPrice | null
-    images: RawImage[]
-    variants: RawVariant[]
-  }>
+  colorFamily?: { products: RawRelatedProduct[] } | null
+  crossSells?: RawRelatedProduct[]
   createdAt: Date
   updatedAt: Date
 }
@@ -260,6 +272,22 @@ function mapVariant(v: RawVariant): VariantDTO {
   }
 }
 
+function mapRelatedProduct(raw: RawRelatedProduct): CrossSellDTO {
+  return {
+    id: raw.id,
+    slug: raw.slug,
+    name: raw.name,
+    brandId: raw.brandId ?? null,
+    brandName: raw.brand?.name ?? null,
+    brand: raw.brand?.name ?? null,
+    basePrice: raw.basePrice.toNumber(),
+    isOnSale: raw.isOnSale,
+    salePrice: raw.salePrice ? raw.salePrice.toNumber() : null,
+    images: raw.images.map(mapImage),
+    variants: raw.variants.map(mapVariant),
+  }
+}
+
 function mapToDTO(raw: RawProduct): ProductDTO {
   return {
     id: raw.id,
@@ -287,19 +315,10 @@ function mapToDTO(raw: RawProduct): ProductDTO {
     availableInStores: raw.availableInStores ?? true,
     images: raw.images.map(mapImage),
     variants: raw.variants.map(mapVariant),
-    crossSells: (raw.crossSells ?? []).map((cs) => ({
-      id: cs.id,
-      slug: cs.slug,
-      name: cs.name,
-      brandId: cs.brandId ?? null,
-      brandName: cs.brand?.name ?? null,
-      brand: cs.brand?.name ?? null,
-      basePrice: cs.basePrice.toNumber(),
-      isOnSale: cs.isOnSale,
-      salePrice: cs.salePrice ? cs.salePrice.toNumber() : null,
-      images: cs.images.map(mapImage),
-      variants: cs.variants.map(mapVariant),
-    })),
+    colorSiblings: (raw.colorFamily?.products ?? [])
+      .filter((product) => product.id !== raw.id && product.availableOnline !== false)
+      .map(mapRelatedProduct),
+    crossSells: (raw.crossSells ?? []).map(mapRelatedProduct),
     hasStock: raw.variants.reduce((acc, v) => acc + (v.stock || 0), 0) > 0,
     isNew: raw.createdAt > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Created in last 30 days
     createdAt: raw.createdAt.toISOString(),
@@ -351,11 +370,11 @@ function buildPrismaWhere(
 
 function buildPrismaOrderBy(
   orden?: string
-): Prisma.ProductOrderByWithRelationInput {
-  if (orden === "precio_asc") return { basePrice: "asc" }
-  if (orden === "precio_desc") return { basePrice: "desc" }
-  if (orden === "antiguo") return { createdAt: "asc" }
-  return { createdAt: "desc" }
+): Prisma.ProductOrderByWithRelationInput[] {
+  if (orden === "precio_asc") return [{ basePrice: "asc" }, { id: "asc" }]
+  if (orden === "precio_desc") return [{ basePrice: "desc" }, { id: "asc" }]
+  if (orden === "antiguo") return [{ createdAt: "asc" }, { id: "asc" }]
+  return [{ createdAt: "desc" }, { id: "asc" }]
 }
 
 export async function getProducts(
@@ -363,12 +382,35 @@ export async function getProducts(
   pageSize = 24
 ): Promise<{ products: ProductDTO[]; total: number }> {
   const page = Math.max(1, Number(filter.page ?? 1))
-  const skip = (page - 1) * pageSize
   const where = buildPrismaWhere(filter)
   const orderBy = buildPrismaOrderBy(filter.orden)
+  const candidates = await findProductCatalogCandidates(where, orderBy)
+  const visiblePage = buildVisibleProductPage(candidates, page, pageSize)
+  const rows = await findProductsByIds(visiblePage.productIds)
+  const rowsById = new Map(rows.map((row) => [row.id, row]))
 
+  return {
+    products: visiblePage.productIds.flatMap((id) => {
+      const row = rowsById.get(id)
+      return row ? [mapToDTO(row)] : []
+    }),
+    total: visiblePage.total,
+  }
+}
+
+/**
+ * El administrador trabaja con los registros ERP individuales. Por eso esta
+ * consulta no colapsa las familias de color como sí lo hace el catálogo.
+ */
+export async function getAdminProducts(
+  filter: AppProductFilter,
+  pageSize = 20
+): Promise<{ products: ProductDTO[]; total: number }> {
+  const page = Math.max(1, Number(filter.page ?? 1))
+  const where = buildPrismaWhere(filter)
+  const orderBy = buildPrismaOrderBy(filter.orden)
   const [rows, total] = await Promise.all([
-    findManyProducts(where, orderBy, pageSize, skip),
+    findManyProducts(where, orderBy, pageSize, (page - 1) * pageSize),
     countProducts(where),
   ])
 
@@ -441,65 +483,7 @@ export async function updateProduct(
   id: string,
   input: ProductInput
 ): Promise<ProductDTO> {
-  const raw = await runInTransaction(async (tx) => {
-    await tx.variant.deleteMany({ where: { productId: id } })
-    await tx.productImage.deleteMany({ where: { productId: id } })
-
-    return tx.product.update({
-      where: { id },
-      data: {
-        name: input.name,
-        slug: input.slug,
-        brand: input.brandId ? { connect: { id: input.brandId } } : { disconnect: true },
-        gender: (input.gender as Gender) ?? null,
-        category: { connect: { id: input.categoryId } },
-        description: input.description ?? null,
-        extendedDescription: input.extendedDescription ?? null,
-        videoUrl: input.videoUrl ?? null,
-        basePrice: input.basePrice,
-        isOnSale: input.isOnSale,
-        salePrice: input.salePrice ?? null,
-        metaTitle: input.metaTitle ?? null,
-        metaDescription: input.metaDescription ?? null,
-        availableOnline: input.availableOnline,
-        availableInStores: input.availableInStores,
-        variants: {
-          create: input.variants.map((v) => ({
-            sku: v.sku,
-            size: v.size,
-            color: v.color,
-            stock: v.stock,
-            inventory: {
-              create: v.inventory.map((inv) => ({
-                storeLocationId: inv.storeLocationId,
-                stock: inv.stock,
-              })),
-            },
-            sizeUS: v.sizeUS ?? null,
-            sizeCM: v.sizeCM ?? null,
-            sizeEUR: v.sizeEUR ?? null,
-          })),
-        },
-        images: {
-          create: input.images.map((img, idx) => ({
-            url: img.url,
-            alt: img.alt ?? input.name,
-            position: img.position ?? idx,
-            color: img.color ?? null,
-          })),
-        },
-        crossSells: {
-          set: (input.crossSellIds ?? []).map((csId) => ({ id: csId })),
-        },
-      },
-      include: {
-        category: true,
-        brand: { select: { id: true, name: true, slug: true } },
-        images: { orderBy: { position: "asc" } },
-        variants: true,
-      },
-    })
-  })
+  const raw = await updateProductWithAdminRelations(id, input)
   return mapToDTO(raw)
 }
 
@@ -530,6 +514,25 @@ export async function getRelatedProducts(
 export async function searchProducts(
   q: string,
   excludeId?: string
-): Promise<{ id: string; name: string; brandId: string | null; brand: { name: string } | null }[]> {
-  return searchProductsByName(q, excludeId)
+): Promise<Array<{
+  id: string
+  slug: string
+  name: string
+  brandId: string | null
+  brandName: string | null
+  colorFamilyId: string | null
+  imageUrl: string | null
+  color: string | null
+}>> {
+  const rows = await searchProductsByName(q, excludeId)
+  return rows.map((row) => ({
+    id: row.id,
+    slug: row.slug,
+    name: row.name,
+    brandId: row.brandId,
+    brandName: row.brand?.name ?? null,
+    colorFamilyId: row.colorFamilyId,
+    imageUrl: row.images[0]?.url ?? null,
+    color: row.variants.find((variant) => variant.color.trim().length > 0)?.color ?? null,
+  }))
 }

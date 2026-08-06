@@ -1,3 +1,5 @@
+import "server-only"
+
 /**
  * Cliente HTTP para la API REST de Loggro Pymes.
  *
@@ -18,6 +20,7 @@
  */
 
 import type { ERPCustomer, ERPOrderItem, ERPStockItem } from "../erp.types"
+import type { LoggroStockSnapshot } from "./loggro-catalog.normalizer"
 
 // Base URL oficial para el API Pymes de Loggro
 const LOGGRO_BASE_URL = (process.env.LOGGRO_BASE_URL || "https://api.loggro.com").replace(/\/$/, "")
@@ -44,6 +47,8 @@ const DISPONIBILIDAD_CHUNK_SIZE = 100
 const CATALOG_PAGE_SIZE = 100
 /** Tope de seguridad para no iterar sin fin si el ERP nunca marca `last`. */
 const MAX_CATALOG_PAGES = 100
+/** Evita que una llamada individual deje la sincronización colgada indefinidamente. */
+const REQUEST_TIMEOUT_MS = 30_000
 
 // ─── Tipos internos de la API de Loggro ──────────────────────────────────────
 
@@ -57,12 +62,6 @@ interface LoggroInvoice {
   id: string
   number?: string
   total?: number
-}
-
-interface LoggroItem {
-  id: string
-  code?: string
-  stock?: number
 }
 
 /** Unidad de medida del catálogo Loggro */
@@ -92,6 +91,10 @@ export interface LoggroCatalogItem {
   codigoCategoria?: string
   categoriaProducto_uuid?: string
   productoBase_uuid?: string
+  /** `true` identifica el producto padre de Loggro; no es una variante vendible. */
+  definicion?: boolean
+  /** UUID de la definición padre a la que pertenece una variante vendible. */
+  definidoEn_uuid?: string
 }
 
 /** Nodo de la estructura empresarial (establecimiento) */
@@ -190,6 +193,7 @@ export class LoggroClient {
       headers: this.headers(),
       body: body ? JSON.stringify(body) : undefined,
       cache: "no-store",
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     })
 
     if (!res.ok) {
@@ -208,6 +212,7 @@ export class LoggroClient {
         headers: this.headers(),
         body: body ? JSON.stringify(body) : undefined,
         cache: "no-store",
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       })
       return { ok: res.ok, status: res.status, text: await res.text() }
     } catch (err) {
@@ -472,28 +477,78 @@ export class LoggroClient {
    * omiten del mapa en lugar de hacer fallar todo el lote.
    */
   async getDisponibilidad(codigos: string[]): Promise<Map<string, number>> {
+    const snapshot = await this.getDisponibilidadSnapshot(codigos)
+    return snapshot.stockByCodigo
+  }
+
+  /**
+   * Variante diagnóstica de `getDisponibilidad`: además del mapa de stock,
+   * informa si todas las bodegas respondieron para todos los SKU solicitados.
+   */
+  async getDisponibilidadSnapshot(codigos: string[]): Promise<LoggroStockSnapshot> {
     const stock = new Map<string, number>()
     const unique = [...new Set(codigos.filter(Boolean))]
-    if (unique.length === 0) return stock
+    if (unique.length === 0) {
+      return {
+        stockByCodigo: stock,
+        complete: true,
+        requestedCount: 0,
+        resolvedCount: 0,
+        missingCodes: [],
+        errors: [],
+      }
+    }
 
     let locations: InventoryLocation[]
     try {
       locations = await this.resolveStockLocations()
     } catch (err) {
-      console.error("[LoggroClient] No se pudo resolver la ubicación de inventario:", err)
-      return stock
+      const message = err instanceof Error ? err.message : String(err)
+      console.error("[LoggroClient] No se pudo resolver la ubicación de inventario:", message)
+      return {
+        stockByCodigo: stock,
+        complete: false,
+        requestedCount: unique.length,
+        resolvedCount: 0,
+        missingCodes: unique,
+        errors: [message],
+      }
     }
+
+    if (locations.length === 0) {
+      return {
+        stockByCodigo: stock,
+        complete: false,
+        requestedCount: unique.length,
+        resolvedCount: 0,
+        missingCodes: unique,
+        errors: ["Loggro no devolvió bodegas consultables para obtener el stock."],
+      }
+    }
+
+    const incompleteCodes = new Set<string>()
+    const errors: string[] = []
 
     // El stock de cada tienda se ACUMULA sobre el mismo mapa: un SKU disponible
     // en varias sedes suma sus existencias.
     for (const location of locations) {
       for (let i = 0; i < unique.length; i += DISPONIBILIDAD_CHUNK_SIZE) {
         const chunk = unique.slice(i, i + DISPONIBILIDAD_CHUNK_SIZE)
-        await this.fetchDisponibilidadChunk(location, chunk, stock)
+        const result = await this.fetchDisponibilidadChunk(location, chunk, stock)
+        result.missingCodes.forEach((codigo) => incompleteCodes.add(codigo))
+        errors.push(...result.errors)
       }
     }
 
-    return stock
+    const missingCodes = [...incompleteCodes]
+    return {
+      stockByCodigo: stock,
+      complete: missingCodes.length === 0 && errors.length === 0,
+      requestedCount: unique.length,
+      resolvedCount: unique.length - missingCodes.length,
+      missingCodes,
+      errors,
+    }
   }
 
   /**
@@ -504,8 +559,9 @@ export class LoggroClient {
     location: InventoryLocation,
     chunk: string[],
     out: Map<string, number>
-  ): Promise<void> {
+  ): Promise<{ missingCodes: string[]; errors: string[] }> {
     let pending = [...chunk]
+    const missingCodes: string[] = []
 
     for (let attempt = 0; attempt <= chunk.length && pending.length > 0; attempt++) {
       const res = await this.requestSafe("POST", `${INV}/productos/disponibilidad-productos`, {
@@ -516,26 +572,42 @@ export class LoggroClient {
 
       if (res.ok) {
         const data = this.parseJson<LoggroContenidoResponse<LoggroDisponibilidadItem>>(res.text)
-        for (const item of data?.contenido ?? []) {
+        const rows = data?.contenido ?? []
+        const returnedCodes = new Set<string>()
+        for (const item of rows) {
           if (item.codigo == null) continue
           const codigo = String(item.codigo)
+          returnedCodes.add(codigo)
           const cantidad = Number(item.cantidadDisponible ?? 0)
           out.set(codigo, (out.get(codigo) ?? 0) + cantidad)
         }
-        return
+        const omittedCodes = pending.filter((codigo) => !returnedCodes.has(codigo))
+        return {
+          missingCodes: [...missingCodes, ...omittedCodes],
+          errors: omittedCodes.length > 0
+            ? [`Loggro omitió ${omittedCodes.length} SKU(s) en la respuesta de disponibilidad.`]
+            : [],
+        }
       }
 
       // 400 con un código no encontrado → quitarlo y reintentar el resto.
       const missing = this.extractMissingCodigo(res.text)
       if (res.status === 400 && missing) {
+        missingCodes.push(missing)
         pending = pending.filter((c) => c !== missing)
         continue
       }
 
-      console.error(
-        `[LoggroClient] disponibilidad-productos → ${res.status}: ${res.text.slice(0, 200)}`
-      )
-      return
+      const error = `[LoggroClient] disponibilidad-productos → ${res.status}: ${res.text.slice(0, 200)}`
+      console.error(error)
+      return { missingCodes: [...missingCodes, ...pending], errors: [error] }
+    }
+
+    return {
+      missingCodes: [...missingCodes, ...pending],
+      errors: pending.length > 0
+        ? ["Loggro agotó los reintentos de disponibilidad para un lote."]
+        : [],
     }
   }
 

@@ -80,7 +80,9 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
   const realFrames = [imageUrl, secondaryImageUrl, ...(gallery || [])].filter(Boolean) as string[]
   // Producto sin fotos: imagen predeterminada de la tienda en vez de un hueco.
   const hasRealImages = realFrames.length > 0
-  const allFrames = hasRealImages ? realFrames : [PLACEHOLDER_IMAGE_URL]
+  const baseFrames = hasRealImages ? realFrames : [PLACEHOLDER_IMAGE_URL]
+  const familyColorFrames = (colorSummary?.options ?? []).flatMap((option) => option.imageUrls)
+  const allFrames = [...new Set([...baseFrames, ...familyColorFrames])]
   const [activeFrame, setActiveFrame] = useState(0)
   const [activeColorName, setActiveColorName] = useState<string | null>(null)
   const imageFrameRef = useRef<HTMLDivElement | null>(null)
@@ -94,10 +96,10 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
    * Sin color activo se recorre la galería completa, como antes.
    */
   const frames = useMemo(() => {
-    if (!activeColorName) return allFrames
+    if (!activeColorName) return baseFrames
     const option = colorSummary?.options.find((item) => item.name === activeColorName)
     const colorFrames = (option?.imageUrls ?? []).filter((url) => allFrames.includes(url))
-    return colorFrames.length > 0 ? colorFrames : allFrames
+    return colorFrames.length > 0 ? colorFrames : baseFrames
     // `allFrames` se reconstruye en cada render; su contenido depende de estas props.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeColorName, colorSummary, imageUrl, secondaryImageUrl, gallery])
@@ -176,7 +178,7 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
                 fill
                 priority={priority && index === 0}
                 className={`object-center transition-opacity duration-150 ease-in-out ${
-                  hasRealImages ? "object-cover" : "object-contain"
+                  src === PLACEHOLDER_IMAGE_URL ? "object-contain" : "object-cover"
                 } ${index === visibleFrame ? "opacity-100" : "opacity-0"}`}
                 sizes="(max-width: 768px) 50vw, 25vw"
               />
@@ -233,14 +235,14 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
               return (
                 <Link
                   key={option.name}
-                  href={`${href}?color=${encodeURIComponent(option.name)}`}
+                  href={`/productos/${option.slug ?? slug}?color=${encodeURIComponent(option.name)}`}
                   prefetch={false}
                   className={`relative h-10 w-10 shrink-0 overflow-hidden rounded-sm bg-[#F5F5F5] transition-[box-shadow,opacity] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E31C23] focus-visible:ring-offset-2 dark:bg-white/5 dark:focus-visible:ring-offset-[#0F0F0F] ${
                     isActive
                       ? "ring-2 ring-[#1C1C1C] dark:ring-white"
                       : "opacity-75 ring-1 ring-[#D4D4D4] hover:opacity-100 dark:ring-white/25"
                   }`}
-                  aria-label={`Ver ${name} en color ${option.name}`}
+                  aria-label={`Ver ${option.productName ?? name} en color ${option.name}`}
                   aria-current={isActive ? "true" : undefined}
                   title={option.name}
                   onPointerEnter={() => previewColorImage(option)}

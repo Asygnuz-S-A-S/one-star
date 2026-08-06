@@ -1,8 +1,9 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useState, useTransition, useCallback, useMemo, useEffect } from "react"
-import type { Category, StoreLocation } from "@prisma/client"
+import Image from "next/image"
+import { useState, useTransition, useCallback, useMemo, useEffect, useRef } from "react"
+import type { StoreLocation } from "@prisma/client"
 import type { ProductWithRelations } from "@/types/admin"
 import { createProduct, updateProduct, deleteProduct, searchProducts } from "@/app/admin/productos/actions"
 import { monitorForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
@@ -43,6 +44,16 @@ interface CrossSellItem {
   brandName: string | null
 }
 
+interface ColorFamilyItem {
+  id: string
+  slug: string
+  name: string
+  brandName: string | null
+  colorFamilyId: string | null
+  imageUrl: string | null
+  color: string | null
+}
+
 interface Props {
   mode: "create" | "edit"
   product?: ProductWithRelations
@@ -63,13 +74,6 @@ function slugify(text: string): string {
     .replace(/[^a-z0-9\s-]/g, "")
     .trim()
     .replace(/\s+/g, "-")
-}
-
-function generateSku(name: string, color: string, size: string): string {
-  const n = name.slice(0, 4).toUpperCase().replace(/\s+/g, "")
-  const c = color.slice(0, 3).toUpperCase().replace(/\s+/g, "")
-  const s = size.toUpperCase().replace(/\s+/g, "")
-  return `${n}-${c}-${s}-${Math.random().toString(36).slice(2, 5).toUpperCase()}`
 }
 
 // ─── Section Wrapper ───────────────────────────────────────────────────────────
@@ -114,6 +118,7 @@ export default function ProductForm({
   const palette = colorPalette && Object.keys(colorPalette).length > 0 ? colorPalette : PRODUCT_COLORS
   const colorGroups = useMemo(() => buildColorSelectGroups(palette), [palette])
   const router = useRouter()
+  const productId = product?.id
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
@@ -131,9 +136,9 @@ export default function ProductForm({
   const [availableInStores, setAvailableInStores] = useState(product?.availableInStores ?? true)
 
   // Pricing
-  const [basePrice, setBasePrice] = useState(product?.basePrice ? String(Number(product.basePrice)) : "")
-  const [isOnSale, setIsOnSale] = useState(product?.isOnSale ?? false)
-  const [salePrice, setSalePrice] = useState(product?.salePrice ? String(Number(product.salePrice)) : "")
+  const [basePrice] = useState(product?.basePrice ? String(Number(product.basePrice)) : "")
+  const [isOnSale] = useState(product?.isOnSale ?? false)
+  const [salePrice] = useState(product?.salePrice ? String(Number(product.salePrice)) : "")
 
   // SEO
   const [metaTitle, setMetaTitle] = useState(product?.metaTitle ?? "")
@@ -144,14 +149,14 @@ export default function ProductForm({
     product?.variants.map((v) => {
       // Map existing DB inventory to local string array
       const mappedInventory: Array<{ storeLocationId: string | null; stock: string }> = stores.map(store => {
-        const found = v.inventory?.find((i: any) => i.storeLocationId === store.id)
+        const found = v.inventory?.find((inventory) => inventory.storeLocationId === store.id)
         return {
           storeLocationId: store.id,
           stock: found ? String(found.stock) : "0"
         }
       })
       // Web warehouse (storeLocationId null)
-      const webInventory = v.inventory?.find((i: any) => i.storeLocationId === null)
+      const webInventory = v.inventory?.find((inventory) => inventory.storeLocationId === null)
       mappedInventory.unshift({
         storeLocationId: null,
         stock: webInventory ? String(webInventory.stock) : String(v.stock || 0)
@@ -193,6 +198,25 @@ export default function ProductForm({
   const [crossSellSearch, setCrossSearch] = useState("")
   const [crossSellResults, setCrossResults] = useState<CrossSellItem[]>([])
   const [isSearching, setIsSearching] = useState(false)
+
+  // Productos independientes que representan otros colores del mismo modelo.
+  const [colorFamilyProducts, setColorFamilyProducts] = useState<ColorFamilyItem[]>(
+    product?.colorFamily?.products
+      .filter((item) => item.id !== product.id)
+      .map((item) => ({
+        id: item.id,
+        slug: item.slug,
+        name: item.name,
+        brandName: item.brand?.name ?? null,
+        colorFamilyId: product.colorFamily?.id ?? null,
+        imageUrl: item.images[0]?.url ?? null,
+        color: item.variants.find((variant) => isRealColor(variant.color))?.color ?? null,
+      })) ?? []
+  )
+  const [colorFamilySearch, setColorFamilySearch] = useState("")
+  const [colorFamilyResults, setColorFamilyResults] = useState<ColorFamilyItem[]>([])
+  const [isSearchingColorFamily, setIsSearchingColorFamily] = useState(false)
+  const colorFamilySearchRequest = useRef(0)
 
   // Delete dialog
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
@@ -268,35 +292,8 @@ export default function ProductForm({
     }
   }
 
-  function addVariant() {
-    setVariants((prev) => [
-      ...prev,
-      {
-        sku: generateSku(name, "", ""),
-        size: "",
-        color: "",
-        stock: "0",
-        inventory: [
-          { storeLocationId: null, stock: "0" },
-          ...stores.map(s => ({ storeLocationId: s.id, stock: "0" }))
-        ],
-        sizeUS: "",
-        sizeCM: "",
-        sizeEUR: "",
-      },
-    ])
-  }
-
   function updateVariant(idx: number, field: keyof VariantRow, value: string) {
     setVariants((prev) => prev.map((v, i) => (i === idx ? { ...v, [field]: value } : v)))
-  }
-
-  /**
-   * Asigna un color a TODAS las variantes. Las tallas de un mismo producto
-   * suelen compartir color, así que evita repetir la selección fila por fila.
-   */
-  function applyColorToAllVariants(color: string) {
-    setVariants((prev) => prev.map((v) => ({ ...v, color })))
   }
 
   function updateVariantInventory(idx: number, storeId: string | null, stockValue: string) {
@@ -309,10 +306,6 @@ export default function ProductForm({
         )
       }
     }))
-  }
-
-  function removeVariant(idx: number) {
-    setVariants((prev) => prev.filter((_, i) => i !== idx))
   }
 
   function hasDuplicateSkus(): boolean {
@@ -408,7 +401,7 @@ export default function ProductForm({
       setCrossResults(
         results
           .filter((r) => !crossSells.some((cs) => cs.id === r.id))
-          .map((r) => ({ id: r.id, name: r.name, brandId: r.brandId ?? null, brandName: r.brand?.name ?? null }))
+          .map((r) => ({ id: r.id, name: r.name, brandId: r.brandId ?? null, brandName: r.brandName }))
       )
     } finally {
       setIsSearching(false)
@@ -423,6 +416,52 @@ export default function ProductForm({
 
   function removeCrossSell(id: string) {
     setCrossSells((prev) => prev.filter((cs) => cs.id !== id))
+  }
+
+  const handleColorFamilySearch = useCallback(async (q: string) => {
+    const requestId = ++colorFamilySearchRequest.current
+    setColorFamilySearch(q)
+    if (q.length < 2 || !productId) {
+      setColorFamilyResults([])
+      setIsSearchingColorFamily(false)
+      return
+    }
+    setIsSearchingColorFamily(true)
+    try {
+      const results = await searchProducts(q, productId)
+      if (requestId !== colorFamilySearchRequest.current) return
+      setColorFamilyResults(
+        results.filter(
+          (result) => !colorFamilyProducts.some((selected) => selected.id === result.id)
+        )
+      )
+    } catch {
+      if (requestId === colorFamilySearchRequest.current) {
+        setColorFamilyResults([])
+        setError("No se pudo buscar productos para relacionar. Intenta nuevamente.")
+      }
+    } finally {
+      if (requestId === colorFamilySearchRequest.current) setIsSearchingColorFamily(false)
+    }
+  }, [colorFamilyProducts, productId])
+
+  function addColorFamilyProduct(item: ColorFamilyItem) {
+    const currentFamilyId = product?.colorFamily?.id ?? null
+    if (item.colorFamilyId && item.colorFamilyId !== currentFamilyId) {
+      setError("Ese producto ya pertenece a otra familia de colores.")
+      return
+    }
+    if (!item.color || !isRealColor(item.color)) {
+      setError("Ese producto no tiene un color real asignado en sus variantes.")
+      return
+    }
+    setColorFamilyProducts((current) => [...current, item])
+    setColorFamilyResults((current) => current.filter((result) => result.id !== item.id))
+    setColorFamilySearch("")
+  }
+
+  function removeColorFamilyProduct(id: string) {
+    setColorFamilyProducts((current) => current.filter((item) => item.id !== id))
   }
 
   // ─── Submit ──────────────────────────────────────────────────────────────────
@@ -478,6 +517,15 @@ export default function ProductForm({
     
     formData.set("variants", JSON.stringify(cleanVariants))
     formData.set("images", JSON.stringify(images))
+    formData.set("colorFamilyProductIds", JSON.stringify(colorFamilyProducts.map((item) => item.id)))
+    formData.set(
+      "colorFamilyBaselineProductIds",
+      JSON.stringify(
+        product?.colorFamily?.products
+          .filter((item) => item.id !== product.id)
+          .map((item) => item.id) ?? []
+      )
+    )
     formData.set("crossSellIds", JSON.stringify(crossSells.map((cs) => cs.id)))
 
     startTransition(async () => {
@@ -727,39 +775,11 @@ export default function ProductForm({
         <div className="mb-4 bg-blue-50 border border-blue-200 text-blue-800 text-sm p-3 rounded-lg flex items-start gap-2">
           <span className="mt-0.5">ℹ️</span>
           <p>
-            <strong>Inventario:</strong> El Stock Web, SKU y talla vienen de Loggro (solo lectura). Aquí puedes
-            asignar el <strong>Color</strong> de cada variante —usado por el filtro de la tienda y las fotos por
-            color— y el <strong>Stock en Tiendas Físicas</strong>.
+            <strong>Inventario:</strong> El Stock Web, SKU y talla vienen de Loggro (solo lectura). El color se
+            detecta automáticamente cuando el código y la descripción son confiables; puedes corregir cada
+            variante individualmente como respaldo. También puedes editar el <strong>Stock en Tiendas Físicas</strong>.
           </p>
         </div>
-
-        {variants.length > 0 && (
-          <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
-            <label htmlFor="bulk-color" className="text-xs font-medium text-[#1C1C1C]">
-              Asignar color a todas las variantes:
-            </label>
-            <select
-              id="bulk-color"
-              value=""
-              onChange={(e) => {
-                if (e.target.value) applyColorToAllVariants(e.target.value)
-              }}
-              className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs text-[#1C1C1C] focus:outline-none focus:ring-2 focus:ring-[#E31C23]"
-            >
-              <option value="">Seleccionar color…</option>
-              {colorGroups.map((group) => (
-                <optgroup key={group.label} label={group.label}>
-                  {group.options.map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-            <span className="text-xs text-[#4A4A4A]">
-              Útil cuando todas las tallas son del mismo color.
-            </span>
-          </div>
-        )}
         <div className="overflow-x-auto">
           <table className="w-full text-xs mb-3">
             <thead>
@@ -781,7 +801,6 @@ export default function ProductForm({
             </thead>
             <tbody className="divide-y divide-gray-50">
               {variants.map((v, idx) => {
-                const isDup = variants.some((other, oi) => oi !== idx && other.sku.trim() === v.sku.trim() && v.sku.trim() !== "")
                 const webInv = v.inventory.find(i => i.storeLocationId === null)
                 return (
                   <tr key={idx}>
@@ -892,7 +911,95 @@ export default function ProductForm({
         />
       </Section>
 
-      {/* F. Cross-selling */}
+      {/* F. Colores del mismo modelo */}
+      {mode === "edit" && (
+        <Section title="Colores del mismo modelo">
+          <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+            Los formatos de código Loggro reconocidos se agrupan automáticamente. Usa esta sección
+            solo para excepciones: cada producto conservará sus propias tallas, SKU, precio, stock y fotos.
+          </div>
+          <div className="relative mb-3">
+            <input
+              type="text"
+              value={colorFamilySearch}
+              onChange={(event) => void handleColorFamilySearch(event.target.value)}
+              placeholder="Buscar otro color de este modelo…"
+              className={inputClass}
+            />
+            {isSearchingColorFamily && (
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#4A4A4A]">
+                Buscando…
+              </span>
+            )}
+            {colorFamilyResults.length > 0 && (
+              <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-64 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
+                {colorFamilyResults.map((item) => {
+                  const belongsToAnotherFamily = Boolean(
+                    item.colorFamilyId && item.colorFamilyId !== (product?.colorFamily?.id ?? null)
+                  )
+                  const hasRealProductColor = Boolean(item.color && isRealColor(item.color))
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      disabled={belongsToAnotherFamily || !hasRealProductColor}
+                      onClick={() => addColorFamilyProduct(item)}
+                      className="flex w-full items-center gap-3 border-b border-gray-50 px-3 py-2 text-left last:border-0 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md bg-gray-100">
+                        {item.imageUrl ? (
+                          <Image src={item.imageUrl} alt="" fill sizes="48px" className="object-cover" />
+                        ) : (
+                          <span className="flex h-full items-center justify-center text-[9px] text-gray-400">Sin foto</span>
+                        )}
+                      </div>
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-medium text-[#1C1C1C]">{item.name}</span>
+                        <span className="block text-xs text-[#4A4A4A]">
+                          {[item.brandName, item.color].filter(Boolean).join(" · ") || "Color sin asignar"}
+                          {belongsToAnotherFamily ? " · Ya pertenece a otra familia" : ""}
+                          {!hasRealProductColor ? " · Debes asignarle un color primero" : ""}
+                        </span>
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+          {colorFamilyProducts.length > 0 ? (
+            <div className="grid gap-2 sm:grid-cols-2">
+              {colorFamilyProducts.map((item) => (
+                <div key={item.id} className="flex items-center gap-3 rounded-lg border border-gray-200 p-2">
+                  <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-md bg-gray-100">
+                    {item.imageUrl ? (
+                      <Image src={item.imageUrl} alt="" fill sizes="56px" className="object-cover" />
+                    ) : (
+                      <span className="flex h-full items-center justify-center text-[9px] text-gray-400">Sin foto</span>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-[#1C1C1C]">{item.name}</p>
+                    <p className="text-xs text-[#4A4A4A]">{item.color ?? "Color sin asignar"}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeColorFamilyProduct(item.id)}
+                    className="px-2 text-xl text-gray-400 transition-colors hover:text-[#E31C23]"
+                    aria-label={`Retirar ${item.name} de la familia`}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-400">Este producto todavía no tiene otros colores relacionados.</p>
+          )}
+        </Section>
+      )}
+
+      {/* G. Cross-selling */}
       <Section title="Cross-selling (productos relacionados)">
         <div className="relative mb-3">
           <input

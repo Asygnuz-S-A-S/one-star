@@ -1,10 +1,11 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { syncCatalogAction } from "@/server/actions/erp.actions"
 import type { ErpSyncStatus, ErpSyncLogDTO } from "@/server/services/erp-sync.service"
+import { formatErpSyncCount } from "@/lib/erp-sync-display"
 
 interface SyncPanelProps {
   initialStatus: ErpSyncStatus
@@ -13,6 +14,8 @@ interface SyncPanelProps {
 interface SyncResult {
   success?: boolean
   processedCount?: number
+  productCount?: number
+  variantCount?: number
   error?: string
 }
 
@@ -24,17 +27,6 @@ function formatAbsolute(iso: string): string {
     timeStyle: "short",
     timeZone: BOGOTA_TZ,
   }).format(new Date(iso))
-}
-
-function timeAgo(iso: string): string {
-  const diffMs = Date.now() - new Date(iso).getTime()
-  const min = Math.floor(diffMs / 60000)
-  if (min < 1) return "hace un momento"
-  if (min < 60) return `hace ${min} min`
-  const hours = Math.floor(min / 60)
-  if (hours < 24) return `hace ${hours} h`
-  const days = Math.floor(hours / 24)
-  return `hace ${days} día${days > 1 ? "s" : ""}`
 }
 
 function formatDuration(ms: number | null): string {
@@ -52,9 +44,6 @@ export default function SyncPanel({ initialStatus }: SyncPanelProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<SyncResult | null>(null)
-  // Evita el desajuste de hidratación: los tiempos relativos solo tras montar.
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => setMounted(true), [])
 
   const status = initialStatus
   const { last } = status
@@ -123,12 +112,12 @@ export default function SyncPanel({ initialStatus }: SyncPanelProps) {
                   }`}
                   aria-hidden
                 />
-                <span className="text-lg font-semibold text-[#1C1C1C]" suppressHydrationWarning>
-                  {mounted ? timeAgo(last.createdAt) : formatAbsolute(last.createdAt)}
+                <span className="text-lg font-semibold text-[#1C1C1C]">
+                  {formatAbsolute(last.createdAt)}
                 </span>
               </div>
               <p className="mt-1 text-sm text-gray-500">
-                {last.success ? `${last.processedCount} productos` : "Falló"}
+                {last.success ? formatErpSyncCount(last) : "Falló"}
               </p>
             </>
           ) : (
@@ -170,7 +159,11 @@ export default function SyncPanel({ initialStatus }: SyncPanelProps) {
             {result.success ? (
               <p>
                 <span className="font-semibold">¡Sincronización completada!</span> Se procesaron{" "}
-                {result.processedCount} productos.{" "}
+                {formatErpSyncCount({
+                  processedCount: result.processedCount ?? 0,
+                  productCount: result.productCount,
+                  variantCount: result.variantCount,
+                })}.{" "}
                 <Link href="/admin/productos" className="font-medium underline underline-offset-2">
                   Ver productos
                 </Link>
@@ -197,7 +190,7 @@ export default function SyncPanel({ initialStatus }: SyncPanelProps) {
                   <tr>
                     <th className="px-4 py-3 font-medium">Fecha</th>
                     <th className="px-4 py-3 font-medium">Origen</th>
-                    <th className="px-4 py-3 font-medium">Productos</th>
+                    <th className="px-4 py-3 font-medium">Registros ERP</th>
                     <th className="px-4 py-3 font-medium">Resultado</th>
                     <th className="px-4 py-3 font-medium">Duración</th>
                   </tr>

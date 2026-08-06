@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence, MotionConfig, type Variants } from "motion/react"
 import type { ProductWithRelations, Variant } from "@/types/shop"
@@ -11,6 +12,7 @@ import { filterImagesByColor, getPrimaryImageUrl } from "@/lib/product-image"
 import { useCart } from "@/store"
 import { useToast } from "@/hooks/useToast"
 import ToastContainer from "@/components/ui/ToastContainer"
+import { buildProductFamilyCardColorSummary } from "@/lib/product-card-colors"
 
 interface ProductInfoProps {
   product: ProductWithRelations
@@ -36,10 +38,6 @@ const itemVariants: Variants = {
 }
 
 const springy = { type: "spring", stiffness: 400, damping: 15 } as const
-
-function getUniqueColors(variants: Variant[]): string[] {
-  return [...new Set(variants.map((v) => v.color))]
-}
 
 function getUniqueSizes(variants: Variant[], color: string): string[] {
   const filtered = variants.filter((v) => v.color === color)
@@ -95,7 +93,10 @@ export default function ProductInfo({
   const salePrice = product.salePrice ? Number(product.salePrice) : null
   const savings = salePrice ? basePrice - salePrice : null
 
-  const colors = getUniqueColors(product.variants)
+  const familyColorSummary = buildProductFamilyCardColorSummary([
+    product,
+    ...(product.colorSiblings ?? []),
+  ])
   const sizesForColor = selectedColor ? getUniqueSizes(product.variants, selectedColor) : []
 
   const handleColorSelect = useCallback((color: string) => {
@@ -264,31 +265,57 @@ export default function ProductInfo({
         </motion.div>
 
         {/* Color selector */}
-        {colors.length > 0 && (
+        {familyColorSummary.total > 0 && (
           <motion.div variants={itemVariants} className="flex flex-col gap-2">
             <p className="font-[var(--font-montserrat)] text-sm font-medium text-[#1C1C1C] dark:text-white">
               Color:{" "}
               <span className="font-normal text-[#4A4A4A] dark:text-gray-400 capitalize">{selectedColor}</span>
             </p>
-            <div className="flex gap-2 flex-wrap">
-              {colors.map((color) => {
-                const active = selectedColor === color
-                return (
-                  <motion.button
-                    key={color}
-                    onClick={() => handleColorSelect(color)}
-                    aria-label={`Color ${color}`}
-                    whileHover={{ scale: 1.18 }}
-                    whileTap={{ scale: 0.85 }}
-                    animate={{ scale: active ? 1.12 : 1 }}
-                    transition={springy}
-                    className={`w-8 h-8 rounded-full ${
-                      active
-                        ? "ring-2 ring-offset-2 ring-[#1C1C1C] dark:ring-white dark:ring-offset-black"
-                        : "ring-1 ring-[#E0E0E0] hover:ring-[#4A4A4A]"
-                    }`}
-                    style={{ backgroundColor: colorToCSS(color) }}
+            <div className="flex flex-wrap gap-2">
+              {familyColorSummary.options.map((option) => {
+                const belongsToCurrentProduct = option.productId === product.id
+                const active = belongsToCurrentProduct && selectedColor === option.name
+                const className = `relative h-12 w-12 overflow-hidden rounded-md bg-[#F5F5F5] transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E31C23] ${
+                  active
+                    ? "ring-2 ring-offset-2 ring-[#1C1C1C] dark:ring-white dark:ring-offset-black"
+                    : "ring-1 ring-[#E0E0E0] hover:ring-[#4A4A4A]"
+                }`
+                const content = option.imageUrl ? (
+                  <Image src={option.imageUrl} alt="" fill sizes="48px" className="object-cover" />
+                ) : (
+                  <span
+                    className="block h-full w-full rounded-md"
+                    style={{ backgroundColor: colorToCSS(option.name) }}
                   />
+                )
+
+                if (belongsToCurrentProduct) {
+                  return (
+                    <motion.button
+                      key={`${option.productId}-${option.name}`}
+                      type="button"
+                      onClick={() => handleColorSelect(option.name)}
+                      aria-label={`Color ${option.name}`}
+                      aria-pressed={active}
+                      whileHover={{ scale: 1.08 }}
+                      whileTap={{ scale: 0.92 }}
+                      className={className}
+                    >
+                      {content}
+                    </motion.button>
+                  )
+                }
+
+                return (
+                  <Link
+                    key={`${option.productId}-${option.name}`}
+                    href={`/productos/${option.slug}?color=${encodeURIComponent(option.name)}`}
+                    prefetch={false}
+                    aria-label={`Ver ${option.productName ?? product.name} en color ${option.name}`}
+                    className={className}
+                  >
+                    {content}
+                  </Link>
                 )
               })}
             </div>

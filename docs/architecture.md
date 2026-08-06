@@ -118,6 +118,32 @@ src/
 - **Product** → precio base, precio de oferta, género (enum), marca, slug, SEO meta, descripción extendida, videoUrl; relaciones con ProductImage, Variant, CartItem, OrderItem y cross-sells (M:M auto-relación)
 - **ProductImage** → url, alt, position, `color` (nullable), cascade delete
 - **Variant** → SKU único, talla (US/CM/EUR), color, stock
+- **ProductColorFamily** → agrupación local opcional de varios `Product` que son el mismo modelo en colores distintos
+
+#### Familias de productos por color
+
+Loggro conserva cada color como un producto independiente. `Product.colorFamilyId` permite
+relacionar esos registros solo dentro de One Star mediante `ProductColorFamily`, sin mover
+variantes ni mezclar SKU, precios, inventario o imágenes. `Product.erpColorFamilyKey` guarda una
+clave opaca y namespaced que entrega `IERPAdapter`; el core nunca interpreta códigos Loggro.
+`ProductColorFamily.erpColorFamilyKey` solo se completa en familias automáticas, mientras que
+`null` identifica familias manuales y les da precedencia.
+
+La sincronización reconcilia una familia únicamente cuando el producto es nuevo o cambia su
+clave ERP. Por eso retirar manualmente un producto no se revierte en ejecuciones posteriores con
+la misma clave. Cualquier edición explícita convierte la familia en manual; el reconciliador no
+la fusiona, completa ni elimina. La operación usa transacción y advisory lock, exige al menos dos
+productos con colores reales distintos y nunca modifica variantes, stock, precios, SKU o fotos.
+
+El backfill histórico es independiente de `ERP_CATALOG_WRITES_ENABLED`: primero se ejecuta
+`previewErpColorFamilyBackfill()`, se revisan conteos/omisiones y luego se pasa exactamente su
+`fingerprint` a `applyErpColorFamilyBackfill(fingerprint)`. Si el catálogo cambió entre ambas
+fases, el apply falla sin escribir y obliga a generar otro preview.
+
+El catálogo colapsa los miembros encontrados de una familia en una sola tarjeta después de
+aplicar filtros y antes de paginar. Sus miniaturas llevan al `slug` del producto/color real.
+La ficha usa la misma relación para navegar entre colores, de modo que tallas, stock y carrito
+siempre corresponden únicamente al producto seleccionado.
 
 #### Imágenes por color de variante
 
@@ -224,6 +250,7 @@ LOGGRO_BASE_URL=""                # Base URL para Loggro Pymes (default: https:/
 LOGGRO_ESTABLECIMIENTO_UUID=""    # (opcional) UUID del establecimiento para consultar existencias
 LOGGRO_BODEGA_UUID=""             # (opcional) UUID de la bodega; si se omiten, se auto-detectan
 LOGGRO_STOCK_SCOPE="all"          # "all" suma el stock de todas las tiendas | "primary" solo la sede principal
+ERP_CATALOG_WRITES_ENABLED="false" # Fail-closed: habilitar solo tras validar dry-run y reparar duplicados
 CRON_SECRET=""                    # (opcional) Protege /api/cron/sync-erp para disparadores externos
 
 # Correos transaccionales (Resend — ver src/server/email/)

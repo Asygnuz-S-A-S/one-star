@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { getProducts } from "@/server/services/product.service"
+import { getAdminProducts } from "@/server/services/product.service"
 import { getCategories } from "@/server/services/category.service"
 import { ProductosTable } from "@/components/admin/ProductosTable"
 
@@ -22,7 +22,7 @@ export default async function ProductosPage({ searchParams }: Props) {
   const categoryFilter = params.category ?? ""
 
   const [{ products, total }, categories] = await Promise.all([
-    getProducts(
+    getAdminProducts(
       {
         q: q || undefined,
         ...(categoryFilter ? { categorySlug: undefined } : {}),

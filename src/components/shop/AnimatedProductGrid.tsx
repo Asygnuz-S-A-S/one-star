@@ -2,7 +2,7 @@
 
 import { motion } from "motion/react"
 import ProductCard from "@/components/home/ProductCard"
-import { buildProductCardColorSummary } from "@/lib/product-card-colors"
+import { buildProductFamilyCardColorSummary } from "@/lib/product-card-colors"
 import type { ColorPalette } from "@/lib/colors"
 import type { ProductDTO } from "@/server/services/product.service"
 
@@ -23,7 +23,10 @@ export function AnimatedProductGrid({ products, animationKey, colorPalette }: Pr
         const image = product.images[0]
         const secondaryImage = product.images[1]
         const gallery = product.images.slice(2).map((img) => img.url)
-        const colorSummary = buildProductCardColorSummary(product.variants, product.images)
+        const colorSummary = buildProductFamilyCardColorSummary([
+          product,
+          ...product.colorSiblings,
+        ])
         return (
           <motion.div
             key={product.id}

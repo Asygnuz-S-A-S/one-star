@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { getProducts } from "@/server/services/product.service"
 import FeaturedProductsGrid from "./FeaturedProductsGrid"
+import { buildProductFamilyCardColorSummary } from "@/lib/product-card-colors"
 
 export default async function FeaturedProducts({ config = {} }: { config?: Record<string, unknown> }) {
   const title = typeof config.title === "string" ? config.title : "Destacados"
@@ -24,6 +25,7 @@ export default async function FeaturedProducts({ config = {} }: { config?: Recor
     isOnSale: p.isOnSale,
     isNew: p.isNew,
     hasStock: p.hasStock,
+    colorSummary: buildProductFamilyCardColorSummary([p, ...p.colorSiblings]),
   }))
 
   const isDark = theme === "dark"

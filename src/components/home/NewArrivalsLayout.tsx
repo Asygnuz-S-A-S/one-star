@@ -4,6 +4,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { motion } from "motion/react"
 import ProductCard from "@/components/home/ProductCard"
+import type { ProductCardColorSummary } from "@/lib/product-card-colors"
 
 interface ProductItem {
   id: string
@@ -16,6 +17,7 @@ interface ProductItem {
   secondaryImageUrl?: string
   gallery?: string[]
   isOnSale?: boolean
+  colorSummary?: ProductCardColorSummary
 }
 
 interface NewArrivalsLayoutProps {
@@ -135,13 +137,35 @@ export default function NewArrivalsLayout({ title, subtitle, total, products, th
                 NUEVO
               </span>
             </div>
-
-            <div>
-              <p className="font-[var(--font-montserrat)] text-xs uppercase tracking-wider mb-1 text-[var(--text-secondary)]">{hero.brand}</p>
-              <h3 className="font-[var(--font-barlow)] font-semibold text-base leading-tight mb-2 text-foreground">{hero.name}</h3>
-              <span className="font-[var(--font-montserrat)] font-bold text-sm text-foreground">{formatPrice(hero.price)}</span>
-            </div>
           </Link>
+
+          <div>
+              <p className="font-[var(--font-montserrat)] text-xs uppercase tracking-wider mb-1 text-[var(--text-secondary)]">{hero.brand}</p>
+              <Link href={`/productos/${hero.slug}`} className="inline-block">
+                <h3 className="font-[var(--font-barlow)] font-semibold text-base leading-tight mb-2 text-foreground">{hero.name}</h3>
+              </Link>
+              <span className="font-[var(--font-montserrat)] font-bold text-sm text-foreground">{formatPrice(hero.price)}</span>
+              {hero.colorSummary && hero.colorSummary.imageOptions.length > 0 && (
+                <div className="relative z-30 mt-3">
+                  <p className="mb-1 text-xs text-[var(--text-secondary)]">{hero.colorSummary.label}</p>
+                  <div
+                    className="flex max-w-full gap-2 overflow-x-auto pb-1"
+                    aria-label={`Colores disponibles de ${hero.name}`}
+                  >
+                    {hero.colorSummary.imageOptions.map((option) => (
+                      <Link
+                        key={`${option.productId}-${option.name}`}
+                        href={`/productos/${option.slug ?? hero.slug}?color=${encodeURIComponent(option.name)}`}
+                        className="relative h-10 w-10 shrink-0 overflow-hidden rounded-sm ring-1 ring-[#D4D4D4]"
+                        aria-label={`Ver ${option.productName ?? hero.name} en color ${option.name}`}
+                      >
+                        <Image src={option.imageUrl} alt="" fill sizes="40px" className="object-cover" />
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+          </div>
         </motion.div>
 
         {/* Rest */}

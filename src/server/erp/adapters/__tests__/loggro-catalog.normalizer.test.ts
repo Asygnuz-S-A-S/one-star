@@ -1,0 +1,157 @@
+import { describe, expect, it, vi } from "vitest"
+
+vi.mock("server-only", () => ({}))
+
+import { normalizeLoggroCatalog } from "../loggro-catalog.normalizer"
+import type { LoggroCatalogItem } from "../loggro.client"
+
+describe("normalizeLoggroCatalog", () => {
+  it("expone una clave agnóstica de familia derivada del código padre", () => {
+    const snapshot = normalizeLoggroCatalog(
+      [
+        {
+          uuid: "parent-skechers",
+          codigo: "180361GRN",
+          descripcion: "TENIS SKECHERS MUJER VERDE",
+          definicion: true,
+          codigoCategoria: "004",
+        },
+        {
+          uuid: "variant-skechers",
+          codigo: "180361GRN_8",
+          descripcion: "TENIS SKECHERS MUJER VERDE",
+          definicion: false,
+          definidoEn_uuid: "parent-skechers",
+        },
+      ],
+      {
+        stockByCodigo: new Map([["180361GRN_8", 1]]),
+        complete: true,
+        requestedCount: 1,
+        resolvedCount: 1,
+        missingCodes: [],
+        errors: [],
+      }
+    )
+
+    expect(snapshot.groups[0].colorFamilyKey).toBe("loggro:004:180361")
+  })
+
+  it("usa la definición como padre sin convertirla en una variante", () => {
+    const items: LoggroCatalogItem[] = [
+      {
+        uuid: "parent-1",
+        codigo: "1155111-MVR",
+        descripcion: "TENIS HOKA SKYFLOW HOMBRE AZUL NARANJA",
+        definicion: true,
+        codigoCategoria: "007",
+        precioDefecto: 599_900,
+      },
+      {
+        uuid: "variant-1",
+        codigo: "1155111-MVR_10",
+        descripcion: "TENIS HOKA SKYFLOW HOMBRE AZUL NARANJA",
+        definicion: false,
+        definidoEn_uuid: "parent-1",
+        precioDefecto: 599_900,
+      },
+      {
+        uuid: "variant-2",
+        codigo: "1155111-MVR_11",
+        descripcion: "TENIS HOKA SKYFLOW HOMBRE AZUL NARANJA",
+        definicion: false,
+        definidoEn_uuid: "parent-1",
+        precioDefecto: 599_900,
+      },
+    ]
+
+    const snapshot = normalizeLoggroCatalog(items, {
+      stockByCodigo: new Map([
+        ["1155111-MVR_10", 3],
+        ["1155111-MVR_11", 2],
+      ]),
+      complete: true,
+      requestedCount: 2,
+      resolvedCount: 2,
+      missingCodes: [],
+      errors: [],
+    })
+
+    expect(snapshot.groups).toHaveLength(1)
+    expect(snapshot.groups[0]).toMatchObject({
+      erpId: "parent-1",
+      sku: "1155111-MVR",
+    })
+    expect(snapshot.groups[0].variants.map((variant) => variant.sku)).toEqual([
+      "1155111-MVR_10",
+      "1155111-MVR_11",
+    ])
+    expect(snapshot.diagnostics).toMatchObject({
+      sourceItemCount: 3,
+      definitionCount: 1,
+      variantCount: 2,
+      groupCount: 1,
+    })
+  })
+
+  it("marca como sospechoso un snapshot completo cuyo stock total es cero", () => {
+    const items: LoggroCatalogItem[] = [
+      {
+        uuid: "parent-1",
+        codigo: "MODEL-BLK",
+        descripcion: "TENIS MODELO NEGRO",
+        definicion: true,
+      },
+      {
+        uuid: "variant-1",
+        codigo: "MODEL-BLK_9",
+        descripcion: "TENIS MODELO NEGRO",
+        definicion: false,
+        definidoEn_uuid: "parent-1",
+      },
+    ]
+
+    const snapshot = normalizeLoggroCatalog(items, {
+      stockByCodigo: new Map([["MODEL-BLK_9", 0]]),
+      complete: true,
+      requestedCount: 1,
+      resolvedCount: 1,
+      missingCodes: [],
+      errors: [],
+    })
+
+    expect(snapshot.stock.status).toBe("all_zero")
+  })
+
+  it("agrupa por SKU como fallback cuando el ERP no informa el padre", () => {
+    const items: LoggroCatalogItem[] = [
+      {
+        uuid: "variant-1",
+        codigo: "LEGACY-BLK_9",
+        descripcion: "TENIS LEGACY NEGRO",
+        definicion: false,
+      },
+      {
+        uuid: "variant-2",
+        codigo: "LEGACY-BLK_10",
+        descripcion: "TENIS LEGACY NEGRO",
+        definicion: false,
+      },
+    ]
+
+    const snapshot = normalizeLoggroCatalog(items, {
+      stockByCodigo: new Map([
+        ["LEGACY-BLK_9", 1],
+        ["LEGACY-BLK_10", 2],
+      ]),
+      complete: true,
+      requestedCount: 2,
+      resolvedCount: 2,
+      missingCodes: [],
+      errors: [],
+    })
+
+    expect(snapshot.groups).toHaveLength(1)
+    expect(snapshot.groups[0].sku).toBe("LEGACY-BLK")
+  })
+})

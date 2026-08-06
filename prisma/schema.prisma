@@ -70,7 +70,10 @@ model Product {
   categoryId          String
   category            Category       @relation(fields: [categoryId], references: [id])
   erpId               String?        @unique
+  erpColorFamilyKey   String?
   unitOfMeasure       String?
+  colorFamilyId       String?
+  colorFamily         ProductColorFamily? @relation(fields: [colorFamilyId], references: [id], onDelete: SetNull)
   availableOnline     Boolean        @default(true)
   availableInStores   Boolean        @default(true)
   images              ProductImage[]
@@ -82,6 +85,19 @@ model Product {
   reviews             ProductReview[]
   createdAt           DateTime       @default(now())
   updatedAt           DateTime       @updatedAt
+
+  @@index([colorFamilyId])
+  @@index([erpColorFamilyKey])
+}
+
+// Agrupación local: cada color sigue siendo un Product independiente del ERP.
+model ProductColorFamily {
+  id                String    @id @default(cuid())
+  // Solo las familias creadas automáticamente llevan clave. null = administración manual.
+  erpColorFamilyKey String?   @unique
+  products          Product[]
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 }
 
 model ProductReview {

@@ -47,6 +47,10 @@ function extractFormData(formData: FormData) {
     availableInStores: formData.get("availableInStores") !== "false",
     variants: JSON.parse((formData.get("variants") as string) || "[]"),
     images: JSON.parse((formData.get("images") as string) || "[]"),
+    colorFamilyProductIds: JSON.parse((formData.get("colorFamilyProductIds") as string) || "[]"),
+    colorFamilyBaselineProductIds: JSON.parse(
+      (formData.get("colorFamilyBaselineProductIds") as string) || "[]"
+    ),
     crossSellIds: JSON.parse((formData.get("crossSellIds") as string) || "[]"),
   }
 }
@@ -85,6 +89,7 @@ export async function createProduct(formData: FormData): Promise<ActionResult> {
     })
 
     revalidatePath("/admin/productos")
+    revalidatePath("/productos")
     return { success: true, id: product.id }
   } catch (error: unknown) {
     return { success: false, error: getErrorMessage(error) }
@@ -129,6 +134,8 @@ export async function updateProduct(
 
     revalidatePath("/admin/productos")
     revalidatePath(`/admin/productos/${id}`)
+    revalidatePath("/productos")
+    revalidatePath(`/productos/${slug}`)
     return { success: true, id }
   } catch (error: unknown) {
     return { success: false, error: getErrorMessage(error) }
@@ -149,7 +156,16 @@ export async function deleteProduct(id: string): Promise<ActionResult> {
 export async function searchProducts(
   q: string,
   excludeId?: string
-): Promise<{ id: string; name: string; brandId: string | null; brand: { name: string } | null }[]> {
+): Promise<Array<{
+  id: string
+  slug: string
+  name: string
+  brandId: string | null
+  brandName: string | null
+  colorFamilyId: string | null
+  imageUrl: string | null
+  color: string | null
+}>> {
   await requireAdmin()
   return searchProductsService(q, excludeId)
 }

@@ -37,11 +37,22 @@ export interface CrossSellProduct {
   basePrice: Decimal
 }
 
+export interface ColorFamilyProduct {
+  id: string
+  name: string
+  slug: string
+  brandId: string | null
+  brand: { name: string } | null
+  images: ProductImage[]
+  variants: Variant[]
+}
+
 export interface ProductWithRelations extends ProductExtended {
   category: Category
   brand: Brand | null
   images: ProductImage[]
   variants: VariantExtended[]
+  colorFamily: { id: string; products: ColorFamilyProduct[] } | null
   crossSells: CrossSellProduct[]
 }
 

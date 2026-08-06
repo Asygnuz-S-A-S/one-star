@@ -1,4 +1,4 @@
-import { normalizeColor } from "@/lib/product-image"
+import { normalizeColor, PLACEHOLDER_IMAGE_URL } from "@/lib/product-image"
 import { isRealColor } from "@/lib/colors"
 
 export interface ProductCardColorVariant {
@@ -12,6 +12,9 @@ export interface ProductCardColorImage {
 
 export interface ProductCardColorOption {
   name: string
+  productId?: string
+  slug?: string
+  productName?: string
   /** Primera foto del color: la que representa la miniatura. */
   imageUrl?: string
   /**
@@ -35,6 +38,14 @@ export interface ProductCardColorSummary {
 }
 
 export const MAX_VISIBLE_PRODUCT_COLORS = 3
+
+export interface ProductFamilyCardColorProduct {
+  id: string
+  slug: string
+  name: string
+  variants: readonly ProductCardColorVariant[]
+  images: readonly ProductCardColorImage[]
+}
 
 export function buildProductCardColorSummary(
   variants: readonly ProductCardColorVariant[],
@@ -62,6 +73,46 @@ export function buildProductCardColorSummary(
     seen.add(normalized)
     const imageUrls = imagesByColor.get(normalized) ?? []
     options.push({ name, ...(imageUrls[0] ? { imageUrl: imageUrls[0] } : {}), imageUrls })
+  }
+
+  const total = options.length
+  const imageOptions = options.filter(
+    (option): option is ProductCardColorImageOption => Boolean(option.imageUrl)
+  )
+
+  return {
+    options,
+    imageOptions,
+    visibleOptions: options.slice(0, MAX_VISIBLE_PRODUCT_COLORS),
+    hiddenCount: Math.max(0, total - MAX_VISIBLE_PRODUCT_COLORS),
+    total,
+    label: total > 0 ? `${total} ${total === 1 ? "color" : "colores"}` : null,
+  }
+}
+
+export function buildProductFamilyCardColorSummary(
+  products: readonly ProductFamilyCardColorProduct[]
+): ProductCardColorSummary {
+  const seenColors = new Set<string>()
+  const options: ProductCardColorOption[] = []
+
+  for (const product of products) {
+    const productSummary = buildProductCardColorSummary(product.variants, product.images)
+    for (const option of productSummary.options) {
+      const normalized = normalizeColor(option.name)
+      if (seenColors.has(normalized)) continue
+      seenColors.add(normalized)
+      const fallbackImageUrl = product.images[0]?.url?.trim() || PLACEHOLDER_IMAGE_URL
+      const imageUrl = option.imageUrl ?? fallbackImageUrl
+      options.push({
+        ...option,
+        imageUrl,
+        imageUrls: option.imageUrls.length > 0 ? option.imageUrls : [imageUrl],
+        productId: product.id,
+        slug: product.slug,
+        productName: product.name,
+      })
+    }
   }
 
   const total = options.length

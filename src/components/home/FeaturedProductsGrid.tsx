@@ -3,6 +3,7 @@
 import { useRef } from "react"
 import { motion, useInView } from "motion/react"
 import ProductCard from "@/components/home/ProductCard"
+import type { ProductCardColorSummary } from "@/lib/product-card-colors"
 
 interface ProductItem {
   id: string
@@ -16,6 +17,7 @@ interface ProductItem {
   gallery?: string[]
   isNew?: boolean
   isOnSale?: boolean
+  colorSummary?: ProductCardColorSummary
 }
 
 export default function FeaturedProductsGrid({ products }: { products: ProductItem[] }) {
@@ -54,6 +56,7 @@ export default function FeaturedProductsGrid({ products }: { products: ProductIt
               secondaryImageUrl={product.secondaryImageUrl}
               gallery={product.gallery}
               isOnSale={product.isOnSale}
+              colorSummary={product.colorSummary}
             />
           </motion.div>
         ))}
@@ -88,6 +91,7 @@ export default function FeaturedProductsGrid({ products }: { products: ProductIt
               secondaryImageUrl={product.secondaryImageUrl}
               gallery={product.gallery}
               isOnSale={product.isOnSale}
+              colorSummary={product.colorSummary}
             />
           </motion.div>
         ))}

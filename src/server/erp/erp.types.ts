@@ -54,22 +54,64 @@ export interface ERPStockItem {
   stock: number
 }
 
-export interface ERPProduct {
+export interface ERPCatalogVariant {
   erpId: string
   sku: string
   name: string
   /** Texto descriptivo largo del ERP; puede contener talla y color. */
   detailedName?: string
   basePrice: number
-  stock: number
+  /** `null` significa que la consulta de inventario fue parcial o falló. */
+  stock: number | null
+  unitOfMeasure?: string
+}
+
+export interface ERPCatalogProductGroup {
+  /** Identidad estable del producto padre en el ERP. */
+  erpId: string
+  /** Código del producto padre; se usa como slug técnico inicial. */
+  sku: string
+  name: string
+  basePrice: number
   unitOfMeasure?: string
   categoryName?: string
   brandErpId?: string
+  /** Clave opaca y namespaced para agrupar colores; el core no interpreta su formato. */
+  colorFamilyKey?: string
+  variants: ERPCatalogVariant[]
+}
+
+export interface ERPCatalogSnapshot {
+  groups: ERPCatalogProductGroup[]
+  diagnostics: {
+    sourceItemCount: number
+    definitionCount: number
+    variantCount: number
+    groupCount: number
+  }
+  stock: {
+    status: "complete" | "partial" | "all_zero"
+    complete: boolean
+    requestedCount: number
+    resolvedCount: number
+    totalStock: number
+    missingCodes: string[]
+    errors: string[]
+  }
 }
 
 export interface ERPCatalogSyncResult {
   success: boolean
   processedCount: number
+  productCount?: number
+  variantCount?: number
+  definitionCount?: number
+  dryRun?: boolean
+  warnings?: string[]
+  colorFamilies?: {
+    created: number
+    updated: number
+    omitted: number
+  }
   error?: string
 }
-

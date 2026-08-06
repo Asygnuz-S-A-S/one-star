@@ -58,6 +58,8 @@ export const productFormSchema = z.object({
   availableInStores: z.boolean().default(true),
   variants: z.array(variantSchema).default([]),
   images: z.array(imageSchema).default([]),
+  colorFamilyProductIds: z.array(z.string().min(1)).optional(),
+  colorFamilyBaselineProductIds: z.array(z.string().min(1)).optional(),
   crossSellIds: z.array(z.string()).default([]),
 }).refine(
   (data) => !data.isOnSale || (data.salePrice !== null && data.salePrice !== undefined),

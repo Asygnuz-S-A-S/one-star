@@ -1,5 +1,8 @@
 import { describe, expect, test } from "vitest"
-import { buildProductCardColorSummary } from "../product-card-colors"
+import {
+  buildProductCardColorSummary,
+  buildProductFamilyCardColorSummary,
+} from "../product-card-colors"
 
 describe("buildProductCardColorSummary", () => {
   test("deduplica los colores repetidos por talla ignorando mayúsculas y acentos", () => {
@@ -125,5 +128,53 @@ describe("buildProductCardColorSummary", () => {
     expect(summary.options).toEqual([])
     expect(summary.total).toBe(0)
     expect(summary.label).toBeNull()
+  })
+})
+
+describe("buildProductFamilyCardColorSummary", () => {
+  test("construye una miniatura enlazada por cada producto de color", () => {
+    const summary = buildProductFamilyCardColorSummary([
+      {
+        id: "product-black",
+        slug: "modelo-negro",
+        name: "Modelo negro",
+        variants: [{ color: "Negro" }],
+        images: [{ url: "/black.jpg", color: "Negro" }],
+      },
+      {
+        id: "product-white",
+        slug: "modelo-blanco",
+        name: "Modelo blanco",
+        variants: [{ color: "Blanco" }],
+        images: [{ url: "/white.jpg", color: "Blanco" }],
+      },
+    ])
+
+    expect(summary.imageOptions).toEqual([
+      expect.objectContaining({ name: "Negro", productId: "product-black", slug: "modelo-negro" }),
+      expect.objectContaining({ name: "Blanco", productId: "product-white", slug: "modelo-blanco" }),
+    ])
+    expect(summary.label).toBe("2 colores")
+  })
+
+  test("mantiene navegable un color sin foto usando el placeholder", () => {
+    const summary = buildProductFamilyCardColorSummary([
+      {
+        id: "product-green",
+        slug: "modelo-verde",
+        name: "Modelo verde",
+        variants: [{ color: "Verde" }],
+        images: [],
+      },
+    ])
+
+    expect(summary.imageOptions).toEqual([
+      expect.objectContaining({
+        name: "Verde",
+        slug: "modelo-verde",
+        imageUrl: "/placeholder-product.svg",
+        imageUrls: ["/placeholder-product.svg"],
+      }),
+    ])
   })
 })

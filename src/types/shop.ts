@@ -65,5 +65,6 @@ export interface ProductWithRelations {
   availableInStores?: boolean
   images: ProductImage[]
   variants: Variant[]
+  colorSiblings: CrossSellProduct[]
   crossSells: CrossSellProduct[]
 }
