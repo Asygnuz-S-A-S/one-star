@@ -27,9 +27,14 @@ function toDTO(config: {
   intervalMinutes: number
   nextRunAt: Date | null
 }): ErpSyncScheduleDTO {
-  return {
+  const parsed = erpSyncConfigInputSchema.parse({
     enabled: config.enabled,
-    intervalMinutes: config.intervalMinutes as ErpSyncInterval,
+    intervalMinutes: config.intervalMinutes,
+  })
+
+  return {
+    enabled: parsed.enabled,
+    intervalMinutes: parsed.intervalMinutes as ErpSyncInterval,
     nextRunAt: config.nextRunAt?.toISOString() ?? null,
   }
 }

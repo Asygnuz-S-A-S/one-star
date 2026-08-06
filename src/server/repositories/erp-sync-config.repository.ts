@@ -50,7 +50,15 @@ export async function saveErpSyncConfig(
  * termina antes de cualquier llamada HTTP al ERP.
  */
 export async function claimDueErpSync(now = new Date()): Promise<ErpSyncConfig | null> {
-  const claimed = await prisma.$queryRaw<ErpSyncConfig[]>`
+  return claimDueErpSyncWithClient(prisma, now)
+}
+
+/** Variante inyectable para comprobar la exclusión con conexiones PostgreSQL independientes. */
+export async function claimDueErpSyncWithClient(
+  client: Pick<typeof prisma, "$queryRaw">,
+  now = new Date()
+): Promise<ErpSyncConfig | null> {
+  const claimed = await client.$queryRaw<ErpSyncConfig[]>`
     UPDATE "ErpSyncConfig"
        SET "nextRunAt" = ${now} + make_interval(mins => "intervalMinutes"),
            "updatedAt" = ${now}

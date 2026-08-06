@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import {
@@ -8,8 +8,14 @@ import {
   saveErpSyncConfigAction,
   syncCatalogAction,
 } from "@/server/actions/erp.actions"
-import { ERP_SYNC_INTERVALS } from "@/lib/erp-sync-schedule"
-import type { ErpSyncInterval } from "@/lib/erp-sync-schedule"
+import {
+  ERP_SYNC_INTERVALS,
+  scheduleDraftFromSnapshot,
+} from "@/lib/erp-sync-schedule"
+import type {
+  ErpSyncInterval,
+  ErpSyncScheduleSnapshot,
+} from "@/lib/erp-sync-schedule"
 import type {
   ErpSyncLogDTO,
   ErpSyncStatus,
@@ -140,11 +146,15 @@ export default function SyncPanel({ initialStatus }: SyncPanelProps) {
   const [diagnosticLoading, setDiagnosticLoading] = useState(false)
   const [result, setResult] = useState<SyncResult | null>(null)
   const [diagnostics, setDiagnostics] = useState<EndpointDiagnosticsState | null>(null)
+  const [confirmedSchedule, setConfirmedSchedule] = useState<ErpSyncScheduleSnapshot>(() => ({
+    enabled: initialStatus.autoSyncEnabled,
+    intervalMinutes: initialStatus.autoSyncMinutes,
+    nextRunAt: initialStatus.nextAutoSyncAt,
+  }))
   const [scheduleEnabled, setScheduleEnabled] = useState(initialStatus.autoSyncEnabled)
   const [scheduleInterval, setScheduleInterval] = useState<ErpSyncInterval>(
     initialStatus.autoSyncMinutes
   )
-  const [nextAutoSyncAt, setNextAutoSyncAt] = useState(initialStatus.nextAutoSyncAt)
   const [scheduleSaving, setScheduleSaving] = useState(false)
   const [scheduleMessage, setScheduleMessage] = useState<{
     success: boolean
@@ -153,12 +163,15 @@ export default function SyncPanel({ initialStatus }: SyncPanelProps) {
 
   const status = initialStatus
   const { last } = status
+  const scheduleDirty =
+    scheduleEnabled !== confirmedSchedule.enabled ||
+    scheduleInterval !== confirmedSchedule.intervalMinutes
 
-  useEffect(() => {
-    setScheduleEnabled(initialStatus.autoSyncEnabled)
-    setScheduleInterval(initialStatus.autoSyncMinutes)
-    setNextAutoSyncAt(initialStatus.nextAutoSyncAt)
-  }, [initialStatus])
+  const restoreConfirmedSchedule = () => {
+    const draft = scheduleDraftFromSnapshot(confirmedSchedule)
+    setScheduleEnabled(draft.enabled)
+    setScheduleInterval(draft.intervalMinutes)
+  }
 
   const handleSync = async () => {
     setSyncLoading(true)
@@ -210,13 +223,15 @@ export default function SyncPanel({ initialStatus }: SyncPanelProps) {
       })
 
       if (!response.success) {
+        restoreConfirmedSchedule()
         setScheduleMessage({ success: false, text: response.error })
         return
       }
 
-      setScheduleEnabled(response.schedule.enabled)
-      setScheduleInterval(response.schedule.intervalMinutes)
-      setNextAutoSyncAt(response.schedule.nextRunAt)
+      setConfirmedSchedule(response.schedule)
+      const savedDraft = scheduleDraftFromSnapshot(response.schedule)
+      setScheduleEnabled(savedDraft.enabled)
+      setScheduleInterval(savedDraft.intervalMinutes)
       setScheduleMessage({
         success: true,
         text: response.schedule.enabled
@@ -225,6 +240,7 @@ export default function SyncPanel({ initialStatus }: SyncPanelProps) {
       })
       router.refresh()
     } catch {
+      restoreConfirmedSchedule()
       setScheduleMessage({
         success: false,
         text: "No fue posible guardar la programación. El valor anterior se conserva.",
@@ -270,17 +286,17 @@ export default function SyncPanel({ initialStatus }: SyncPanelProps) {
           <div className="mt-2 flex items-center gap-2">
             <span
               className={`inline-block h-2.5 w-2.5 rounded-full ${
-                status.autoSyncEnabled ? "bg-emerald-500" : "bg-gray-400"
+                confirmedSchedule.enabled ? "bg-emerald-500" : "bg-gray-400"
               }`}
               aria-hidden
             />
             <span className="text-lg font-semibold text-[#1C1C1C]">
-              {status.autoSyncEnabled ? "Activa" : "Inactiva"}
+              {confirmedSchedule.enabled ? "Activa" : "Inactiva"}
             </span>
           </div>
           <p className="mt-1 text-sm text-gray-500">
-            {status.autoSyncEnabled
-              ? INTERVAL_LABELS[status.autoSyncMinutes as keyof typeof INTERVAL_LABELS]
+            {confirmedSchedule.enabled
+              ? INTERVAL_LABELS[confirmedSchedule.intervalMinutes]
               : "Inactiva"}
           </p>
         </div>
@@ -378,10 +394,13 @@ export default function SyncPanel({ initialStatus }: SyncPanelProps) {
         </div>
 
         <div className="mt-5 border-t border-gray-100 pt-4 text-sm text-gray-600">
+          {scheduleDirty && (
+            <p className="mb-2 font-medium text-amber-800">Hay cambios sin guardar.</p>
+          )}
           <p>
             <span className="font-medium text-gray-800">Próxima ejecución:</span>{" "}
-            {scheduleEnabled && nextAutoSyncAt
-              ? formatAbsolute(nextAutoSyncAt)
+            {confirmedSchedule.enabled && confirmedSchedule.nextRunAt
+              ? formatAbsolute(confirmedSchedule.nextRunAt)
               : "No programada"}
           </p>
           <p className="mt-2 text-xs text-amber-800">

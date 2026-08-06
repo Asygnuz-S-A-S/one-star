@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { sanitizeErpError } from "@/server/erp/erp-error"
 import { runDueErpSync } from "@/server/services/erp-sync-scheduler.service"
 
 /**
@@ -51,7 +52,8 @@ export async function GET(request: Request) {
       processed: result.processedCount,
       timestamp: new Date().toISOString()
     })
-  } catch {
+  } catch (error) {
+    console.error("[cron/sync-erp] Error ejecutando el coordinador:", sanitizeErpError(error))
     return NextResponse.json(
       { error: "Error interno ejecutando sincronización automática" },
       { status: 500 }

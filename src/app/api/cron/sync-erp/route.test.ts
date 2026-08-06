@@ -42,6 +42,15 @@ describe("GET /api/cron/sync-erp", () => {
     expect(mocks.runDueErpSync).not.toHaveBeenCalled()
   })
 
+  it("falla cerrado en producción cuando CRON_SECRET no está configurado", async () => {
+    vi.stubEnv("NODE_ENV", "production")
+
+    const response = await GET(new Request("http://localhost/api/cron/sync-erp"))
+
+    expect(response.status).toBe(503)
+    expect(mocks.runDueErpSync).not.toHaveBeenCalled()
+  })
+
   it("devuelve el resultado cuando el coordinador reclama el vencimiento", async () => {
     mocks.runDueErpSync.mockResolvedValue({
       executed: true,
