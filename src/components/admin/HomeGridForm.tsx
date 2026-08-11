@@ -1,29 +1,35 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { createGridBlock, updateGridBlock } from "./actions"
 import type { HomeGridBlock } from "@prisma/client"
+import type { LandingBuilderActions } from "@/types/landing-builder-actions"
 
 interface Props {
+  actions: Pick<LandingBuilderActions, "createGridBlock" | "updateGridBlock">
   initial?: HomeGridBlock
   onClose: () => void
 }
 
-export default function HomeGridForm({ initial, onClose }: Props) {
+export default function HomeGridForm({ actions, initial, onClose }: Props) {
+  const { createGridBlock, updateGridBlock } = actions
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
   async function actionHandler(formData: FormData) {
     setError(null)
     startTransition(async () => {
-      const res = initial
-        ? await updateGridBlock(initial.id, formData)
-        : await createGridBlock(formData)
+      try {
+        const res = initial
+          ? await updateGridBlock(initial.id, formData)
+          : await createGridBlock(formData)
 
-      if (res.success) {
-        onClose()
-      } else {
-        setError(res.error || "Ocurrió un error inesperado.")
+        if (res.success) {
+          onClose()
+        } else {
+          setError(res.error || "Ocurrió un error inesperado.")
+        }
+      } catch {
+        setError("No se pudo guardar el bloque. Intenta de nuevo.")
       }
     })
   }

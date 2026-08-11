@@ -13,9 +13,9 @@ export async function getActiveBanners() {
   return prisma.banner.findMany({
     where: {
       isActive: true,
-      OR: [
-        { startDate: null, endDate: null },
-        { startDate: { lte: now }, endDate: { gte: now } }
+      AND: [
+        { OR: [{ startDate: null }, { startDate: { lte: now } }] },
+        { OR: [{ endDate: null }, { endDate: { gte: now } }] },
       ]
     },
     orderBy: { position: "asc" }

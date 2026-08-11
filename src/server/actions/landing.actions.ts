@@ -1,99 +1,94 @@
-"use server"
+import "server-only"
 
 import { revalidatePath } from "next/cache"
-import { prisma } from "../db/prisma"
-import { requireAdmin } from "@/server/auth/require-admin"
 import type { Prisma, LandingSectionType } from "@prisma/client"
+import { requireAdmin } from "@/server/auth/require-admin"
+import {
+  createLandingSection,
+  deleteLandingSection,
+  setLandingSectionActive,
+  updateLandingSectionConfig,
+  updateLandingSectionPositions,
+} from "@/server/services/landing-section.service"
+import { ActiveStateSchema, EntityIdSchema } from "@/server/validators/common.validator"
+import {
+  LandingSectionConfigSchema,
+  LandingSectionPositionsSchema,
+  LandingSectionTypeSchema,
+} from "@/server/validators/landing-section.validator"
 
-export async function updateLandingSectionPositionsAction(
-  updates: { id: string; position: number }[]
-) {
+function revalidateLanding() {
+  revalidatePath("/")
+  revalidatePath("/admin/landing-builder")
+}
+
+export async function updateLandingSectionPositionsAction(updates: { id: string; position: number }[]) {
+  "use server"
   try {
     await requireAdmin()
-    await prisma.$transaction(
-      updates.map((update) =>
-        prisma.landingSection.update({
-          where: { id: update.id },
-          data: { position: update.position },
-        })
-      )
-    )
-    revalidatePath("/")
-    revalidatePath("/admin/landing-builder")
+    await updateLandingSectionPositions(LandingSectionPositionsSchema.parse(updates))
+    revalidateLanding()
     return { success: true }
   } catch (error) {
     console.error("Error updating landing section positions:", error)
-    return { success: false, error: "Failed to update positions" }
+    return { success: false, error: "No se pudo guardar el orden" }
   }
 }
 
 export async function toggleLandingSectionActiveAction(id: string, isActive: boolean) {
+  "use server"
   try {
     await requireAdmin()
-    await prisma.landingSection.update({
-      where: { id },
-      data: { isActive },
-    })
-    revalidatePath("/")
-    revalidatePath("/admin/landing-builder")
+    await setLandingSectionActive(
+      EntityIdSchema.parse(id),
+      ActiveStateSchema.parse(isActive),
+    )
+    revalidateLanding()
     return { success: true }
   } catch (error) {
     console.error("Error toggling landing section:", error)
-    return { success: false, error: "Failed to toggle section" }
+    return { success: false, error: "No se pudo cambiar el estado" }
   }
 }
 
 export async function updateLandingSectionConfigAction(id: string, config: Prisma.InputJsonValue) {
+  "use server"
   try {
     await requireAdmin()
-    await prisma.landingSection.update({
-      where: { id },
-      data: { config },
-    })
-    revalidatePath("/")
-    revalidatePath("/admin/landing-builder")
+    const validId = EntityIdSchema.parse(id)
+    const validConfig = LandingSectionConfigSchema.parse(config) as Prisma.InputJsonObject
+    await updateLandingSectionConfig(validId, validConfig)
+    revalidateLanding()
     return { success: true }
   } catch (error) {
     console.error("Error updating landing section config:", error)
-    return { success: false, error: "Failed to update config" }
+    return { success: false, error: "No se pudo guardar la configuración" }
   }
 }
 
 export async function createLandingSectionAction(type: LandingSectionType) {
+  "use server"
   try {
     await requireAdmin()
-    const maxPosition = await prisma.landingSection.aggregate({
-      _max: { position: true },
-    })
-    const position = (maxPosition._max.position || 0) + 1
-
-    const newSection = await prisma.landingSection.create({
-      data: {
-        type,
-        position,
-        isActive: true,
-      },
-    })
-    revalidatePath("/")
-    revalidatePath("/admin/landing-builder")
+    const validType = LandingSectionTypeSchema.parse(type)
+    const newSection = await createLandingSection(validType)
+    revalidateLanding()
     return { success: true, newSection }
   } catch (error) {
     console.error("Error creating landing section:", error)
-    return { success: false, error: "Failed to create section" }
+    return { success: false, error: "No se pudo crear la sección" }
   }
 }
 
 export async function deleteLandingSectionAction(id: string) {
+  "use server"
   try {
     await requireAdmin()
-    await prisma.landingSection.delete({
-      where: { id },
-    })
-    revalidatePath("/")
-    revalidatePath("/admin/landing-builder")
+    await deleteLandingSection(EntityIdSchema.parse(id))
+    revalidateLanding()
     return { success: true }
   } catch (error) {
     console.error("Error deleting landing section:", error)
-    return { success: false, error: "Failed to delete section" }
+    return { success: false, error: "No se pudo eliminar la sección" }
   }
 }

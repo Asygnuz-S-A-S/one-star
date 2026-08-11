@@ -1,13 +1,20 @@
-"use server"
+import "server-only"
 
 import { 
   addStoreLogo, 
   deleteStoreLogo, 
   setPrimaryStoreLogo, 
   updateStoreLogoTheme
-} from "@/server/repositories/site-logo.repository"
+} from "@/server/services/site-logo.service"
 import { revalidatePath } from "next/cache"
 import { requireAdmin } from "@/server/auth/require-admin"
+import { getActionError } from "@/server/actions/action-error"
+import { EntityIdSchema } from "@/server/validators/common.validator"
+import {
+  StoreLogoInputSchema,
+  StoreLogoThemeSchema,
+  StoreLogoTypeSchema,
+} from "@/server/validators/site-logo.validator"
 
 export async function addStoreLogoAction(data: {
   url: string
@@ -16,24 +23,30 @@ export async function addStoreLogoAction(data: {
   theme: string
   isPrimary: boolean
 }) {
+  "use server"
   try {
     await requireAdmin()
-    const newLogo = await addStoreLogo(data)
-    if (data.isPrimary) {
-      revalidatePath("/", "layout")
-    }
+    const input = StoreLogoInputSchema.parse(data)
+    const newLogo = await addStoreLogo(input)
+    revalidatePath("/admin/landing-builder")
+    revalidatePath("/", "layout")
     return { success: true, data: newLogo }
   } catch (error: unknown) {
     console.error("Error adding store logo:", error)
-    const message = error instanceof Error ? error.message : "Error al subir logo"
+    const message = getActionError(error, "Error al subir logo")
     return { success: false, error: message }
   }
 }
 
 export async function setPrimaryStoreLogoAction(id: string, type: string) {
+  "use server"
   try {
     await requireAdmin()
-    await setPrimaryStoreLogo(id, type)
+    await setPrimaryStoreLogo(
+      EntityIdSchema.parse(id),
+      StoreLogoTypeSchema.parse(type),
+    )
+    revalidatePath("/admin/landing-builder")
     revalidatePath("/", "layout")
     return { success: true }
   } catch (error: unknown) {
@@ -44,9 +57,14 @@ export async function setPrimaryStoreLogoAction(id: string, type: string) {
 }
 
 export async function updateStoreLogoThemeAction(id: string, theme: string) {
+  "use server"
   try {
     await requireAdmin()
-    await updateStoreLogoTheme(id, theme)
+    await updateStoreLogoTheme(
+      EntityIdSchema.parse(id),
+      StoreLogoThemeSchema.parse(theme),
+    )
+    revalidatePath("/admin/landing-builder")
     revalidatePath("/", "layout")
     return { success: true }
   } catch (error: unknown) {
@@ -57,9 +75,11 @@ export async function updateStoreLogoThemeAction(id: string, theme: string) {
 }
 
 export async function deleteStoreLogoAction(id: string) {
+  "use server"
   try {
     await requireAdmin()
-    await deleteStoreLogo(id)
+    await deleteStoreLogo(EntityIdSchema.parse(id))
+    revalidatePath("/admin/landing-builder")
     revalidatePath("/", "layout")
     return { success: true }
   } catch (error: unknown) {

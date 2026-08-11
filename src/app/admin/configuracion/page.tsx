@@ -1,11 +1,11 @@
 import { revalidatePath } from "next/cache"
 import { requireAdmin } from "@/server/auth/require-admin"
 
-// TODO: Make announcement bar text dynamic (persist to DB or env)
 // TODO: Make store info dynamic (persist to DB or settings table)
 
 async function saveConfig(_formData: FormData): Promise<void> {
   "use server"
+  void _formData
   await requireAdmin()
   // TODO: Persistir en tabla StoreSettings (pendiente de implementar)
   revalidatePath("/admin/configuracion")
@@ -23,26 +23,6 @@ export default function ConfiguracionPage() {
       </h1>
 
       <form action={saveConfig} className="space-y-8">
-        {/* Barra de anuncios */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h2 className="font-['Barlow',sans-serif] text-lg font-bold text-[#1C1C1C] mb-1">
-            Barra de anuncios
-          </h2>
-          <p className="text-xs text-[#4A4A4A] mb-4">
-            Texto que aparece en la barra superior del sitio.{" "}
-            {/* TODO: Conectar a tabla de configuración dinámica en DB */}
-          </p>
-          <div>
-            <label className={labelClass}>Mensaje</label>
-            <textarea
-              name="announcement"
-              rows={3}
-              defaultValue="Envío gratis en pedidos mayores a $200.000 COP · Hasta 30% de descuento en marcas seleccionadas"
-              className={`${inputClass} resize-none`}
-            />
-          </div>
-        </div>
-
         {/* Información de la tienda */}
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <h2 className="font-['Barlow',sans-serif] text-lg font-bold text-[#1C1C1C] mb-1">

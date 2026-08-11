@@ -2,14 +2,17 @@
 
 import { useState, useTransition } from "react"
 import HomeGridForm from "./HomeGridForm"
-import { deleteGridBlock, toggleGridBlockActive } from "./actions"
 import type { HomeGridBlock } from "@prisma/client"
+import type { LandingBuilderActions } from "@/types/landing-builder-actions"
 
 interface Props {
+  actions: Pick<LandingBuilderActions, "createGridBlock" | "deleteGridBlock" | "toggleGridBlockActive" | "updateGridBlock">
   blocks: HomeGridBlock[]
+  onRefresh?: () => void
 }
 
-export default function HomeGridClient({ blocks }: Props) {
+export default function HomeGridClient({ actions, blocks, onRefresh }: Props) {
+  const { deleteGridBlock, toggleGridBlockActive } = actions
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<HomeGridBlock | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -17,13 +20,31 @@ export default function HomeGridClient({ blocks }: Props) {
   function handleDelete(id: string) {
     if (!confirm("¿Eliminar este bloque?")) return
     startTransition(async () => {
-      await deleteGridBlock(id)
+      try {
+        const result = await deleteGridBlock(id)
+        if (!result.success) {
+          alert(result.error || "No se pudo eliminar el bloque.")
+          return
+        }
+        onRefresh?.()
+      } catch {
+        alert("No se pudo eliminar el bloque.")
+      }
     })
   }
 
   function handleToggle(id: string, current: boolean) {
     startTransition(async () => {
-      await toggleGridBlockActive(id, current)
+      try {
+        const result = await toggleGridBlockActive(id, current)
+        if (!result.success) {
+          alert(result.error || "No se pudo cambiar el estado.")
+          return
+        }
+        onRefresh?.()
+      } catch {
+        alert("No se pudo cambiar el estado.")
+      }
     })
   }
 
@@ -65,8 +86,12 @@ export default function HomeGridClient({ blocks }: Props) {
               {editing ? "Editar bloque" : "Nuevo bloque"}
             </h2>
             <HomeGridForm
+              actions={actions}
               initial={editing ?? undefined}
-              onClose={closeForm}
+              onClose={() => {
+                closeForm()
+                onRefresh?.()
+              }}
             />
           </div>
         </div>

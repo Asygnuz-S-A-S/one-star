@@ -10,6 +10,7 @@ import { usePathname } from "next/navigation";
 import CartDrawer from "@/components/cart/CartDrawer";
 import TopBannerTicker from "@/components/TopBannerTicker";
 import { NavigationItem, TopBanner, StoreLogo } from "@prisma/client";
+import { safePublicUrl } from "@/lib/safe-url";
 
 function IconHamburger({ open }: { open: boolean }) {
   return (
@@ -150,6 +151,7 @@ export default function Header({
   const pathname = usePathname();
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- evita diferencias de hidratación en controles dependientes del cliente
     setMounted(true);
   }, []);
 
@@ -165,19 +167,6 @@ export default function Header({
   const isCustomer = !!session?.user && (session.user as { userType?: string }).userType === "customer";
   const userInitial =
     session?.user?.name?.charAt(0) ?? session?.user?.email?.charAt(0) ?? "U";
-
-  // Helper para convertir hex a rgba
-  const hexToRgba = (hex: string, opacity: number): string => {
-    if (!hex) return "transparent";
-    if (!/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)) return hex;
-    let digits = hex.substring(1).split("");
-    if (digits.length === 3) {
-      digits = [digits[0], digits[0], digits[1], digits[1], digits[2], digits[2]];
-    }
-    const value = Number.parseInt(digits.join(""), 16);
-    const channels = [(value >> 16) & 255, (value >> 8) & 255, value & 255];
-    return `rgba(${channels.join(",")},${opacity / 100})`;
-  }
 
   return (
     <>
@@ -302,7 +291,7 @@ export default function Header({
                     const isActive = pathname === item.href;
                     return (
                       <Link
-                        href={item.href}
+                        href={safePublicUrl(item.href, "/")}
                         className={[
                           "font-barlow font-semibold text-sm tracking-wide uppercase transition-colors duration-150",
                           isActive ? "text-[#E31C23]" : "hover:text-[#E31C23]",
@@ -375,7 +364,7 @@ export default function Header({
                     const isActive = pathname === item.href;
                     return (
                       <Link
-                        href={item.href}
+                        href={safePublicUrl(item.href, "/")}
                         onClick={() => setMenuOpen(false)}
                         className={[
                           "block px-6 py-4 font-barlow font-semibold text-sm tracking-wide uppercase transition-colors duration-150",

@@ -1,7 +1,10 @@
 "use client"
 
 import { useState, useTransition, useRef } from "react"
-import { createBanner, updateBanner } from "./actions"
+import Image from "next/image"
+import { safePublicUrl } from "@/lib/safe-url"
+import { toColombiaDateInput } from "@/lib/colombia-date"
+import type { LandingBuilderActions } from "@/types/landing-builder-actions"
 
 interface BannerData {
   id?: string
@@ -16,13 +19,15 @@ interface BannerData {
 }
 
 interface Props {
+  actions: Pick<LandingBuilderActions, "createBanner" | "updateBanner">
   initial?: BannerData
   onClose: () => void
 }
 
 type MediaSource = "upload" | "url"
 
-export default function BannerForm({ initial, onClose }: Props) {
+export default function BannerForm({ actions, initial, onClose }: Props) {
+  const { createBanner, updateBanner } = actions
   const formRef = useRef<HTMLFormElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -88,13 +93,17 @@ export default function BannerForm({ initial, onClose }: Props) {
     formData.set("mediaType", mediaType)
 
     startTransition(async () => {
-      const result = initial?.id
-        ? await updateBanner(initial.id, formData)
-        : await createBanner(formData)
-      if (result.success) {
-        onClose()
-      } else {
-        setError(result.error ?? "Error desconocido.")
+      try {
+        const result = initial?.id
+          ? await updateBanner(initial.id, formData)
+          : await createBanner(formData)
+        if (result.success) {
+          onClose()
+        } else {
+          setError(result.error ?? "Error desconocido.")
+        }
+      } catch {
+        setError("No se pudo guardar el banner. Intenta de nuevo.")
       }
     })
   }
@@ -102,6 +111,7 @@ export default function BannerForm({ initial, onClose }: Props) {
   const inputClass =
     "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-[#1C1C1C] bg-white focus:outline-none focus:ring-2 focus:ring-[#E31C23]"
   const labelClass = "block text-xs font-semibold text-[#4A4A4A] mb-1"
+  const previewMediaUrl = safePublicUrl(mediaUrl, "")
 
   return (
     <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
@@ -215,11 +225,11 @@ export default function BannerForm({ initial, onClose }: Props) {
         )}
 
         {/* Preview */}
-        {mediaUrl && (
-          <div className="mt-3 rounded-lg overflow-hidden border border-gray-200 bg-gray-50 relative">
+        {previewMediaUrl && (
+          <div className="mt-3 h-40 rounded-lg overflow-hidden border border-gray-200 bg-gray-50 relative">
             {mediaType === "video" ? (
               <video
-                src={mediaUrl}
+                src={previewMediaUrl}
                 className="w-full h-40 object-cover"
                 muted
                 autoPlay
@@ -227,12 +237,12 @@ export default function BannerForm({ initial, onClose }: Props) {
                 playsInline
               />
             ) : (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={mediaUrl}
+              <Image
+                src={previewMediaUrl}
                 alt="Preview"
-                className="w-full h-40 object-cover"
-                onError={(e) => (e.currentTarget.style.display = "none")}
+                fill
+                unoptimized
+                className="object-cover"
               />
             )}
             <div className="absolute top-2 right-2 flex gap-1">
@@ -255,7 +265,7 @@ export default function BannerForm({ initial, onClose }: Props) {
       <div>
         <label className={labelClass}>URL de destino (link)</label>
         <input
-          type="url"
+          type="text"
           name="linkUrl"
           defaultValue={initial?.linkUrl ?? ""}
           placeholder="https://..."
@@ -282,7 +292,7 @@ export default function BannerForm({ initial, onClose }: Props) {
           <input
             type="date"
             name="startDate"
-            defaultValue={initial?.startDate?.slice(0, 10) ?? ""}
+            defaultValue={toColombiaDateInput(initial?.startDate)}
             className={inputClass}
           />
         </div>
@@ -291,7 +301,7 @@ export default function BannerForm({ initial, onClose }: Props) {
           <input
             type="date"
             name="endDate"
-            defaultValue={initial?.endDate?.slice(0, 10) ?? ""}
+            defaultValue={toColombiaDateInput(initial?.endDate)}
             className={inputClass}
           />
         </div>

@@ -34,3 +34,11 @@
 - Preservar en servidor el nivel de inventario web administrado por el ERP al guardar el formulario; aceptar desde admin únicamente inventario de tiendas físicas y detectar formularios obsoletos.
 - Validar precios y stock externos como números finitos y no negativos antes del dry-run/escritura; ampliar el dry-run para detectar conflictos de identidad, SKU y slug antes de habilitar escrituras.
 - Persistir en `ErpSyncLog` los conteos separados de productos, variantes y definiciones para conservar el diagnóstico después de recargar el panel.
+
+## 2026-08-11 — Deuda visual preexistente expuesta al centralizar Landing Builder
+
+- Conectar al header público las opciones ya existentes de color, opacidad, blur y visibilidad móvil; actualmente varias solo se persisten o afectan desktop.
+- Alinear la grilla pública con sus campos históricos `bgColor`, `emoji` y `darkText`, incluyendo soporte seguro para colores hexadecimales y contraste.
+- Implementar el control público de `showArrows` del hero, que ya existía en el constructor pero no tenía consumidor efectivo.
+- Endurecer la concurrencia preexistente de posiciones de navegación/secciones y las transiciones de logo principal con operaciones atómicas en repositorio.
+- Sanear URLs históricas de logos también en el header público y mejorar semántica/foco de los modales administrativos trasladados.

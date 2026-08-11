@@ -1,6 +1,6 @@
 import "server-only"
 import { prisma } from "../db/prisma"
-import type { LandingSection } from "@prisma/client"
+import type { LandingSection, Prisma } from "@prisma/client"
 
 export async function getActiveLandingSections(): Promise<LandingSection[]> {
   return prisma.landingSection.findMany({
@@ -28,4 +28,21 @@ export async function updateLandingSectionPositions(
       })
     )
   )
+}
+
+export async function getMaximumLandingSectionPosition(): Promise<number> {
+  const result = await prisma.landingSection.aggregate({ _max: { position: true } })
+  return result._max.position ?? 0
+}
+
+export async function updateLandingSection(id: string, data: Prisma.LandingSectionUpdateInput) {
+  return prisma.landingSection.update({ where: { id }, data })
+}
+
+export async function createLandingSection(data: Prisma.LandingSectionCreateInput) {
+  return prisma.landingSection.create({ data })
+}
+
+export async function deleteLandingSection(id: string) {
+  return prisma.landingSection.delete({ where: { id } })
 }

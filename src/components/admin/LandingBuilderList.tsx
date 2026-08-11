@@ -1,33 +1,24 @@
 "use client"
+/* eslint-disable @typescript-eslint/no-explicit-any -- los configs JSON heterogéneos de secciones aún no tienen una unión discriminada */
 
 import React, { useState } from "react"
 import { useRouter } from "next/navigation"
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd"
 import { motion, AnimatePresence } from "motion/react"
 import dynamic from "next/dynamic"
-import BannerForm from "@/app/admin/banners/BannerForm"
+import Image from "next/image"
+import BannerForm from "@/components/admin/BannerForm"
+import HomeGridClient from "@/components/admin/HomeGridClient"
+import LogoManager from "@/components/admin/LogoManager"
 
 const Editor = dynamic(() => import("@monaco-editor/react"), { ssr: false })
-import { LandingSection, LandingSectionType, TopBanner, NavigationItem, StoreLogo, Category } from "@prisma/client"
-import {
-  updateLandingSectionPositionsAction,
-  toggleLandingSectionActiveAction,
-  updateLandingSectionConfigAction,
-  createLandingSectionAction,
-  deleteLandingSectionAction
-} from "@/server/actions/landing.actions"
-import { updateTopBannerAction } from "@/server/actions/top-banner.actions"
-import { addStoreLogoAction } from "@/server/actions/site-logo.actions"
-import { 
-  createNavigationItemAction, 
-  deleteNavigationItemAction, 
-  updateNavigationPositionsAction,
-  updateNavigationItemAction,
-  toggleNavigationItemActiveAction
-} from "@/server/actions/navigation.actions"
-import { updateHeaderConfigAction } from "@/server/actions/header-config.actions"
-import { deleteBanner } from "@/app/admin/banners/actions"
+import { LandingSection, LandingSectionType, TopBanner, NavigationItem, StoreLogo, HomeGridBlock } from "@prisma/client"
+import type { BannerDTO } from "@/server/services/banner.service"
+import type { CategoryDTO } from "@/server/services/category.service"
+import { safePublicUrl } from "@/lib/safe-url"
+import { reorderTickerMessages, type TickerMessage } from "@/lib/ticker-messages"
 import { searchProductsAction } from "@/server/actions/product.actions"
+import type { LandingBuilderActions } from "@/types/landing-builder-actions"
 
 export interface BuilderGlobals {
   topBanner: TopBanner | null
@@ -36,6 +27,7 @@ export interface BuilderGlobals {
     mobile: StoreLogo | null
     large: StoreLogo | null
   }
+  allLogos: StoreLogo[]
   navigation: NavigationItem[]
   headerConfig: {
     layout: string
@@ -55,10 +47,13 @@ export interface BuilderGlobals {
 }
 
 interface LandingBuilderListProps {
+  actions: LandingBuilderActions
   initialSections: LandingSection[]
   initialGlobals?: BuilderGlobals
-  categories?: Category[]
-  initialBanners?: any[]
+  categories?: CategoryDTO[]
+  initialBanners?: BannerDTO[]
+  initialGridBlocks?: HomeGridBlock[]
+  unavailableAreas?: string[]
   onRefresh?: () => void
 }
 
@@ -79,13 +74,32 @@ const SECTION_LABELS: Record<string, string> = {
   PRODUCT_CAROUSEL: "Carrusel de Productos Personalizado",
 }
 
-export default function LandingBuilderList({ initialSections, initialGlobals, initialBanners, categories, onRefresh }: LandingBuilderListProps) {
+export default function LandingBuilderList({ actions, initialSections, initialGlobals, initialBanners, initialGridBlocks = [], categories, unavailableAreas = [], onRefresh }: LandingBuilderListProps) {
+  const {
+    createLandingSectionAction,
+    deleteBanner,
+    deleteLandingSectionAction,
+    toggleBannerActive,
+    toggleLandingSectionActiveAction,
+    updateHeaderConfigAction,
+    updateLandingSectionConfigAction,
+    updateLandingSectionPositionsAction,
+    updateTopBannerAction,
+    createNavigationItemAction,
+    deleteNavigationItemAction,
+    toggleNavigationItemActiveAction,
+    updateNavigationItemAction,
+    updateNavigationPositionsAction,
+  } = actions
   const router = useRouter()
   const [sections, setSections] = useState(initialSections)
   const [isSaving, setIsSaving] = useState(false)
+  const sectionMutationLockRef = React.useRef(false)
 
   const [showBannerForm, setShowBannerForm] = useState(false)
-  const [editingBanner, setEditingBanner] = useState<any | null>(null)
+  const [editingBanner, setEditingBanner] = useState<BannerDTO | null>(null)
+  const banners = initialBanners || []
+  const isUnavailable = (area: string) => unavailableAreas.includes(area)
 
   const closeBannerForm = () => {
     setShowBannerForm(false)
@@ -96,35 +110,78 @@ export default function LandingBuilderList({ initialSections, initialGlobals, in
 
   const handleDeleteBanner = async (id: string) => {
     if (!confirm("¿Seguro que deseas eliminar este banner?")) return
+    if (isSaving) return
     setIsSaving(true)
     try {
       const result = await deleteBanner(id)
-      if (!result.success) alert(result.error || "Error al eliminar el banner")
-    } catch (e) {
+      if (!result.success) {
+        alert(result.error || "Error al eliminar el banner")
+        return
+      }
+      router.refresh()
+      triggerRefresh()
+    } catch {
       alert("Error inesperado al eliminar el banner")
+    } finally {
+      setIsSaving(false)
     }
-    setIsSaving(false)
-    router.refresh()
-    triggerRefresh()
+  }
+
+  const handleToggleBanner = async (id: string, current: boolean) => {
+    setIsSaving(true)
+    try {
+      const result = await toggleBannerActive(id, current)
+      if (result.success) {
+        router.refresh()
+        triggerRefresh()
+      } else {
+        alert(result.error || "No se pudo cambiar el estado del banner")
+      }
+    } catch {
+      alert("No se pudo cambiar el estado del banner")
+    } finally {
+      setIsSaving(false)
+    }
   }
   
   // Section editing
   const [editingSection, setEditingSection] = useState<LandingSection | null>(null)
   
   // Global editing
-  type GlobalEditType = "TOP_BANNER" | "LOGOS" | "NAVIGATION" | null
+  type GlobalEditType = "TOP_BANNER" | "BANNERS" | "LOGOS" | "NAVIGATION" | "HOME_GRID" | null
   const [editingGlobal, setEditingGlobal] = useState<GlobalEditType>(null)
-  const [globalBannerState, setGlobalBannerState] = useState<Partial<TopBanner>>(initialGlobals?.topBanner || {
-    text: "", btnText: "", btnUrl: "", messages: [], bgColor: "#000000", textColor: "#FFFFFF", isActive: false
+  const [globalBannerState, setGlobalBannerState] = useState<Partial<TopBanner>>(() => {
+    const banner = initialGlobals?.topBanner
+    const messages = Array.isArray(banner?.messages) && banner.messages.length > 0
+      ? banner.messages
+      : banner?.text
+        ? [{ text: banner.text, url: banner.btnUrl || "" }]
+        : []
+    return banner
+      ? { ...banner, messages }
+      : { text: "", btnText: "", btnUrl: "", messages: [], bgColor: "#000000", textColor: "#FFFFFF", isActive: false }
   })
+  const tickerMessages = Array.isArray(globalBannerState.messages)
+    ? globalBannerState.messages as unknown as TickerMessage[]
+    : []
 
-  // Logos State
-  const [isUploadingLogo, setIsUploadingLogo] = useState(false)
-  const [desktopLogoUrl, setDesktopLogoUrl] = useState<string>(initialGlobals?.logos?.desktop?.url || "")
-  const [mobileLogoUrl, setMobileLogoUrl] = useState<string>(initialGlobals?.logos?.mobile?.url || "")
+  const setTickerMessages = (messages: TickerMessage[]) => {
+    setGlobalBannerState(previous => ({
+      ...previous,
+      messages: messages as any,
+      text: messages[0]?.text || "",
+    }))
+  }
+
+  const moveTickerMessage = (index: number, direction: -1 | 1) => {
+    setTickerMessages(reorderTickerMessages(tickerMessages, index, direction))
+  }
 
   // Navigation State
   const [navItems, setNavItems] = useState<NavigationItem[]>(initialGlobals?.navigation || [])
+  const [navDrafts, setNavDrafts] = useState<Record<string, { label: string; href: string }>>(() =>
+    Object.fromEntries((initialGlobals?.navigation || []).map(item => [item.id, { label: item.label, href: item.href }]))
+  )
   const [newNavLabel, setNewNavLabel] = useState("")
   const [newNavUrl, setNewNavUrl] = useState("")
   const [isNavSaving, setIsNavSaving] = useState(false)
@@ -176,16 +233,36 @@ export default function LandingBuilderList({ initialSections, initialGlobals, in
   }
 
   const handleDeleteBlock = async (id: string) => {
+    if (isSaving || sectionMutationLockRef.current) return
+    sectionMutationLockRef.current = true
+    const previousSections = sections
+    const previousEditingSection = editingSection
+
     setDeleteConfirm(null)
     setIsSaving(true)
-    await deleteLandingSectionAction(id)
-    setSections(sections.filter(s => s.id !== id))
+    setSections(previous => previous.filter(section => section.id !== id))
     setEditingSection(null)
-    setIsSaving(false)
-    triggerRefresh()
+    try {
+      const result = await deleteLandingSectionAction(id)
+      if (!result.success) {
+        setSections(previousSections)
+        setEditingSection(previousEditingSection)
+        alert(result.error || "No se pudo eliminar la sección")
+        return
+      }
+      triggerRefresh()
+    } catch {
+      setSections(previousSections)
+      setEditingSection(previousEditingSection)
+      alert("No se pudo eliminar la sección")
+    } finally {
+      sectionMutationLockRef.current = false
+      setIsSaving(false)
+    }
   }
 
   const onDragEnd = async (result: DropResult) => {
+    if (isSaving || sectionMutationLockRef.current) return
     if (!result.destination) return
     const { source, destination } = result
     if (source.index === destination.index) return
@@ -200,29 +277,58 @@ export default function LandingBuilderList({ initialSections, initialGlobals, in
       position: i + 1,
     }))
 
+    sectionMutationLockRef.current = true
     setSections(updatedSections)
     setIsSaving(true)
 
-    const res = await updateLandingSectionPositionsAction(
-      updatedSections.map(s => ({ id: s.id, position: s.position }))
-    )
-    setIsSaving(false)
+    try {
+      const res = await updateLandingSectionPositionsAction(
+        updatedSections.map(s => ({ id: s.id, position: s.position }))
+      )
 
-    if (!res?.success) {
-      // Revierte el orden si el guardado falla (evita desincronía UI/BD)
+      if (!res?.success) {
+        setSections(prevSections)
+        alert("No se pudo guardar el nuevo orden: " + (res?.error ?? "desconocido"))
+        return
+      }
+      triggerRefresh()
+    } catch {
       setSections(prevSections)
-      alert("No se pudo guardar el nuevo orden: " + (res?.error ?? "desconocido"))
-      return
+      alert("No se pudo guardar el nuevo orden")
+    } finally {
+      sectionMutationLockRef.current = false
+      setIsSaving(false)
     }
-    triggerRefresh()
   }
 
   const handleToggleActive = async (id: string, currentActive: boolean) => {
+    if (isSaving || sectionMutationLockRef.current) return
+    sectionMutationLockRef.current = true
     const newActive = !currentActive
-    setSections(sections.map(s => s.id === id ? { ...s, isActive: newActive } : s))
-    
-    await toggleLandingSectionActiveAction(id, newActive)
-    triggerRefresh()
+    setIsSaving(true)
+    setSections(previous => previous.map(section =>
+      section.id === id ? { ...section, isActive: newActive } : section
+    ))
+
+    try {
+      const result = await toggleLandingSectionActiveAction(id, newActive)
+      if (!result.success) {
+        setSections(previous => previous.map(section =>
+          section.id === id ? { ...section, isActive: currentActive } : section
+        ))
+        alert(result.error || "No se pudo cambiar el estado de la sección")
+        return
+      }
+      triggerRefresh()
+    } catch {
+      setSections(previous => previous.map(section =>
+        section.id === id ? { ...section, isActive: currentActive } : section
+      ))
+      alert("No se pudo cambiar el estado de la sección")
+    } finally {
+      sectionMutationLockRef.current = false
+      setIsSaving(false)
+    }
   }
 
   const startEditingConfig = (section: LandingSection) => {
@@ -231,10 +337,6 @@ export default function LandingBuilderList({ initialSections, initialGlobals, in
       ? section.config as Record<string, any> 
       : {}
     setConfigInput(config)
-  }
-
-  const handleConfigChange = (key: string, value: any) => {
-    setConfigInput(prev => ({ ...prev, [key]: value }))
   }
 
   // Save global banner
@@ -264,41 +366,12 @@ export default function LandingBuilderList({ initialSections, initialGlobals, in
     setIsSaving(false)
   }
 
-  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: string) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setIsUploadingLogo(true)
-    const fd = new FormData()
-    fd.append("file", file)
-    try {
-      const res = await fetch("/api/upload", { method: "POST", body: fd })
-      const data = await res.json()
-      if (res.ok && data.url) {
-        await addStoreLogoAction({
-          url: data.url,
-          fileName: file.name,
-          type,
-          theme: "light",
-          isPrimary: true
-        })
-        if (type === "desktop") setDesktopLogoUrl(data.url)
-        if (type === "mobile") setMobileLogoUrl(data.url)
-        if (onRefresh) onRefresh()
-      } else {
-        alert(data.error || "Error al subir imagen")
-      }
-    } catch (error) {
-      alert("Error de red al subir imagen")
-    }
-    setIsUploadingLogo(false)
-    e.target.value = ""
-  }
-
   const onNavDragEnd = async (result: DropResult) => {
     if (!result.destination) return
     const { source, destination } = result
     if (source.index === destination.index) return
 
+    const previousItems = navItems
     setIsNavSaving(true)
     const newItems = Array.from(navItems)
     const [moved] = newItems.splice(source.index, 1)
@@ -307,59 +380,139 @@ export default function LandingBuilderList({ initialSections, initialGlobals, in
     const updatedItems = newItems.map((item, i) => ({ ...item, position: i + 1 }))
     setNavItems(updatedItems)
     
-    await updateNavigationPositionsAction(updatedItems.map(item => ({ id: item.id, position: item.position })))
-    if (onRefresh) onRefresh()
-    setIsNavSaving(false)
+    try {
+      const response = await updateNavigationPositionsAction(updatedItems.map(item => ({ id: item.id, position: item.position })))
+      if (!response.success) {
+        setNavItems(previousItems)
+        alert(response.error || "No se pudo guardar el orden")
+      } else if (onRefresh) {
+        onRefresh()
+      }
+    } catch {
+      setNavItems(previousItems)
+      alert("No se pudo guardar el orden")
+    } finally {
+      setIsNavSaving(false)
+    }
   }
 
   const deleteNavItem = async (id: string) => {
     if (!confirm("¿Eliminar enlace?")) return
     setIsNavSaving(true)
-    await deleteNavigationItemAction(id)
-    setNavItems(prev => prev.filter(i => i.id !== id))
-    if (onRefresh) onRefresh()
-    setIsNavSaving(false)
+    try {
+      const response = await deleteNavigationItemAction(id)
+      if (response.success) {
+        setNavItems(prev => prev.filter(i => i.id !== id))
+        setNavDrafts(prev => {
+          const next = { ...prev }
+          delete next[id]
+          return next
+        })
+        if (onRefresh) onRefresh()
+      } else {
+        alert(response.error || "No se pudo eliminar el enlace")
+      }
+    } catch {
+      alert("No se pudo eliminar el enlace")
+    } finally {
+      setIsNavSaving(false)
+    }
   }
 
   const addNavItem = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newNavLabel || !newNavUrl) return
     setIsNavSaving(true)
-    const res = await createNavigationItemAction(newNavLabel, newNavUrl, false)
-    if (res.success && res.data) {
-      setNavItems([...navItems, res.data as NavigationItem])
-      setNewNavLabel("")
-      setNewNavUrl("")
-      if (onRefresh) onRefresh()
+    try {
+      const res = await createNavigationItemAction(newNavLabel, newNavUrl, false)
+      if (res.success && res.data) {
+        const item = res.data as NavigationItem
+        setNavItems([...navItems, item])
+        setNavDrafts(prev => ({ ...prev, [item.id]: { label: item.label, href: item.href } }))
+        setNewNavLabel("")
+        setNewNavUrl("")
+        if (onRefresh) onRefresh()
+      } else {
+        alert(res.error || "No se pudo agregar el enlace")
+      }
+    } catch {
+      alert("No se pudo agregar el enlace")
+    } finally {
+      setIsNavSaving(false)
     }
-    setIsNavSaving(false)
   }
 
-  const handleNavLabelChange = async (id: string, newLabel: string) => {
-    if (!newLabel.trim()) return
+  const handleNavItemChange = async (id: string, updates: { label?: string; href?: string }) => {
     setIsNavSaving(true)
     const item = navItems.find(i => i.id === id)
-    if (!item) return
-    setNavItems(prev => prev.map(i => i.id === id ? { ...i, label: newLabel } : i))
-    await updateNavigationItemAction(id, newLabel, item.href, item.isSale)
-    if (onRefresh) onRefresh()
-    setIsNavSaving(false)
+    if (!item) {
+      setIsNavSaving(false)
+      return
+    }
+    const label = updates.label !== undefined ? updates.label.trim() : item.label
+    const href = updates.href !== undefined ? updates.href.trim() : item.href
+    if (!label || !href) {
+      alert("El nombre y la URL son obligatorios")
+      setNavDrafts(prev => ({ ...prev, [id]: { label: item.label, href: item.href } }))
+      setIsNavSaving(false)
+      return
+    }
+    setNavItems(prev => prev.map(i => i.id === id ? { ...i, label, href } : i))
+    setNavDrafts(prev => ({ ...prev, [id]: { label, href } }))
+    try {
+      const result = await updateNavigationItemAction(id, label, href, item.isSale)
+      if (!result.success) {
+        setNavItems(prev => prev.map(i => i.id === id ? item : i))
+        setNavDrafts(prev => ({ ...prev, [id]: { label: item.label, href: item.href } }))
+        alert(result.error || "No se pudo actualizar el enlace")
+      } else if (onRefresh) {
+        onRefresh()
+      }
+    } catch {
+      setNavItems(prev => prev.map(i => i.id === id ? item : i))
+      setNavDrafts(prev => ({ ...prev, [id]: { label: item.label, href: item.href } }))
+      alert("No se pudo actualizar el enlace")
+    } finally {
+      setIsNavSaving(false)
+    }
   }
 
   const toggleNavActive = async (id: string, current: boolean) => {
     setIsNavSaving(true)
     setNavItems(prev => prev.map(i => i.id === id ? { ...i, isActive: !current } : i))
-    await toggleNavigationItemActiveAction(id, !current)
-    if (onRefresh) onRefresh()
-    setIsNavSaving(false)
+    try {
+      const result = await toggleNavigationItemActiveAction(id, !current)
+      if (!result.success) {
+        setNavItems(prev => prev.map(i => i.id === id ? { ...i, isActive: current } : i))
+        alert(result.error || "No se pudo cambiar el estado")
+      } else if (onRefresh) {
+        onRefresh()
+      }
+    } catch {
+      setNavItems(prev => prev.map(i => i.id === id ? { ...i, isActive: current } : i))
+      alert("No se pudo cambiar el estado")
+    } finally {
+      setIsNavSaving(false)
+    }
   }
 
   const toggleNavSale = async (item: NavigationItem) => {
     setIsNavSaving(true)
     setNavItems(prev => prev.map(i => i.id === item.id ? { ...i, isSale: !item.isSale } : i))
-    await updateNavigationItemAction(item.id, item.label, item.href, !item.isSale)
-    if (onRefresh) onRefresh()
-    setIsNavSaving(false)
+    try {
+      const result = await updateNavigationItemAction(item.id, item.label, item.href, !item.isSale)
+      if (!result.success) {
+        setNavItems(prev => prev.map(i => i.id === item.id ? item : i))
+        alert(result.error || "No se pudo cambiar el estilo SALE")
+      } else if (onRefresh) {
+        onRefresh()
+      }
+    } catch {
+      setNavItems(prev => prev.map(i => i.id === item.id ? item : i))
+      alert("No se pudo cambiar el estilo SALE")
+    } finally {
+      setIsNavSaving(false)
+    }
   }
 
   const handleSaveHeaderConfig = async () => {
@@ -371,8 +524,8 @@ export default function LandingBuilderList({ initialSections, initialGlobals, in
       } else {
         if (onRefresh) onRefresh()
       }
-    } catch (err: any) {
-      alert("Error inesperado al guardar el header: " + err.message)
+    } catch (error: unknown) {
+      alert("Error inesperado al guardar el header: " + (error instanceof Error ? error.message : "desconocido"))
     }
     setIsNavSaving(false)
   }
@@ -429,7 +582,7 @@ export default function LandingBuilderList({ initialSections, initialGlobals, in
                 </svg>
               </button>
             </div>
-            <BannerForm initial={editingBanner ?? undefined} onClose={closeBannerForm} />
+            <BannerForm actions={actions} initial={editingBanner ?? undefined} onClose={closeBannerForm} />
           </motion.div>
         </motion.div>
       )}
@@ -490,9 +643,7 @@ export default function LandingBuilderList({ initialSections, initialGlobals, in
               <button
                 type="button"
                 onClick={() => {
-                  const msgs = Array.isArray(globalBannerState.messages) ? [...globalBannerState.messages] : []
-                  msgs.push({ text: "", url: "" })
-                  setGlobalBannerState({...globalBannerState, messages: msgs})
+                  setTickerMessages([...tickerMessages, { text: "", url: "" }])
                 }}
                 className="text-xs bg-[#1C1C1C] text-white px-2 py-1 rounded"
               >
@@ -501,29 +652,48 @@ export default function LandingBuilderList({ initialSections, initialGlobals, in
             </div>
             
             <div className="space-y-3">
-              {(Array.isArray(globalBannerState.messages) ? globalBannerState.messages : []).map((msg: any, idx: number) => (
-                <div key={idx} className="bg-gray-50 border border-gray-200 p-2 rounded flex flex-col gap-2 relative">
-                  <button
-                    onClick={() => {
-                      const msgs = [...(globalBannerState.messages as any[])]
-                      msgs.splice(idx, 1)
-                      setGlobalBannerState({...globalBannerState, messages: msgs})
-                    }}
-                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold"
-                  >
-                    ×
-                  </button>
+              {tickerMessages.map((msg, idx) => (
+                <div key={idx} className="flex flex-col gap-2 rounded border border-gray-200 bg-gray-50 p-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
+                      Mensaje {idx + 1}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => moveTickerMessage(idx, -1)}
+                        disabled={idx === 0}
+                        aria-label={`Subir mensaje ${idx + 1}`}
+                        className="flex h-6 w-6 items-center justify-center rounded border border-gray-300 bg-white text-xs font-bold text-gray-700 hover:border-gray-500 disabled:cursor-not-allowed disabled:opacity-30"
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveTickerMessage(idx, 1)}
+                        disabled={idx === tickerMessages.length - 1}
+                        aria-label={`Bajar mensaje ${idx + 1}`}
+                        className="flex h-6 w-6 items-center justify-center rounded border border-gray-300 bg-white text-xs font-bold text-gray-700 hover:border-gray-500 disabled:cursor-not-allowed disabled:opacity-30"
+                      >
+                        ↓
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTickerMessages(tickerMessages.filter((_, messageIndex) => messageIndex !== idx))}
+                        aria-label={`Eliminar mensaje ${idx + 1}`}
+                        className="flex h-6 w-6 items-center justify-center rounded bg-red-500 text-xs font-bold text-white hover:bg-red-600"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  </div>
                   <input
                     type="text"
                     value={msg.text || ""}
                     onChange={(e) => {
-                      const msgs = [...(globalBannerState.messages as any[])]
-                      msgs[idx] = { ...msgs[idx], text: e.target.value }
-                      setGlobalBannerState({
-                        ...globalBannerState, 
-                        messages: msgs,
-                        text: msgs[0]?.text || "" // Sync first message as fallback text
-                      })
+                      const messages = [...tickerMessages]
+                      messages[idx] = { ...messages[idx], text: e.target.value }
+                      setTickerMessages(messages)
                     }}
                     className="w-full p-2 border border-gray-300 rounded text-sm"
                     placeholder="Ej: 20% OFF en toda la tienda"
@@ -532,18 +702,45 @@ export default function LandingBuilderList({ initialSections, initialGlobals, in
                     type="text"
                     value={msg.url || ""}
                     onChange={(e) => {
-                      const msgs = [...(globalBannerState.messages as any[])]
-                      msgs[idx] = { ...msgs[idx], url: e.target.value }
-                      setGlobalBannerState({...globalBannerState, messages: msgs})
+                      const messages = [...tickerMessages]
+                      messages[idx] = { ...messages[idx], url: e.target.value }
+                      setTickerMessages(messages)
                     }}
                     className="w-full p-2 border border-gray-300 rounded text-sm"
                     placeholder="URL opcional (ej: /coleccion)"
                   />
                 </div>
               ))}
-              {(!globalBannerState.messages || (globalBannerState.messages as any[]).length === 0) && (
+              {tickerMessages.length === 0 && (
                 <p className="text-xs text-gray-400 italic">No hay mensajes. Añade al menos uno.</p>
               )}
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wider">
+                Etiqueta global del CTA
+              </label>
+              <input
+                type="text"
+                value={globalBannerState.btnText || ""}
+                onChange={(e) => setGlobalBannerState({ ...globalBannerState, btnText: e.target.value })}
+                className="w-full p-2 border border-gray-300 rounded text-sm"
+                placeholder="Ver oferta"
+              />
+              <p className="text-[10px] text-gray-500 mt-1">Se muestra junto a los mensajes que tienen URL.</p>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wider">
+                URL del CTA anterior (compatibilidad)
+              </label>
+              <input
+                type="text"
+                value={globalBannerState.btnUrl || ""}
+                onChange={(e) => setGlobalBannerState({ ...globalBannerState, btnUrl: e.target.value })}
+                className="w-full p-2 border border-gray-300 rounded text-sm"
+                placeholder="/sale"
+              />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2">
@@ -602,59 +799,150 @@ export default function LandingBuilderList({ initialSections, initialGlobals, in
     )
   }
 
-  if (editingGlobal === "LOGOS") {
+  if (editingGlobal === "BANNERS") {
     return (
-      <div className="flex flex-col h-full bg-white p-4 overflow-y-auto">
-        <h3 className="font-bold text-lg mb-4 font-[var(--font-barlow)] uppercase tracking-wide">
-          Logos (Header / Footer)
-        </h3>
-        
-        <div className="flex-1 flex flex-col gap-6">
-          <div className="bg-gray-50 p-4 border border-gray-200 rounded text-center">
-            <span className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Logo Escritorio Actual</span>
-            {desktopLogoUrl ? (
-              <img src={desktopLogoUrl} alt="Desktop Logo" className="h-12 mx-auto object-contain mb-4" />
-            ) : (
-              <span className="text-sm text-gray-400 block mb-4">Sin logo definido</span>
-            )}
-            <input 
-              type="file" 
-              accept="image/*" 
-              className="hidden" 
-              id="upload-desktop"
-              onChange={(e) => handleLogoUpload(e, "desktop")}
-            />
-            <label 
-              htmlFor="upload-desktop"
-              className={`cursor-pointer bg-[#1C1C1C] text-white px-4 py-2 rounded-md text-xs font-bold uppercase hover:bg-gray-800 transition-colors inline-block ${isUploadingLogo ? "opacity-50 pointer-events-none" : ""}`}
+      <div className="flex h-full flex-col bg-white">
+        <div className="flex-1 overflow-y-auto p-4">
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <div>
+              <h3 className="font-[var(--font-barlow)] text-lg font-bold uppercase tracking-wide">
+                Banners del Hero
+              </h3>
+              <p className="mt-1 text-xs text-gray-500">
+                Administra los slides aunque la página no tenga actualmente un bloque HERO.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowBannerForm(true)}
+              disabled={isSaving || isUnavailable("banners")}
+              className="rounded bg-[#1C1C1C] px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              {isUploadingLogo ? "Subiendo..." : "Cambiar Logo Escritorio"}
-            </label>
+              + Añadir banner
+            </button>
           </div>
-          
-          <div className="bg-gray-50 p-4 border border-gray-200 rounded text-center">
-            <span className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Logo Móvil Actual</span>
-            {mobileLogoUrl ? (
-              <img src={mobileLogoUrl} alt="Mobile Logo" className="h-8 mx-auto object-contain mb-4" />
-            ) : (
-              <span className="text-sm text-gray-400 block mb-4">Sin logo definido</span>
-            )}
-            <input 
-              type="file" 
-              accept="image/*" 
-              className="hidden" 
-              id="upload-mobile"
-              onChange={(e) => handleLogoUpload(e, "mobile")}
-            />
-            <label 
-              htmlFor="upload-mobile"
-              className={`cursor-pointer bg-[#1C1C1C] text-white px-4 py-2 rounded-md text-xs font-bold uppercase hover:bg-gray-800 transition-colors inline-block ${isUploadingLogo ? "opacity-50 pointer-events-none" : ""}`}
-            >
-              {isUploadingLogo ? "Subiendo..." : "Cambiar Logo Móvil"}
-            </label>
-          </div>
+
+          {isUnavailable("banners") ? (
+            <p className="rounded border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+              No se pudieron cargar los banners. Recarga antes de editar para evitar sobrescribir información.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {banners.map((banner) => (
+                <div key={banner.id} className="flex items-center gap-3 rounded border border-gray-200 bg-white p-3">
+                  <div className="relative h-12 w-20 flex-shrink-0 overflow-hidden rounded bg-gray-100">
+                    {banner.mediaType === "video" ? (
+                      <video src={safePublicUrl(banner.imageUrl, "")} className="h-full w-full object-cover" muted />
+                    ) : (
+                      <Image
+                        src={safePublicUrl(banner.imageUrl, "/placeholder-product.svg")}
+                        alt={banner.title || "Banner"}
+                        fill
+                        unoptimized
+                        className="object-cover"
+                      />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs font-bold text-gray-800">{banner.title}</p>
+                    <p className="text-[10px] text-gray-500">
+                      {banner.isActive ? "Activo" : "Inactivo"} • Posición {banner.position}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-end gap-1">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleBanner(banner.id, banner.isActive)}
+                      disabled={isSaving}
+                      className={`px-2 text-xs font-bold hover:underline disabled:opacity-40 ${banner.isActive ? "text-amber-700" : "text-green-700"}`}
+                    >
+                      {banner.isActive ? "Desactivar" : "Activar"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingBanner(banner)}
+                      disabled={isSaving}
+                      className="px-2 text-xs font-bold text-[#E31C23] hover:underline disabled:opacity-40"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteBanner(banner.id)}
+                      disabled={isSaving}
+                      className="px-2 text-xs font-bold text-gray-500 hover:text-red-600 hover:underline disabled:opacity-40"
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {banners.length === 0 && (
+                <p className="rounded border border-dashed border-gray-300 py-6 text-center text-xs text-gray-500">
+                  No hay banners. Puedes crear el primero desde aquí.
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
+        <div className="border-t bg-gray-50 p-4">
+          <button
+            onClick={() => setEditingGlobal(null)}
+            disabled={isSaving}
+            className="w-full rounded bg-gray-200 px-4 py-3 text-sm font-bold uppercase text-gray-800 hover:bg-gray-300 disabled:opacity-50"
+          >
+            Atrás
+          </button>
+        </div>
+        {renderModals()}
+      </div>
+    )
+  }
+
+  if (editingGlobal === "LOGOS") {
+    return (
+      <div className="flex flex-col h-full bg-white overflow-y-auto">
+        <div className="p-4">
+          <h3 className="font-bold text-lg mb-2 font-[var(--font-barlow)] uppercase tracking-wide">
+            Logos (Header / Footer)
+          </h3>
+          <p className="text-xs text-gray-500 mb-4">
+            Sube, recorta y conserva varias versiones. Puedes definir el logo principal y su tema para móvil, escritorio y footer.
+          </p>
+          <LogoManager
+            actions={actions}
+            initialLogos={initialGlobals?.allLogos || []}
+            onChange={() => {
+              router.refresh()
+              triggerRefresh()
+            }}
+          />
+        </div>
+
+        <div className="p-4 pt-0">
+          <button
+            onClick={() => setEditingGlobal(null)}
+            className="w-full px-4 py-3 bg-gray-100 text-gray-800 rounded text-sm font-bold uppercase hover:bg-gray-200"
+          >
+            Atrás
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  if (editingGlobal === "HOME_GRID") {
+    return (
+      <div className="flex flex-col h-full bg-white overflow-y-auto p-4">
+        <HomeGridClient
+          actions={actions}
+          blocks={initialGridBlocks}
+          onRefresh={() => {
+            router.refresh()
+            triggerRefresh()
+          }}
+        />
         <div className="mt-4 pt-4 border-t">
           <button
             onClick={() => setEditingGlobal(null)}
@@ -930,16 +1218,34 @@ export default function LandingBuilderList({ initialSections, initialGlobals, in
                             <div className="flex-1 overflow-hidden">
                               <input 
                                 className="text-sm font-bold text-gray-800 bg-transparent outline-none border-b border-transparent hover:border-gray-300 focus:border-[#1C1C1C] focus:border-dashed w-full transition-colors"
-                                defaultValue={item.label}
+                                value={navDrafts[item.id]?.label ?? item.label}
+                                onChange={(e) => setNavDrafts(prev => ({
+                                  ...prev,
+                                  [item.id]: { label: e.target.value, href: prev[item.id]?.href ?? item.href },
+                                }))}
                                 onBlur={(e) => {
                                   if (e.target.value !== item.label) {
-                                    handleNavLabelChange(item.id, e.target.value)
+                                    handleNavItemChange(item.id, { label: e.target.value })
                                   }
                                 }}
                                 disabled={isNavSaving}
                                 title="Haz clic para editar el nombre"
                               />
-                              <div className="text-xs text-gray-500 font-mono truncate">{item.href}</div>
+                              <input
+                                className="text-xs text-gray-500 font-mono bg-transparent outline-none border-b border-transparent hover:border-gray-300 focus:border-[#1C1C1C] focus:border-dashed w-full transition-colors"
+                                value={navDrafts[item.id]?.href ?? item.href}
+                                onChange={(e) => setNavDrafts(prev => ({
+                                  ...prev,
+                                  [item.id]: { label: prev[item.id]?.label ?? item.label, href: e.target.value },
+                                }))}
+                                onBlur={(e) => {
+                                  if (e.target.value !== item.href) {
+                                    handleNavItemChange(item.id, { href: e.target.value })
+                                  }
+                                }}
+                                disabled={isNavSaving}
+                                title="Haz clic para editar la URL"
+                              />
                             </div>
                             <button 
                               onClick={() => deleteNavItem(item.id)}
@@ -1001,31 +1307,26 @@ export default function LandingBuilderList({ initialSections, initialGlobals, in
               onChange={e => setNewNavLabel(e.target.value)}
               className="w-full text-sm p-2 mb-2 rounded border border-gray-300"
             />
-            <select 
+            <input
               required
+              type="text"
+              list="navigation-route-suggestions"
               value={newNavUrl}
               onChange={e => setNewNavUrl(e.target.value)}
               className="w-full text-sm p-2 mb-2 rounded border border-gray-300 bg-white"
-            >
-              <option value="">Selecciona una ruta del sistema</option>
-              <optgroup label="Páginas Principales">
-                <option value="/">Inicio (/)</option>
-                <option value="/sale">Ofertas (/sale)</option>
-                <option value="/tiendas">Tiendas (/tiendas)</option>
-                <option value="/productos">Catálogo (/productos)</option>
-                <option value="/login">Login (/login)</option>
-                <option value="/carrito">Carrito (/carrito)</option>
-              </optgroup>
-              {categories && categories.length > 0 && (
-                <optgroup label="Categorías">
-                  {categories.map(c => (
-                    <option key={c.id} value={`/c/${c.slug}`}>
-                      {c.name} (/c/{c.slug})
-                    </option>
-                  ))}
-                </optgroup>
-              )}
-            </select>
+              placeholder="Ruta libre o sugerida, ej: /sale"
+            />
+            <datalist id="navigation-route-suggestions">
+              <option value="/">Inicio</option>
+              <option value="/sale">Ofertas</option>
+              <option value="/tiendas">Tiendas</option>
+              <option value="/productos">Catálogo</option>
+              <option value="/login">Login</option>
+              <option value="/carrito">Carrito</option>
+              {categories?.map(c => (
+                <option key={c.id} value={`/c/${c.slug}`}>{c.name}</option>
+              ))}
+            </datalist>
             <button 
               type="submit"
               disabled={isNavSaving || !newNavLabel || !newNavUrl}
@@ -1211,47 +1512,6 @@ export default function LandingBuilderList({ initialSections, initialGlobals, in
                 </div>
               </div>
 
-              <div className="mt-6 border-t border-gray-200 pt-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-bold text-[#1C1C1C] uppercase tracking-wider">Slides / Imágenes</h3>
-                  <button
-                    type="button"
-                    onClick={() => setShowBannerForm(true)}
-                    className="text-[10px] bg-[#1C1C1C] text-white px-3 py-1.5 rounded hover:bg-gray-800 transition-colors uppercase tracking-wider font-bold"
-                  >
-                    + Añadir Slide
-                  </button>
-                </div>
-                
-                <div className="space-y-3">
-                  {initialBanners?.map(banner => (
-                    <div key={banner.id} className="flex items-center gap-3 bg-white border border-gray-200 p-2 rounded">
-                        <div className="w-16 h-10 bg-gray-100 rounded overflow-hidden flex-shrink-0 relative">
-                          {banner.mediaType === "video" ? (
-                            <video src={banner.imageUrl} className="w-full h-full object-cover" muted />
-                          ) : (
-                            <img src={banner.imageUrl} className="w-full h-full object-cover" />
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-bold text-gray-800 truncate">{banner.title}</p>
-                          <p className="text-[10px] text-gray-500">{banner.isActive ? "Activo" : "Inactivo"} • Pos: {banner.position}</p>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <button type="button" onClick={() => setEditingBanner(banner)} className="text-[#E31C23] text-xs font-bold px-2 hover:underline">
-                            Editar
-                          </button>
-                          <button type="button" onClick={() => handleDeleteBanner(banner.id)} className="text-gray-500 hover:text-red-600 text-xs font-bold px-2 hover:underline">
-                            Eliminar
-                          </button>
-                        </div>
-                    </div>
-                  ))}
-                  {(!initialBanners || initialBanners.length === 0) && (
-                    <p className="text-xs text-gray-500 text-center py-4 border border-dashed border-gray-300 rounded">No hay slides. Añade uno para mostrar en el banner principal.</p>
-                  )}
-                </div>
-              </div>
             </>
           )}
 
@@ -1538,7 +1798,7 @@ export default function LandingBuilderList({ initialSections, initialGlobals, in
                           }}
                         >
                           {product.imageUrl && (
-                            <img src={product.imageUrl} alt={product.name} className="w-10 h-10 object-cover rounded" />
+                            <Image src={product.imageUrl} alt={product.name} width={40} height={40} unoptimized className="w-10 h-10 object-cover rounded" />
                           )}
                           <div>
                             <p className="text-sm font-bold text-gray-900">{product.name}</p>
@@ -1672,20 +1932,33 @@ export default function LandingBuilderList({ initialSections, initialGlobals, in
 
   return (
     <div className="flex flex-col h-full relative">
+      {unavailableAreas.length > 0 && (
+        <div className="m-4 mb-0 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+          Parte del contenido no pudo cargarse. Las áreas afectadas están bloqueadas hasta que recargues.
+        </div>
+      )}
       {/* Elementos Globales (No arrastrables) */}
       <div className="p-4 border-b border-gray-200 bg-white">
         <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Elementos Globales</h3>
         <div className="flex flex-col gap-2">
-          <button onClick={() => setEditingGlobal("TOP_BANNER")} className="w-full flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded hover:border-[#1C1C1C] transition-colors text-left">
+          <button onClick={() => setEditingGlobal("TOP_BANNER")} disabled={isUnavailable("topBanner")} className="w-full flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded hover:border-[#1C1C1C] transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed">
             <span className="text-sm font-medium text-gray-800">Top Banner (Promocional)</span>
             <span className="text-xs text-blue-600 font-bold">Editar ↗</span>
           </button>
-          <button onClick={() => setEditingGlobal("LOGOS")} className="w-full flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded hover:border-[#1C1C1C] transition-colors text-left">
+          <button onClick={() => setEditingGlobal("BANNERS")} disabled={isUnavailable("banners")} className="w-full flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded hover:border-[#1C1C1C] transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed">
+            <span className="text-sm font-medium text-gray-800">Banners del Hero</span>
+            <span className="text-xs text-blue-600 font-bold">Editar ↗</span>
+          </button>
+          <button onClick={() => setEditingGlobal("LOGOS")} disabled={isUnavailable("logos")} className="w-full flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded hover:border-[#1C1C1C] transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed">
             <span className="text-sm font-medium text-gray-800">Logos (Header/Footer)</span>
             <span className="text-xs text-blue-600 font-bold">Editar ↗</span>
           </button>
-          <button onClick={() => setEditingGlobal("NAVIGATION")} className="w-full flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded hover:border-[#1C1C1C] transition-colors text-left">
+          <button onClick={() => setEditingGlobal("NAVIGATION")} disabled={isUnavailable("navigation") || isUnavailable("header")} className="w-full flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded hover:border-[#1C1C1C] transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed">
             <span className="text-sm font-medium text-gray-800">Menú de Navegación</span>
+            <span className="text-xs text-blue-600 font-bold">Editar ↗</span>
+          </button>
+          <button onClick={() => setEditingGlobal("HOME_GRID")} disabled={isUnavailable("grid")} className="w-full flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded hover:border-[#1C1C1C] transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed">
+            <span className="text-sm font-medium text-gray-800">Tarjetas de la Grilla de Inicio</span>
             <span className="text-xs text-blue-600 font-bold">Editar ↗</span>
           </button>
         </div>
@@ -1695,7 +1968,8 @@ export default function LandingBuilderList({ initialSections, initialGlobals, in
         <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Bloques de la Página</h3>
         <button 
           onClick={() => setIsAddingBlock(true)}
-          className="text-xs bg-[#1C1C1C] text-white px-3 py-1.5 rounded font-bold hover:bg-gray-800 transition-colors"
+          disabled={isUnavailable("sections")}
+          className="text-xs bg-[#1C1C1C] text-white px-3 py-1.5 rounded font-bold hover:bg-gray-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           + Agregar Bloque
         </button>
@@ -1743,9 +2017,11 @@ export default function LandingBuilderList({ initialSections, initialGlobals, in
 
                         <button
                           onClick={() => handleToggleActive(section.id, section.isActive)}
+                          disabled={isSaving}
+                          aria-label={section.isActive ? "Desactivar sección" : "Activar sección"}
                           className={`flex-shrink-0 relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
                             section.isActive ? 'bg-[#1C1C1C]' : 'bg-gray-300'
-                          }`}
+                          } disabled:cursor-not-allowed disabled:opacity-50`}
                         >
                           <span
                             className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
@@ -1778,7 +2054,8 @@ export default function LandingBuilderList({ initialSections, initialGlobals, in
 
       <button
         onClick={() => setIsAddingBlock(true)}
-        className="w-full mt-6 px-4 py-3 border-2 border-dashed border-gray-300 text-gray-500 hover:text-[#1C1C1C] hover:border-[#1C1C1C] hover:bg-gray-50 rounded-lg transition-colors flex items-center justify-center gap-2 font-bold uppercase text-sm tracking-wider"
+        disabled={isUnavailable("sections")}
+        className="w-full mt-6 px-4 py-3 border-2 border-dashed border-gray-300 text-gray-500 hover:text-[#1C1C1C] hover:border-[#1C1C1C] hover:bg-gray-50 rounded-lg transition-colors flex items-center justify-center gap-2 font-bold uppercase text-sm tracking-wider disabled:opacity-40 disabled:cursor-not-allowed"
       >
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />

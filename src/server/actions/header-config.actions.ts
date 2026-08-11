@@ -1,8 +1,9 @@
-"use server"
+import "server-only"
 
-import { updateHeaderConfig } from "@/server/repositories/header-config.repository"
+import { updateHeaderConfig } from "@/server/services/header-config.service"
 import { revalidatePath } from "next/cache"
 import { requireAdmin } from "@/server/auth/require-admin"
+import { HeaderConfigInputSchema } from "@/server/validators/header-config.validator"
 
 export async function updateHeaderConfigAction(data: {
   layout: string
@@ -19,6 +20,7 @@ export async function updateHeaderConfigAction(data: {
   padding: string
   borderRadius: string
 }) {
+  "use server"
   try {
     await requireAdmin()
     // El caller puede pasar el registro completo; se descartan campos de solo lectura
@@ -26,7 +28,9 @@ export async function updateHeaderConfigAction(data: {
       data as typeof data & { id?: string; updatedAt?: Date }
     void _id
     void _updatedAt
-    const config = await updateHeaderConfig(safeData)
+    const input = HeaderConfigInputSchema.parse(safeData)
+    const config = await updateHeaderConfig(input)
+    revalidatePath("/admin/landing-builder")
     revalidatePath("/", "layout")
     return { success: true, data: config }
   } catch (error: unknown) {

@@ -1,28 +1,29 @@
 "use client"
 
-import React, { useState, useRef } from "react"
-import { LandingSection, Category } from "@prisma/client"
+import { useState } from "react"
+import { LandingSection, HomeGridBlock } from "@prisma/client"
+import type { BannerDTO } from "@/server/services/banner.service"
+import type { CategoryDTO } from "@/server/services/category.service"
 import LandingBuilderList, { type BuilderGlobals } from "@/components/admin/LandingBuilderList"
 import Link from "next/link"
+import type { LandingBuilderActions } from "@/types/landing-builder-actions"
 
 interface VisualBuilderContainerProps {
+  actions: LandingBuilderActions
   initialSections: LandingSection[]
   initialGlobals: BuilderGlobals
-  initialBanners: any[]
-  categories: Category[]
+  initialBanners: BannerDTO[]
+  initialGridBlocks: HomeGridBlock[]
+  categories: CategoryDTO[]
+  unavailableAreas: string[]
+  dataVersion: string
 }
 
-export default function VisualBuilderContainer({ initialSections, initialGlobals, initialBanners, categories }: VisualBuilderContainerProps) {
-  const [refreshKey, setRefreshKey] = useState(Date.now())
-  const [isClient, setIsClient] = useState(false)
-
-  // Avoid hydration mismatch by only appending the dynamic timestamp on the client
-  React.useEffect(() => {
-    setIsClient(true)
-  }, [])
+export default function VisualBuilderContainer({ actions, initialSections, initialGlobals, initialBanners, initialGridBlocks, categories, unavailableAreas, dataVersion }: VisualBuilderContainerProps) {
+  const [refreshKey, setRefreshKey] = useState(0)
 
   const handleRefresh = () => {
-    setRefreshKey(Date.now())
+    setRefreshKey(current => current + 1)
   }
 
   return (
@@ -54,10 +55,14 @@ export default function VisualBuilderContainer({ initialSections, initialGlobals
 
         <div className="flex-1 overflow-y-auto bg-gray-50">
           <LandingBuilderList 
+            key={dataVersion}
+            actions={actions}
             initialSections={initialSections} 
             initialGlobals={initialGlobals}
             initialBanners={initialBanners}
+            initialGridBlocks={initialGridBlocks}
             categories={categories}
+            unavailableAreas={unavailableAreas}
             onRefresh={handleRefresh}
           />
         </div>
@@ -71,7 +76,7 @@ export default function VisualBuilderContainer({ initialSections, initialGlobals
         </div>
         <div className="flex-1 relative w-full h-full bg-white shadow-2xl">
           <iframe
-            src={isClient ? `/?preview=true&t=${refreshKey}` : `/?preview=true`}
+            src={refreshKey > 0 ? `/?preview=true&t=${refreshKey}` : "/?preview=true"}
             className="w-full h-full border-none"
             title="Live Preview"
             sandbox="allow-same-origin allow-scripts allow-forms allow-popups"

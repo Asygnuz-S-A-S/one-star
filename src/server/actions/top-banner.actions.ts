@@ -1,8 +1,10 @@
-"use server"
+import "server-only"
 
-import { updateTopBanner } from "@/server/repositories/top-banner.repository"
+import { updateTopBanner } from "@/server/services/top-banner.service"
 import { revalidatePath } from "next/cache"
 import { requireAdmin } from "@/server/auth/require-admin"
+import { getActionError } from "@/server/actions/action-error"
+import { TopBannerInputSchema } from "@/server/validators/top-banner.validator"
 
 export interface TopBannerMessageInput {
   text: string
@@ -18,14 +20,17 @@ export async function updateTopBannerAction(data: {
   textColor: string
   isActive: boolean
 }) {
+  "use server"
   try {
     await requireAdmin()
-    const updated = await updateTopBanner(data)
+    const input = TopBannerInputSchema.parse(data)
+    const updated = await updateTopBanner(input)
+    revalidatePath("/admin/landing-builder")
     revalidatePath("/", "layout")
     return { success: true, data: updated }
   } catch (error: unknown) {
     console.error("Error updating top banner:", error)
-    const message = error instanceof Error ? error.message : "Error al actualizar el banner"
+    const message = getActionError(error, "Error al actualizar el banner")
     return { success: false, error: message }
   }
 }

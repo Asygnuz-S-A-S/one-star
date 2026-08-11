@@ -100,10 +100,31 @@ describe("createBanner", () => {
     })
     expect(mockCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        startDate: new Date("2024-06-01"),
-        endDate: new Date("2024-08-31"),
+        startDate: new Date("2024-06-01T00:00:00-05:00"),
+        endDate: new Date("2024-08-31T23:59:59.999-05:00"),
       })
     )
+  })
+
+  it("rechaza rangos de fechas invertidos", async () => {
+    await expect(createBanner({
+      title: "Nuevo",
+      imageUrl: "/new.jpg",
+      startDate: "2024-09-01",
+      endDate: "2024-08-31",
+    })).rejects.toThrow("La fecha final debe ser posterior")
+
+    expect(mockCreate).not.toHaveBeenCalled()
+  })
+
+  it("rechaza destinos con esquemas ejecutables", async () => {
+    await expect(createBanner({
+      title: "Nuevo",
+      imageUrl: "/new.jpg",
+      linkUrl: "javascript:alert(1)",
+    })).rejects.toThrow("Usa una ruta interna o una URL http/https")
+
+    expect(mockCreate).not.toHaveBeenCalled()
   })
 
   it("retorna el DTO del banner creado", async () => {

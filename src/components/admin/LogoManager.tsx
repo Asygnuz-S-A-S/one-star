@@ -1,21 +1,27 @@
 "use client"
 
-import React, { useState, useRef } from "react"
+import React, { useState } from "react"
 import Image from "next/image"
 import { StoreLogo } from "@prisma/client"
-import { 
-  addStoreLogoAction, 
-  setPrimaryStoreLogoAction, 
-  deleteStoreLogoAction,
-  updateStoreLogoThemeAction
-} from "@/server/actions/site-logo.actions"
 import ImageCropperModal from "./ImageCropperModal"
+import { safePublicUrl } from "@/lib/safe-url"
+import type { LandingBuilderActions } from "@/types/landing-builder-actions"
 
-export default function LogoManager({ initialLogos }: { initialLogos: StoreLogo[] }) {
+interface LogoManagerProps {
+  actions: Pick<LandingBuilderActions, "addStoreLogoAction" | "deleteStoreLogoAction" | "setPrimaryStoreLogoAction" | "updateStoreLogoThemeAction">
+  initialLogos: StoreLogo[]
+  onChange?: () => void
+}
+
+export default function LogoManager({ actions, initialLogos, onChange }: LogoManagerProps) {
+  const {
+    addStoreLogoAction,
+    deleteStoreLogoAction,
+    setPrimaryStoreLogoAction,
+    updateStoreLogoThemeAction,
+  } = actions
   const [logos, setLogos] = useState<StoreLogo[]>(initialLogos)
   const [isUploading, setIsUploading] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  
   // Crop state
   const [cropImageSrc, setCropImageSrc] = useState<string | null>(null)
   const [cropType, setCropType] = useState<string | null>(null)
@@ -74,8 +80,11 @@ export default function LogoManager({ initialLogos }: { initialLogos: StoreLogo[
 
       if (result.success && result.data) {
         setLogos(prev => [result.data as StoreLogo, ...prev])
+        onChange?.()
+      } else {
+        alert(result.error || "No se pudo guardar el logo")
       }
-    } catch (error) {
+    } catch {
       alert("Error de red al subir imagen")
     } finally {
       setIsUploading(false)
@@ -93,6 +102,9 @@ export default function LogoManager({ initialLogos }: { initialLogos: StoreLogo[
         }
         return l
       }))
+      onChange?.()
+    } else {
+      alert(res.error || "No se pudo establecer el logo principal")
     }
   }
 
@@ -101,6 +113,9 @@ export default function LogoManager({ initialLogos }: { initialLogos: StoreLogo[
     const res = await deleteStoreLogoAction(id)
     if (res.success) {
       setLogos(prev => prev.filter(l => l.id !== id))
+      onChange?.()
+    } else {
+      alert(res.error || "No se pudo eliminar el logo")
     }
   }
 
@@ -108,6 +123,9 @@ export default function LogoManager({ initialLogos }: { initialLogos: StoreLogo[
     const res = await updateStoreLogoThemeAction(id, theme)
     if (res.success) {
       setLogos(prev => prev.map(l => l.id === id ? { ...l, theme } : l))
+      onChange?.()
+    } else {
+      alert(res.error || "No se pudo cambiar el tema")
     }
   }
 
@@ -152,7 +170,7 @@ export default function LogoManager({ initialLogos }: { initialLogos: StoreLogo[
                     </span>
                   )}
                   <div className={`relative ${type === 'mobile' ? 'w-[80px] h-[57px]' : 'w-[100px] h-[71px]'}`}>
-                    <Image src={logo.url} alt="Logo" fill className="object-contain" unoptimized />
+                    <Image src={safePublicUrl(logo.url, "/placeholder-product.svg")} alt="Logo" fill className="object-contain" unoptimized />
                   </div>
                 </div>
                 

@@ -1,5 +1,6 @@
 import type { NextConfig } from "next"
 import { withSentryConfig } from "@sentry/nextjs"
+import { NEXT_IMAGE_REMOTE_PATTERNS } from "./src/lib/image-optimization"
 
 const nextConfig: NextConfig = {
   output: "standalone",
@@ -27,24 +28,7 @@ const nextConfig: NextConfig = {
     ]
   },
   images: {
-    remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "images.unsplash.com",
-      },
-      {
-        protocol: "https",
-        hostname: "res.cloudinary.com",
-      },
-      {
-        protocol: "https",
-        hostname: "nb.scene7.com",
-      },
-      {
-        protocol: "https",
-        hostname: "static.nike.com",
-      },
-    ],
+    remotePatterns: NEXT_IMAGE_REMOTE_PATTERNS,
   },
 }
 

@@ -86,7 +86,7 @@ export function useAdminHotkeys({ onShowHelp }: UseAdminHotkeysOptions) {
       if (pendingRef.current !== "g") return
       e.preventDefault()
       clearPending()
-      routerRef.current.push("/admin/banners")
+      routerRef.current.push("/admin/landing-builder")
     })
 
     // ── n → create new (context-aware) ─────────────────────────────────────

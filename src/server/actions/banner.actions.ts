@@ -1,4 +1,4 @@
-"use server"
+import "server-only"
 
 import { revalidatePath } from "next/cache"
 import {
@@ -8,14 +8,18 @@ import {
   toggleBannerActive as toggleBannerActiveService,
 } from "@/server/services/banner.service"
 import { requireAdmin } from "@/server/auth/require-admin"
+import { getActionError } from "@/server/actions/action-error"
+import { BannerInputSchema } from "@/server/validators/banner.validator"
+import { ActiveStateSchema, EntityIdSchema } from "@/server/validators/common.validator"
 
 function parseBannerForm(formData: FormData) {
+  const requestedMediaType = formData.get("mediaType")
   return {
     title: formData.get("title") as string,
     imageUrl: formData.get("imageUrl") as string,
-    mediaType: (formData.get("mediaType") as string) || "image",
+    mediaType: requestedMediaType === "video" ? "video" as const : "image" as const,
     linkUrl: (formData.get("linkUrl") as string) || null,
-    position: parseInt(formData.get("position") as string) || 0,
+    position: formData.get("position") ? Number(formData.get("position")) : 0,
     isActive: formData.get("isActive") === "true",
     startDate: (formData.get("startDate") as string) || null,
     endDate: (formData.get("endDate") as string) || null,
@@ -25,23 +29,19 @@ function parseBannerForm(formData: FormData) {
 export async function createBanner(
   formData: FormData
 ): Promise<{ success: boolean; error?: string }> {
-  const input = parseBannerForm(formData)
-  if (!input.title || !input.imageUrl) {
-    return { success: false, error: "Título e imagen son obligatorios." }
-  }
+  "use server"
   try {
     await requireAdmin()
+    const input = BannerInputSchema.parse(parseBannerForm(formData))
     await createBannerService(input)
-    revalidatePath("/admin/banners")
     revalidatePath("/admin/landing-builder")
     revalidatePath("/")
     return { success: true }
   } catch (error: unknown) {
     if (process.env.NODE_ENV === "development") {
-      // eslint-disable-next-line no-console
       console.error("[createBanner]", error instanceof Error ? error.message : error)
     }
-    return { success: false, error: "Error al crear el banner." }
+    return { success: false, error: getActionError(error, "Error al crear el banner.") }
   }
 }
 
@@ -49,36 +49,35 @@ export async function updateBanner(
   id: string,
   formData: FormData
 ): Promise<{ success: boolean; error?: string }> {
-  const input = parseBannerForm(formData)
+  "use server"
   try {
     await requireAdmin()
-    await updateBannerService(id, input)
-    revalidatePath("/admin/banners")
+    const validId = EntityIdSchema.parse(id)
+    const input = BannerInputSchema.parse(parseBannerForm(formData))
+    await updateBannerService(validId, input)
     revalidatePath("/admin/landing-builder")
     revalidatePath("/")
     return { success: true }
   } catch (error: unknown) {
     if (process.env.NODE_ENV === "development") {
-      // eslint-disable-next-line no-console
       console.error("[updateBanner]", error instanceof Error ? error.message : error)
     }
-    return { success: false, error: "Error al actualizar el banner." }
+    return { success: false, error: getActionError(error, "Error al actualizar el banner.") }
   }
 }
 
 export async function deleteBanner(
   id: string
 ): Promise<{ success: boolean; error?: string }> {
+  "use server"
   try {
     await requireAdmin()
-    await deleteBannerService(id)
-    revalidatePath("/admin/banners")
+    await deleteBannerService(EntityIdSchema.parse(id))
     revalidatePath("/admin/landing-builder")
     revalidatePath("/")
     return { success: true }
   } catch (error: unknown) {
     if (process.env.NODE_ENV === "development") {
-      // eslint-disable-next-line no-console
       console.error("[deleteBanner]", error instanceof Error ? error.message : error)
     }
     return { success: false, error: "Error al eliminar el banner." }
@@ -89,16 +88,18 @@ export async function toggleBannerActive(
   id: string,
   current: boolean
 ): Promise<{ success: boolean; error?: string }> {
+  "use server"
   try {
     await requireAdmin()
-    await toggleBannerActiveService(id, current)
-    revalidatePath("/admin/banners")
+    await toggleBannerActiveService(
+      EntityIdSchema.parse(id),
+      ActiveStateSchema.parse(current),
+    )
     revalidatePath("/admin/landing-builder")
     revalidatePath("/")
     return { success: true }
   } catch (error: unknown) {
     if (process.env.NODE_ENV === "development") {
-      // eslint-disable-next-line no-console
       console.error("[toggleBannerActive]", error instanceof Error ? error.message : error)
     }
     return { success: false, error: "Error al cambiar el estado." }

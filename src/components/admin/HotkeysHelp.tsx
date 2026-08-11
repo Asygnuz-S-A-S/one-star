@@ -23,7 +23,7 @@ const SECTIONS: ShortcutSection[] = [
       { keys: [["g"], ["p"]], desc: "Ir a Productos" },
       { keys: [["g"], ["o"]], desc: "Ir a Pedidos" },
       { keys: [["g"], ["c"]], desc: "Ir a Clientes" },
-      { keys: [["g"], ["b"]], desc: "Ir a Banners / CMS" },
+      { keys: [["g"], ["b"]], desc: "Ir a Landing Builder" },
     ],
   },
   {

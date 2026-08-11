@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { motion } from "motion/react"
 import type { HomeGridBlock } from "@prisma/client"
+import { safePublicUrl } from "@/lib/safe-url"
 
 const CARD_HEIGHT: Record<string, string> = {
   sm: "h-32",
@@ -105,7 +106,7 @@ export default function CategoryGrid({
             }}
           >
             <Link
-              href={cat.href}
+              href={safePublicUrl(cat.href, "/")}
               className={`${cat.bgColor} w-40 md:w-56 ${cardH} relative overflow-hidden flex flex-col items-center justify-center gap-2 group transition-all duration-300 rounded-none`}
             >
               <div 
@@ -144,7 +145,7 @@ export default function CategoryGrid({
             }}
           >
             <Link
-              href={cat.href}
+              href={safePublicUrl(cat.href, "/")}
               className={`${cat.bgColor} ${cardH} w-full relative overflow-hidden flex flex-col items-center justify-center gap-3 group transition-all duration-500 rounded-none`}
             >
               <div 

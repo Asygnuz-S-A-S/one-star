@@ -3,6 +3,8 @@
 import type { CSSProperties } from "react";
 import Link from "next/link";
 import { useReducedMotion } from "motion/react";
+import { safePublicUrl } from "@/lib/safe-url";
+import { normalizeTickerMessages } from "@/lib/ticker-messages";
 
 interface BannerMessage {
   text: string;
@@ -10,7 +12,7 @@ interface BannerMessage {
 }
 
 interface TopBannerTickerProps {
-  messages: BannerMessage[];
+  messages: BannerMessage[] | unknown;
   fallbackText?: string;
   fallbackBtnText?: string;
   fallbackBtnUrl?: string;
@@ -31,14 +33,18 @@ export default function TopBannerTicker({
 }: TopBannerTickerProps) {
   const prefersReducedMotion = useReducedMotion();
 
-  let displayMessages = messages;
-  if (!messages || messages.length === 0) {
+  let displayMessages = normalizeTickerMessages(messages);
+  if (displayMessages.length === 0) {
     if (fallbackText) {
       displayMessages = [{ text: fallbackText, url: fallbackBtnUrl }];
     } else {
       displayMessages = [{ text: "Envío gratis en compras mayores a $200.000", url: "/sale" }];
     }
   }
+  displayMessages = displayMessages.map(message => ({
+    ...message,
+    url: message.url ? safePublicUrl(message.url, "") || undefined : undefined,
+  }));
 
   // Un solo mensaje, o el usuario prefiere movimiento reducido:
   // banner estático con el primer mensaje, sin animación.
