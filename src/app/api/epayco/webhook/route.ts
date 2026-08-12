@@ -87,9 +87,21 @@ export async function POST(request: NextRequest) {
         break
       }
       case EpaycoStatus.REJECTED:
-      case EpaycoStatus.FAILED:
+      case EpaycoStatus.FAILED: {
+        // Idempotencia: un rechazo tardío (p. ej. de un intento anterior) no
+        // debe cancelar un pedido ya pagado ni reprocesar uno ya cancelado.
+        if (order.status === "PAID") {
+          console.error(
+            `[epayco/webhook] Rechazo recibido para pedido ${orderId} ya PAID (ref=${payload.x_ref_payco}) — ignorado, revisar manualmente`
+          )
+          return NextResponse.json({ received: true, ignoredRejection: true })
+        }
+        if (order.status === "CANCELLED") {
+          return NextResponse.json({ received: true, alreadyCancelled: true })
+        }
         await changeOrderStatus(orderId, "CANCELLED")
         break
+      }
       // PENDING (3): el pedido queda en PENDING hasta confirmación posterior
     }
 

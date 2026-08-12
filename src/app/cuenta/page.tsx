@@ -5,6 +5,7 @@ import { useSession, signOut } from "@/lib/auth-client"
 import { useRouter } from "next/navigation"
 import { updateProfile } from "./actions"
 import { formatDateLong, formatCurrency } from "@/lib/dates"
+import { PLACEHOLDER_IMAGE_URL } from "@/lib/product-image"
 
 type Tab = "perfil" | "pedidos" | "direcciones" | "salir"
 
@@ -406,13 +407,14 @@ export default function CuentaPage() {
             <div className="flex flex-col gap-3 mb-4">
               {selectedOrder.items.map((item) => (
                 <div key={item.id} className="flex items-center gap-3">
-                  {item.product.images[0] && (
-                    <img
-                      src={item.product.images[0].url}
-                      alt={item.product.images[0].alt}
-                      className="w-14 h-14 object-cover rounded-lg bg-[#F5F5F5]"
-                    />
-                  )}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={item.product.images[0]?.url ?? PLACEHOLDER_IMAGE_URL}
+                    alt={item.product.images[0]?.alt ?? `${item.product.name} — sin foto`}
+                    className={`w-14 h-14 rounded-lg bg-[#F5F5F5] ${
+                      item.product.images[0] ? "object-cover" : "object-contain"
+                    }`}
+                  />
                   <div className="flex-1">
                     <p className="font-montserrat text-sm text-[#1C1C1C]">{item.product.name}</p>
                     <p className="font-montserrat text-xs text-[#4A4A4A]">

@@ -103,18 +103,12 @@ export default function ProductShowcaseClient({ title, products, theme = "light"
 
   return (
     <section
-      className={`relative overflow-hidden ${
-        isDark ? "bg-[#0E0E0E] text-white" : "bg-gradient-to-b from-[#FAFAFA] to-[#EFEFEF] text-[#1C1C1C]"
-      }`}
+      className={`relative overflow-hidden bg-gradient-to-b from-background to-surface-3 text-foreground ${isDark ? "dark" : ""}`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-16 md:pt-14 md:pb-20">
         {/* Título de sección */}
         <div className="flex items-center justify-between mb-6 md:mb-2">
-          <h2
-            className={`font-[var(--font-barlow)] font-black uppercase text-xl md:text-2xl tracking-tight ${
-              isDark ? "text-white" : "text-[#1C1C1C]"
-            }`}
-          >
+          <h2 className="font-[var(--font-barlow)] font-black uppercase text-xl md:text-2xl tracking-tight text-foreground">
             {title}
           </h2>
           <span className="font-[var(--font-montserrat)] text-xs tracking-widest tabular-nums opacity-50">
@@ -227,11 +221,7 @@ export default function ProductShowcaseClient({ title, products, theme = "light"
               <Link
                 href={`/productos/${active.slug}`}
                 onClick={(e) => { e.preventDefault(); launchTo(active.slug) }}
-                className={`inline-block mt-5 font-[var(--font-montserrat)] text-xs font-bold uppercase tracking-widest px-8 py-3 rounded-full border transition-colors duration-200 ${
-                  isDark
-                    ? "border-white text-white hover:bg-white hover:text-[#0E0E0E]"
-                    : "border-[#1C1C1C] text-[#1C1C1C] hover:bg-[#1C1C1C] hover:text-white"
-                }`}
+                className="inline-block mt-5 font-[var(--font-montserrat)] text-xs font-bold uppercase tracking-widest px-8 py-3 rounded-full border border-foreground text-foreground transition-colors duration-200 hover:bg-foreground hover:text-background"
               >
                 Ver más
               </Link>
@@ -251,7 +241,7 @@ export default function ProductShowcaseClient({ title, products, theme = "light"
               whileHover={{ scale: 1.12 }}
               whileTap={{ scale: 0.9 }}
               aria-label="Anterior"
-              className={`p-2 rounded-full border ${isDark ? "border-white/30 text-white" : "border-[#1C1C1C]/30 text-[#1C1C1C]"}`}
+              className="p-2 rounded-full border border-foreground/30 text-foreground"
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
                 <polyline points="15 18 9 12 15 6" />
@@ -267,8 +257,8 @@ export default function ProductShowcaseClient({ title, products, theme = "light"
                   aria-label={`Ir al producto ${i + 1}`}
                   className={`h-2 rounded-full transition-all duration-300 ${
                     i === index
-                      ? isDark ? "w-6 bg-white" : "w-6 bg-[#1C1C1C]"
-                      : isDark ? "w-2 bg-white/30" : "w-2 bg-[#1C1C1C]/30"
+                      ? "w-6 bg-foreground"
+                      : "w-2 bg-foreground/30"
                   }`}
                 />
               ))}
@@ -280,7 +270,7 @@ export default function ProductShowcaseClient({ title, products, theme = "light"
               whileHover={{ scale: 1.12 }}
               whileTap={{ scale: 0.9 }}
               aria-label="Siguiente"
-              className={`p-2 rounded-full border ${isDark ? "border-white/30 text-white" : "border-[#1C1C1C]/30 text-[#1C1C1C]"}`}
+              className="p-2 rounded-full border border-foreground/30 text-foreground"
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
                 <polyline points="9 18 15 12 9 6" />

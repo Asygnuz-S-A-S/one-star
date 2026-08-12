@@ -3,6 +3,8 @@ export interface ProductImage {
   url: string
   alt: string
   position: number
+  /** Color de variante al que pertenece la foto. null = imagen general. */
+  color?: string | null
 }
 
 export interface Variant {

@@ -1,12 +1,20 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useState, useTransition, useCallback, useRef, useEffect } from "react"
+import { useState, useTransition, useCallback, useMemo, useRef, useEffect } from "react"
 import type { Category, StoreLocation } from "@prisma/client"
 import type { ProductWithRelations } from "@/types/admin"
 import { createProduct, updateProduct, deleteProduct, searchProducts } from "@/app/admin/productos/actions"
 import { draggable, dropTargetForElements, monitorForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
 import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine"
+import {
+  PRODUCT_COLORS,
+  buildColorSelectGroups,
+  getColorSwatchStyle,
+  isKnownColor,
+  isRealColor,
+  type ColorPalette,
+} from "@/lib/colors"
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -27,7 +35,12 @@ interface ImageRow {
   url: string
   alt: string
   position: number
+  /** Color de variante al que pertenece la foto. null = imagen general del producto. */
+  color: string | null
 }
+
+/** Valor del selector que representa "imagen general, sin color asignado". */
+const NO_COLOR = "__general__"
 
 interface CrossSellItem {
   id: string
@@ -42,6 +55,8 @@ interface Props {
   categories: { id: string; name: string }[]
   brands?: { id: string; name: string }[]
   stores?: StoreLocation[]
+  /** Paleta activa (administrable en /admin/colores). Vacía = paleta de respaldo. */
+  colorPalette?: ColorPalette
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -110,15 +125,17 @@ interface DraggableImageCardProps {
   total: number
   isDragSource: boolean
   isDragTarget: boolean
+  availableColors: string[]
   onRemove: () => void
   onMove: (dir: -1 | 1) => void
+  onColorChange: (color: string | null) => void
   onDragEnter: (index: number) => void
   onDragLeave: () => void
 }
 
 function DraggableImageCard({
-  image, index, total, isDragSource, isDragTarget,
-  onRemove, onMove, onDragEnter, onDragLeave,
+  image, index, total, isDragSource, isDragTarget, availableColors,
+  onRemove, onMove, onColorChange, onDragEnter, onDragLeave,
 }: DraggableImageCardProps) {
   const cardRef = useRef<HTMLDivElement>(null)
   const handleRef = useRef<HTMLDivElement>(null)
@@ -179,7 +196,7 @@ function DraggableImageCard({
         className={`w-20 h-20 object-cover rounded-lg border transition-all ${
           isDragTarget ? "border-[#E31C23] shadow-md" : "border-gray-200"
         }`}
-        onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder-shoe.png" }}
+        onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder-product.svg" }}
       />
 
       {index === 0 && (
@@ -211,6 +228,20 @@ function DraggableImageCard({
         >→</button>
       </div>
 
+      {/* Color de la foto — define con qué variante se muestra en la ficha */}
+      <select
+        value={image.color ?? NO_COLOR}
+        onChange={(e) => onColorChange(e.target.value === NO_COLOR ? null : e.target.value)}
+        className="mt-1 w-20 text-[10px] border border-gray-200 rounded px-1 py-0.5 bg-white text-[#1C1C1C] focus:outline-none focus:ring-1 focus:ring-[#E31C23]"
+        title="Color al que pertenece esta foto"
+        aria-label={`Color de la imagen ${index + 1}`}
+      >
+        <option value={NO_COLOR}>General</option>
+        {availableColors.map((c) => (
+          <option key={c} value={c}>{c}</option>
+        ))}
+      </select>
+
       <p className="text-[10px] text-[#4A4A4A] mt-0.5 text-center truncate max-w-[80px]">
         {image.alt || "sin alt"}
       </p>
@@ -220,7 +251,16 @@ function DraggableImageCard({
 
 // ─── Main Component ────────────────────────────────────────────────────────────
 
-export default function ProductForm({ mode, product, categories, brands = [], stores = [] }: Props) {
+export default function ProductForm({
+  mode,
+  product,
+  categories,
+  brands = [],
+  stores = [],
+  colorPalette,
+}: Props) {
+  const palette = colorPalette && Object.keys(colorPalette).length > 0 ? colorPalette : PRODUCT_COLORS
+  const colorGroups = useMemo(() => buildColorSelectGroups(palette), [palette])
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -286,10 +326,13 @@ export default function ProductForm({ mode, product, categories, brands = [], st
       url: img.url,
       alt: img.alt,
       position: img.position ?? idx,
+      color: img.color ?? null,
     })) ?? []
   )
   const [imageUrlInput, setImageUrlInput] = useState("")
   const [imageAltInput, setImageAltInput] = useState("")
+  // Color asignado a las fotos que se suban a continuación
+  const [uploadColor, setUploadColor] = useState<string>(NO_COLOR)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploadingFiles, setUploadingFiles] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
@@ -312,6 +355,25 @@ export default function ProductForm({ mode, product, categories, brands = [], st
 
   const handleDragEnterCard = useCallback((idx: number) => setDragOverIdx(idx), [])
   const handleDragLeaveCard = useCallback(() => setDragOverIdx(null), [])
+
+  // Colores disponibles: los de las variantes sincronizadas desde Loggro
+  const variantColors = useMemo(
+    () => [...new Set(variants.map((v) => v.color.trim()).filter(Boolean))],
+    [variants]
+  )
+
+  // Cuántas fotos tiene cada color — permite avisar de colores sin foto
+  const imageCountByColor = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const img of images) {
+      if (!img.color) continue
+      counts.set(img.color, (counts.get(img.color) ?? 0) + 1)
+    }
+    return counts
+  }, [images])
+
+  const generalImageCount = images.filter((img) => !img.color).length
+  const colorsWithoutImages = variantColors.filter((c) => !imageCountByColor.has(c))
 
   useEffect(() => {
     return monitorForElements({
@@ -369,6 +431,14 @@ export default function ProductForm({ mode, product, categories, brands = [], st
     setVariants((prev) => prev.map((v, i) => (i === idx ? { ...v, [field]: value } : v)))
   }
 
+  /**
+   * Asigna un color a TODAS las variantes. Las tallas de un mismo producto
+   * suelen compartir color, así que evita repetir la selección fila por fila.
+   */
+  function applyColorToAllVariants(color: string) {
+    setVariants((prev) => prev.map((v) => ({ ...v, color })))
+  }
+
   function updateVariantInventory(idx: number, storeId: string | null, stockValue: string) {
     setVariants((prev) => prev.map((v, i) => {
       if (i !== idx) return v
@@ -395,6 +465,7 @@ export default function ProductForm({ mode, product, categories, brands = [], st
     setUploadingFiles(true)
     setUploadError(null)
 
+    const targetColor = uploadColor === NO_COLOR ? null : uploadColor
     const results: ImageRow[] = []
     for (const file of Array.from(files)) {
       const fd = new FormData()
@@ -410,6 +481,7 @@ export default function ProductForm({ mode, product, categories, brands = [], st
           url: data.url,
           alt: file.name.replace(/\.[^.]+$/, ""),
           position: 0,
+          color: targetColor,
         })
       } catch {
         setUploadError("Error de red al subir imagen")
@@ -430,7 +502,12 @@ export default function ProductForm({ mode, product, categories, brands = [], st
     if (!imageUrlInput.trim()) return
     setImages((prev) => [
       ...prev,
-      { url: imageUrlInput.trim(), alt: imageAltInput.trim() || name, position: prev.length },
+      {
+        url: imageUrlInput.trim(),
+        alt: imageAltInput.trim() || name,
+        position: prev.length,
+        color: uploadColor === NO_COLOR ? null : uploadColor,
+      },
     ])
     setImageUrlInput("")
     setImageAltInput("")
@@ -438,6 +515,22 @@ export default function ProductForm({ mode, product, categories, brands = [], st
 
   function removeImage(idx: number) {
     setImages((prev) => prev.filter((_, i) => i !== idx).map((img, i) => ({ ...img, position: i })))
+  }
+
+  function setImageColor(idx: number, color: string | null) {
+    setImages((prev) => prev.map((img, i) => (i === idx ? { ...img, color } : img)))
+  }
+
+  /** Reordena la lista agrupando las fotos por color, respetando el orden de las variantes. */
+  function groupImagesByColor() {
+    setImages((prev) => {
+      const order = new Map(variantColors.map((c, i) => [c, i]))
+      const rank = (img: ImageRow) =>
+        img.color === null ? Number.MAX_SAFE_INTEGER : order.get(img.color) ?? Number.MAX_SAFE_INTEGER - 1
+      return [...prev]
+        .sort((a, b) => rank(a) - rank(b))
+        .map((img, i) => ({ ...img, position: i }))
+    })
   }
 
   function moveImage(idx: number, dir: -1 | 1) {
@@ -768,9 +861,39 @@ export default function ProductForm({ mode, product, categories, brands = [], st
         <div className="mb-4 bg-blue-50 border border-blue-200 text-blue-800 text-sm p-3 rounded-lg flex items-start gap-2">
           <span className="mt-0.5">ℹ️</span>
           <p>
-            <strong>Inventario:</strong> El Stock Web, SKU y detalles principales vienen de Loggro (solo lectura). Puedes asignar y modificar libremente el <strong>Stock en Tiendas Físicas</strong> manualmente aquí.
+            <strong>Inventario:</strong> El Stock Web, SKU y talla vienen de Loggro (solo lectura). Aquí puedes
+            asignar el <strong>Color</strong> de cada variante —usado por el filtro de la tienda y las fotos por
+            color— y el <strong>Stock en Tiendas Físicas</strong>.
           </p>
         </div>
+
+        {variants.length > 0 && (
+          <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+            <label htmlFor="bulk-color" className="text-xs font-medium text-[#1C1C1C]">
+              Asignar color a todas las variantes:
+            </label>
+            <select
+              id="bulk-color"
+              value=""
+              onChange={(e) => {
+                if (e.target.value) applyColorToAllVariants(e.target.value)
+              }}
+              className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs text-[#1C1C1C] focus:outline-none focus:ring-2 focus:ring-[#E31C23]"
+            >
+              <option value="">Seleccionar color…</option>
+              {colorGroups.map((group) => (
+                <optgroup key={group.label} label={group.label}>
+                  {group.options.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+            <span className="text-xs text-[#4A4A4A]">
+              Útil cuando todas las tallas son del mismo color.
+            </span>
+          </div>
+        )}
         <div className="overflow-x-auto">
           <table className="w-full text-xs mb-3">
             <thead>
@@ -805,7 +928,36 @@ export default function ProductForm({ mode, product, categories, brands = [], st
                       />
                     </td>
                     <td className="py-1 pr-2">
-                      <input type="text" value={v.color} disabled className={`${inputClass} text-xs bg-gray-50 text-gray-500 cursor-not-allowed`} />
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className={`h-4 w-4 shrink-0 rounded-full ring-1 ${
+                            isRealColor(v.color)
+                              ? "ring-gray-300"
+                              : "ring-gray-200 border border-dashed border-gray-300"
+                          }`}
+                          style={isRealColor(v.color) ? getColorSwatchStyle(v.color, palette) : undefined}
+                          aria-hidden
+                        />
+                        <select
+                          value={isRealColor(v.color) ? v.color : ""}
+                          onChange={(e) => updateVariant(idx, "color", e.target.value)}
+                          className={`${inputClass} text-xs`}
+                          aria-label={`Color de la variante ${v.sku || idx + 1}`}
+                        >
+                          <option value="">Sin asignar</option>
+                          {colorGroups.map((group) => (
+                            <optgroup key={group.label} label={group.label}>
+                              {group.options.map((c) => (
+                                <option key={c} value={c}>{c}</option>
+                              ))}
+                            </optgroup>
+                          ))}
+                          {/* Conserva un color histórico que no esté en la paleta */}
+                          {isRealColor(v.color) && !isKnownColor(v.color, palette) && (
+                            <option value={v.color}>{v.color}</option>
+                          )}
+                        </select>
+                      </div>
                     </td>
                     <td className="py-1 pr-2">
                       <input type="text" value={v.size} disabled className={`${inputClass} text-xs bg-gray-50 text-gray-500 cursor-not-allowed`} />
@@ -855,13 +1007,82 @@ export default function ProductForm({ mode, product, categories, brands = [], st
       </Section>
 
       {/* E. Imágenes */}
-      <Section title="Imágenes">
+      <Section title="Imágenes por color">
         <p className="text-xs text-[#4A4A4A] mb-4">
           Mínimo 5 fotos requeridas · {images.length} cargada(s)
           {images.length < 5 && (
             <span className="text-[#E31C23] ml-1">— faltan {5 - images.length}</span>
           )}
         </p>
+
+        {/* Selector del color al que se asignarán las fotos que se suban */}
+        {variantColors.length > 0 ? (
+          <div className="mb-4 bg-gray-50 border border-gray-200 rounded-lg p-3">
+            <div className="flex items-center gap-3 flex-wrap">
+              <label htmlFor="upload-color" className="text-sm font-medium text-[#1C1C1C]">
+                Subir fotos para el color:
+              </label>
+              <select
+                id="upload-color"
+                value={uploadColor}
+                onChange={(e) => setUploadColor(e.target.value)}
+                className={`${inputClass} w-auto min-w-[160px]`}
+              >
+                <option value={NO_COLOR}>General (todos los colores)</option>
+                {variantColors.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+              {images.length > 1 && (
+                <button
+                  type="button"
+                  onClick={groupImagesByColor}
+                  className="text-xs font-semibold text-[#1C1C1C] border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-white transition-colors"
+                >
+                  Agrupar por color
+                </button>
+              )}
+            </div>
+            <p className="text-xs text-[#4A4A4A] mt-2">
+              En la ficha del producto, al elegir un color el cliente verá solo las fotos de ese
+              color más las marcadas como <strong>General</strong>. Puedes cambiar el color de cada
+              foto en su tarjeta.
+            </p>
+
+            {/* Resumen por color */}
+            <div className="flex flex-wrap gap-2 mt-3">
+              <span className="text-[11px] bg-white border border-gray-200 text-[#4A4A4A] rounded-full px-2.5 py-0.5">
+                General: {generalImageCount}
+              </span>
+              {variantColors.map((c) => {
+                const count = imageCountByColor.get(c) ?? 0
+                return (
+                  <span
+                    key={c}
+                    className={`text-[11px] rounded-full px-2.5 py-0.5 border ${
+                      count === 0
+                        ? "bg-red-50 border-red-200 text-[#E31C23]"
+                        : "bg-white border-gray-200 text-[#4A4A4A]"
+                    }`}
+                  >
+                    {c}: {count}
+                  </span>
+                )
+              })}
+            </div>
+
+            {colorsWithoutImages.length > 0 && (
+              <p className="text-xs text-[#E31C23] mt-2">
+                Sin fotos propias: {colorsWithoutImages.join(", ")}. Se mostrarán las fotos generales.
+              </p>
+            )}
+          </div>
+        ) : (
+          <p className="text-xs text-[#4A4A4A] mb-4">
+            Este producto aún no tiene variantes sincronizadas, así que no hay colores a los cuales
+            asignar fotos. Las imágenes se guardarán como generales.
+          </p>
+        )}
 
         <div
           className={`border-2 border-dashed rounded-xl p-8 text-center mb-4 cursor-pointer transition-colors ${uploadingFiles ? "border-gray-300 bg-gray-50 cursor-wait" : "border-gray-200 hover:border-[#E31C23]"}`}
@@ -886,6 +1107,9 @@ export default function ProductForm({ mode, product, categories, brands = [], st
             <>
               <p className="text-[#4A4A4A] text-sm">
                 <span className="font-semibold">Arrastra o haz click</span> — mínimo 5 fotos
+                {uploadColor !== NO_COLOR && (
+                  <span className="text-[#1C1C1C] font-semibold"> · color {uploadColor}</span>
+                )}
               </p>
               <p className="text-xs text-gray-400 mt-1">JPG, PNG, WEBP · máx 10 MB por imagen</p>
             </>
@@ -931,8 +1155,10 @@ export default function ProductForm({ mode, product, categories, brands = [], st
                 total={images.length}
                 isDragSource={draggingIdx === idx}
                 isDragTarget={dragOverIdx === idx && draggingIdx !== idx}
+                availableColors={variantColors}
                 onRemove={() => removeImage(idx)}
                 onMove={(dir) => moveImage(idx, dir)}
+                onColorChange={(color) => setImageColor(idx, color)}
                 onDragEnter={handleDragEnterCard}
                 onDragLeave={handleDragLeaveCard}
               />

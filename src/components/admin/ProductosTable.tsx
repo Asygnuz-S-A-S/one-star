@@ -5,6 +5,7 @@ import Image from "next/image"
 import { type ColumnDef } from "@tanstack/react-table"
 import { DataTable } from "./DataTable"
 import type { ProductDTO } from "@/server/services/product.service"
+import { PLACEHOLDER_IMAGE_URL } from "@/lib/product-image"
 
 function getProductStatus(variants: { stock: number }[], isOnSale: boolean) {
   const totalStock = variants.reduce((sum, v) => sum + v.stock, 0)
@@ -23,19 +24,13 @@ const columns: ColumnDef<ProductDTO, unknown>[] = [
       const img = row.original.images[0]
       return (
         <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-          {img ? (
-            <Image
-              src={img.url}
-              alt={img.alt}
-              width={48}
-              height={48}
-              className="object-cover w-full h-full"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">
-              Sin foto
-            </div>
-          )}
+          <Image
+            src={img?.url ?? PLACEHOLDER_IMAGE_URL}
+            alt={img?.alt ?? `${row.original.name} — sin foto`}
+            width={48}
+            height={48}
+            className={`w-full h-full ${img ? "object-cover" : "object-contain"}`}
+          />
         </div>
       )
     },

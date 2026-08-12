@@ -11,7 +11,9 @@ export type ProductQuery = z.infer<typeof productQuerySchema>
 const variantSchema = z.object({
   sku: z.string().min(1, "El SKU es requerido."),
   size: z.string().min(1, "La talla es requerida."),
-  color: z.string().min(1, "El color es requerido."),
+  // El color es opcional: las variantes que llegan del ERP entran sin color y
+  // el admin lo asigna después desde el formulario ("Sin asignar" = "").
+  color: z.string().default(""),
   stock: z.coerce.number().int().nonnegative().default(0),
   inventory: z.array(z.object({
     storeLocationId: z.string().nullable(),
@@ -26,6 +28,11 @@ const imageSchema = z.object({
   url: z.string().url("URL de imagen inválida."),
   alt: z.string().optional(),
   position: z.number().int().nonnegative().optional(),
+  // Color de variante al que pertenece la foto. null/"" = imagen general del producto.
+  color: z.preprocess(
+    (v) => (typeof v === "string" && v.trim() === "" ? null : v),
+    z.string().optional().nullable()
+  ),
 })
 
 export const productFormSchema = z.object({

@@ -2,24 +2,15 @@
 
 import { useRouter, usePathname } from "next/navigation"
 import { useState } from "react"
+import { PRODUCT_COLORS, getColorSwatchStyle, isRealColor, type ColorPalette } from "@/lib/colors"
 
 interface FilterSidebarProps {
   brands: string[]
   sizes: string[]
   colors: string[]
   currentParams: string
-}
-
-const COLOR_MAP: Record<string, string> = {
-  Negro: "#1C1C1C",
-  Blanco: "#FFFFFF",
-  Gris: "#9E9E9E",
-  Rojo: "#E31C23",
-  Azul: "#1565C0",
-  Verde: "#2E7D32",
-  Marrón: "#6D4C41",
-  Beige: "#D7CCC8",
-  Naranja: "#E65100",
+  /** Paleta administrable; si no llega se usa la de respaldo. */
+  colorPalette?: ColorPalette
 }
 
 // Clases reutilizables con dark mode
@@ -37,7 +28,10 @@ export default function FilterSidebar({
   sizes,
   colors,
   currentParams: currentParamsString,
+  colorPalette,
 }: FilterSidebarProps) {
+  const palette =
+    colorPalette && Object.keys(colorPalette).length > 0 ? colorPalette : PRODUCT_COLORS
   const router = useRouter()
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
@@ -92,7 +86,9 @@ export default function FilterSidebar({
     ? sizes
     : ["36", "37", "38", "39", "40", "41", "42", "43", "44", "45"]
 
-  const allColors = colors.length > 0 ? colors : Object.keys(COLOR_MAP)
+  // Solo colores reales: descarta marcadores como "N/A" de variantes sin color.
+  const realColors = colors.filter(isRealColor)
+  const allColors = realColors.length > 0 ? realColors : Object.keys(palette)
 
   const sidebarContent = (
     <div className="flex flex-col gap-4">
@@ -213,23 +209,33 @@ export default function FilterSidebar({
           Color
           <span className={chevron}>▾</span>
         </summary>
-        <div className="pt-3 flex flex-wrap gap-3">
+        <div className="pt-3 flex flex-col gap-2">
           {allColors.map((color) => {
-            const hex = COLOR_MAP[color] ?? "#9E9E9E"
             const isActive = currentColor === color
             return (
               <button
                 key={color}
                 onClick={() => updateParam("color", color)}
-                title={color}
-                aria-label={color}
-                className={`w-7 h-7 rounded-full transition-all ${
-                  isActive
-                    ? "ring-2 ring-offset-1 ring-[#1C1C1C] dark:ring-white dark:ring-offset-black"
-                    : "ring-1 ring-[#E0E0E0] dark:ring-white/20"
-                }`}
-                style={{ backgroundColor: hex }}
-              />
+                aria-pressed={isActive}
+                className="flex items-center gap-2 text-left group"
+              >
+                <span
+                  className={`w-6 h-6 shrink-0 rounded-full transition-all ${
+                    isActive
+                      ? "ring-2 ring-offset-1 ring-[#1C1C1C] dark:ring-white dark:ring-offset-black"
+                      : "ring-1 ring-[#E0E0E0] dark:ring-white/20 group-hover:ring-[#1C1C1C] dark:group-hover:ring-white/50"
+                  }`}
+                  style={getColorSwatchStyle(color, palette)}
+                  aria-hidden
+                />
+                <span
+                  className={`${optionText} ${
+                    isActive ? "font-semibold text-[#1C1C1C] dark:text-white" : ""
+                  }`}
+                >
+                  {color}
+                </span>
+              </button>
             )
           })}
         </div>

@@ -4,11 +4,15 @@ import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { motion } from "motion/react"
-import { useState, useEffect } from "react"
+import { useRef, useState, useSyncExternalStore } from "react"
 import { useSession } from "@/lib/auth-client"
 import { useWishlistStore } from "@/store"
+import { PLACEHOLDER_IMAGE_URL } from "@/lib/product-image"
+import { PRODUCT_COLORS, getColorSwatchStyle, type ColorPalette } from "@/lib/colors"
+import type { ProductCardColorSummary } from "@/lib/product-card-colors"
 
 const MAX_STARS = 5
+const subscribeToHydration = () => () => undefined
 
 interface ProductCardProps {
   id: string
@@ -26,6 +30,8 @@ interface ProductCardProps {
   rating?: number
   reviewCount?: number
   priority?: boolean
+  colorSummary?: ProductCardColorSummary
+  colorPalette?: ColorPalette
 }
 
 function formatPrice(price: number): string {
@@ -37,15 +43,16 @@ function formatPrice(price: number): string {
   }).format(price)
 }
 
-export default function ProductCard({ id, slug, name, brand, price, salePrice, imageUrl, secondaryImageUrl, gallery, isNew, isOnSale, hasStock = true, rating, reviewCount, priority = false }: ProductCardProps) {
+export default function ProductCard({ id, slug, name, brand, price, salePrice, imageUrl, secondaryImageUrl, gallery, isNew, isOnSale, hasStock = true, rating, reviewCount, priority = false, colorSummary, colorPalette }: ProductCardProps) {
   const href = slug ? `/productos/${slug}` : undefined
+  const palette = colorPalette && Object.keys(colorPalette).length > 0
+    ? colorPalette
+    : PRODUCT_COLORS
   const router = useRouter()
   const { data: session } = useSession()
-  // La sesión solo se conoce en el cliente; renderizamos el botón de favoritos
-  // tras montar para que el HTML del servidor y el del cliente coincidan
-  // (evita el error de hidratación).
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => setMounted(true), [])
+  // La sesión solo se conoce en el cliente. Este snapshot mantiene el HTML
+  // inicial del servidor y del cliente alineados antes de mostrar favoritos.
+  const mounted = useSyncExternalStore(subscribeToHydration, () => true, () => false)
   const isFavorite = useWishlistStore((state) => state.productIds.includes(id))
   const toggleWishlist = useWishlistStore((state) => state.toggle)
 
@@ -70,14 +77,17 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
 
   // 3D Sequence Logic — zonas dinámicas según cantidad de imágenes
   // Más ángulos = animación más fluida. Orden recomendado: izq → 3/4 izq → frente → 3/4 der → der
-  const frames = [imageUrl, secondaryImageUrl, ...(gallery || [])].filter(Boolean) as string[]
-  const hasFrames = frames.length > 0
+  const realFrames = [imageUrl, secondaryImageUrl, ...(gallery || [])].filter(Boolean) as string[]
+  // Producto sin fotos: imagen predeterminada de la tienda en vez de un hueco.
+  const hasRealImages = realFrames.length > 0
+  const frames = hasRealImages ? realFrames : [PLACEHOLDER_IMAGE_URL]
   const [activeFrame, setActiveFrame] = useState(0)
-  const [isHovering, setIsHovering] = useState(false)
+  const imageFrameRef = useRef<HTMLDivElement | null>(null)
 
-  const handleMouseMoveSequence = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handleMouseMoveSequence = (e: React.MouseEvent<HTMLElement>) => {
     if (frames.length <= 1) return
-    const rect = e.currentTarget.getBoundingClientRect()
+    const rect = imageFrameRef.current?.getBoundingClientRect()
+    if (!rect) return
     const x = Math.max(0, Math.min(0.9999, (e.clientX - rect.left) / rect.width))
     // Distribuir las N imágenes de forma uniforme a lo largo del ancho
     const frameIndex = Math.floor(x * frames.length)
@@ -85,12 +95,10 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
   }
 
   const handleMouseEnterSequence = () => {
-    setIsHovering(true)
     setActiveFrame(0)
   }
 
   const handleMouseLeaveSequence = () => {
-    setIsHovering(false)
     setActiveFrame(0)
   }
 
@@ -103,58 +111,37 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
       viewport={{ once: true, margin: "-50px" }}
       whileHover={{ y: -6 }}
       transition={{ duration: 0.5, type: "spring", stiffness: 300, damping: 20 }}
+      onMouseMove={handleMouseMoveSequence}
+      onMouseEnter={handleMouseEnterSequence}
+      onMouseLeave={handleMouseLeaveSequence}
     >
       {/* Image container with 3D Sequence Sequence */}
       {href && <Link href={href} className="absolute inset-0 z-20" aria-label={name} />}
       <div 
-        className="relative aspect-[3/4] bg-[#F5F5F5] dark:bg-white/5 dark:backdrop-blur-md dark:border dark:border-white/10 overflow-hidden mb-4 rounded-xl shadow-sm transition-shadow duration-300 group-hover:shadow-2xl"
-        onMouseMove={handleMouseMoveSequence}
-        onMouseEnter={handleMouseEnterSequence}
-        onMouseLeave={handleMouseLeaveSequence}
+        ref={imageFrameRef}
+        className={`relative aspect-[3/4] bg-[#F5F5F5] dark:bg-white/5 dark:backdrop-blur-md dark:border dark:border-white/10 overflow-hidden rounded-xl shadow-sm transition-shadow duration-300 group-hover:shadow-2xl ${
+          colorSummary?.total ? "mb-2" : "mb-4"
+        }`}
       >
         <div className="w-full h-full">
           {/* Subtle overlay gradient on hover */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10 pointer-events-none rounded-xl" />
           
-          {hasFrames ? (
-            <div className="absolute inset-0 w-full h-full pointer-events-none">
-              {frames.map((src, index) => (
-                <Image
-                  key={`frame-${index}`}
-                  src={src}
-                  alt={`${name} vista ${index + 1}`}
-                  fill
-                  priority={priority && index === 0}
-                  className={`object-cover object-center transition-opacity duration-150 ease-in-out ${
-                    index === activeFrame ? "opacity-100" : "opacity-0"
-                  }`}
-                  sizes="(max-width: 768px) 50vw, 25vw"
-                />
-              ))}
-
-            </div>
-
-          ) : (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <svg
-                width="64"
-                height="64"
-                viewBox="0 0 64 64"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                className="text-[#4A4A4A]/30"
-              >
-                <path
-                  d="M16 16H48V48H16V16Z"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <path d="M16 48L32 32L48 48" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </div>
-          )}
+          <div className="absolute inset-0 w-full h-full pointer-events-none">
+            {frames.map((src, index) => (
+              <Image
+                key={`frame-${index}`}
+                src={src}
+                alt={hasRealImages ? `${name} vista ${index + 1}` : `${name} — sin imagen disponible`}
+                fill
+                priority={priority && index === 0}
+                className={`object-center transition-opacity duration-150 ease-in-out ${
+                  hasRealImages ? "object-cover" : "object-contain"
+                } ${index === activeFrame ? "opacity-100" : "opacity-0"}`}
+                sizes="(max-width: 768px) 50vw, 25vw"
+              />
+            ))}
+          </div>
         </div>
 
         {/* Top-Left Badges */}
@@ -184,6 +171,56 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
           </button>
         )}
       </div>
+
+      {colorSummary?.label && (
+        <div className="relative z-20 px-1 pointer-events-none">
+          <div
+            className="flex min-h-7 items-center gap-1 overflow-hidden"
+            role="list"
+            aria-label={`Colores disponibles de ${name}`}
+          >
+            {colorSummary.visibleOptions.map((option) => (
+              option.imageUrl ? (
+                <span
+                  key={option.name}
+                  className="relative h-7 w-7 shrink-0 overflow-hidden rounded-sm border border-[#E0E0E0] bg-[#F5F5F5] dark:border-white/20 dark:bg-white/5"
+                  role="listitem"
+                  aria-label={option.name}
+                  title={option.name}
+                >
+                  <Image
+                    src={option.imageUrl}
+                    alt=""
+                    fill
+                    sizes="28px"
+                    className="object-cover"
+                  />
+                </span>
+              ) : (
+                <span
+                  key={option.name}
+                  className="h-5 w-5 shrink-0 rounded-full ring-1 ring-[#C7C7C7] dark:ring-white/30"
+                  style={getColorSwatchStyle(option.name, palette)}
+                  role="listitem"
+                  aria-label={option.name}
+                  title={option.name}
+                />
+              )
+            ))}
+            {colorSummary.hiddenCount > 0 && (
+              <span
+                className="flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full bg-[#E0E0E0] px-1 text-[9px] font-bold text-[#4A4A4A] dark:bg-white/10 dark:text-white/60"
+                aria-label={`${colorSummary.hiddenCount} colores adicionales`}
+              >
+                +{colorSummary.hiddenCount}
+              </span>
+            )}
+          </div>
+          <p className="mt-1 text-[10px] font-[var(--font-montserrat)] text-[#6B6B6B] dark:text-white/50">
+            {colorSummary.label}
+          </p>
+        </div>
+      )}
 
       <div className="mt-2 text-left flex flex-col px-1">
         {(() => {

@@ -32,6 +32,9 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# .env.example no contiene secretos y sí debe versionarse: es la referencia de
+# qué variables necesita el proyecto. El patrón .env* de arriba lo excluía.
+!.env.example
 
 # vercel
 .vercel
@@ -51,3 +54,8 @@ node_modules/
 # Sentry
 .sentryclirc
 sentry-debug.log
+
+# Agent and IDE local settings
+.agents/
+.claude/
+

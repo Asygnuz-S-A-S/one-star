@@ -7,6 +7,7 @@ import { motion, AnimatePresence, MotionConfig, type Variants } from "motion/rea
 import type { ProductWithRelations, Variant } from "@/types/shop"
 import SizeGuideModal from "./SizeGuideModal"
 import { formatCOP } from "@/lib/shop-utils"
+import { filterImagesByColor, getPrimaryImageUrl } from "@/lib/product-image"
 import { useCart } from "@/store"
 import { useToast } from "@/hooks/useToast"
 import ToastContainer from "@/components/ui/ToastContainer"
@@ -14,6 +15,9 @@ import ToastContainer from "@/components/ui/ToastContainer"
 interface ProductInfoProps {
   product: ProductWithRelations
   reviewStats?: { avg: number; count: number; distribution: number[] }
+  /** Color controlado desde el padre para sincronizar la galería. */
+  selectedColor?: string
+  onColorChange?: (color: string) => void
 }
 
 /** Entrada escalonada del panel: cada bloque aparece con un resorte con rebote. */
@@ -67,10 +71,17 @@ function colorToCSS(color: string): string {
   return map[color.toLowerCase()] ?? "#9E9E9E"
 }
 
-export default function ProductInfo({ product, reviewStats }: ProductInfoProps) {
-  const [selectedColor, setSelectedColor] = useState<string>(
+export default function ProductInfo({
+  product,
+  reviewStats,
+  selectedColor: controlledColor,
+  onColorChange,
+}: ProductInfoProps) {
+  // Color no controlado — solo se usa si el padre no gestiona el estado.
+  const [internalColor, setInternalColor] = useState<string>(
     product.variants[0]?.color ?? ""
   )
+  const selectedColor = controlledColor ?? internalColor
   const [selectedSize, setSelectedSize] = useState<string>("")
   const [sizeModalOpen, setSizeModalOpen] = useState(false)
   const [shakeActive, setShakeActive] = useState(false)
@@ -88,9 +99,10 @@ export default function ProductInfo({ product, reviewStats }: ProductInfoProps) 
   const sizesForColor = selectedColor ? getUniqueSizes(product.variants, selectedColor) : []
 
   const handleColorSelect = useCallback((color: string) => {
-    setSelectedColor(color)
+    setInternalColor(color)
+    onColorChange?.(color)
     setSelectedSize("") // reset size when color changes
-  }, [])
+  }, [onColorChange])
 
   const handleSizeSelect = useCallback((size: string) => {
     if (!isAvailable(product.variants, selectedColor, size)) return
@@ -108,13 +120,15 @@ export default function ProductInfo({ product, reviewStats }: ProductInfoProps) 
     )
     if (!variant) return null
     const effectivePrice = salePrice ?? basePrice
+    // Miniatura del carrito: la primera foto del color elegido, no la del producto.
+    const colorImages = filterImagesByColor(product.images, selectedColor)
     return {
       id: variant.id,
       productId: product.id,
       slug: product.slug,
       name: product.name,
       brand: product.brand,
-      imageUrl: product.images[0]?.url ?? null,
+      imageUrl: getPrimaryImageUrl(colorImages),
       size: selectedSize,
       color: selectedColor,
       price: effectivePrice,

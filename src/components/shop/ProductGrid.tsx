@@ -2,6 +2,7 @@ import Link from "next/link"
 import SortBar from "@/components/shop/SortBar"
 import { getProducts } from "@/server/services/product.service"
 import { AnimatedProductGrid } from "@/components/shop/AnimatedProductGrid"
+import type { ColorPalette } from "@/lib/colors"
 
 const PAGE_SIZE = 24
 
@@ -27,6 +28,7 @@ interface ProductGridProps {
   subtitle?: string
   isOnSaleOnly?: boolean
   headerClassName?: string
+  colorPalette?: ColorPalette
 }
 
 // where and order builders removed (now handled in product.service)
@@ -70,9 +72,9 @@ export default async function ProductGrid({
   subtitle,
   isOnSaleOnly,
   headerClassName,
+  colorPalette,
 }: ProductGridProps) {
   const page = Math.max(1, Number(searchParams.page ?? 1))
-  const skip = (page - 1) * PAGE_SIZE
 
   const filterParams = {
     ...searchParams,
@@ -156,6 +158,7 @@ export default async function ProductGrid({
         <AnimatedProductGrid
           products={products}
           animationKey={currentSearch}
+          colorPalette={colorPalette}
         />
       )}
 

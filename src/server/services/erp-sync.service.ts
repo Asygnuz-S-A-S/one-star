@@ -1,13 +1,60 @@
 import "server-only"
 import { getERPAdapter } from "@/server/erp"
 import { prisma } from "@/server/db/prisma"
+import type { ErpSyncLog, ErpSyncTrigger } from "@prisma/client"
 import type { ERPCatalogSyncResult } from "@/server/erp/erp.types"
+import { parseSku, DEFAULT_SIZE } from "@/lib/sku"
+import { detectColorFromText } from "@/lib/color-detect"
+import { isRealColor } from "@/lib/colors"
+import { findManyProductColors } from "@/server/repositories/product-color.repository"
+import {
+  createErpSyncLog,
+  findRecentErpSyncLogs,
+} from "@/server/repositories/erp-sync-log.repository"
+
+/** Minutos entre sincronizaciones automáticas (refleja el cron de instrumentation-node.ts). */
+export const ERP_AUTO_SYNC_MINUTES = 30
+
+/** Máximo que esperamos por el healthcheck del ERP antes de darlo por caído. */
+const PING_TIMEOUT_MS = 5000
+
+function erpProviderName(): string {
+  return (process.env.ERP_PROVIDER ?? "null").toLowerCase().trim()
+}
+
+/**
+ * Sincroniza el catálogo desde el ERP y registra el resultado en la BD para
+ * alimentar el panel de estado e historial de /admin/integraciones.
+ *
+ * @param trigger Quién disparó la sincronización (manual desde el panel o AUTO por cron).
+ */
+export async function syncCatalogFromERP(
+  trigger: ErpSyncTrigger = "AUTO"
+): Promise<ERPCatalogSyncResult> {
+  const startedAt = Date.now()
+  const result = await runCatalogSync()
+
+  try {
+    await createErpSyncLog({
+      provider: erpProviderName(),
+      trigger,
+      success: result.success,
+      processedCount: result.processedCount,
+      error: result.error ?? null,
+      durationMs: Date.now() - startedAt,
+    })
+  } catch (logErr) {
+    console.error("[ERP Sync Service] No se pudo guardar el registro de sincronización:", logErr)
+  }
+
+  return result
+}
 
 /**
  * Sincroniza el catálogo de productos desde el ERP activo hacia la base de datos local.
  * Si el adaptador actual no soporta `fetchCatalog`, falla pacíficamente.
  */
-export async function syncCatalogFromERP(): Promise<ERPCatalogSyncResult> {
+async function runCatalogSync(): Promise<ERPCatalogSyncResult> {
   const adapter = getERPAdapter()
 
   if (!adapter.fetchCatalog) {
@@ -22,9 +69,16 @@ export async function syncCatalogFromERP(): Promise<ERPCatalogSyncResult> {
     const products = await adapter.fetchCatalog()
     let count = 0
 
-    // Por seguridad, si el ERP retorna 0, quizás es un error.
+    // Un catálogo vacío casi siempre significa avería (credenciales, permisos o
+    // un fallo del ERP), no "no hay productos". Se reporta como ERROR: marcarlo
+    // como éxito dejaba el panel en verde mientras nada se sincronizaba.
     if (products.length === 0) {
-      return { success: true, processedCount: 0, error: "El ERP devolvió 0 productos." }
+      return {
+        success: false,
+        processedCount: 0,
+        error:
+          "El ERP devolvió 0 productos. Revisa que el catálogo tenga ítems y que la integración esté operativa.",
+      }
     }
 
     // Buscar la categoría "Por Defecto" o crearla para asignar nuevos productos
@@ -42,17 +96,20 @@ export async function syncCatalogFromERP(): Promise<ERPCatalogSyncResult> {
       })
     }
 
-    // 1. Agrupar los ítems de Loggro por "Producto Base" usando el SKU
-    // Asumimos que el SKU tiene un formato "BASE-VARIANTE" (ej. "CAM01-M-ROJ")
-    // Si no tiene guión, el producto base es el mismo SKU.
+    // Paleta activa: permite deducir el color de cada variante desde el texto
+    // que envía el ERP. Se lee una sola vez por sincronización.
+    const paletteNames = (await findManyProductColors(true)).map((c) => c.name)
+
+    // 1. Agrupar los ítems del ERP por "Producto Base" según su SKU.
+    //    Ver `parseSku`: "1162011-BWHT_10" agrupa por modelo+color y "NB574AZ-38"
+    //    por modelo, de modo que cada grupo es un producto con sus tallas.
     const groupedProducts = new Map<string, typeof products>()
 
     for (const erpProduct of products) {
       if (!erpProduct.sku) continue
-      
-      const parts = erpProduct.sku.split("-")
-      const baseSku = parts[0]
-      
+
+      const { baseSku } = parseSku(erpProduct.sku)
+
       if (!groupedProducts.has(baseSku)) {
         groupedProducts.set(baseSku, [])
       }
@@ -152,10 +209,16 @@ export async function syncCatalogFromERP(): Promise<ERPCatalogSyncResult> {
       for (const variantItem of variantsList) {
         const existingVariant = existingProduct.variants.find((v) => v.sku === variantItem.sku)
         
-        // Determinar talla y color basados en el sufijo del SKU (ej. CAM01-ROJO-M -> ROJO-M)
-        const suffix = variantItem.sku.substring(baseSku.length + 1)
-        const size = suffix ? suffix : "Única"
-        const color = "N/A" // Loggro no suele separar color y talla fácilmente sin campos extra
+        // La talla sale del propio SKU (ver `parseSku`).
+        const { size } = parseSku(variantItem.sku)
+
+        // El ERP no expone el color como campo, pero lo menciona en la
+        // descripción ("TENIS HOKA BONDI 9 NEGRO"): se deduce contra la paleta
+        // administrable. Si no se reconoce, queda vacío para asignarlo a mano.
+        const detectedColor =
+          detectColorFromText(variantItem.detailedName, paletteNames) ??
+          detectColorFromText(variantItem.name, paletteNames) ??
+          ""
 
         if (existingVariant) {
           await prisma.variant.update({
@@ -163,7 +226,11 @@ export async function syncCatalogFromERP(): Promise<ERPCatalogSyncResult> {
             data: {
               erpId: variantItem.erpId,
               stock: variantItem.stock,
-              size: size !== "Única" ? size : existingVariant.size,
+              size: size !== DEFAULT_SIZE ? size : existingVariant.size,
+              // Nunca se pisa un color ya asignado: el admin manda sobre el ERP.
+              ...(isRealColor(existingVariant.color) || !detectedColor
+                ? {}
+                : { color: detectedColor }),
             },
           })
         } else {
@@ -173,7 +240,7 @@ export async function syncCatalogFromERP(): Promise<ERPCatalogSyncResult> {
               sku: variantItem.sku,
               erpId: variantItem.erpId,
               size: size,
-              color: color,
+              color: detectedColor,
               stock: variantItem.stock,
             }
           })
@@ -187,5 +254,74 @@ export async function syncCatalogFromERP(): Promise<ERPCatalogSyncResult> {
     const msg = error instanceof Error ? error.message : String(error)
     console.error("[ERP Sync Service] Error sincronizando catálogo:", msg)
     return { success: false, processedCount: 0, error: msg }
+  }
+}
+
+// ─────────────────────────────────────────────
+// Estado del panel de integraciones
+// ─────────────────────────────────────────────
+
+/** Registro de sincronización serializable para el cliente (fechas como ISO). */
+export interface ErpSyncLogDTO {
+  id: string
+  provider: string
+  trigger: ErpSyncTrigger
+  success: boolean
+  processedCount: number
+  error: string | null
+  durationMs: number | null
+  createdAt: string
+}
+
+export interface ErpSyncStatus {
+  /** ERP configurado (ERP_PROVIDER). */
+  provider: string
+  /** ¿El ERP respondió al healthcheck? */
+  connected: boolean
+  /** Intervalo del auto-sync, en minutos. */
+  autoSyncMinutes: number
+  /** Última sincronización registrada, o null si nunca se ha corrido. */
+  last: ErpSyncLogDTO | null
+  /** Historial reciente (más nueva primero). */
+  history: ErpSyncLogDTO[]
+}
+
+function mapErpSyncLog(log: ErpSyncLog): ErpSyncLogDTO {
+  return {
+    id: log.id,
+    provider: log.provider,
+    trigger: log.trigger,
+    success: log.success,
+    processedCount: log.processedCount,
+    error: log.error,
+    durationMs: log.durationMs,
+    createdAt: log.createdAt.toISOString(),
+  }
+}
+
+/**
+ * Estado de la integración para el panel de admin: conexión con el ERP,
+ * última sincronización e historial reciente.
+ */
+export async function getErpSyncStatus(): Promise<ErpSyncStatus> {
+  const adapter = getERPAdapter()
+
+  const [connected, logs] = await Promise.all([
+    // No dejamos que un ERP lento/caído cuelgue la carga del panel.
+    Promise.race([
+      adapter.ping().catch(() => false),
+      new Promise<boolean>((resolve) => setTimeout(() => resolve(false), PING_TIMEOUT_MS)),
+    ]),
+    findRecentErpSyncLogs(10),
+  ])
+
+  const history = logs.map(mapErpSyncLog)
+
+  return {
+    provider: erpProviderName(),
+    connected,
+    autoSyncMinutes: ERP_AUTO_SYNC_MINUTES,
+    last: history[0] ?? null,
+    history,
   }
 }

@@ -6,6 +6,7 @@ import { useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "motion/react"
 import { useCart } from "@/store"
 import { formatCOP } from "@/lib/shop-utils"
+import { PLACEHOLDER_IMAGE_URL } from "@/lib/product-image"
 
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
@@ -175,17 +176,13 @@ export default function CartDrawer() {
                       >
                         {/* Image */}
                         <div className="relative w-20 h-20 bg-[#E0E0E0] shrink-0">
-                          {item.imageUrl ? (
-                            <Image
-                              src={item.imageUrl}
-                              alt={item.name}
-                              fill
-                              className="object-cover"
-                              sizes="80px"
-                            />
-                          ) : (
-                            <div className="w-full h-full bg-[#E0E0E0]" />
-                          )}
+                          <Image
+                            src={item.imageUrl || PLACEHOLDER_IMAGE_URL}
+                            alt={item.name}
+                            fill
+                            className={item.imageUrl ? "object-cover" : "object-contain"}
+                            sizes="80px"
+                          />
                         </div>
 
                         {/* Info */}

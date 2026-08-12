@@ -17,6 +17,62 @@ test.describe("Home", () => {
     await page.getByRole("link", { name: /hombre/i }).first().click()
     await expect(page).toHaveURL(/\/hombre/)
   })
+
+  test("mantiene legibles los nombres y precios al activar el tema oscuro", async ({ page }) => {
+    await page.emulateMedia({ colorScheme: "light" })
+    await page.goto("/")
+    await page.evaluate(() => window.localStorage.setItem("theme", "light"))
+    await page.reload()
+
+    await page.getByRole("button", { name: "Cambiar tema" }).first().click()
+    await expect(page.locator("html")).toHaveClass(/dark/)
+
+    const productCard = page.locator("[data-product-id]:visible").first()
+    await expect(productCard).toBeVisible({ timeout: 10_000 })
+
+    const productName = productCard.locator("h3")
+    const productPrice = productCard.locator("span.text-sm.font-bold").first()
+
+    for (const productText of [productName, productPrice]) {
+      const contrastRatio = await productText.evaluate((element) => {
+        const parseColor = (color: string) => {
+          const channels = color.match(/[\d.]+/g)?.map(Number) ?? []
+          return {
+            red: channels[0] ?? 0,
+            green: channels[1] ?? 0,
+            blue: channels[2] ?? 0,
+            alpha: channels[3] ?? 1,
+          }
+        }
+        const luminance = ({ red, green, blue }: ReturnType<typeof parseColor>) => {
+          const linearChannels = [red, green, blue].map((channel) => {
+            const value = channel / 255
+            return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
+          })
+          return 0.2126 * linearChannels[0] + 0.7152 * linearChannels[1] + 0.0722 * linearChannels[2]
+        }
+
+        const foreground = parseColor(window.getComputedStyle(element).color)
+        let backgroundElement: Element | null = element
+        let background = parseColor("rgb(255, 255, 255)")
+
+        while (backgroundElement) {
+          const candidate = parseColor(window.getComputedStyle(backgroundElement).backgroundColor)
+          if (candidate.alpha > 0) {
+            background = candidate
+            break
+          }
+          backgroundElement = backgroundElement.parentElement
+        }
+
+        const light = Math.max(luminance(foreground), luminance(background))
+        const dark = Math.min(luminance(foreground), luminance(background))
+        return (light + 0.05) / (dark + 0.05)
+      })
+
+      expect(contrastRatio).toBeGreaterThanOrEqual(4.5)
+    }
+  })
 })
 
 test.describe("Catálogo de productos", () => {
@@ -24,7 +80,7 @@ test.describe("Catálogo de productos", () => {
     await page.goto("/productos")
     // Espera a que haya al menos un producto o el estado vacío
     await expect(
-      page.locator("article, [data-testid='product-card'], h2, h3").first()
+      page.locator("article:visible, [data-testid='product-card']:visible, h2:visible, h3:visible").first()
     ).toBeVisible({ timeout: 10_000 })
   })
 
@@ -55,12 +111,119 @@ test.describe("Carrito", () => {
 })
 
 test.describe("Checkout", () => {
-  test("redirige al login cuando se intenta checkout sin sesión", async ({ page }) => {
+  test("mantiene al visitante en checkout y bloquea compra, cupón y pago", async ({ page }) => {
     await page.goto("/checkout")
-    // O muestra el checkout, o redirige a login
+
+    await expect(page).toHaveURL(/\/checkout$/)
     await expect(
-      page.getByRole("heading").first()
+      page.getByRole("heading", { name: /inicia sesión para comprar/i })
     ).toBeVisible({ timeout: 8_000 })
+    await expect(page.getByRole("button", { name: /confirmar datos/i })).toHaveCount(0)
+    await expect(page.getByRole("button", { name: /pagar con epayco/i })).toHaveCount(0)
+    await expect(page.getByRole("textbox", { name: /email/i })).toHaveCount(0)
+    await expect(page.getByText(/código de cupón/i)).toHaveCount(0)
+
+    const loginLink = page.getByRole("link", { name: /iniciar sesión/i })
+    const registerLink = page.getByRole("link", { name: /crear cuenta/i })
+    await expect(loginLink).toHaveAttribute("href", "/login?callbackUrl=%2Fcheckout")
+    await expect(registerLink).toHaveAttribute("href", "/registro?callbackUrl=%2Fcheckout")
+  })
+
+  test("muestra el checkout normal a una sesión customer", async ({ page }) => {
+    await page.route("**/api/auth/get-session**", async (route) => {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          session: {
+            id: "session-customer",
+            token: "token-customer",
+            userId: "customer-1",
+            expiresAt: new Date(Date.now() + 60_000).toISOString(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+          user: {
+            id: "customer-1",
+            email: "cliente@example.com",
+            name: "Cliente",
+            emailVerified: true,
+            userType: "customer",
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        }),
+      })
+    })
+
+    await page.goto("/checkout")
+
+    await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible()
+    await expect(page.getByText("¿Ya tienes cuenta?")).toHaveCount(0)
+    await expect(page.getByText(/continuar como invitado/i)).toHaveCount(0)
+  })
+
+  test("mantiene bloqueada una sesión administrativa", async ({ page }) => {
+    await page.route("**/api/auth/get-session**", async (route) => {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          session: {
+            id: "session-admin",
+            token: "token-admin",
+            userId: "admin-1",
+            expiresAt: new Date(Date.now() + 60_000).toISOString(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+          user: {
+            id: "admin-1",
+            email: "admin@example.com",
+            name: "Admin",
+            emailVerified: true,
+            userType: "admin",
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        }),
+      })
+    })
+
+    await page.goto("/checkout")
+
+    await expect(page.getByRole("heading", { name: /inicia sesión para comprar/i })).toBeVisible()
+    await expect(page.getByRole("textbox", { name: /email/i })).toHaveCount(0)
+  })
+
+  test("muestra la silueta mientras se resuelve la sesión", async ({ page }) => {
+    let releaseSession!: () => void
+    const sessionResponse = new Promise<void>((resolve) => {
+      releaseSession = resolve
+    })
+
+    await page.route("**/api/auth/get-session**", async (route) => {
+      await sessionResponse
+      await route.fulfill({ contentType: "application/json", body: "null" })
+    })
+
+    await page.goto("/checkout")
+    await expect(page.locator("#checkout-auth-title")).toHaveText(/verificando tu sesión/i)
+    await expect(page.getByRole("textbox", { name: /email/i })).toHaveCount(0)
+
+    releaseSession()
+    await expect(page.getByRole("heading", { name: /inicia sesión para comprar/i })).toBeVisible()
+  })
+
+  test("el gate no desborda en viewport móvil", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto("/checkout")
+
+    await expect(page.getByRole("heading", { name: /inicia sesión para comprar/i })).toBeVisible()
+    const hasHorizontalOverflow = await page.evaluate(
+      () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    )
+    expect(hasHorizontalOverflow).toBe(false)
+    await expect(page.getByRole("link", { name: /iniciar sesión/i })).toBeVisible()
+    await expect(page.getByRole("link", { name: /crear cuenta/i })).toBeVisible()
   })
 })
 

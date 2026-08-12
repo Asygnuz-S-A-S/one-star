@@ -9,7 +9,7 @@
 
 ## User Story
 
-**Como** comprador que ha llenado su carrito,  
+**Como** cliente autenticado que ha llenado su carrito,  
 **quiero** completar el pago de forma segura con tarjeta o PSE y recibir confirmación inmediata,  
 **para** tener la seguridad de que mi pedido fue procesado sin tener que llamar a la tienda.
 
@@ -36,11 +36,11 @@ El checkout ya tiene `CheckoutStepper.tsx` (UI), `OrderSummary.tsx`, y `src/app/
 ### Flujo de checkout (≤ 3 pasos)
 
 **Paso 1 — Datos de envío:**
-- **Dado** que el usuario es invitado,  
-  **cuando** llega al checkout,  
-  **entonces** se solicita: email, nombre completo, teléfono, dirección (línea 1, ciudad, departamento, código postal).
+- **Dado** que un visitante sin sesión intenta abrir el checkout,  
+  **cuando** se resuelve su sesión,  
+  **entonces** permanece en `/checkout`, ve opciones para iniciar sesión o registrarse y no puede acceder al formulario, cupón ni pago.
 - Departamentos de Colombia prellenados desde `colombia-departments.ts`.
-- **Dado** que el usuario está autenticado,  
+- **Dado** que el cliente está autenticado,  
   **cuando** llega al checkout,  
   **entonces** los campos se prellenan con sus datos de perfil (editables).
 
@@ -68,10 +68,12 @@ El checkout ya tiene `CheckoutStepper.tsx` (UI), `OrderSummary.tsx`, y `src/app/
 - Se envía dentro de 2 minutos de la confirmación.
 - El `From` es un dominio verificado (no genérico).
 
-### Checkout como invitado
+### Autenticación obligatoria en checkout
 
-- El flujo completo funciona sin cuenta.
-- Tras el pedido exitoso, se ofrece opción de crear cuenta con los datos ya ingresados.
+- Sólo una sesión de tipo `customer` puede ver y completar el formulario.
+- Mientras se resuelve la sesión se muestra una silueta estable sin exponer controles del checkout.
+- Login y registro conservan un `callbackUrl` interno seguro para regresar a `/checkout`.
+- La Server Action de creación de pedido rechaza llamadas anónimas y sesiones administrativas antes de invocar el servicio de pedidos.
 
 ---
 
@@ -84,7 +86,7 @@ El checkout ya tiene `CheckoutStepper.tsx` (UI), `OrderSummary.tsx`, y `src/app/
 - [ ] Actualizar `order.service.ts` para decrementar stock en variantes tras confirmación
 - [ ] Conectar `CheckoutStepper` al flujo de pasarela (redirect o modal widget)
 - [ ] Agregar validación de cupón en checkout step 2 vía `coupon.service.ts`
-- [ ] Implementar opción "crear cuenta" post-compra para invitados
+- [x] Bloquear el checkout a visitantes y conservar el retorno seguro entre login y registro
 - [ ] Tests de integración en `order.service.ts` — flujo happy path y pago fallido
 
 ---
@@ -98,3 +100,4 @@ El checkout ya tiene `CheckoutStepper.tsx` (UI), `OrderSummary.tsx`, y `src/app/
 - [ ] Tests de `order.service.ts` con ≥ 80 % cobertura
 - [ ] Variables de entorno de la pasarela documentadas en `docs/architecture.md`
 - [ ] No se exponen claves privadas en el cliente (server-only)
+- [x] No se crean pedidos sin una sesión de cliente autenticada

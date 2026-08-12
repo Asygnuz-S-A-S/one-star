@@ -5,13 +5,15 @@ import type { LandingSection } from "@prisma/client"
 export async function getActiveLandingSections(): Promise<LandingSection[]> {
   return prisma.landingSection.findMany({
     where: { isActive: true },
-    orderBy: { position: "asc" },
+    // `createdAt` como desempate estable: si dos secciones comparten posición
+    // (p. ej. por una inserción externa), el orden de render es determinista.
+    orderBy: [{ position: "asc" }, { createdAt: "asc" }],
   })
 }
 
 export async function getAllLandingSections(): Promise<LandingSection[]> {
   return prisma.landingSection.findMany({
-    orderBy: { position: "asc" },
+    orderBy: [{ position: "asc" }, { createdAt: "asc" }],
   })
 }
 

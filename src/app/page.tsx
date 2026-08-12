@@ -13,6 +13,8 @@ import { getUniqueBrands } from "@/server/services/product.service"
 import { getActiveLandingSections } from "@/server/repositories/landing-section.repository"
 import { getTopBanner } from "@/server/repositories/top-banner.repository"
 
+export const dynamic = "force-dynamic";
+
 export default async function Home() {
   // Queries independientes en paralelo; con fallbacks para que un fallo
   // puntual no tumbe toda la home.

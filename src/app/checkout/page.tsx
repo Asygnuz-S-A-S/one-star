@@ -1,14 +1,17 @@
 "use client"
 
-import { useState, useCallback, useId, cloneElement, isValidElement } from "react"
+import { useState, useCallback, useEffect, useId, useSyncExternalStore, cloneElement, isValidElement } from "react"
 import Link from "next/link"
 import { motion } from "motion/react"
 import { useCart } from "@/store"
 import { formatCOP } from "@/lib/shop-utils"
 import { COLOMBIA_DEPARTMENTS } from "@/lib/colombia-departments"
 import CheckoutStepper from "@/components/checkout/CheckoutStepper"
-import OrderSummary from "@/components/checkout/OrderSummary"
+import OrderSummary, { type AppliedCoupon } from "@/components/checkout/OrderSummary"
 import EpaycoButton, { type EpaycoCheckoutData } from "@/components/checkout/EpaycoButton"
+import CheckoutAuthGate from "@/components/checkout/CheckoutAuthGate"
+import { useSession } from "@/lib/auth-client"
+import { captureAbandonedCartAction } from "@/server/actions/abandoned-cart.actions"
 import { createOrder } from "./actions"
 
 const sectionVariants = {
@@ -121,17 +124,36 @@ const inputClass =
 const inputErrorClass =
   "w-full border border-[#E31C23] rounded px-3 py-2.5 text-sm font-montserrat text-[#1C1C1C] placeholder-[#9E9E9E] bg-white focus:outline-none focus:border-[#E31C23] transition-colors"
 
+const subscribeToHydration = () => () => undefined
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function CheckoutPage() {
+  const { data: session, isPending } = useSession()
+  const isHydrated = useSyncExternalStore(
+    subscribeToHydration,
+    () => true,
+    () => false,
+  )
+
+  if (!isHydrated || isPending) return <CheckoutAuthGate isPending />
+  if (!session?.user || session.user.userType !== "customer") {
+    return <CheckoutAuthGate />
+  }
+
+  return <AuthenticatedCheckout />
+}
+
+function AuthenticatedCheckout() {
   const { items, subtotal } = useCart()
 
-  const [hasAccount, setHasAccount] = useState(false)
   const [errors, setErrors] = useState<FormErrors>({})
   const [submitting, setSubmitting] = useState(false)
   const [serverError, setServerError] = useState("")
   /** Cuando está definido el pedido ya fue creado; mostramos el botón de pago */
   const [epaycoData, setEpaycoData] = useState<EpaycoCheckoutData | null>(null)
+  /** Cupón validado en servidor; placeOrder lo revalida y recalcula el descuento */
+  const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null)
 
   const [values, setValues] = useState<FormValues>({
     email: "",
@@ -149,7 +171,31 @@ export default function CheckoutPage() {
   })
 
   const shippingCost = getShippingCost(values.shippingMethod, subtotal)
-  const total = subtotal + shippingCost
+  const discount = appliedCoupon?.discountAmount ?? 0
+  const total = subtotal - discount + shippingCost
+
+  // Captura del carrito abandonado: cuando hay email válido e ítems, se guarda
+  // (con debounce) para que el admin pueda recuperarlo si la compra no se
+  // completa. Al crear el pedido, el servidor lo marca como recuperado.
+  const email = values.email
+  useEffect(() => {
+    if (epaycoData || items.length === 0 || !validateEmail(email)) return
+    const timer = setTimeout(() => {
+      void captureAbandonedCartAction({
+        email: email.trim(),
+        items: items.map((item) => ({
+          productId: item.productId,
+          variantId: item.id,
+          name: item.name,
+          size: item.size,
+          quantity: item.quantity,
+          price: item.price,
+          imageUrl: item.imageUrl ?? null,
+        })),
+      })
+    }, 2500)
+    return () => clearTimeout(timer)
+  }, [email, items, epaycoData])
 
   const set = useCallback(<K extends keyof FormValues>(key: K, value: FormValues[K]) => {
     setValues((prev) => ({ ...prev, [key]: value }))
@@ -195,6 +241,7 @@ export default function CheckoutPage() {
       postalCode: values.postalCode || undefined,
       shippingMethod: values.shippingMethod,
       paymentMethod: "epayco",
+      couponCode: appliedCoupon?.code,
       items: items.map((item) => ({
         productId: item.productId,
         variantId: item.id,
@@ -289,41 +336,19 @@ export default function CheckoutPage() {
                 <h2 className="font-barlow font-bold text-sm uppercase tracking-widest text-[#1C1C1C] mb-4">
                   Información de contacto
                 </h2>
-                <div className="flex items-center gap-4 mb-5 text-sm font-montserrat text-[#4A4A4A]">
-                  <span>¿Ya tienes cuenta?</span>
-                  <button type="button" onClick={() => setHasAccount(true)}
-                    className={`underline hover:text-[#E31C23] transition-colors ${hasAccount ? "text-[#E31C23]" : ""}`}>
-                    Sí, iniciar sesión
-                  </button>
-                  <span>·</span>
-                  <button type="button" onClick={() => setHasAccount(false)}
-                    className={`underline hover:text-[#1C1C1C] transition-colors ${!hasAccount ? "text-[#1C1C1C] font-medium" : ""}`}>
-                    No, continuar como invitado
-                  </button>
+                <div className="space-y-4">
+                  <div data-field="email">
+                    <Field label="Email" required error={errors.email}>
+                      <input type="email" value={values.email} onChange={(e) => set("email", e.target.value)}
+                        placeholder="hola@ejemplo.com" className={errors.email ? inputErrorClass : inputClass} autoComplete="email" />
+                    </Field>
+                  </div>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={values.newsletter} onChange={(e) => set("newsletter", e.target.checked)}
+                      className="w-4 h-4 rounded border-[#E0E0E0] accent-[#E31C23]" />
+                    <span className="text-sm font-montserrat text-[#4A4A4A]">Recibir novedades y ofertas</span>
+                  </label>
                 </div>
-
-                {hasAccount ? (
-                  <div className="bg-[#F5F5F5] rounded-md p-4 text-sm font-montserrat text-[#4A4A4A] text-center">
-                    <Link href="/login" className="text-[#E31C23] underline font-medium">
-                      Ir a iniciar sesión
-                    </Link>{" "}
-                    para continuar con tu cuenta.
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div data-field="email">
-                      <Field label="Email" required error={errors.email}>
-                        <input type="email" value={values.email} onChange={(e) => set("email", e.target.value)}
-                          placeholder="hola@ejemplo.com" className={errors.email ? inputErrorClass : inputClass} autoComplete="email" />
-                      </Field>
-                    </div>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" checked={values.newsletter} onChange={(e) => set("newsletter", e.target.checked)}
-                        className="w-4 h-4 rounded border-[#E0E0E0] accent-[#E31C23]" />
-                      <span className="text-sm font-montserrat text-[#4A4A4A]">Recibir novedades y ofertas</span>
-                    </label>
-                  </div>
-                )}
               </motion.section>
 
               {/* Section 2: Dirección de envío */}
@@ -504,7 +529,11 @@ export default function CheckoutPage() {
 
             {/* ── RIGHT: Order Summary ── */}
             <div className="w-full md:w-[45%] md:sticky md:top-28">
-              <OrderSummary shippingCost={shippingCost} />
+              <OrderSummary
+                shippingCost={shippingCost}
+                appliedCoupon={appliedCoupon}
+                onCouponChange={setAppliedCoupon}
+              />
             </div>
           </div>
         </form>

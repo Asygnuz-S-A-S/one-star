@@ -40,13 +40,9 @@ export default function NewArrivalsLayout({ title, subtitle, total, products, th
   const [hero, ...rest] = products
 
   const isDark = theme === "dark"
-  const sectionBg = isDark ? "bg-[#1C1C1C]" : "bg-[#F7F7F7]"
-  const titleColor = isDark ? "text-white" : "text-[#1C1C1C]"
-  const subtitleColor = isDark ? "text-gray-400" : "text-[#4A4A4A]"
-  const textColor = isDark ? "text-gray-300" : "text-[#1C1C1C]"
 
   return (
-    <section className={`px-4 md:px-8 lg:px-16 py-12 md:py-16 ${sectionBg}`}>
+    <section className={`px-4 md:px-8 lg:px-16 py-12 md:py-16 bg-surface-2 text-foreground ${isDark ? "dark" : ""}`}>
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end md:justify-between mb-8 md:mb-12 gap-4">
         <motion.div
@@ -55,12 +51,12 @@ export default function NewArrivalsLayout({ title, subtitle, total, products, th
           viewport={{ once: true, margin: "-100px" }}
           transition={{ duration: 0.5 }}
         >
-          <h2 className={`font-[var(--font-barlow)] font-black uppercase text-3xl md:text-4xl tracking-tight leading-none ${titleColor}`}>
+          <h2 className="font-[var(--font-barlow)] font-black uppercase text-3xl md:text-4xl tracking-tight leading-none text-foreground">
             {title}
           </h2>
           <div className="w-12 h-1 bg-[#E31C23] mt-3" />
         </motion.div>
-        <span className="inline-flex items-center gap-2 bg-[#1C1C1C] text-white font-[var(--font-barlow)] font-bold uppercase text-xs tracking-wider px-4 py-2 self-start md:self-auto">
+        <span className="inline-flex items-center gap-2 bg-foreground text-background font-[var(--font-barlow)] font-bold uppercase text-xs tracking-wider px-4 py-2 self-start md:self-auto">
           <span className="w-2 h-2 bg-[#E31C23] rounded-full inline-block" />
           {total} {total === 1 ? subtitle.replace(/s$/i, "") : subtitle}
         </span>
@@ -141,9 +137,9 @@ export default function NewArrivalsLayout({ title, subtitle, total, products, th
             </div>
 
             <div>
-              <p className={`font-[var(--font-montserrat)] text-xs uppercase tracking-wider mb-1 ${subtitleColor}`}>{hero.brand}</p>
-              <h3 className={`font-[var(--font-barlow)] font-semibold text-base leading-tight mb-2 ${textColor}`}>{hero.name}</h3>
-              <span className={`font-[var(--font-montserrat)] font-bold text-sm ${textColor}`}>{formatPrice(hero.price)}</span>
+              <p className="font-[var(--font-montserrat)] text-xs uppercase tracking-wider mb-1 text-[var(--text-secondary)]">{hero.brand}</p>
+              <h3 className="font-[var(--font-barlow)] font-semibold text-base leading-tight mb-2 text-foreground">{hero.name}</h3>
+              <span className="font-[var(--font-montserrat)] font-bold text-sm text-foreground">{formatPrice(hero.price)}</span>
             </div>
           </Link>
         </motion.div>
@@ -168,11 +164,7 @@ export default function NewArrivalsLayout({ title, subtitle, total, products, th
       <div className="text-center mt-10">
         <Link
           href="/productos?categoria=lanzamientos"
-          className={`inline-block border-2 font-[var(--font-barlow)] font-bold uppercase tracking-widest text-sm px-10 py-4 transition-colors duration-200 ${
-            isDark 
-              ? "border-white text-white hover:bg-white hover:text-[#1C1C1C]" 
-              : "border-[#1C1C1C] text-[#1C1C1C] hover:bg-[#1C1C1C] hover:text-white"
-          }`}
+          className="inline-block border-2 border-foreground text-foreground font-[var(--font-barlow)] font-bold uppercase tracking-widest text-sm px-10 py-4 transition-colors duration-200 hover:bg-foreground hover:text-background"
         >
           Ver Todos los Lanzamientos
         </Link>

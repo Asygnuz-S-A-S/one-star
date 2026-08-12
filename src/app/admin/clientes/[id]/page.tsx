@@ -2,6 +2,7 @@ import Link from "next/link"
 import { getCustomerProfile } from "@/server/services/user.service"
 import { notFound } from "next/navigation"
 import { formatDate, formatDateLong, formatCurrency } from "@/lib/dates"
+import { PLACEHOLDER_IMAGE_URL } from "@/lib/product-image"
 
 interface Props {
   params: Promise<{ id: string }>
@@ -180,18 +181,12 @@ export default async function ClienteProfilePage({ params }: Props) {
                 return (
                   <div key={item.id} className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 shrink-0">
-                      {img ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={img.url}
-                          alt={img.alt}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">
-                          Sin foto
-                        </div>
-                      )}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={img?.url ?? PLACEHOLDER_IMAGE_URL}
+                        alt={img?.alt ?? `${item.product.name} — sin foto`}
+                        className={`w-full h-full ${img ? "object-cover" : "object-contain"}`}
+                      />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-[#1C1C1C] text-sm truncate">

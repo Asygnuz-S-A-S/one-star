@@ -54,20 +54,15 @@ export default function ProductCarouselClient({ title, products, theme = "light"
   }
 
   const isDark = theme === "dark"
-  const sectionBg = isDark ? "bg-[#1C1C1C]" : "bg-white"
-  const titleColor = isDark ? "text-[#1C1C1C] bg-white" : "text-[#1C1C1C] bg-[#F0F0F0]"
-  const titleContainerBg = isDark ? "bg-white" : "bg-[#F0F0F0]"
-  const btnBorder = isDark ? "border-white text-white hover:bg-white hover:text-[#1C1C1C]" : "border-[#1C1C1C] text-[#1C1C1C] hover:bg-[#1C1C1C] hover:text-white"
-  const arrowBtn = isDark ? "text-white disabled:opacity-30" : "text-[#1C1C1C] disabled:opacity-30"
 
   if (products.length === 0) return null
 
   return (
-    <section className={`py-12 md:py-16 ${sectionBg}`}>
+    <section className={`py-12 md:py-16 bg-background text-foreground ${isDark ? "dark" : ""}`}>
       <div className="px-4 md:px-8 lg:px-16 mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
         {/* Title with highlighted background */}
         <div className="inline-block">
-          <h2 className={`font-[var(--font-barlow)] font-black uppercase text-2xl md:text-3xl tracking-tight leading-none px-2 py-1 ${titleColor}`}>
+          <h2 className="font-[var(--font-barlow)] font-black uppercase text-2xl md:text-3xl tracking-tight leading-none px-2 py-1 bg-surface-3 text-foreground">
             {title}
           </h2>
         </div>
@@ -76,7 +71,7 @@ export default function ProductCarouselClient({ title, products, theme = "light"
         <div className="flex items-center gap-4">
           <Link
             href="/productos"
-            className={`font-[var(--font-montserrat)] text-xs font-bold uppercase tracking-widest px-6 py-2 rounded-full border transition-colors ${btnBorder}`}
+            className="font-[var(--font-montserrat)] text-xs font-bold uppercase tracking-widest px-6 py-2 rounded-full border border-foreground text-foreground transition-colors hover:bg-foreground hover:text-background"
           >
             Ver Todo
           </Link>
@@ -85,7 +80,7 @@ export default function ProductCarouselClient({ title, products, theme = "light"
             <button
               onClick={() => scroll("left")}
               disabled={!canScrollLeft}
-              className={`p-1 transition-opacity ${arrowBtn}`}
+              className="p-1 text-foreground transition-opacity disabled:opacity-30"
               aria-label="Anterior"
             >
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -95,7 +90,7 @@ export default function ProductCarouselClient({ title, products, theme = "light"
             <button
               onClick={() => scroll("right")}
               disabled={!canScrollRight}
-              className={`p-1 transition-opacity ${arrowBtn}`}
+              className="p-1 text-foreground transition-opacity disabled:opacity-30"
               aria-label="Siguiente"
             >
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">

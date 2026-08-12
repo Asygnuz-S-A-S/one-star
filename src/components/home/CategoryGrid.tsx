@@ -39,7 +39,7 @@ export default function CategoryGrid({
   config = {},
 }: {
   blocks: HomeGridBlock[]
-  config?: Record<string, any>
+  config?: Record<string, unknown>
 }) {
   const title = config.title as string | undefined
   const subtitle = config.subtitle as string | undefined
@@ -47,8 +47,6 @@ export default function CategoryGrid({
   const cardHeight = (config.cardHeight as string) || "md"
   const theme = (config.theme as "light" | "dark") || "light"
   const isDark = theme === "dark"
-  const titleColor = isDark ? "text-white" : "text-[#1C1C1C]"
-  const subtitleColor = isDark ? "text-gray-400" : "text-[#4A4A4A]"
   const sectionBg = isDark ? "bg-[#1C1C1C]" : (config.bgSection as string || "transparent")
   
   const titleAlign = (config.titleAlign as string) || "center"
@@ -61,7 +59,7 @@ export default function CategoryGrid({
 
   return (
     <section
-      className="py-8 md:py-12"
+      className={`py-8 md:py-12 text-foreground dark:bg-background! ${isDark ? "dark" : ""}`}
       style={{ backgroundColor: sectionBg !== "transparent" ? sectionBg : undefined }}
     >
       {(title || subtitle) && (
@@ -73,7 +71,7 @@ export default function CategoryGrid({
           className={`mb-6 md:mb-8 px-4 md:px-8 lg:px-16 ${titleAlignCls}`}
         >
           {title && (
-            <h2 className={`font-[var(--font-barlow)] font-black uppercase text-2xl md:text-3xl tracking-tight ${titleColor}`}>
+            <h2 className="font-[var(--font-barlow)] font-black uppercase text-2xl md:text-3xl tracking-tight text-foreground">
               {title}
             </h2>
           )}
@@ -81,7 +79,7 @@ export default function CategoryGrid({
             <div className={`w-12 h-1 bg-[#E31C23] mt-3 ${accentAlign}`} />
           )}
           {subtitle && (
-            <p className={`text-sm mt-2 ${subtitleColor}`}>{subtitle}</p>
+            <p className="text-sm mt-2 text-[var(--text-secondary)]">{subtitle}</p>
           )}
         </motion.div>
       )}
@@ -137,7 +135,7 @@ export default function CategoryGrid({
           visible: { opacity: 1, transition: { staggerChildren: 0.08 } }
         }}
       >
-        {blocks.map((cat, i) => (
+        {blocks.map((cat) => (
           <motion.div
             key={cat.id}
             variants={{

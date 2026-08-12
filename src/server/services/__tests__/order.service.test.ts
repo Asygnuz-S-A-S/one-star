@@ -25,6 +25,12 @@ vi.mock("@/server/repositories/variant.repository", () => ({
   findVariantsForPricing: vi.fn(),
 }))
 
+vi.mock("@/server/services/coupon.service", () => ({
+  validateCouponForOrder: vi.fn(),
+  registerCouponUsage: vi.fn(),
+  releaseCouponUsage: vi.fn(),
+}))
+
 import {
   placeOrder,
   getOrderById,
@@ -47,6 +53,11 @@ import {
   markOrderPaidWithStock,
 } from "@/server/repositories/order.repository"
 import { findVariantsForPricing } from "@/server/repositories/variant.repository"
+import {
+  validateCouponForOrder,
+  registerCouponUsage,
+  releaseCouponUsage,
+} from "@/server/services/coupon.service"
 
 const mockCreate = vi.mocked(createOrder)
 const mockFindById = vi.mocked(findOrderById)
@@ -58,6 +69,9 @@ const mockUpdateTracking = vi.mocked(updateOrderStatusAndTracking)
 const mockGetStock = vi.mocked(getVariantsStock)
 const mockMarkPaid = vi.mocked(markOrderPaidWithStock)
 const mockPricing = vi.mocked(findVariantsForPricing)
+const mockValidateCoupon = vi.mocked(validateCouponForOrder)
+const mockRegisterUsage = vi.mocked(registerCouponUsage)
+const mockReleaseUsage = vi.mocked(releaseCouponUsage)
 
 const makeDecimal = (n: number) => ({ toNumber: () => n })
 
@@ -152,6 +166,90 @@ describe("placeOrder", () => {
     mockCreate.mockResolvedValue(rawOrder as never)
     await placeOrder("user-1", orderInput)
     expect(mockCreate).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe("placeOrder — cupones", () => {
+  const validCoupon = {
+    valid: true as const,
+    id: "cup-1",
+    code: "PROMO20",
+    discountType: "FIXED_AMOUNT" as const,
+    discountValue: 20000,
+    discountAmount: 20000,
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockPricing.mockResolvedValue([pricedVariant] as never)
+    mockGetStock.mockResolvedValue([{ id: "var-1", stock: 5, sku: "NK-001" }])
+    mockCreate.mockResolvedValue(rawOrder as never)
+  })
+
+  it("aplica el descuento del cupón al total (revalidado en servidor)", async () => {
+    mockValidateCoupon.mockResolvedValue(validCoupon)
+    mockRegisterUsage.mockResolvedValue(true)
+    // 2 × 135.000 = 270.000 → envío gratis; 270.000 − 20.000 = 250.000
+    await placeOrder("user-1", { ...orderInput, couponCode: "PROMO20" })
+    expect(mockValidateCoupon).toHaveBeenCalledWith("PROMO20", 270000)
+    expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ total: 250000 }))
+  })
+
+  it("registra el uso del cupón antes de crear el pedido", async () => {
+    mockValidateCoupon.mockResolvedValue(validCoupon)
+    mockRegisterUsage.mockResolvedValue(true)
+    await placeOrder("user-1", { ...orderInput, couponCode: "PROMO20" })
+    expect(mockRegisterUsage).toHaveBeenCalledWith("cup-1")
+    expect(mockRegisterUsage.mock.invocationCallOrder[0]).toBeLessThan(
+      mockCreate.mock.invocationCallOrder[0]
+    )
+  })
+
+  it("rechaza el pedido cuando el cupón ya no es válido", async () => {
+    mockValidateCoupon.mockResolvedValue({ valid: false, reason: "Cupón no válido" })
+    await expect(
+      placeOrder("user-1", { ...orderInput, couponCode: "GHOST" })
+    ).rejects.toThrow(/cupón/i)
+    expect(mockCreate).not.toHaveBeenCalled()
+  })
+
+  it("rechaza el pedido si el tope de usos se agotó justo antes de crear", async () => {
+    mockValidateCoupon.mockResolvedValue(validCoupon)
+    mockRegisterUsage.mockResolvedValue(false)
+    await expect(
+      placeOrder("user-1", { ...orderInput, couponCode: "PROMO20" })
+    ).rejects.toThrow(/límite de usos/)
+    expect(mockCreate).not.toHaveBeenCalled()
+  })
+
+  it("libera el uso reservado si la creación del pedido falla", async () => {
+    mockValidateCoupon.mockResolvedValue(validCoupon)
+    mockRegisterUsage.mockResolvedValue(true)
+    mockCreate.mockRejectedValue(new Error("DB caída"))
+    await expect(
+      placeOrder("user-1", { ...orderInput, couponCode: "PROMO20" })
+    ).rejects.toThrow("DB caída")
+    expect(mockReleaseUsage).toHaveBeenCalledWith("cup-1")
+  })
+
+  it("registra código y descuento en el shippingAddress del pedido", async () => {
+    mockValidateCoupon.mockResolvedValue(validCoupon)
+    mockRegisterUsage.mockResolvedValue(true)
+    await placeOrder("user-1", { ...orderInput, couponCode: "PROMO20" })
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        shippingAddress: expect.objectContaining({
+          couponCode: "PROMO20",
+          couponDiscount: 20000,
+        }),
+      })
+    )
+  })
+
+  it("no consulta cupones cuando el pedido no trae código", async () => {
+    await placeOrder("user-1", orderInput)
+    expect(mockValidateCoupon).not.toHaveBeenCalled()
+    expect(mockRegisterUsage).not.toHaveBeenCalled()
   })
 })
 

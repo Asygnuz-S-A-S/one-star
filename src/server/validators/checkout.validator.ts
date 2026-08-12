@@ -29,6 +29,7 @@ export const checkoutSchema = z.object({
   postalCode: z.string().trim().max(20).optional(),
   shippingMethod: z.enum(["standard", "express"]),
   paymentMethod: z.enum(["epayco", "mercadopago", "addi"]),
+  couponCode: z.string().trim().max(40).optional(),
   items: z.array(checkoutItemSchema).min(1, "El carrito está vacío").max(100),
 })
 

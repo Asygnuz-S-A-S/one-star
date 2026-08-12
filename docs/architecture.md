@@ -116,8 +116,28 @@ src/
 ### Catálogo
 - **Category** → slug único, relación 1:N con Product
 - **Product** → precio base, precio de oferta, género (enum), marca, slug, SEO meta, descripción extendida, videoUrl; relaciones con ProductImage, Variant, CartItem, OrderItem y cross-sells (M:M auto-relación)
-- **ProductImage** → url, alt, position, cascade delete
+- **ProductImage** → url, alt, position, `color` (nullable), cascade delete
 - **Variant** → SKU único, talla (US/CM/EUR), color, stock
+
+#### Imágenes por color de variante
+
+`ProductImage.color` vincula cada foto con un color de `Variant.color` (string libre, el mismo
+que sincroniza el ERP). `null` significa "imagen general del producto".
+
+En la ficha (`ProductDetail`), al seleccionar un color la galería muestra **las fotos de ese
+color más las generales**. Si el color no tiene fotos propias, se muestra la galería completa
+en lugar de dejarla vacía. La lógica vive en `src/lib/product-image.ts` (`filterImagesByColor`),
+que compara colores ignorando mayúsculas y acentos.
+
+`ProductDetail` es el componente cliente que une `ProductGallery` y `ProductInfo` porque ambos
+comparten el color seleccionado; la página `productos/[slug]` sigue siendo Server Component.
+
+#### Imagen predeterminada
+
+`public/placeholder-product.svg` se usa cuando un producto no tiene fotos cargadas.
+Se referencia siempre por la constante `PLACEHOLDER_IMAGE_URL` de `src/lib/product-image.ts`
+(nunca hardcodear la ruta). Aplica en ficha, galería, tarjetas, carrito, checkout, historial de
+pedidos y panel admin.
 
 ### Usuarios (dual-model)
 - **User** (negocio): email, passwordHash, role, datos de perfil completos (cédula, teléfono, fecha nacimiento, marca preferida, género)
@@ -176,9 +196,18 @@ Zod valida en la capa de `validators/` antes de llamar servicios. Los errores se
 
 ## Variables de Entorno Requeridas
 
+> Inventario completo y comentado: **`.env.example`** (versionado).
+> Procedimiento de despliegue: **`docs/deploy-vercel.md`**.
+
 ```bash
 # Base de datos
-DATABASE_URL=postgresql://...
+DATABASE_URL=postgresql://...     # Conexión de runtime
+DIRECT_URL=postgresql://...       # Conexión directa para migraciones de Prisma
+# En local ambas apuntan al mismo Postgres. En serverless NO son intercambiables:
+# DATABASE_URL debe ir al pooler (modo transaction) con ?pgbouncer=true, porque
+# cada invocación abre su propia conexión; DIRECT_URL debe ser la conexión
+# directa, porque `prisma migrate` necesita una sesión persistente para los
+# advisory locks y el DDL transaccional.
 
 # Autenticación (better-auth)
 AUTH_SECRET=...                   # Secret para firmar sesiones
@@ -190,10 +219,17 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 ERP_PROVIDER="null"               # "null" | "alegra" | "siigo" | "loggro" | (futuro)
 ALEGRA_EMAIL=""                   # Email de la cuenta Alegra
 ALEGRA_API_KEY=""                 # API Key de Alegra
-LOGGRO_API_TOKEN=""               # Token de conexión para Loggro Pymes
-LOGGRO_BASE_URL=""                # Base URL para Loggro Pymes
+LOGGRO_API_TOKEN=""               # Token Bearer de conexión para Loggro Pymes
+LOGGRO_BASE_URL=""                # Base URL para Loggro Pymes (default: https://api.loggro.com)
+LOGGRO_ESTABLECIMIENTO_UUID=""    # (opcional) UUID del establecimiento para consultar existencias
+LOGGRO_BODEGA_UUID=""             # (opcional) UUID de la bodega; si se omiten, se auto-detectan
+LOGGRO_STOCK_SCOPE="all"          # "all" suma el stock de todas las tiendas | "primary" solo la sede principal
+CRON_SECRET=""                    # (opcional) Protege /api/cron/sync-erp para disparadores externos
+
+# Correos transaccionales (Resend — ver src/server/email/)
+RESEND_API_KEY=""                 # API key de Resend (https://resend.com/api-keys)
+EMAIL_FROM="One Star <onboarding@resend.dev>"  # Remitente. En producción usa un dominio verificado en Resend
 # Para Siigo u otro ERP, documentar sus variables aquí al agregar el adaptador
-```
 
 # Sentry (observabilidad — opcionales en desarrollo, requeridas en producción)
 SENTRY_DSN=https://...@o0.ingest.sentry.io/...   # DSN del proyecto Sentry (server)
@@ -212,12 +248,41 @@ NEXT_PUBLIC_EPAYCO_TEST=true        # "true" en staging, "false" en producción
 CLOUDINARY_CLOUD_NAME=...        # Nombre del cloud (Dashboard > Settings)
 CLOUDINARY_API_KEY=...           # API Key
 CLOUDINARY_API_SECRET=...        # API Secret (solo servidor)
+```
 
 Variables pendientes de definir:
 - `MERCADOPAGO_ACCESS_TOKEN`
 - `RESEND_API_KEY` (o equivalente de email)
 - `META_PIXEL_ID` / `META_ACCESS_TOKEN`
 - `GA4_MEASUREMENT_ID`
+
+## Despliegue
+
+El proyecto soporta dos topologías. El código es el mismo; la diferencia se
+detecta en tiempo de ejecución con `process.env.VERCEL`.
+
+| | Con proceso persistente | Serverless |
+|---|---|---|
+| Dónde | local, Docker, VPS, Lightsail | Vercel |
+| Postgres | contenedor `db` | Supabase (pooler 6543 en runtime + pooler 5432 para migraciones) |
+| Sync ERP | `node-cron` cada 30 min en `src/instrumentation-node.ts` | disparador externo → `GET /api/cron/sync-erp` |
+
+**Programación del cron.** `node-cron` requiere un proceso vivo entre
+ejecuciones, algo que no existe en serverless: allí cada request crea y destruye
+su propia instancia, así que el `schedule` nunca dispara. Por eso
+`instrumentation-node.ts` se salta la inicialización cuando `VERCEL === "1"`, y
+la programación pasa a `vercel.json`, que llama al endpoint con
+`Authorization: Bearer $CRON_SECRET`.
+
+Consecuencia a tener presente: **el plan Hobby de Vercel solo permite una
+ejecución diaria**, contra los 30 minutos de `node-cron`. Si la frecuencia de
+sincronización con el ERP se vuelve un requisito del negocio, la topología
+serverless deja de servir.
+
+`CRON_SECRET` es *fail-closed*: en producción, sin ella el endpoint responde
+`503` en vez de ejecutar la sincronización sin autenticar.
+
+Procedimiento paso a paso: **`docs/deploy-vercel.md`**.
 
 ## Capa ERP — Referencia Rápida
 

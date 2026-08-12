@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { prepareCustomerSignIn } from "@/lib/auth-actions"
 import { authClient } from "@/lib/auth-client"
+import { getSafeCallbackUrl } from "@/lib/auth-redirect"
 
 function StarIcon() {
   return (
@@ -54,7 +55,8 @@ export default function LoginPage() {
 function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const callbackUrl = searchParams.get("callbackUrl") ?? "/cuenta"
+  const callbackUrl = getSafeCallbackUrl(searchParams.get("callbackUrl"))
+  const registerUrl = `/registro?callbackUrl=${encodeURIComponent(callbackUrl)}`
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -216,7 +218,7 @@ function LoginForm() {
         {/* Registro */}
         <p className="mt-8 text-center font-montserrat text-sm text-[#4A4A4A]">
           ¿No tienes cuenta?{" "}
-          <Link href="/registro" className="text-[#E31C23] font-semibold hover:underline">
+          <Link href={registerUrl} className="text-[#E31C23] font-semibold hover:underline">
             Regístrate
           </Link>
         </p>

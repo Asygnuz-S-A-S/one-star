@@ -52,6 +52,16 @@ services:
       AUTH_SECRET: ${AUTH_SECRET}
       BETTER_AUTH_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      # ── Integración ERP (Loggro) — interpolado desde el .env del host ──
+      ERP_PROVIDER: ${ERP_PROVIDER:-null}
+      LOGGRO_API_TOKEN: ${LOGGRO_API_TOKEN:-}
+      LOGGRO_BASE_URL: ${LOGGRO_BASE_URL:-https://api.loggro.com}
+      LOGGRO_ESTABLECIMIENTO_UUID: ${LOGGRO_ESTABLECIMIENTO_UUID:-}
+      LOGGRO_BODEGA_UUID: ${LOGGRO_BODEGA_UUID:-}
+      CRON_SECRET: ${CRON_SECRET:-}
+      # ── Correos transaccionales (Resend) ──
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-One Star <onboarding@resend.dev>}
     depends_on:
       migrate:
         condition: service_completed_successfully

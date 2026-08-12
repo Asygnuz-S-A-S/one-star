@@ -4,6 +4,7 @@ import FilterSidebar from "@/components/shop/FilterSidebar"
 import ShopLayout from "@/components/shop/ShopLayout"
 import { getUniqueBrands } from "@/server/services/product.service"
 import { getUniqueSizes, getUniqueColors } from "@/server/services/variant.service"
+import { getColorPalette } from "@/server/services/product-color.service"
 import { getCategoryBySlug } from "@/server/services/category.service"
 
 interface CategoryPageProps {
@@ -48,10 +49,11 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
     notFound()
   }
 
-  const [brands, sizes, colors] = await Promise.all([
+  const [brands, sizes, colors, colorPalette] = await Promise.all([
     getUniqueBrands(),
     getUniqueSizes(),
     getUniqueColors(),
+    getColorPalette(),
   ])
 
   const currentParams = new URLSearchParams(
@@ -65,6 +67,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
           brands={brands}
           sizes={sizes}
           colors={colors}
+          colorPalette={colorPalette}
           currentParams={currentParams.toString()}
         />
       }
@@ -74,6 +77,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
         categorySlug={category.slug}
         title={category.name}
         subtitle={`Colección de ${category.name.toLowerCase()}`}
+        colorPalette={colorPalette}
       />
     </ShopLayout>
   )

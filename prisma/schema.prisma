@@ -5,7 +5,14 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  // Conexión de runtime. En serverless (Vercel) debe apuntar al pooler de
+  // Supabase (puerto 6543, modo transaction) con ?pgbouncer=true, porque cada
+  // invocación abre su propia conexión y agotaría los slots de Postgres.
+  url       = env("DATABASE_URL")
+  // Conexión directa (puerto 5432). Prisma la usa para migraciones y para
+  // introspección, operaciones que no funcionan a través de un pooler en modo
+  // transaction. En local basta con apuntarla al mismo valor que DATABASE_URL.
+  directUrl = env("DIRECT_URL")
 }
 
 // ─────────────────────────────────────────────
@@ -95,8 +102,13 @@ model ProductImage {
   url       String
   alt       String
   position  Int     @default(0)
+  // Color de variante al que pertenece la foto (coincide con Variant.color).
+  // null = imagen general del producto, se muestra con cualquier color seleccionado.
+  color     String?
   productId String
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, color])
 }
 
 // Una Variant = combinación única talla × color con su propio stock y SKU
@@ -468,4 +480,42 @@ model HeaderConfig {
   padding         String   @default("0px")
   borderRadius    String   @default("0px")
   updatedAt       DateTime @updatedAt
+}
+
+// Paleta de colores de producto, administrable desde /admin/colores.
+// `name` es el valor que se guarda en Variant.color y el que se usa como
+// filtro en la tienda; `hex` es el tono con que se dibuja el swatch.
+// Los colores combinados se expresan como "Rojo/Negro" y se derivan de estos.
+model ProductColor {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  hex       String
+  position  Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────
+// INTEGRACIONES (ERP)
+// ─────────────────────────────────────────────
+
+enum ErpSyncTrigger {
+  MANUAL // Disparada por un admin desde el panel
+  AUTO   // Disparada por el cron interno o un cron externo
+}
+
+// Registro de cada ejecución de sincronización de catálogo con el ERP.
+// Alimenta el panel de estado y el historial en /admin/integraciones.
+model ErpSyncLog {
+  id             String         @id @default(cuid())
+  provider       String // "loggro" | "alegra" | "null" | ...
+  trigger        ErpSyncTrigger @default(AUTO)
+  success        Boolean
+  processedCount Int            @default(0)
+  error          String?
+  durationMs     Int?
+  createdAt      DateTime       @default(now())
+
+  @@index([createdAt])
 }

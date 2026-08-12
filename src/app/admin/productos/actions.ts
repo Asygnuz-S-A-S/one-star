@@ -80,6 +80,7 @@ export async function createProduct(formData: FormData): Promise<ActionResult> {
         url: img.url,
         alt: img.alt ?? data.name,
         position: img.position ?? idx,
+        color: img.color ?? null,
       })),
     })
 
@@ -122,6 +123,7 @@ export async function updateProduct(
         url: img.url,
         alt: img.alt ?? data.name,
         position: img.position ?? idx,
+        color: img.color ?? null,
       })),
     })
 

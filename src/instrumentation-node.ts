@@ -9,33 +9,53 @@ Sentry.init({
   enabled: Boolean(process.env.SENTRY_DSN),
 })
 
-// === CRON JOB INTERNO (Solo se ejecuta en el servidor) ===
-import * as cron from "node-cron"
+// ─────────────────────────────────────────────────────────────────────────────
+// CRON JOB INTERNO — solo en despliegues con proceso Node persistente
+//
+// node-cron necesita un proceso vivo entre ejecuciones. Eso existe en local,
+// en Docker y en un VPS, pero NO en plataformas serverless: allí cada request
+// arranca y destruye su propia instancia, así que el schedule nunca dispara.
+//
+// En serverless el disparador es externo (Vercel Cron / EventBridge / crontab)
+// llamando a GET /api/cron/sync-erp con el header Authorization: Bearer
+// $CRON_SECRET. La programación vive en vercel.json.
+//
+// Se detecta el entorno con process.env.VERCEL, que Vercel inyecta con valor
+// "1" en build y en runtime. Así el mismo código sirve para ambas rutas de
+// despliegue sin ejecutar la sincronización dos veces.
+// ─────────────────────────────────────────────────────────────────────────────
+const isServerless = process.env.VERCEL === "1"
 
 // Evita que el cron se inicialice múltiples veces en dev con HMR
 const globalWithCron = global as typeof global & { __cronInitialized?: boolean }
 
-if (!globalWithCron.__cronInitialized) {
+if (!isServerless && !globalWithCron.__cronInitialized) {
+  globalWithCron.__cronInitialized = true
+
   console.log("[Cron] Inicializando tareas programadas internas...")
 
-  // Ejecuta la sincronización cada 30 minutos
-  cron.schedule("*/30 * * * *", async () => {
-    console.log("[Cron] Ejecutando sincronización automática con el ERP...")
-    try {
-      // Como estamos dentro del proceso Node, podemos llamar directamente al servicio
-      // en vez de hacer fetch a la API (lo cual fallaría si el servidor aún está arrancando)
-      const { syncCatalogFromERP } = await import("./server/services/erp-sync.service")
-      const result = await syncCatalogFromERP()
-      
-      if (result.success) {
-        console.log(`[Cron] Sincronización exitosa: ${result.processedCount} ítems procesados.`)
-      } else {
-        console.error(`[Cron] Sincronización falló: ${result.error}`)
-      }
-    } catch (err) {
-      console.error("[Cron] Error no controlado en la sincronización:", err)
-    }
-  })
+  void (async () => {
+    // Import dinámico: mantiene node-cron fuera del bundle cuando el despliegue
+    // es serverless y nunca va a usarlo.
+    const cron = await import("node-cron")
 
-  ;globalWithCron.__cronInitialized = true
+    // Ejecuta la sincronización cada 30 minutos
+    cron.schedule("*/30 * * * *", async () => {
+      console.log("[Cron] Ejecutando sincronización automática con el ERP...")
+      try {
+        // Como estamos dentro del proceso Node, podemos llamar directamente al servicio
+        // en vez de hacer fetch a la API (lo cual fallaría si el servidor aún está arrancando)
+        const { syncCatalogFromERP } = await import("./server/services/erp-sync.service")
+        const result = await syncCatalogFromERP()
+
+        if (result.success) {
+          console.log(`[Cron] Sincronización exitosa: ${result.processedCount} ítems procesados.`)
+        } else {
+          console.error(`[Cron] Sincronización falló: ${result.error}`)
+        }
+      } catch (err) {
+        console.error("[Cron] Error no controlado en la sincronización:", err)
+      }
+    })
+  })()
 }
