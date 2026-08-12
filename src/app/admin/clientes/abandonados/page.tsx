@@ -1,3 +1,4 @@
+import Link from "next/link"
 import { getAbandonedCarts } from "@/server/services/abandoned-cart.service"
 import AbandonedCartRow from "./AbandonedCartRow"
 
@@ -9,14 +10,6 @@ interface SearchParams {
 
 interface Props {
   searchParams: Promise<SearchParams>
-}
-
-function formatCOP(value: number) {
-  return new Intl.NumberFormat("es-CO", {
-    style: "currency",
-    currency: "COP",
-    maximumFractionDigits: 0,
-  }).format(value)
 }
 
 function cartValue(cartData: unknown): number {
@@ -43,9 +36,9 @@ export default async function AbandonedCartsPage({ searchParams }: Props) {
   return (
     <div className="p-6 md:p-8">
       <div className="flex items-center gap-4 mb-6">
-        <a href="/admin/clientes" className="text-sm text-[#4A4A4A] hover:text-[#1C1C1C]">
+        <Link href="/admin/clientes" className="text-sm text-[#4A4A4A] hover:text-[#1C1C1C]">
           ← Clientes
-        </a>
+        </Link>
         <h1 className="font-['Barlow',sans-serif] text-2xl font-bold text-[#1C1C1C]">
           Carritos abandonados
           <span className="ml-2 text-sm font-normal text-[#4A4A4A]">({total})</span>
@@ -81,7 +74,6 @@ export default async function AbandonedCartsPage({ searchParams }: Props) {
                         recoveredAt: cart.recoveredAt,
                         cartValue: cartValue(cart.cartData),
                       }}
-                      formatCOP={formatCOP}
                     />
                   ))}
                 </tbody>

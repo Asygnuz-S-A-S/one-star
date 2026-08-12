@@ -1,4 +1,5 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from "next"
+import { withSentryConfig } from "@sentry/nextjs"
 
 const nextConfig: NextConfig = {
   output: "standalone",
@@ -8,8 +9,28 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "images.unsplash.com",
       },
+      {
+        protocol: "https",
+        hostname: "res.cloudinary.com",
+      },
+      {
+        protocol: "https",
+        hostname: "nb.scene7.com",
+      },
+      {
+        protocol: "https",
+        hostname: "static.nike.com",
+      },
     ],
   },
-};
+}
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  silent: true,
+  sourcemaps: {
+    // No exponer source maps al cliente en producción
+    disable: process.env.NODE_ENV !== "production",
+  },
+})

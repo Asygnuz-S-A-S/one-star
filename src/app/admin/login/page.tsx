@@ -1,8 +1,9 @@
 "use client"
 
 import { useState } from "react"
-import { signIn } from "next-auth/react"
 import { useRouter } from "next/navigation"
+import { prepareAdminSignIn } from "@/lib/auth-actions"
+import { authClient } from "@/lib/auth-client"
 
 export default function AdminLoginPage() {
   const router = useRouter()
@@ -18,18 +19,27 @@ export default function AdminLoginPage() {
     setLoading(true)
 
     try {
-      const result = await signIn("credentials", {
+      // Step 1: validate credentials against AdminUser table and sync BA records
+      const prep = await prepareAdminSignIn(email, password)
+      if (!prep.success) {
+        setError(prep.error)
+        return
+      }
+
+      // Step 2: create a better-auth session (BA verifies the synced hash)
+      const { error: signInError } = await authClient.signIn.email({
         email,
         password,
-        redirect: false,
+        callbackURL: "/admin",
       })
 
-      if (result?.error) {
+      if (signInError) {
         setError("Credenciales incorrectas. Verifica tu email y contraseña.")
-      } else {
-        router.push("/admin")
-        router.refresh()
+        return
       }
+
+      router.push("/admin")
+      router.refresh()
     } catch {
       setError("Ocurrió un error inesperado. Intenta de nuevo.")
     } finally {

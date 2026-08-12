@@ -1,10 +1,12 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useState, useTransition, useCallback, useRef } from "react"
-import type { Category } from "@prisma/client"
+import { useState, useTransition, useCallback, useRef, useEffect } from "react"
+import type { Category, StoreLocation } from "@prisma/client"
 import type { ProductWithRelations } from "@/types/admin"
 import { createProduct, updateProduct, deleteProduct, searchProducts } from "@/app/admin/productos/actions"
+import { draggable, dropTargetForElements, monitorForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
+import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine"
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -14,6 +16,7 @@ interface VariantRow {
   size: string
   color: string
   stock: string
+  inventory: Array<{ storeLocationId: string | null; stock: string }>
   sizeUS: string
   sizeCM: string
   sizeEUR: string
@@ -29,13 +32,16 @@ interface ImageRow {
 interface CrossSellItem {
   id: string
   name: string
-  brand: string | null
+  brandId: string | null
+  brandName: string | null
 }
 
 interface Props {
   mode: "create" | "edit"
   product?: ProductWithRelations
-  categories: Category[]
+  categories: { id: string; name: string }[]
+  brands?: { id: string; name: string }[]
+  stores?: StoreLocation[]
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -86,9 +92,135 @@ function Field({ label, required, children, hint }: { label: string; required?: 
 const inputClass =
   "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-[#1C1C1C] bg-white focus:outline-none focus:ring-2 focus:ring-[#E31C23] placeholder:text-gray-400"
 
+// ─── Image Drag & Drop ─────────────────────────────────────────────────────────
+
+interface ImageDragData {
+  type: "image-card"
+  index: number
+  [key: string]: unknown
+}
+
+function isImageDragData(data: Record<string, unknown>): data is ImageDragData {
+  return data.type === "image-card" && typeof data.index === "number"
+}
+
+interface DraggableImageCardProps {
+  image: ImageRow
+  index: number
+  total: number
+  isDragSource: boolean
+  isDragTarget: boolean
+  onRemove: () => void
+  onMove: (dir: -1 | 1) => void
+  onDragEnter: (index: number) => void
+  onDragLeave: () => void
+}
+
+function DraggableImageCard({
+  image, index, total, isDragSource, isDragTarget,
+  onRemove, onMove, onDragEnter, onDragLeave,
+}: DraggableImageCardProps) {
+  const cardRef = useRef<HTMLDivElement>(null)
+  const handleRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const card = cardRef.current
+    const handle = handleRef.current
+    if (!card || !handle) return
+
+    return combine(
+      draggable({
+        element: card,
+        dragHandle: handle,
+        getInitialData: (): Record<string, unknown> => ({ type: "image-card", index }),
+      }),
+      dropTargetForElements({
+        element: card,
+        canDrop: ({ source }) =>
+          isImageDragData(source.data) && source.data.index !== index,
+        getData: (): Record<string, unknown> => ({ type: "image-card", index }),
+        onDragEnter: () => onDragEnter(index),
+        onDragLeave: () => onDragLeave(),
+      }),
+    )
+  }, [index, onDragEnter, onDragLeave])
+
+  return (
+    <div
+      ref={cardRef}
+      className={`relative group select-none transition-opacity duration-150 ${isDragSource ? "opacity-30" : ""}`}
+    >
+      {/* Drop indicator line */}
+      {isDragTarget && (
+        <span className="pointer-events-none absolute -left-1.5 top-0 bottom-0 w-0.5 rounded-full bg-[#E31C23] z-20" />
+      )}
+
+      {/* Drag handle */}
+      <div
+        ref={handleRef}
+        title="Arrastrar para reordenar"
+        className="absolute top-1 left-1 z-10 p-0.5 bg-black/50 rounded cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity"
+      >
+        <svg className="w-3.5 h-3.5 text-white" fill="currentColor" viewBox="0 0 16 16" aria-hidden>
+          <circle cx="5"  cy="4"  r="1.2" />
+          <circle cx="5"  cy="8"  r="1.2" />
+          <circle cx="5"  cy="12" r="1.2" />
+          <circle cx="11" cy="4"  r="1.2" />
+          <circle cx="11" cy="8"  r="1.2" />
+          <circle cx="11" cy="12" r="1.2" />
+        </svg>
+      </div>
+
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={image.url}
+        alt={image.alt}
+        draggable={false}
+        className={`w-20 h-20 object-cover rounded-lg border transition-all ${
+          isDragTarget ? "border-[#E31C23] shadow-md" : "border-gray-200"
+        }`}
+        onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder-shoe.png" }}
+      />
+
+      {index === 0 && (
+        <span className="absolute top-1 right-1 bg-[#E31C23] text-white text-[10px] px-1 rounded leading-tight">
+          Principal
+        </span>
+      )}
+
+      <div className="absolute inset-0 rounded-lg bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
+        <button
+          type="button"
+          onClick={() => onMove(-1)}
+          disabled={index === 0}
+          className="text-white text-sm disabled:opacity-30"
+          title="Mover izquierda"
+        >←</button>
+        <button
+          type="button"
+          onClick={onRemove}
+          className="text-white text-sm bg-[#E31C23] rounded-full w-5 h-5 flex items-center justify-center"
+          title="Eliminar"
+        >×</button>
+        <button
+          type="button"
+          onClick={() => onMove(1)}
+          disabled={index === total - 1}
+          className="text-white text-sm disabled:opacity-30"
+          title="Mover derecha"
+        >→</button>
+      </div>
+
+      <p className="text-[10px] text-[#4A4A4A] mt-0.5 text-center truncate max-w-[80px]">
+        {image.alt || "sin alt"}
+      </p>
+    </div>
+  )
+}
+
 // ─── Main Component ────────────────────────────────────────────────────────────
 
-export default function ProductForm({ mode, product, categories }: Props) {
+export default function ProductForm({ mode, product, categories, brands = [], stores = [] }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -97,12 +229,14 @@ export default function ProductForm({ mode, product, categories }: Props) {
   // Basic fields
   const [name, setName] = useState(product?.name ?? "")
   const [slug, setSlug] = useState(product?.slug ?? "")
-  const [brand, setBrand] = useState(product?.brand ?? "")
+  const [brandId, setBrandId] = useState(product?.brandId ?? "")
   const [gender, setGender] = useState(product?.gender ?? "")
   const [categoryId, setCategoryId] = useState(product?.categoryId ?? "")
   const [description, setDescription] = useState(product?.description ?? "")
   const [extendedDescription, setExtendedDescription] = useState(product?.extendedDescription ?? "")
   const [videoUrl, setVideoUrl] = useState(product?.videoUrl ?? "")
+  const [availableOnline, setAvailableOnline] = useState(product?.availableOnline ?? true)
+  const [availableInStores, setAvailableInStores] = useState(product?.availableInStores ?? true)
 
   // Pricing
   const [basePrice, setBasePrice] = useState(product?.basePrice ? String(Number(product.basePrice)) : "")
@@ -115,16 +249,34 @@ export default function ProductForm({ mode, product, categories }: Props) {
 
   // Variants
   const [variants, setVariants] = useState<VariantRow[]>(
-    product?.variants.map((v) => ({
-      id: v.id,
-      sku: v.sku,
-      size: v.size,
-      color: v.color,
-      stock: String(v.stock),
-      sizeUS: v.sizeUS ?? "",
-      sizeCM: v.sizeCM ?? "",
-      sizeEUR: v.sizeEUR ?? "",
-    })) ?? []
+    product?.variants.map((v) => {
+      // Map existing DB inventory to local string array
+      const mappedInventory: Array<{ storeLocationId: string | null; stock: string }> = stores.map(store => {
+        const found = v.inventory?.find((i: any) => i.storeLocationId === store.id)
+        return {
+          storeLocationId: store.id,
+          stock: found ? String(found.stock) : "0"
+        }
+      })
+      // Web warehouse (storeLocationId null)
+      const webInventory = v.inventory?.find((i: any) => i.storeLocationId === null)
+      mappedInventory.unshift({
+        storeLocationId: null,
+        stock: webInventory ? String(webInventory.stock) : String(v.stock || 0)
+      })
+
+      return {
+        id: v.id,
+        sku: v.sku,
+        size: v.size,
+        color: v.color,
+        stock: String(v.stock),
+        inventory: mappedInventory,
+        sizeUS: v.sizeUS ?? "",
+        sizeCM: v.sizeCM ?? "",
+        sizeEUR: v.sizeEUR ?? "",
+      }
+    }) ?? []
   )
 
   // Images
@@ -139,10 +291,12 @@ export default function ProductForm({ mode, product, categories }: Props) {
   const [imageUrlInput, setImageUrlInput] = useState("")
   const [imageAltInput, setImageAltInput] = useState("")
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [uploadingFiles, setUploadingFiles] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
 
   // Cross-sells
   const [crossSells, setCrossSells] = useState<CrossSellItem[]>(
-    product?.crossSells.map((p) => ({ id: p.id, name: p.name, brand: p.brand })) ?? []
+    product?.crossSells.map((p) => ({ id: p.id, name: p.name, brandId: p.brandId ?? null, brandName: p.brand?.name ?? null })) ?? []
   )
   const [crossSellSearch, setCrossSearch] = useState("")
   const [crossSellResults, setCrossResults] = useState<CrossSellItem[]>([])
@@ -151,6 +305,37 @@ export default function ProductForm({ mode, product, categories }: Props) {
   // Delete dialog
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [isDeleting, startDelete] = useTransition()
+
+  // Drag state
+  const [draggingIdx, setDraggingIdx] = useState<number | null>(null)
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null)
+
+  const handleDragEnterCard = useCallback((idx: number) => setDragOverIdx(idx), [])
+  const handleDragLeaveCard = useCallback(() => setDragOverIdx(null), [])
+
+  useEffect(() => {
+    return monitorForElements({
+      onDragStart: ({ source }) => {
+        if (isImageDragData(source.data)) setDraggingIdx(source.data.index)
+      },
+      onDrop: ({ source, location }) => {
+        setDraggingIdx(null)
+        setDragOverIdx(null)
+        if (!isImageDragData(source.data)) return
+        const [target] = location.current.dropTargets
+        if (!target || !isImageDragData(target.data)) return
+        const from = source.data.index
+        const to = target.data.index
+        if (from === to) return
+        setImages((prev) => {
+          const next = [...prev]
+          const [moved] = next.splice(from, 1)
+          next.splice(to, 0, moved)
+          return next.map((img, i) => ({ ...img, position: i }))
+        })
+      },
+    })
+  }, [])
 
   // ─── Handlers ───────────────────────────────────────────────────────────────
 
@@ -169,6 +354,10 @@ export default function ProductForm({ mode, product, categories }: Props) {
         size: "",
         color: "",
         stock: "0",
+        inventory: [
+          { storeLocationId: null, stock: "0" },
+          ...stores.map(s => ({ storeLocationId: s.id, stock: "0" }))
+        ],
         sizeUS: "",
         sizeCM: "",
         sizeEUR: "",
@@ -180,6 +369,18 @@ export default function ProductForm({ mode, product, categories }: Props) {
     setVariants((prev) => prev.map((v, i) => (i === idx ? { ...v, [field]: value } : v)))
   }
 
+  function updateVariantInventory(idx: number, storeId: string | null, stockValue: string) {
+    setVariants((prev) => prev.map((v, i) => {
+      if (i !== idx) return v
+      return {
+        ...v,
+        inventory: v.inventory.map(inv => 
+          inv.storeLocationId === storeId ? { ...inv, stock: stockValue } : inv
+        )
+      }
+    }))
+  }
+
   function removeVariant(idx: number) {
     setVariants((prev) => prev.filter((_, i) => i !== idx))
   }
@@ -187,6 +388,42 @@ export default function ProductForm({ mode, product, categories }: Props) {
   function hasDuplicateSkus(): boolean {
     const skus = variants.map((v) => v.sku.trim()).filter(Boolean)
     return new Set(skus).size !== skus.length
+  }
+
+  async function handleFileUpload(files: FileList | null) {
+    if (!files || files.length === 0) return
+    setUploadingFiles(true)
+    setUploadError(null)
+
+    const results: ImageRow[] = []
+    for (const file of Array.from(files)) {
+      const fd = new FormData()
+      fd.append("file", file)
+      try {
+        const res = await fetch("/api/upload", { method: "POST", body: fd })
+        const data = await res.json()
+        if (!res.ok) {
+          setUploadError(data.error ?? "Error al subir imagen")
+          break
+        }
+        results.push({
+          url: data.url,
+          alt: file.name.replace(/\.[^.]+$/, ""),
+          position: 0,
+        })
+      } catch {
+        setUploadError("Error de red al subir imagen")
+        break
+      }
+    }
+
+    if (results.length > 0) {
+      setImages((prev) => {
+        const next = [...prev, ...results]
+        return next.map((img, i) => ({ ...img, position: i }))
+      })
+    }
+    setUploadingFiles(false)
   }
 
   function addImageFromUrl() {
@@ -220,7 +457,11 @@ export default function ProductForm({ mode, product, categories }: Props) {
     setIsSearching(true)
     try {
       const results = await searchProducts(q, product?.id)
-      setCrossResults(results.filter((r) => !crossSells.some((cs) => cs.id === r.id)))
+      setCrossResults(
+        results
+          .filter((r) => !crossSells.some((cs) => cs.id === r.id))
+          .map((r) => ({ id: r.id, name: r.name, brandId: r.brandId ?? null, brandName: r.brand?.name ?? null }))
+      )
     } finally {
       setIsSearching(false)
     }
@@ -252,7 +493,7 @@ export default function ProductForm({ mode, product, categories }: Props) {
     const formData = new FormData()
     formData.set("name", name)
     formData.set("slug", slug)
-    formData.set("brand", brand)
+    formData.set("brandId", brandId)
     formData.set("gender", gender)
     formData.set("categoryId", categoryId)
     formData.set("description", description)
@@ -263,7 +504,20 @@ export default function ProductForm({ mode, product, categories }: Props) {
     formData.set("salePrice", salePrice)
     formData.set("metaTitle", metaTitle)
     formData.set("metaDescription", metaDescription)
-    formData.set("variants", JSON.stringify(variants))
+    formData.set("availableOnline", String(availableOnline))
+    formData.set("availableInStores", String(availableInStores))
+    
+    // Ensure all variants map their 'inventory' objects correctly with numbers
+    const cleanVariants = variants.map(v => ({
+      ...v,
+      stock: Number(v.stock) || 0,
+      inventory: v.inventory.map(inv => ({
+        storeLocationId: inv.storeLocationId,
+        stock: Number(inv.stock) || 0
+      }))
+    }))
+    
+    formData.set("variants", JSON.stringify(cleanVariants))
     formData.set("images", JSON.stringify(images))
     formData.set("crossSellIds", JSON.stringify(crossSells.map((cs) => cs.id)))
 
@@ -333,13 +587,16 @@ export default function ProductForm({ mode, product, categories }: Props) {
             />
           </Field>
           <Field label="Marca">
-            <input
-              type="text"
-              value={brand}
-              onChange={(e) => setBrand(e.target.value)}
-              placeholder="Nike, New Balance…"
+            <select
+              value={brandId}
+              onChange={(e) => setBrandId(e.target.value)}
               className={inputClass}
-            />
+            >
+              <option value="">Sin marca</option>
+              {brands.map((b) => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
           </Field>
           <Field label="Género">
             <select value={gender} onChange={(e) => setGender(e.target.value)} className={inputClass}>
@@ -391,22 +648,51 @@ export default function ProductForm({ mode, product, categories }: Props) {
             className={inputClass}
           />
         </Field>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 mt-6">
+          <div className="flex items-center gap-3 mb-4">
+            <button
+              type="button"
+              onClick={() => setAvailableOnline((v) => !v)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${availableOnline ? "bg-[#E31C23]" : "bg-gray-200"}`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm ${availableOnline ? "translate-x-6" : "translate-x-1"}`}
+              />
+            </button>
+            <span className="text-sm font-medium text-[#1C1C1C]">Disponible Online (Web)</span>
+          </div>
+          <div className="flex items-center gap-3 mb-4">
+            <button
+              type="button"
+              onClick={() => setAvailableInStores((v) => !v)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${availableInStores ? "bg-[#E31C23]" : "bg-gray-200"}`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm ${availableInStores ? "translate-x-6" : "translate-x-1"}`}
+              />
+            </button>
+            <span className="text-sm font-medium text-[#1C1C1C]">Disponible en Tiendas Físicas</span>
+          </div>
+        </div>
       </Section>
 
       {/* B. Precios */}
       <Section title="Precios">
+        <div className="mb-4 bg-blue-50 border border-blue-200 text-blue-800 text-sm p-3 rounded-lg flex items-start gap-2">
+          <span className="mt-0.5">ℹ️</span>
+          <p>
+            <strong>Solo lectura:</strong> Los precios (base y oferta) se gestionan exclusivamente desde tu sistema ERP (Loggro) para mantener consistencia contable.
+          </p>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
           <Field label="Precio base" required>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#4A4A4A] text-sm">$</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
               <input
                 type="number"
                 value={basePrice}
-                onChange={(e) => setBasePrice(e.target.value)}
-                min="0"
-                step="0.01"
-                placeholder="0.00"
-                className={`${inputClass} pl-7`}
+                disabled
+                className={`${inputClass} pl-7 bg-gray-50 text-gray-500 cursor-not-allowed`}
               />
             </div>
           </Field>
@@ -414,28 +700,25 @@ export default function ProductForm({ mode, product, categories }: Props) {
         <div className="flex items-center gap-3 mb-4">
           <button
             type="button"
-            onClick={() => setIsOnSale((v) => !v)}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isOnSale ? "bg-[#E31C23]" : "bg-gray-200"}`}
+            disabled
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-not-allowed opacity-70 ${isOnSale ? "bg-[#E31C23]" : "bg-gray-200"}`}
           >
             <span
               className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm ${isOnSale ? "translate-x-6" : "translate-x-1"}`}
             />
           </button>
-          <span className="text-sm font-medium text-[#1C1C1C]">¿Está en SALE?</span>
+          <span className="text-sm font-medium text-gray-500 cursor-not-allowed">¿Está en SALE?</span>
         </div>
         {isOnSale && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
             <Field label="Precio de oferta" required>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#4A4A4A] text-sm">$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
                 <input
                   type="number"
                   value={salePrice}
-                  onChange={(e) => setSalePrice(e.target.value)}
-                  min="0"
-                  step="0.01"
-                  placeholder="0.00"
-                  className={`${inputClass} pl-7`}
+                  disabled
+                  className={`${inputClass} pl-7 bg-gray-50 text-gray-500 cursor-not-allowed`}
                 />
               </div>
             </Field>
@@ -482,11 +765,12 @@ export default function ProductForm({ mode, product, categories }: Props) {
 
       {/* D. Variantes */}
       <Section title="Variantes (Color × Talla)">
-        {hasDuplicateSkus() && (
-          <div className="mb-3 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-            Hay SKUs duplicados. Cada variante debe tener un SKU único.
-          </div>
-        )}
+        <div className="mb-4 bg-blue-50 border border-blue-200 text-blue-800 text-sm p-3 rounded-lg flex items-start gap-2">
+          <span className="mt-0.5">ℹ️</span>
+          <p>
+            <strong>Inventario:</strong> El Stock Web, SKU y detalles principales vienen de Loggro (solo lectura). Puedes asignar y modificar libremente el <strong>Stock en Tiendas Físicas</strong> manualmente aquí.
+          </p>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-xs mb-3">
             <thead>
@@ -494,7 +778,12 @@ export default function ProductForm({ mode, product, categories }: Props) {
                 <th className="text-left py-2 pr-2 text-[#4A4A4A] font-semibold min-w-[120px]">SKU</th>
                 <th className="text-left py-2 pr-2 text-[#4A4A4A] font-semibold min-w-[90px]">Color</th>
                 <th className="text-left py-2 pr-2 text-[#4A4A4A] font-semibold min-w-[70px]">Talla</th>
-                <th className="text-left py-2 pr-2 text-[#4A4A4A] font-semibold min-w-[60px]">Stock</th>
+                <th className="text-left py-2 pr-2 text-[#4A4A4A] font-semibold min-w-[60px]">Stock Web</th>
+                {stores.map(store => (
+                  <th key={store.id} className="text-left py-2 pr-2 text-[#4A4A4A] font-semibold min-w-[70px] truncate max-w-[100px]" title={store.name}>
+                    {store.name}
+                  </th>
+                ))}
                 <th className="text-left py-2 pr-2 text-[#4A4A4A] font-semibold min-w-[60px]">US</th>
                 <th className="text-left py-2 pr-2 text-[#4A4A4A] font-semibold min-w-[60px]">CM</th>
                 <th className="text-left py-2 pr-2 text-[#4A4A4A] font-semibold min-w-[60px]">EUR</th>
@@ -504,43 +793,58 @@ export default function ProductForm({ mode, product, categories }: Props) {
             <tbody className="divide-y divide-gray-50">
               {variants.map((v, idx) => {
                 const isDup = variants.some((other, oi) => oi !== idx && other.sku.trim() === v.sku.trim() && v.sku.trim() !== "")
+                const webInv = v.inventory.find(i => i.storeLocationId === null)
                 return (
                   <tr key={idx}>
                     <td className="py-1 pr-2">
                       <input
                         type="text"
                         value={v.sku}
-                        onChange={(e) => updateVariant(idx, "sku", e.target.value)}
-                        className={`${inputClass} text-xs ${isDup ? "border-amber-400 bg-amber-50" : ""}`}
+                        disabled
+                        className={`${inputClass} text-xs bg-gray-50 text-gray-500 cursor-not-allowed`}
                       />
                     </td>
                     <td className="py-1 pr-2">
-                      <input type="text" value={v.color} onChange={(e) => updateVariant(idx, "color", e.target.value)} className={`${inputClass} text-xs`} placeholder="Negro" />
+                      <input type="text" value={v.color} disabled className={`${inputClass} text-xs bg-gray-50 text-gray-500 cursor-not-allowed`} />
                     </td>
                     <td className="py-1 pr-2">
-                      <input type="text" value={v.size} onChange={(e) => updateVariant(idx, "size", e.target.value)} className={`${inputClass} text-xs`} placeholder="42" />
+                      <input type="text" value={v.size} disabled className={`${inputClass} text-xs bg-gray-50 text-gray-500 cursor-not-allowed`} />
                     </td>
                     <td className="py-1 pr-2">
-                      <input type="number" value={v.stock} onChange={(e) => updateVariant(idx, "stock", e.target.value)} min="0" className={`${inputClass} text-xs`} />
+                      <input 
+                        type="number" 
+                        value={webInv?.stock || "0"} 
+                        disabled
+                        className={`${inputClass} text-xs border-blue-200 bg-blue-50/50 text-gray-500 cursor-not-allowed`} 
+                        title="Stock Bodega Web"
+                      />
+                    </td>
+                    {stores.map(store => {
+                      const storeInv = v.inventory.find(i => i.storeLocationId === store.id)
+                      return (
+                        <td key={store.id} className="py-1 pr-2">
+                          <input 
+                            type="number" 
+                            value={storeInv?.stock || "0"} 
+                            onChange={(e) => updateVariantInventory(idx, store.id, e.target.value)} 
+                            min="0" 
+                            className={`${inputClass} text-xs`} 
+                            title={`Stock ${store.name}`}
+                          />
+                        </td>
+                      )
+                    })}
+                    <td className="py-1 pr-2">
+                      <input type="text" value={v.sizeUS} disabled className={`${inputClass} text-xs bg-gray-50 text-gray-500 cursor-not-allowed`} />
                     </td>
                     <td className="py-1 pr-2">
-                      <input type="text" value={v.sizeUS} onChange={(e) => updateVariant(idx, "sizeUS", e.target.value)} className={`${inputClass} text-xs`} placeholder="9" />
+                      <input type="text" value={v.sizeCM} disabled className={`${inputClass} text-xs bg-gray-50 text-gray-500 cursor-not-allowed`} />
                     </td>
                     <td className="py-1 pr-2">
-                      <input type="text" value={v.sizeCM} onChange={(e) => updateVariant(idx, "sizeCM", e.target.value)} className={`${inputClass} text-xs`} placeholder="27" />
-                    </td>
-                    <td className="py-1 pr-2">
-                      <input type="text" value={v.sizeEUR} onChange={(e) => updateVariant(idx, "sizeEUR", e.target.value)} className={`${inputClass} text-xs`} placeholder="42" />
+                      <input type="text" value={v.sizeEUR} disabled className={`${inputClass} text-xs bg-gray-50 text-gray-500 cursor-not-allowed`} />
                     </td>
                     <td className="py-1">
-                      <button
-                        type="button"
-                        onClick={() => removeVariant(idx)}
-                        className="text-gray-400 hover:text-[#E31C23] transition-colors text-base leading-none"
-                        title="Eliminar variante"
-                      >
-                        ×
-                      </button>
+                      {/* Eliminar Variante Button Removed */}
                     </td>
                   </tr>
                 )
@@ -548,13 +852,6 @@ export default function ProductForm({ mode, product, categories }: Props) {
             </tbody>
           </table>
         </div>
-        <button
-          type="button"
-          onClick={addVariant}
-          className="text-sm font-medium text-[#E31C23] border border-[#E31C23] rounded-lg px-4 py-2 hover:bg-red-50 transition-colors"
-        >
-          + Agregar variante
-        </button>
       </Section>
 
       {/* E. Imágenes */}
@@ -566,10 +863,14 @@ export default function ProductForm({ mode, product, categories }: Props) {
           )}
         </p>
 
-        {/* TODO: Integrar con S3/Cloudinary para upload real de archivos */}
         <div
-          className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center mb-4 cursor-pointer hover:border-[#E31C23] transition-colors"
-          onClick={() => fileInputRef.current?.click()}
+          className={`border-2 border-dashed rounded-xl p-8 text-center mb-4 cursor-pointer transition-colors ${uploadingFiles ? "border-gray-300 bg-gray-50 cursor-wait" : "border-gray-200 hover:border-[#E31C23]"}`}
+          onClick={() => !uploadingFiles && fileInputRef.current?.click()}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault()
+            void handleFileUpload(e.dataTransfer.files)
+          }}
         >
           <input
             ref={fileInputRef}
@@ -577,16 +878,22 @@ export default function ProductForm({ mode, product, categories }: Props) {
             accept="image/*"
             multiple
             className="hidden"
-            onChange={() => {
-              // TODO: Implementar upload a S3/Cloudinary
-              alert("Upload directo no configurado aún. Usa las URLs externas.")
-            }}
+            onChange={(e) => void handleFileUpload(e.target.files)}
           />
-          <p className="text-[#4A4A4A] text-sm">
-            <span className="font-semibold">Arrastra o haz click</span> — mínimo 5 fotos
-          </p>
-          <p className="text-xs text-gray-400 mt-1">Upload a storage cloud (TODO: S3/Cloudinary)</p>
+          {uploadingFiles ? (
+            <p className="text-[#4A4A4A] text-sm animate-pulse">Subiendo imágenes…</p>
+          ) : (
+            <>
+              <p className="text-[#4A4A4A] text-sm">
+                <span className="font-semibold">Arrastra o haz click</span> — mínimo 5 fotos
+              </p>
+              <p className="text-xs text-gray-400 mt-1">JPG, PNG, WEBP · máx 10 MB por imagen</p>
+            </>
+          )}
         </div>
+        {uploadError && (
+          <p className="text-[#E31C23] text-sm mb-4">{uploadError}</p>
+        )}
 
         {/* URL manual */}
         <div className="flex gap-2 mb-4">
@@ -615,49 +922,20 @@ export default function ProductForm({ mode, product, categories }: Props) {
 
         {/* Image list */}
         {images.length > 0 && (
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-4">
             {images.map((img, idx) => (
-              <div key={idx} className="relative group">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={img.url}
-                  alt={img.alt}
-                  className="w-20 h-20 object-cover rounded-lg border border-gray-200"
-                  onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder-shoe.png" }}
-                />
-                {idx === 0 && (
-                  <span className="absolute top-1 left-1 bg-[#E31C23] text-white text-[10px] px-1 rounded">Principal</span>
-                )}
-                <div className="absolute inset-0 rounded-lg bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => moveImage(idx, -1)}
-                    disabled={idx === 0}
-                    className="text-white text-sm disabled:opacity-30"
-                    title="Mover izquierda"
-                  >
-                    ←
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => removeImage(idx)}
-                    className="text-white text-sm bg-[#E31C23] rounded-full w-5 h-5 flex items-center justify-center"
-                    title="Eliminar"
-                  >
-                    ×
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => moveImage(idx, 1)}
-                    disabled={idx === images.length - 1}
-                    className="text-white text-sm disabled:opacity-30"
-                    title="Mover derecha"
-                  >
-                    →
-                  </button>
-                </div>
-                <p className="text-[10px] text-[#4A4A4A] mt-0.5 text-center truncate max-w-[80px]">{img.alt || "sin alt"}</p>
-              </div>
+              <DraggableImageCard
+                key={img.id ?? img.url}
+                image={img}
+                index={idx}
+                total={images.length}
+                isDragSource={draggingIdx === idx}
+                isDragTarget={dragOverIdx === idx && draggingIdx !== idx}
+                onRemove={() => removeImage(idx)}
+                onMove={(dir) => moveImage(idx, dir)}
+                onDragEnter={handleDragEnterCard}
+                onDragLeave={handleDragLeaveCard}
+              />
             ))}
           </div>
         )}
@@ -686,7 +964,7 @@ export default function ProductForm({ mode, product, categories }: Props) {
                   className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 text-[#1C1C1C] border-b border-gray-50 last:border-0"
                 >
                   <span className="font-medium">{item.name}</span>
-                  {item.brand && <span className="text-[#4A4A4A] ml-1">· {item.brand}</span>}
+                  {item.brandName && <span className="text-[#4A4A4A] ml-1">· {item.brandName}</span>}
                 </button>
               ))}
             </div>
@@ -700,7 +978,7 @@ export default function ProductForm({ mode, product, categories }: Props) {
                 className="flex items-center gap-1 bg-gray-100 text-[#1C1C1C] text-sm px-3 py-1 rounded-full"
               >
                 <span>{cs.name}</span>
-                {cs.brand && <span className="text-[#4A4A4A] text-xs">· {cs.brand}</span>}
+                {cs.brandName && <span className="text-[#4A4A4A] text-xs">· {cs.brandName}</span>}
                 <button
                   type="button"
                   onClick={() => removeCrossSell(cs.id)}

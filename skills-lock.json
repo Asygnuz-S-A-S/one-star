@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "skills": {
+    "20-andruia-niche-intelligence": {
+      "source": "sickn33/antigravity-awesome-skills",
+      "sourceType": "github",
+      "skillPath": "skills/20-andruia-niche-intelligence/SKILL.md",
+      "computedHash": "3247538526e409d4ffb1684935dcba4bed777804cc2d8d83fee1c33d3b705abd"
+    },
+    "higgsfield-marketplace-cards": {
+      "source": "higgsfield-ai/skills",
+      "sourceType": "github",
+      "skillPath": "higgsfield-marketplace-cards/SKILL.md",
+      "computedHash": "7a08d374b9f962737fb8c8ff7f8e323fc4d2ab02281b6723c4631146b4892701"
+    },
+    "remotion-best-practices": {
+      "source": "remotion-dev/skills",
+      "sourceType": "github",
+      "skillPath": "skills/remotion/SKILL.md",
+      "computedHash": "5284f294f0bad7c1217d24af5044a5c672d9202b218331db33e833d64ce121a4"
+    },
+    "tailwind-design-system": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "skillPath": "plugins/frontend-mobile-development/skills/tailwind-design-system/SKILL.md",
+      "computedHash": "cd61afd28f594e8b6712b61749209cbb4466e3eec4e4223793bbd97fc85c1b63"
+    },
+    "tailwindcss-advanced-layouts": {
+      "source": "josiahsiegel/claude-plugin-marketplace",
+      "sourceType": "github",
+      "skillPath": "plugins/tailwindcss-master/skills/tailwindcss-advanced-layouts/SKILL.md",
+      "computedHash": "159d8a8f9eb20136492a9971633fd8658be1e34d5f8dc3bcf1afe7bbb4511bdf"
+    },
+    "ux-audit": {
+      "source": "sickn33/antigravity-awesome-skills",
+      "sourceType": "github",
+      "skillPath": "skills/ux-audit/SKILL.md",
+      "computedHash": "123166c36d0cadd9d28d77498d2313a27b4603e250056be538867293838f8560"
+    }
+  }
+}

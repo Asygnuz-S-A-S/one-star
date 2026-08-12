@@ -11,10 +11,10 @@ RUN apk add --no-cache openssl libc6-compat
 
 WORKDIR /app
 
-COPY package.json package-lock.json ./
+COPY package.json pnpm-lock.yaml ./
 
-# npm ci garantiza instalación 100% reproducible del lock file
-RUN npm ci
+# Instalar pnpm y luego las dependencias con frozen lockfile
+RUN npm install -g pnpm && pnpm install --frozen-lockfile
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage 2 — builder
@@ -36,12 +36,22 @@ COPY . .
 # Deshabilitar telemetría de Next.js durante el build
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# Variables necesarias en build:
+# - AUTH_SECRET: better-auth se inicializa al recolectar páginas; sin secret
+#   lanza error en producción.
+# - NEXT_PUBLIC_APP_URL: las variables NEXT_PUBLIC_* se "inyectan" en tiempo de
+#   build dentro del bundle del cliente, así que debe existir aquí.
+ARG AUTH_SECRET
+ARG NEXT_PUBLIC_APP_URL
+ENV AUTH_SECRET=${AUTH_SECRET}
+ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
+
 # Generar el cliente Prisma con el engine para Alpine (linux-musl-openssl-3.0.x).
 # Esta variable hace que el engine sea buscado en node_modules/.prisma en runtime.
 RUN npx prisma generate
 
 # Build de producción. Produce .next/standalone/ gracias a output: 'standalone'.
-RUN npm run build
+RUN pnpm build
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage 3 — runner

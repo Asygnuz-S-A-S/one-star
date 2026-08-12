@@ -6,9 +6,7 @@ interface DashboardStatsProps {
   pendingOrders: number
 }
 
-function formatCOP(value: number): string {
-  return "$" + value.toLocaleString("es-CO")
-}
+import { formatCurrency } from "@/lib/dates"
 
 interface KpiCardProps {
   label: string
@@ -90,7 +88,7 @@ export default function DashboardStats({
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
       <KpiCard
         label="GMV Total"
-        value={formatCOP(gmv)}
+        value={formatCurrency(gmv)}
         trendUp
         trend="+12%"
         icon={
@@ -111,7 +109,7 @@ export default function DashboardStats({
       />
       <KpiCard
         label="Ticket Promedio"
-        value={formatCOP(aov)}
+        value={formatCurrency(aov)}
         trendUp
         trend="+5%"
         icon={

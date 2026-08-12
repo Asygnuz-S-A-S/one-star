@@ -8,8 +8,13 @@ import {
   updateOrderStatus,
   updateOrderStatusAndTracking,
   getOrderStats,
+  getVariantsStock,
+  markOrderPaidWithStock,
 } from "../repositories/order.repository"
+import { findVariantsForPricing } from "../repositories/variant.repository"
 import type { Prisma, OrderStatus } from "@prisma/client"
+import { getERPAdapter } from "../erp"
+import { getShippingCost, type ShippingMethod } from "@/lib/shipping"
 
 export interface OrderItemDTO {
   id: string
@@ -83,32 +88,176 @@ function mapToDTO(raw: {
   }
 }
 
+/**
+ * Ítem del pedido tal como se persiste, con el precio resuelto en servidor.
+ */
+interface PricedOrderItem {
+  productId: string
+  variantId: string
+  sku: string
+  productName: string
+  quantity: number
+  unitPrice: number
+}
+
+/**
+ * Resuelve los precios reales desde la BD para cada ítem del carrito.
+ * SEGURIDAD: los precios que envía el cliente se ignoran por completo;
+ * unitPrice, sku y productName salen de la base de datos.
+ */
+async function priceItemsFromDatabase(
+  items: { productId: string; variantId?: string; quantity: number; productName: string }[]
+): Promise<PricedOrderItem[]> {
+  const variantIds = items.map((i) => i.variantId).filter((id): id is string => Boolean(id))
+  if (variantIds.length !== items.length) {
+    throw new Error("Todos los ítems del pedido deben incluir una variante.")
+  }
+
+  const variants = await findVariantsForPricing(variantIds)
+  const variantMap = new Map(variants.map((v) => [v.id, v]))
+
+  return items.map((item) => {
+    const variant = item.variantId ? variantMap.get(item.variantId) : undefined
+    if (!variant) {
+      throw new Error(`La variante del producto "${item.productName}" ya no está disponible.`)
+    }
+    if (variant.productId !== item.productId) {
+      throw new Error(`Datos de pedido inconsistentes para "${item.productName}".`)
+    }
+    const { product } = variant
+    const unitPrice =
+      product.isOnSale && product.salePrice !== null
+        ? product.salePrice.toNumber()
+        : product.basePrice.toNumber()
+    return {
+      productId: product.id,
+      variantId: variant.id,
+      sku: variant.sku,
+      productName: product.name,
+      quantity: item.quantity,
+      unitPrice,
+    }
+  })
+}
+
 export async function placeOrder(
   userId: string | null,
   data: {
-    total: number
-    items: { productId: string; quantity: number; unitPrice: number }[]
+    /**
+     * items incluye sku y productName solo como referencia del cliente;
+     * el servidor resuelve precio, sku y nombre reales desde la BD.
+     */
+    items: {
+      productId: string
+      variantId?: string
+      sku: string
+      productName: string
+      quantity: number
+    }[]
+    shippingMethod: ShippingMethod
     shippingAddress?: unknown
     customerName?: string
     customerEmail?: string
+    paymentMethod?: string
   }
 ): Promise<OrderDTO> {
+  // 0. SEGURIDAD: recalcula precios desde la BD. El total nunca viene del cliente.
+  const pricedItems = await priceItemsFromDatabase(data.items)
+  const subtotal = pricedItems.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0)
+  const shippingCost = getShippingCost(data.shippingMethod, subtotal)
+  const total = subtotal + shippingCost
+
+  // 0.1 Valida disponibilidad de stock ANTES de crear el pedido.
+  //     El stock se descuenta luego al marcar el pedido como PAID, pero se
+  //     rechaza de entrada si ya no hay unidades suficientes.
+  const variantIds = pricedItems.map((i) => i.variantId)
+
+  if (variantIds.length > 0) {
+    const stocks = await getVariantsStock(variantIds)
+    const stockMap = new Map(stocks.map((s) => [s.id, s.stock]))
+    for (const item of pricedItems) {
+      const available = stockMap.get(item.variantId) ?? 0
+      if (available < item.quantity) {
+        throw new Error(`Stock local insuficiente para "${item.productName}".`)
+      }
+    }
+  }
+
+  // 0.5 Validación de Stock en Tiempo Real (JIT) contra el ERP
+  const erp = getERPAdapter()
+  if (erp.validateStock) {
+    const erpItemsToValidate = pricedItems.map(i => ({ sku: i.sku, qty: i.quantity }))
+    const isValidInERP = await erp.validateStock(erpItemsToValidate)
+
+    if (!isValidInERP) {
+      throw new Error(`Lo sentimos, el stock de uno o más productos se agotó en la tienda principal justo ahora. Por favor actualiza tu carrito.`)
+    }
+  }
+
+  // El shippingAddress registrado refleja el costo calculado en servidor
+  const shippingAddress = {
+    ...(typeof data.shippingAddress === "object" && data.shippingAddress !== null
+      ? (data.shippingAddress as Record<string, unknown>)
+      : {}),
+    shippingMethod: data.shippingMethod,
+    shippingCost,
+  }
+
   const orderInput: Prisma.OrderCreateInput = {
     ...(userId ? { user: { connect: { id: userId } } } : {}),
-    total: data.total,
-    shippingAddress: data.shippingAddress as Prisma.InputJsonValue,
+    total,
+    shippingAddress: shippingAddress as Prisma.InputJsonValue,
     customerName: data.customerName,
     customerEmail: data.customerEmail,
+    paymentMethod: data.paymentMethod,
     items: {
-      create: data.items.map((i) => ({
+      create: pricedItems.map((i) => ({
         product: { connect: { id: i.productId } },
+        variant: { connect: { id: i.variantId } },
         quantity: i.quantity,
         unitPrice: i.unitPrice,
       })),
     },
   }
 
+  // 1. Persiste el pedido en la BD de One Star primero.
+  //    El pedido siempre queda registrado, independientemente del ERP.
   const order = await createOrder(orderInput)
+
+  // 2. Notifica al ERP de forma asincrónica (fire-and-forget con modo degradado).
+  //    Si el ERP falla, el pedido ya está guardado y se puede reintentar luego.
+
+  erp
+    .onOrderConfirmed({
+      orderId: order.id,
+      customer: {
+        name: data.customerName ?? "Cliente",
+        email: data.customerEmail ?? "",
+      },
+      items: pricedItems.map((i) => ({
+        sku: i.sku,
+        productName: i.productName,
+        quantity: i.quantity,
+        unitPrice: i.unitPrice,
+      })),
+      total,
+      paymentMethod: data.paymentMethod ?? "pending",
+      shippingAddress,
+    })
+    .then((result) => {
+      if (!result.success) {
+        // TODO: en producción, encolar este reintento en una cola de trabajos
+        // (e.g., BullMQ, pg-boss) para garantizar eventual consistencia.
+        console.error(
+          `[ERP] Sincronización falló para pedido ${order.id}:`,
+          result.error
+        )
+      }
+    })
+    .catch((err) => {
+      console.error(`[ERP] Error inesperado sincronizando pedido ${order.id}:`, err)
+    })
+
   return mapToDTO(order)
 }
 
@@ -162,6 +311,11 @@ export async function changeOrderStatus(
   id: string,
   status: OrderStatus
 ): Promise<void> {
+  // Al pasar a PAID se descuenta el stock de forma transaccional.
+  if (status === "PAID") {
+    await markOrderPaidWithStock(id)
+    return
+  }
   await updateOrderStatus(id, status)
 }
 
@@ -170,6 +324,10 @@ export async function changeOrderStatusAndTracking(
   status: string,
   trackingNumber?: string
 ): Promise<void> {
+  if (status === "PAID") {
+    await markOrderPaidWithStock(id, trackingNumber)
+    return
+  }
   await updateOrderStatusAndTracking(id, status, trackingNumber)
 }
 

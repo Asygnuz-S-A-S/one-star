@@ -1,0 +1,48 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]:
+      - text: One Star chanfle ·
+      - link "-" [ref=e4] [cursor=pointer]:
+        - /url: /sale
+    - generic [ref=e6]:
+      - link "One Star — Inicio" [ref=e7] [cursor=pointer]:
+        - /url: /
+        - img "One Star" [ref=e9]
+      - navigation "Menú principal" [ref=e10]:
+        - list [ref=e11]:
+          - listitem [ref=e12]:
+            - link "Mujer" [ref=e13] [cursor=pointer]:
+              - /url: /c/mujer
+          - listitem [ref=e14]:
+            - link "SALE" [ref=e15] [cursor=pointer]:
+              - /url: /sale
+          - listitem [ref=e16]:
+            - link "Tarjeta regalo" [ref=e17] [cursor=pointer]:
+              - /url: /tarjeta-regalo
+          - listitem [ref=e18]:
+            - link "Tiendas" [ref=e19] [cursor=pointer]:
+              - /url: /tiendas
+      - generic [ref=e20]:
+        - button "Buscar" [ref=e21]
+        - button "Carrito de compras" [ref=e25]
+        - link "Mi cuenta" [ref=e29] [cursor=pointer]:
+          - /url: /login
+  - main [ref=e33]:
+    - generic [ref=e35]:
+      - generic [ref=e36]:
+        - paragraph [ref=e37]: ONE STAR
+        - paragraph [ref=e38]: Panel Administración
+      - generic [ref=e39]:
+        - generic [ref=e40]:
+          - generic [ref=e41]: Email
+          - textbox "Email" [ref=e42]:
+            - /placeholder: admin@onestar.com
+        - generic [ref=e43]:
+          - generic [ref=e44]: Contraseña
+          - generic [ref=e45]:
+            - textbox "Contraseña" [ref=e46]:
+              - /placeholder: ••••••••
+            - button "Mostrar contraseña" [ref=e47]
+        - button "Ingresar" [ref=e51]
+  - button "Open Next.js Dev Tools" [ref=e57] [cursor=pointer]
+  - alert [ref=e61]

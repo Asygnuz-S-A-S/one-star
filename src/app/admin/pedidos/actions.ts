@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { changeOrderStatusAndTracking } from "@/server/services/order.service"
+import { requireAdmin } from "@/server/auth/require-admin"
 
 export async function updateOrderStatus(
   orderId: string,
@@ -9,6 +10,7 @@ export async function updateOrderStatus(
   trackingNumber?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    await requireAdmin()
     await changeOrderStatusAndTracking(orderId, status, trackingNumber)
     revalidatePath(`/admin/pedidos/${orderId}`)
     revalidatePath("/admin/pedidos")

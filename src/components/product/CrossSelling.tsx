@@ -18,6 +18,8 @@ export default function CrossSelling({ products, title = "COMPLETA TU LOOK" }: C
       <div className="flex gap-4 overflow-x-auto pb-2 md:grid md:grid-cols-4 md:overflow-visible scrollbar-hide">
         {products.map((product) => {
           const image = product.images[0]
+          const secondaryImage = product.images[1]
+          const gallery = product.images.slice(2).map((img) => img.url)
           return (
             <Link
               key={product.id}
@@ -31,7 +33,9 @@ export default function CrossSelling({ products, title = "COMPLETA TU LOOK" }: C
                 price={Number(product.basePrice)}
                 salePrice={product.salePrice ? Number(product.salePrice) : undefined}
                 imageUrl={image?.url}
-                isOnSale={product.isOnSale}
+                secondaryImageUrl={secondaryImage?.url}
+                gallery={gallery}
+                isOnSale={product.isOnSale} isNew={product.isNew} hasStock={product.hasStock}
               />
             </Link>
           )

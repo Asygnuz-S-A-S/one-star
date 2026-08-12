@@ -11,16 +11,25 @@ export interface Variant {
   size: string
   color: string
   stock: number
+  inventory?: {
+    id: string
+    storeLocationId: string | null
+    storeName: string | null
+    stock: number
+  }[]
   sizeUS: string | null
   sizeCM: string | null
   sizeEUR: string | null
 }
 
 export interface CrossSellProduct {
+  isNew?: boolean
+  hasStock?: boolean
   id: string
   slug: string
   name: string
   brand: string | null
+  brandId?: string | null
   basePrice: number
   isOnSale: boolean
   salePrice: number | null
@@ -50,6 +59,8 @@ export interface ProductWithRelations {
   gender: string | null
   categoryId: string
   category: ProductCategory
+  availableOnline?: boolean
+  availableInStores?: boolean
   images: ProductImage[]
   variants: Variant[]
   crossSells: CrossSellProduct[]

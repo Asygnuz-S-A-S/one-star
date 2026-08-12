@@ -7,6 +7,7 @@ interface BannerData {
   id?: string
   title?: string
   imageUrl?: string
+  mediaType?: string
   linkUrl?: string | null
   position?: number
   isActive?: boolean
@@ -19,18 +20,72 @@ interface Props {
   onClose: () => void
 }
 
+type MediaSource = "upload" | "url"
+
 export default function BannerForm({ initial, onClose }: Props) {
   const formRef = useRef<HTMLFormElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   const [isActive, setIsActive] = useState(initial?.isActive ?? true)
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
 
+  // Media state
+  const [mediaSource, setMediaSource] = useState<MediaSource>("upload")
+  const [mediaUrl, setMediaUrl] = useState(initial?.imageUrl ?? "")
+  const [mediaType, setMediaType] = useState<"image" | "video">(
+    (initial?.mediaType as "image" | "video") ?? "image"
+  )
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadError(null)
+    setUploading(true)
+
+    // Auto-detect type from file
+    const isVideo = file.type.startsWith("video/")
+    setMediaType(isVideo ? "video" : "image")
+
+    const fd = new FormData()
+    fd.append("file", file)
+    try {
+      const res = await fetch("/api/upload", { method: "POST", body: fd })
+      const data = await res.json()
+      if (res.ok) {
+        setMediaUrl(data.url)
+      } else {
+        setUploadError(data.error ?? "Error al subir el archivo")
+      }
+    } catch {
+      setUploadError("Error de red al subir")
+    }
+    setUploading(false)
+  }
+
+  function detectTypeFromUrl(url: string) {
+    const lower = url.toLowerCase()
+    if (lower.match(/\.(mp4|webm|ogg|mov)(\?|$)/)) {
+      setMediaType("video")
+    } else {
+      setMediaType("image")
+    }
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (!mediaUrl.trim()) {
+      setError("Debes subir un archivo o ingresar una URL.")
+      return
+    }
     const form = formRef.current
     if (!form) return
     const formData = new FormData(form)
     formData.set("isActive", String(isActive))
+    formData.set("imageUrl", mediaUrl)
+    formData.set("mediaType", mediaType)
 
     startTransition(async () => {
       const result = initial?.id
@@ -56,6 +111,7 @@ export default function BannerForm({ initial, onClose }: Props) {
         </div>
       )}
 
+      {/* Título */}
       <div>
         <label className={labelClass}>Título *</label>
         <input
@@ -64,21 +120,138 @@ export default function BannerForm({ initial, onClose }: Props) {
           required
           defaultValue={initial?.title ?? ""}
           className={inputClass}
+          placeholder="Ej: Colección Verano 2025"
         />
       </div>
 
+      {/* Media: imagen o video */}
       <div>
-        <label className={labelClass}>URL de imagen *</label>
-        <input
-          type="url"
-          name="imageUrl"
-          required
-          defaultValue={initial?.imageUrl ?? ""}
-          placeholder="https://..."
-          className={inputClass}
-        />
+        <label className={labelClass}>Imagen o Video *</label>
+
+        {/* Source tabs */}
+        <div className="flex rounded-lg border border-gray-200 overflow-hidden mb-3">
+          <button
+            type="button"
+            onClick={() => setMediaSource("upload")}
+            className={`flex-1 py-2 text-xs font-bold transition-colors ${
+              mediaSource === "upload"
+                ? "bg-[#1C1C1C] text-white"
+                : "bg-white text-gray-500 hover:bg-gray-50"
+            }`}
+          >
+            ↑ Subir archivo
+          </button>
+          <button
+            type="button"
+            onClick={() => setMediaSource("url")}
+            className={`flex-1 py-2 text-xs font-bold border-l border-gray-200 transition-colors ${
+              mediaSource === "url"
+                ? "bg-[#1C1C1C] text-white"
+                : "bg-white text-gray-500 hover:bg-gray-50"
+            }`}
+          >
+            🔗 Ingresar URL
+          </button>
+        </div>
+
+        {mediaSource === "upload" ? (
+          <div>
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-[#E31C23] hover:bg-red-50/30 transition-colors"
+            >
+              <p className="text-2xl mb-1">📁</p>
+              <p className="text-sm font-medium text-gray-600">
+                Haz clic para seleccionar
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
+                Imágenes: JPG, PNG, WebP · Videos: MP4, WebM
+              </p>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,video/*"
+              className="hidden"
+              onChange={handleFileUpload}
+            />
+            {uploading && (
+              <p className="text-xs text-gray-400 mt-2 text-center">Subiendo archivo…</p>
+            )}
+            {uploadError && (
+              <p className="text-xs text-red-500 mt-2">{uploadError}</p>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <input
+              type="text"
+              value={mediaUrl}
+              onChange={(e) => {
+                setMediaUrl(e.target.value)
+                detectTypeFromUrl(e.target.value)
+              }}
+              placeholder="https://ejemplo.com/video.mp4 o imagen.jpg"
+              className={inputClass}
+            />
+            {/* Type override */}
+            <div className="flex gap-2">
+              {(["image", "video"] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setMediaType(t)}
+                  className={`flex-1 py-1.5 text-xs font-bold rounded border transition-colors ${
+                    mediaType === t
+                      ? "bg-[#1C1C1C] text-white border-[#1C1C1C]"
+                      : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"
+                  }`}
+                >
+                  {t === "image" ? "🖼 Imagen" : "🎬 Video"}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Preview */}
+        {mediaUrl && (
+          <div className="mt-3 rounded-lg overflow-hidden border border-gray-200 bg-gray-50 relative">
+            {mediaType === "video" ? (
+              <video
+                src={mediaUrl}
+                className="w-full h-40 object-cover"
+                muted
+                autoPlay
+                loop
+                playsInline
+              />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={mediaUrl}
+                alt="Preview"
+                className="w-full h-40 object-cover"
+                onError={(e) => (e.currentTarget.style.display = "none")}
+              />
+            )}
+            <div className="absolute top-2 right-2 flex gap-1">
+              <span className="bg-black/60 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">
+                {mediaType === "video" ? "🎬 Video" : "🖼 Imagen"}
+              </span>
+              <button
+                type="button"
+                onClick={() => { setMediaUrl(""); if (fileInputRef.current) fileInputRef.current.value = "" }}
+                className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
+      {/* Link URL */}
       <div>
         <label className={labelClass}>URL de destino (link)</label>
         <input
@@ -90,8 +263,9 @@ export default function BannerForm({ initial, onClose }: Props) {
         />
       </div>
 
+      {/* Posición */}
       <div>
-        <label className={labelClass}>Posición</label>
+        <label className={labelClass}>Posición (orden en el carrusel)</label>
         <input
           type="number"
           name="position"
@@ -101,6 +275,7 @@ export default function BannerForm({ initial, onClose }: Props) {
         />
       </div>
 
+      {/* Fechas */}
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className={labelClass}>Fecha inicio (opcional)</label>
@@ -122,6 +297,7 @@ export default function BannerForm({ initial, onClose }: Props) {
         </div>
       </div>
 
+      {/* Toggle activo */}
       <div className="flex items-center gap-3">
         <button
           type="button"
@@ -137,15 +313,14 @@ export default function BannerForm({ initial, onClose }: Props) {
             }`}
           />
         </button>
-        <span className="text-sm text-[#4A4A4A]">
-          {isActive ? "Activo" : "Inactivo"}
-        </span>
+        <span className="text-sm text-[#4A4A4A]">{isActive ? "Activo" : "Inactivo"}</span>
       </div>
 
+      {/* Actions */}
       <div className="flex gap-3 pt-2">
         <button
           type="submit"
-          disabled={isPending}
+          disabled={isPending || uploading}
           className="flex-1 bg-[#E31C23] text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-60"
         >
           {isPending ? "Guardando…" : initial?.id ? "Actualizar banner" : "Crear banner"}

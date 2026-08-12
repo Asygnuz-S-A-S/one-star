@@ -7,11 +7,13 @@ import {
   deleteBanner as deleteBannerService,
   toggleBannerActive as toggleBannerActiveService,
 } from "@/server/services/banner.service"
+import { requireAdmin } from "@/server/auth/require-admin"
 
 function parseBannerForm(formData: FormData) {
   return {
     title: formData.get("title") as string,
     imageUrl: formData.get("imageUrl") as string,
+    mediaType: (formData.get("mediaType") as string) || "image",
     linkUrl: (formData.get("linkUrl") as string) || null,
     position: parseInt(formData.get("position") as string) || 0,
     isActive: formData.get("isActive") === "true",
@@ -28,8 +30,11 @@ export async function createBanner(
     return { success: false, error: "Título e imagen son obligatorios." }
   }
   try {
+    await requireAdmin()
     await createBannerService(input)
     revalidatePath("/admin/banners")
+    revalidatePath("/admin/landing-builder")
+    revalidatePath("/")
     return { success: true }
   } catch (error: unknown) {
     if (process.env.NODE_ENV === "development") {
@@ -46,8 +51,11 @@ export async function updateBanner(
 ): Promise<{ success: boolean; error?: string }> {
   const input = parseBannerForm(formData)
   try {
+    await requireAdmin()
     await updateBannerService(id, input)
     revalidatePath("/admin/banners")
+    revalidatePath("/admin/landing-builder")
+    revalidatePath("/")
     return { success: true }
   } catch (error: unknown) {
     if (process.env.NODE_ENV === "development") {
@@ -62,8 +70,11 @@ export async function deleteBanner(
   id: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    await requireAdmin()
     await deleteBannerService(id)
     revalidatePath("/admin/banners")
+    revalidatePath("/admin/landing-builder")
+    revalidatePath("/")
     return { success: true }
   } catch (error: unknown) {
     if (process.env.NODE_ENV === "development") {
@@ -79,8 +90,11 @@ export async function toggleBannerActive(
   current: boolean
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    await requireAdmin()
     await toggleBannerActiveService(id, current)
     revalidatePath("/admin/banners")
+    revalidatePath("/admin/landing-builder")
+    revalidatePath("/")
     return { success: true }
   } catch (error: unknown) {
     if (process.env.NODE_ENV === "development") {

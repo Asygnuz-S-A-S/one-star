@@ -16,6 +16,16 @@ export interface LowStockVariantDTO {
   stock: number
 }
 
+export interface RevenueByDayDTO {
+  date: string
+  revenue: number
+}
+
+export interface OrdersByStatusDTO {
+  status: string
+  count: number
+}
+
 export interface DashboardStatsDTO {
   gmv: number
   aov: number
@@ -24,6 +34,8 @@ export interface DashboardStatsDTO {
   pendingOrders: number
   topProducts: TopProductDTO[]
   lowStockVariants: LowStockVariantDTO[]
+  revenueByDay: RevenueByDayDTO[]
+  ordersByStatus: OrdersByStatusDTO[]
 }
 
 export async function getAdminDashboardStats(): Promise<DashboardStatsDTO> {
@@ -58,6 +70,27 @@ export async function getAdminDashboardStats(): Promise<DashboardStatsDTO> {
       stock: v.stock,
     }))
 
+    const revenueByDayMap = new Map<string, number>()
+    for (const order of rawData.revenueByDayRaw) {
+      const key = order.createdAt.toISOString().slice(0, 10)
+      revenueByDayMap.set(key, (revenueByDayMap.get(key) ?? 0) + Number(order.total))
+    }
+    const revenueByDay: RevenueByDayDTO[] = Array.from(revenueByDayMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, revenue]) => ({ date, revenue: Math.round(revenue) }))
+
+    const statusLabels: Record<string, string> = {
+      PENDING: "Pendiente",
+      PAID: "Pagado",
+      SHIPPED: "Enviado",
+      DELIVERED: "Entregado",
+      CANCELLED: "Cancelado",
+    }
+    const ordersByStatus: OrdersByStatusDTO[] = rawData.ordersByStatusRaw.map((s) => ({
+      status: statusLabels[s.status] ?? s.status,
+      count: s._count.id,
+    }))
+
     return {
       gmv,
       aov,
@@ -65,11 +98,12 @@ export async function getAdminDashboardStats(): Promise<DashboardStatsDTO> {
       totalCustomers: rawData.totalCustomersCount,
       pendingOrders: rawData.pendingOrdersCount,
       topProducts,
-      lowStockVariants
+      lowStockVariants,
+      revenueByDay,
+      ordersByStatus,
     }
   } catch (error) {
     if (process.env.NODE_ENV === "development") {
-      // eslint-disable-next-line no-console
       console.error("[DashboardService] Error:", error)
     }
     return {
@@ -79,7 +113,9 @@ export async function getAdminDashboardStats(): Promise<DashboardStatsDTO> {
       totalCustomers: 0,
       pendingOrders: 0,
       topProducts: [],
-      lowStockVariants: []
+      lowStockVariants: [],
+      revenueByDay: [],
+      ordersByStatus: [],
     }
   }
 }

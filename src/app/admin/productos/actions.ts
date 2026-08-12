@@ -9,6 +9,7 @@ import {
 } from "@/server/services/product.service"
 import { productFormSchema } from "@/server/validators/product.validator"
 import { slugify } from "@/lib/utils"
+import { requireAdmin } from "@/server/auth/require-admin"
 import type { ActionResult } from "@/types/admin"
 
 function getErrorMessage(error: unknown): string {
@@ -31,7 +32,7 @@ function extractFormData(formData: FormData) {
   return {
     name,
     slug: ((formData.get("slug") as string) || slugify(name)).trim() || undefined,
-    brand: (formData.get("brand") as string)?.trim() || null,
+    brandId: (formData.get("brandId") as string)?.trim() || null,
     gender: (formData.get("gender") as string) || null,
     categoryId: (formData.get("categoryId") as string ?? "").trim(),
     description: (formData.get("description") as string)?.trim() || null,
@@ -42,6 +43,8 @@ function extractFormData(formData: FormData) {
     salePrice: formData.get("isOnSale") === "true" ? formData.get("salePrice") : null,
     metaTitle: (formData.get("metaTitle") as string)?.trim() || null,
     metaDescription: (formData.get("metaDescription") as string)?.trim() || null,
+    availableOnline: formData.get("availableOnline") !== "false",
+    availableInStores: formData.get("availableInStores") !== "false",
     variants: JSON.parse((formData.get("variants") as string) || "[]"),
     images: JSON.parse((formData.get("images") as string) || "[]"),
     crossSellIds: JSON.parse((formData.get("crossSellIds") as string) || "[]"),
@@ -52,13 +55,14 @@ export async function createProduct(formData: FormData): Promise<ActionResult> {
   const raw = extractFormData(formData)
   const parsed = productFormSchema.safeParse(raw)
   if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0]?.message ?? "Datos inválidos." }
+    return { success: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos." }
   }
 
   const data = parsed.data
   const slug = data.slug || slugify(data.name)
 
   try {
+    await requireAdmin()
     const product = await createProductService({
       ...data,
       slug,
@@ -67,6 +71,7 @@ export async function createProduct(formData: FormData): Promise<ActionResult> {
         size: v.size,
         color: v.color,
         stock: v.stock,
+        inventory: v.inventory || [],
         sizeUS: v.sizeUS ?? null,
         sizeCM: v.sizeCM ?? null,
         sizeEUR: v.sizeEUR ?? null,
@@ -92,13 +97,14 @@ export async function updateProduct(
   const raw = extractFormData(formData)
   const parsed = productFormSchema.safeParse(raw)
   if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0]?.message ?? "Datos inválidos." }
+    return { success: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos." }
   }
 
   const data = parsed.data
   const slug = data.slug || slugify(data.name)
 
   try {
+    await requireAdmin()
     await updateProductService(id, {
       ...data,
       slug,
@@ -107,6 +113,7 @@ export async function updateProduct(
         size: v.size,
         color: v.color,
         stock: v.stock,
+        inventory: v.inventory || [],
         sizeUS: v.sizeUS ?? null,
         sizeCM: v.sizeCM ?? null,
         sizeEUR: v.sizeEUR ?? null,
@@ -128,6 +135,7 @@ export async function updateProduct(
 
 export async function deleteProduct(id: string): Promise<ActionResult> {
   try {
+    await requireAdmin()
     await deleteProductService(id)
     revalidatePath("/admin/productos")
     return { success: true }
@@ -139,6 +147,7 @@ export async function deleteProduct(id: string): Promise<ActionResult> {
 export async function searchProducts(
   q: string,
   excludeId?: string
-): Promise<{ id: string; name: string; brand: string | null }[]> {
+): Promise<{ id: string; name: string; brandId: string | null; brand: { name: string } | null }[]> {
+  await requireAdmin()
   return searchProductsService(q, excludeId)
 }

@@ -1,52 +1,57 @@
-import ProductCard from "@/components/home/ProductCard"
+import Link from "next/link"
+import { getProducts } from "@/server/services/product.service"
+import FeaturedProductsGrid from "./FeaturedProductsGrid"
 
-interface Product {
-  id: string
-  name: string
-  brand: string
-  price: number
-  salePrice?: number
-  isNew?: boolean
-  isOnSale?: boolean
-}
+export default async function FeaturedProducts({ config = {} }: { config?: Record<string, any> }) {
+  const title = config.title || "Destacados"
+  const limit = config.limit ? Number(config.limit) : 8
+  const theme = config.theme as "light" | "dark" || "light"
 
-const MOCK_PRODUCTS: Product[] = [
-  { id: "1", name: "Air Max 90", brand: "Nike", price: 450000, salePrice: 360000, isOnSale: true },
-  { id: "2", name: "Fresh Foam 1080", brand: "New Balance", price: 580000, isNew: true },
-  { id: "3", name: "Clifton 9", brand: "Hoka", price: 620000 },
-  { id: "4", name: "Cloud X 3", brand: "On Running", price: 720000, isNew: true },
-  { id: "5", name: "990v6", brand: "New Balance", price: 850000 },
-  { id: "6", name: "Ultraboost 23", brand: "Adidas", price: 480000, salePrice: 380000, isOnSale: true },
-  { id: "7", name: "Gel-Nimbus 25", brand: "Asics", price: 520000 },
-  { id: "8", name: "Séville Leather", brand: "Veja", price: 380000, isNew: true },
-]
+  const { products } = await getProducts({ orden: "reciente" }, limit)
 
-export default function FeaturedProducts() {
+  if (products.length === 0) return null
+
+  const items = products.map((p) => ({
+    id: p.id,
+    slug: p.slug,
+    name: p.name,
+    brand: p.brand ?? "",
+    price: p.basePrice,
+    salePrice: p.isOnSale && p.salePrice ? p.salePrice : undefined,
+    imageUrl: p.images[0]?.url,
+    secondaryImageUrl: p.images[1]?.url,
+    gallery: p.images.slice(2).map((img) => img.url),
+    isOnSale: p.isOnSale,
+    isNew: p.isNew,
+    hasStock: p.hasStock,
+  }))
+
+  const isDark = theme === "dark"
+  const sectionBg = isDark ? "bg-[#1C1C1C]" : "bg-white"
+  const titleColor = isDark ? "text-white" : "text-[#1C1C1C]"
+
   return (
-    <section className="px-4 md:px-8 lg:px-16 py-12 md:py-16">
-      {/* Section header */}
+    <section className={`px-4 md:px-8 lg:px-16 py-12 md:py-16 ${sectionBg}`}>
       <div className="mb-8 md:mb-12">
-        <h2 className="font-[var(--font-barlow)] font-black uppercase text-3xl md:text-4xl text-[#1C1C1C] tracking-tight leading-none">
-          Destacados
+        <h2 className={`font-[var(--font-barlow)] font-black uppercase text-3xl md:text-4xl tracking-tight leading-none ${titleColor}`}>
+          {title}
         </h2>
         <div className="w-12 h-1 bg-[#E31C23] mt-3" />
       </div>
 
-      {/* Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-        {MOCK_PRODUCTS.map((product) => (
-          <ProductCard key={product.id} {...product} />
-        ))}
-      </div>
+      <FeaturedProductsGrid products={items} theme={theme} />
 
-      {/* CTA */}
       <div className="text-center mt-10">
-        <a
+        <Link
           href="/productos"
-          className="inline-block border-2 border-[#1C1C1C] text-[#1C1C1C] font-[var(--font-barlow)] font-bold uppercase tracking-widest text-sm px-10 py-4 hover:bg-[#1C1C1C] hover:text-white transition-colors duration-200"
+          className={`inline-block border-2 font-[var(--font-barlow)] font-bold uppercase tracking-widest text-sm px-10 py-4 transition-colors duration-200 ${
+            isDark 
+              ? "border-white text-white hover:bg-white hover:text-[#1C1C1C]" 
+              : "border-[#1C1C1C] text-[#1C1C1C] hover:bg-[#1C1C1C] hover:text-white"
+          }`}
         >
           Ver Todos los Productos
-        </a>
+        </Link>
       </div>
     </section>
   )

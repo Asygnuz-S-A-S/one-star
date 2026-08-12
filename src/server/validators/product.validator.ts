@@ -13,6 +13,10 @@ const variantSchema = z.object({
   size: z.string().min(1, "La talla es requerida."),
   color: z.string().min(1, "El color es requerido."),
   stock: z.coerce.number().int().nonnegative().default(0),
+  inventory: z.array(z.object({
+    storeLocationId: z.string().nullable(),
+    stock: z.coerce.number().int().nonnegative().default(0),
+  })).default([]),
   sizeUS: z.string().optional().nullable(),
   sizeCM: z.string().optional().nullable(),
   sizeEUR: z.string().optional().nullable(),
@@ -27,19 +31,24 @@ const imageSchema = z.object({
 export const productFormSchema = z.object({
   name: z.string().min(1, "El nombre es requerido."),
   slug: z.string().optional(),
-  brand: z.string().optional().nullable(),
+  brandId: z.string().optional().nullable(),
   gender: z.string().optional().nullable(),
   categoryId: z.string().min(1, "La categoría es requerida."),
   description: z.string().optional().nullable(),
   extendedDescription: z.string().optional().nullable(),
-  videoUrl: z.string().url().optional().nullable().or(z.literal("")),
+  videoUrl: z.preprocess(
+    (v) => (v === "" ? null : v),
+    z.string().url("URL de video inválida.").optional().nullable()
+  ),
   basePrice: z.coerce
-    .number({ invalid_type_error: "El precio base debe ser un número." })
+    .number({ message: "El precio base debe ser un número." })
     .nonnegative("El precio base no puede ser negativo."),
   isOnSale: z.boolean().default(false),
   salePrice: z.coerce.number().nonnegative().optional().nullable(),
   metaTitle: z.string().optional().nullable(),
   metaDescription: z.string().optional().nullable(),
+  availableOnline: z.boolean().default(true),
+  availableInStores: z.boolean().default(true),
   variants: z.array(variantSchema).default([]),
   images: z.array(imageSchema).default([]),
   crossSellIds: z.array(z.string()).default([]),

@@ -23,7 +23,3 @@ export function buildFilterUrl(
   return qs ? `?${qs}` : "?"
 }
 
-// Re-exports desde la capa de servicios — las páginas de servidor pueden seguir
-// importando estas funciones desde @/lib/shop-utils sin cambiar sus imports.
-export { getUniqueBrands } from "@/server/services/product.service"
-export { getUniqueSizes, getUniqueColors } from "@/server/services/variant.service"

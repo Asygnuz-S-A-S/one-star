@@ -1,5 +1,6 @@
 import { getCustomers } from "@/server/services/user.service"
 import Link from "next/link"
+import { ClientesTable } from "@/components/admin/ClientesTable"
 
 const PAGE_SIZE = 25
 const BRANDS = ["Nike", "New Balance", "Hoka", "Veja", "On", "Adidas", "Asics"]
@@ -12,14 +13,6 @@ interface SearchParams {
 
 interface Props {
   searchParams: Promise<SearchParams>
-}
-
-function formatCOP(value: number) {
-  return new Intl.NumberFormat("es-CO", {
-    style: "currency",
-    currency: "COP",
-    maximumFractionDigits: 0,
-  }).format(value)
 }
 
 export default async function ClientesPage({ searchParams }: Props) {
@@ -42,6 +35,9 @@ export default async function ClientesPage({ searchParams }: Props) {
     ).toString()
     return `/admin/clientes${qs ? `?${qs}` : ""}`
   }
+
+  const prevHref = page > 1 ? buildUrl({ page: String(page - 1) }) : undefined
+  const nextHref = page < totalPages ? buildUrl({ page: String(page + 1) }) : undefined
 
   return (
     <div className="p-6 md:p-8">
@@ -92,101 +88,14 @@ export default async function ClientesPage({ searchParams }: Props) {
         )}
       </form>
 
-      {customers.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-16 text-center">
-          <p className="text-[#4A4A4A] text-lg">No se encontraron clientes.</p>
-        </div>
-      ) : (
-        <>
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-100 bg-gray-50">
-                    <th className="text-left px-4 py-3 text-[#4A4A4A] font-semibold">Cliente</th>
-                    <th className="text-left px-4 py-3 text-[#4A4A4A] font-semibold">Email</th>
-                    <th className="text-left px-4 py-3 text-[#4A4A4A] font-semibold">Pedidos</th>
-                    <th className="text-left px-4 py-3 text-[#4A4A4A] font-semibold">LTV</th>
-                    <th className="text-left px-4 py-3 text-[#4A4A4A] font-semibold">Registro</th>
-                    <th className="text-right px-4 py-3 text-[#4A4A4A] font-semibold">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {customers.map((customer) => {
-                    const initial = customer.email.charAt(0).toUpperCase()
-                    return (
-                      <tr key={customer.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-[#E31C23]/10 flex items-center justify-center text-[#E31C23] font-bold text-sm shrink-0">
-                              {initial}
-                            </div>
-                            <span className="font-medium text-[#1C1C1C]">
-                              {customer.email.split("@")[0]}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-[#4A4A4A]">{customer.email}</td>
-                        <td className="px-4 py-3 text-[#4A4A4A]">{customer.orderCount}</td>
-                        <td className="px-4 py-3 font-semibold text-[#1C1C1C]">
-                          {formatCOP(customer.ltv)}
-                        </td>
-                        <td className="px-4 py-3 text-[#4A4A4A] whitespace-nowrap">
-                          {new Date(customer.createdAt).toLocaleDateString("es-CO", {
-                            day: "2-digit",
-                            month: "short",
-                            year: "numeric",
-                          })}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <Link
-                            href={`/admin/clientes/${customer.id}`}
-                            className="text-xs font-medium text-[#E31C23] hover:underline"
-                          >
-                            Ver perfil
-                          </Link>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between mt-4">
-            <p className="text-sm text-[#4A4A4A]">
-              Página {page} de {totalPages} · {total} clientes
-            </p>
-            <div className="flex gap-2">
-              {page > 1 ? (
-                <Link
-                  href={buildUrl({ page: String(page - 1) })}
-                  className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg bg-white hover:bg-gray-50 text-[#1C1C1C]"
-                >
-                  ← Anterior
-                </Link>
-              ) : (
-                <span className="px-3 py-1.5 text-sm border border-gray-100 rounded-lg bg-gray-50 text-gray-300 cursor-not-allowed">
-                  ← Anterior
-                </span>
-              )}
-              {page < totalPages ? (
-                <Link
-                  href={buildUrl({ page: String(page + 1) })}
-                  className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg bg-white hover:bg-gray-50 text-[#1C1C1C]"
-                >
-                  Siguiente →
-                </Link>
-              ) : (
-                <span className="px-3 py-1.5 text-sm border border-gray-100 rounded-lg bg-gray-50 text-gray-300 cursor-not-allowed">
-                  Siguiente →
-                </span>
-              )}
-            </div>
-          </div>
-        </>
-      )}
+      <ClientesTable
+        customers={customers}
+        total={total}
+        page={page}
+        totalPages={totalPages}
+        prevHref={prevHref}
+        nextHref={nextHref}
+      />
     </div>
   )
 }

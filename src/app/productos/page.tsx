@@ -1,10 +1,11 @@
 import ProductGrid from "@/components/shop/ProductGrid"
 import FilterSidebar from "@/components/shop/FilterSidebar"
 import ShopLayout from "@/components/shop/ShopLayout"
-import { getUniqueBrands, getUniqueSizes, getUniqueColors } from "@/lib/shop-utils"
+import { getUniqueBrands } from "@/server/services/product.service"
+import { getUniqueSizes, getUniqueColors } from "@/server/services/variant.service"
 
 interface ProductosPageProps {
-  searchParams: {
+  searchParams: Promise<{
     q?: string
     marca?: string
     talla?: string
@@ -14,7 +15,8 @@ interface ProductosPageProps {
     orden?: "precio_asc" | "precio_desc" | "reciente" | "antiguo"
     page?: string
     genero?: string
-  }
+    categoria?: string
+  }>
 }
 
 export const metadata = {
@@ -23,6 +25,7 @@ export const metadata = {
 }
 
 export default async function ProductosPage({ searchParams }: ProductosPageProps) {
+  const resolvedSearchParams = await searchParams
   const [brands, sizes, colors] = await Promise.all([
     getUniqueBrands(),
     getUniqueSizes(),
@@ -30,7 +33,7 @@ export default async function ProductosPage({ searchParams }: ProductosPageProps
   ])
 
   const currentParams = new URLSearchParams(
-    Object.entries(searchParams).filter(([, v]) => v !== undefined) as [string, string][]
+    Object.entries(resolvedSearchParams).filter(([, v]) => v !== undefined) as [string, string][]
   )
 
   return (
@@ -40,12 +43,12 @@ export default async function ProductosPage({ searchParams }: ProductosPageProps
           brands={brands}
           sizes={sizes}
           colors={colors}
-          currentParams={currentParams}
+          currentParams={currentParams.toString()}
         />
       }
     >
       <ProductGrid
-        searchParams={searchParams}
+        searchParams={resolvedSearchParams}
         title="PRODUCTOS"
         subtitle="Todo el catálogo One Star"
       />

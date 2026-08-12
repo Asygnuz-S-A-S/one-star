@@ -14,7 +14,7 @@ export default function ShopLayout({ sidebar, children }: ShopLayoutProps) {
   return (
     <div className="flex min-h-screen">
       {/* Sidebar — oculto en móvil, visible desde md */}
-      <aside className="hidden md:block w-72 shrink-0 border-r border-[#E0E0E0] px-4 py-8">
+      <aside className="hidden md:block w-72 shrink-0 border-r border-[#E0E0E0] dark:border-white/10 px-4 py-8">
         {sidebar}
       </aside>
 

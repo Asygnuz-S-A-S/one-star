@@ -1,9 +1,10 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useSession, signOut } from "next-auth/react"
+import { useSession, signOut } from "@/lib/auth-client"
 import { useRouter } from "next/navigation"
 import { updateProfile } from "./actions"
+import { formatDateLong, formatCurrency } from "@/lib/dates"
 
 type Tab = "perfil" | "pedidos" | "direcciones" | "salir"
 
@@ -46,7 +47,7 @@ function OrderStatusBadge({ status }: { status: string }) {
 }
 
 export default function CuentaPage() {
-  const { data: session, status } = useSession()
+  const { data: session, isPending } = useSession()
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<Tab>("perfil")
 
@@ -66,12 +67,12 @@ export default function CuentaPage() {
   const [ordersLoading, setOrdersLoading] = useState(false)
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
 
-  // Redirect if not authenticated
+  // Redirect if not authenticated (wait until session is resolved)
   useEffect(() => {
-    if (status === "unauthenticated") {
+    if (!isPending && !session) {
       router.push("/login?callbackUrl=/cuenta")
     }
-  }, [status, router])
+  }, [isPending, session, router])
 
   // Load orders when tab changes
   useEffect(() => {
@@ -85,7 +86,7 @@ export default function CuentaPage() {
     }
   }, [activeTab, orders.length])
 
-  if (status === "loading") {
+  if (isPending) {
     return (
       <main className="min-h-screen bg-[#F5F5F5] flex items-center justify-center">
         <p className="font-montserrat text-sm text-[#4A4A4A]">Cargando...</p>
@@ -144,7 +145,7 @@ export default function CuentaPage() {
               key={tab.id}
               onClick={() => {
                 if (tab.id === "salir") {
-                  void signOut({ redirectTo: "/" })
+                  void signOut({ fetchOptions: { onSuccess: () => router.push("/") } })
                   return
                 }
                 setActiveTab(tab.id)
@@ -336,14 +337,10 @@ export default function CuentaPage() {
                         Pedido #{order.id.slice(-8).toUpperCase()}
                       </p>
                       <p className="font-montserrat text-xs text-[#4A4A4A]">
-                        {new Date(order.createdAt).toLocaleDateString("es-CO", {
-                          year: "numeric",
-                          month: "long",
-                          day: "numeric",
-                        })}
+                        {formatDateLong(order.createdAt)}
                       </p>
                       <p className="font-barlow font-bold text-[#1C1C1C]">
-                        ${Number(order.total).toLocaleString("es-CO")}
+                        {formatCurrency(Number(order.total))}
                       </p>
                     </div>
                     <div className="flex flex-col items-end gap-2">
@@ -402,11 +399,7 @@ export default function CuentaPage() {
             <div className="flex items-center gap-3 mb-4">
               <OrderStatusBadge status={selectedOrder.status} />
               <span className="font-montserrat text-xs text-[#4A4A4A]">
-                {new Date(selectedOrder.createdAt).toLocaleDateString("es-CO", {
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })}
+                {formatDateLong(selectedOrder.createdAt)}
               </span>
             </div>
 
@@ -423,7 +416,7 @@ export default function CuentaPage() {
                   <div className="flex-1">
                     <p className="font-montserrat text-sm text-[#1C1C1C]">{item.product.name}</p>
                     <p className="font-montserrat text-xs text-[#4A4A4A]">
-                      x{item.quantity} · ${Number(item.unitPrice).toLocaleString("es-CO")} c/u
+                      x{item.quantity} · {formatCurrency(Number(item.unitPrice))} c/u
                     </p>
                   </div>
                 </div>
@@ -433,7 +426,7 @@ export default function CuentaPage() {
             <div className="border-t border-[#E0E0E0] pt-3 flex items-center justify-between">
               <span className="font-montserrat text-sm text-[#4A4A4A]">Total</span>
               <span className="font-barlow font-bold text-[#1C1C1C]">
-                ${Number(selectedOrder.total).toLocaleString("es-CO")}
+                {formatCurrency(Number(selectedOrder.total))}
               </span>
             </div>
           </div>

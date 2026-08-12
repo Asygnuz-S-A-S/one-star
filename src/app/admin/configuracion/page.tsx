@@ -1,10 +1,12 @@
 import { revalidatePath } from "next/cache"
+import { requireAdmin } from "@/server/auth/require-admin"
 
 // TODO: Make announcement bar text dynamic (persist to DB or env)
 // TODO: Make store info dynamic (persist to DB or settings table)
 
 async function saveConfig(_formData: FormData): Promise<void> {
   "use server"
+  await requireAdmin()
   // TODO: Persistir en tabla StoreSettings (pendiente de implementar)
   revalidatePath("/admin/configuracion")
 }

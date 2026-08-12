@@ -1,22 +1,7 @@
 import type { Metadata } from "next";
-import { Barlow, Montserrat } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/Header";
 import Providers from "@/app/providers";
-
-const barlow = Barlow({
-  variable: "--font-barlow",
-  weight: ["400", "600", "700"],
-  subsets: ["latin"],
-  display: "swap",
-});
-
-const montserrat = Montserrat({
-  variable: "--font-montserrat",
-  weight: ["300", "400", "500"],
-  subsets: ["latin"],
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "One Star | Urban Performance",
@@ -24,23 +9,50 @@ export const metadata: Metadata = {
     "Tienda de calzado urbano y deportivo premium. Nike, New Balance, Veja y más.",
 };
 
-export default function RootLayout({
+import { getActiveNavigationItems } from "@/server/repositories/navigation.repository";
+import { getTopBanner } from "@/server/repositories/top-banner.repository";
+import { getPrimaryLogos } from "@/server/repositories/site-logo.repository";
+import { getHeaderConfig } from "@/server/repositories/header-config.repository";
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Queries independientes en paralelo; si la BD falla, la página
+  // se renderiza con fallbacks en lugar de caerse entera.
+  const [navigationItems, topBanner, primaryLogos, headerConfig] = await Promise.all([
+    getActiveNavigationItems().catch((error: unknown) => {
+      console.error("[layout] getActiveNavigationItems falló:", error);
+      return [];
+    }),
+    getTopBanner().catch((error: unknown) => {
+      console.error("[layout] getTopBanner falló:", error);
+      return null;
+    }),
+    getPrimaryLogos().catch((error: unknown) => {
+      console.error("[layout] getPrimaryLogos falló:", error);
+      return null;
+    }),
+    getHeaderConfig().catch((error: unknown) => {
+      console.error("[layout] getHeaderConfig falló:", error);
+      return null;
+    }),
+  ]);
+  
+  // Si el banner está inactivo o no existe, solo ocupamos la altura de la barra nav
+  const isBannerActive = topBanner?.isActive ?? true;
+  const paddingClass = isBannerActive ? "pt-[88px] md:pt-[96px]" : "pt-[56px] md:pt-[64px]";
+
   return (
-    <html
-      lang="es"
-      className={`${barlow.variable} ${montserrat.variable} h-full antialiased`}
-    >
-      {/* pt compensa el header fijo: 32px barra + 56px nav = 88px móvil / 32px + 64px = 96px desktop */}
-      <body className="min-h-full flex flex-col bg-white text-[#1C1C1C] pt-[88px] md:pt-[96px]">
+    <html lang="es" className="h-full antialiased" suppressHydrationWarning>
+      <body className={`min-h-full flex flex-col bg-white text-[#1C1C1C] dark:bg-[#0f0f0f] dark:text-[#f5f5f7] transition-colors duration-300 ${paddingClass}`}>
         <Providers>
-          <Header />
+          <Header items={navigationItems} banner={topBanner} logos={primaryLogos} config={headerConfig} />
           <main className="flex-1">{children}</main>
         </Providers>
       </body>
+
     </html>
   );
 }

@@ -1,22 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useSession } from "next-auth/react";
-import { useCart } from "@/context/CartContext";
+import { useSession } from "@/lib/auth-client";
+import { useCart } from "@/store";
+import { useTheme } from "next-themes";
+import { usePathname } from "next/navigation";
 import CartDrawer from "@/components/cart/CartDrawer";
-
-const NAV_ITEMS = [
-  { label: "Lanzamientos", href: "/lanzamientos" },
-  { label: "Hombre", href: "/hombre" },
-  { label: "Mujer", href: "/mujer" },
-  { label: "Niños", href: "/ninos" },
-  { label: "SALE", href: "/sale", sale: true },
-  { label: "Accesorios", href: "/accesorios" },
-  { label: "Tarjeta regalo", href: "/tarjeta-regalo" },
-  { label: "Tiendas", href: "/tiendas" },
-];
+import TopBannerTicker from "@/components/TopBannerTicker";
+import { NavigationItem, TopBanner, StoreLogo } from "@prisma/client";
 
 function IconHamburger({ open }: { open: boolean }) {
   return (
@@ -111,35 +104,112 @@ function UserAvatar({ initial }: { initial: string }) {
   );
 }
 
-export default function Header() {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const { totalItems, toggleCart } = useCart();
-  const { data: session } = useSession();
+function IconMoon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+    </svg>
+  );
+}
 
-  const isCustomer = !!session?.user && session.user.userType === "customer";
+function IconSun() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2" />
+      <path d="M12 20v2" />
+      <path d="M4.93 4.93l1.41 1.41" />
+      <path d="M17.66 17.66l1.41 1.41" />
+      <path d="M2 12h2" />
+      <path d="M20 12h2" />
+      <path d="M4.93 19.07l1.41-1.41" />
+      <path d="M17.66 6.34l1.41-1.41" />
+    </svg>
+  );
+}
+
+export default function Header({
+ 
+  items = [],
+  banner,
+  logos,
+  config
+}: { 
+  items?: NavigationItem[],
+  banner?: TopBanner | null,
+  logos?: { desktop: StoreLogo | null, mobile: StoreLogo | null, large: StoreLogo | null } | null,
+  config?: { layout: string, showSearch: boolean, showCart: boolean, showUser: boolean, bgColor: string, textColor: string, hasBorderBottom: boolean, bgOpacity: number, useBlur: boolean, margin: string, padding: string, borderRadius: string, navAlignment?: string } | null
+}) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const { theme, setTheme } = useTheme();
+  
+  const { data: session } = useSession();
+  const { totalItems, toggleCart } = useCart();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 10);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const isCustomer = !!session?.user && (session.user as { userType?: string }).userType === "customer";
   const userInitial =
     session?.user?.name?.charAt(0) ?? session?.user?.email?.charAt(0) ?? "U";
 
+  // Helper para convertir hex a rgba
+  const hexToRgba = (hex: string, opacity: number): string => {
+    if (!hex) return "transparent";
+    if (!/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)) return hex;
+    let digits = hex.substring(1).split("");
+    if (digits.length === 3) {
+      digits = [digits[0], digits[0], digits[1], digits[1], digits[2], digits[2]];
+    }
+    const value = Number.parseInt(digits.join(""), 16);
+    const channels = [(value >> 16) & 255, (value >> 8) & 255, value & 255];
+    return `rgba(${channels.join(",")},${opacity / 100})`;
+  }
+
   return (
-    /*
+    <>
+    {/*
      * El header ocupa: barra anuncio (~32px) + barra nav (56px móvil / 64px desktop).
      * position: fixed saca el header del flujo; el padding-top del body en layout.tsx compensa.
      * z-50 garantiza que quede sobre banners y contenido de la página.
-     */
+     */}
     <header className="fixed top-0 left-0 right-0 z-50 w-full">
       {/* ── Barra de anuncio ─────────────────────────────────────────── */}
-      <div className="bg-[#1C1C1C] text-white text-[11px] tracking-wide text-center py-2 px-4 font-montserrat">
-        Envío gratis en compras mayores a $200.000 &nbsp;·&nbsp;{" "}
-        <Link
-          href="/sale"
-          className="text-[#E31C23] font-semibold uppercase hover:underline"
-        >
-          Ver SALE
-        </Link>
-      </div>
+      {(!banner || banner.isActive) && (
+        <TopBannerTicker 
+          messages={(banner?.messages as { text: string; url?: string }[] | null) ?? []}
+          fallbackText={banner?.text}
+          fallbackBtnText={banner?.btnText || undefined}
+          fallbackBtnUrl={banner?.btnUrl || undefined}
+          bgColor={banner?.bgColor || "#1C1C1C"}
+          textColor={banner?.textColor || "#FFFFFF"}
+        />
+      )}
 
       {/* ── Barra de navegación ──────────────────────────────────────── */}
-      <div className="bg-white border-b border-[#E0E0E0]">
+      <div 
+        className={`transition-all duration-300 ${isScrolled || menuOpen ? 'backdrop-blur-xl bg-white/75 dark:bg-black/75 shadow-sm' : 'bg-transparent'}`}
+        style={{
+          color: (!isScrolled && !menuOpen) ? "#FFFFFF" : undefined,
+          borderBottom: isScrolled && config?.hasBorderBottom !== false ? "1px solid rgba(150, 150, 150, 0.2)" : "none",
+          margin: config?.margin || "0px",
+          padding: config?.padding || "0px",
+          borderRadius: config?.borderRadius || "0px",
+        }}
+      >
         {/* ── MÓVIL ── */}
         <div className="flex items-center justify-between h-14 px-3 md:hidden">
           {/* Menú hamburguesa */}
@@ -147,26 +217,39 @@ export default function Header() {
             onClick={() => setMenuOpen(!menuOpen)}
             aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"}
             aria-expanded={menuOpen}
-            className="text-[#1C1C1C] p-2 -ml-1 rounded-sm focus-visible:outline-2 focus-visible:outline-[#E31C23]"
+            className="p-2 -ml-1 rounded-sm focus-visible:outline-2 focus-visible:outline-[#E31C23]"
+            style={{ color: "inherit" }}
           >
             <IconHamburger open={menuOpen} />
           </button>
 
           {/* Logo centrado — p-3 = área de protección ≈ altura de "O" */}
-          <Link href="/" aria-label="One Star — Inicio" className="p-3">
-            <div className="relative w-[80px] h-[57px]">
-              <Image
-                src="/logos/logopositivo.svg"
-                alt="One Star"
-                fill
-                className="object-contain"
-                priority
-              />
-            </div>
-          </Link>
+          {logos?.mobile?.url && (
+            <Link href="/" aria-label="One Star — Inicio" className="p-3">
+              <div className="relative w-[80px] h-[57px]">
+                <Image
+                  src={logos.mobile.url}
+                  alt="One Star"
+                  fill
+                  className="object-contain"
+                  priority
+                  unoptimized
+                />
+              </div>
+            </Link>
+          )}
 
           {/* Acciones rápidas */}
-          <div className="flex items-center gap-1 text-[#1C1C1C]">
+          <div className="flex items-center gap-1 text-[#1C1C1C] dark:text-[#f5f5f7]">
+            {mounted && (
+              <button
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                aria-label="Cambiar tema"
+                className="p-2 rounded-sm focus-visible:outline-2 focus-visible:outline-[#E31C23]"
+              >
+                {theme === 'dark' ? <IconSun /> : <IconMoon />}
+              </button>
+            )}
             <button
               onClick={toggleCart}
               aria-label="Carrito de compras"
@@ -191,67 +274,93 @@ export default function Header() {
 
         {/* ── DESKTOP ── */}
         <div className="hidden md:flex items-center justify-between h-16 px-8 lg:px-12 xl:px-16">
-          {/* Logo — p-3 = área de protección ≈ altura de "O" */}
-          <Link href="/" aria-label="One Star — Inicio" className="p-3 shrink-0">
-            <div className="relative w-[100px] h-[71px]">
-              <Image
-                src="/logos/logopositivo.svg"
-                alt="One Star"
-                fill
-                className="object-contain"
-                priority
-              />
-            </div>
-          </Link>
+          {/* Logo */}
+          {logos?.desktop?.url && (
+            <Link 
+              href="/" 
+              aria-label="One Star — Inicio" 
+              className={`p-3 shrink-0 ${config?.layout === "logo-center-nav-left" ? "order-2 absolute left-1/2 -translate-x-1/2" : "order-1"}`}
+            >
+              <div className="relative w-[100px] h-[71px]">
+                <Image
+                  src={logos.desktop.url}
+                  alt="One Star"
+                  fill
+                  className="object-contain"
+                  priority
+                  unoptimized
+                />
+              </div>
+            </Link>
+          )}
 
           {/* Navegación principal */}
-          <nav aria-label="Menú principal">
-            <ul className="flex items-center gap-5 xl:gap-7">
-              {NAV_ITEMS.map((item) => (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    className={[
-                      "font-barlow font-semibold text-sm tracking-wide uppercase transition-colors duration-150",
-                      item.sale
-                        ? "text-[#E31C23]"
-                        : "text-[#1C1C1C] hover:text-[#E31C23]",
-                    ].join(" ")}
-                  >
-                    {item.label}
-                  </Link>
+          <nav aria-label="Menú principal" className={`${config?.layout === "logo-center-nav-left" ? "order-1" : "order-2"} flex-1`}>
+            <ul className={`flex items-center gap-5 xl:gap-7 justify-${config?.navAlignment === "center" ? "center" : config?.navAlignment === "right" ? "end" : "start"}`}>
+              {items.map((item) => (
+                <li key={item.id}>
+                  {(() => {
+                    const isActive = pathname === item.href;
+                    return (
+                      <Link
+                        href={item.href}
+                        className={[
+                          "font-barlow font-semibold text-sm tracking-wide uppercase transition-colors duration-150",
+                          isActive ? "text-[#E31C23]" : "hover:text-[#E31C23]",
+                        ].join(" ")}
+                        style={isActive ? { color: "#E31C23" } : { color: "inherit" }}
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })()}
                 </li>
               ))}
             </ul>
           </nav>
 
           {/* Acciones rápidas */}
-          <div className="flex items-center gap-2 text-[#1C1C1C] shrink-0">
-            <button
-              aria-label="Buscar"
-              className="p-2 rounded-sm hover:text-[#E31C23] transition-colors focus-visible:outline-2 focus-visible:outline-[#E31C23]"
-            >
-              <IconSearch />
-            </button>
-            <button
-              onClick={toggleCart}
-              aria-label="Carrito de compras"
-              className="relative p-2 rounded-sm hover:text-[#E31C23] transition-colors focus-visible:outline-2 focus-visible:outline-[#E31C23]"
-            >
-              <IconCart />
-              {totalItems > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 flex items-center justify-center bg-[#E31C23] text-white text-[10px] font-montserrat font-medium rounded-full">
-                  {totalItems}
-                </span>
-              )}
-            </button>
-            <Link
-              href={isCustomer ? "/cuenta" : "/login"}
-              aria-label="Mi cuenta"
-              className="p-2 rounded-sm hover:text-[#E31C23] transition-colors focus-visible:outline-2 focus-visible:outline-[#E31C23]"
-            >
-              {isCustomer ? <UserAvatar initial={userInitial} /> : <IconUser />}
-            </Link>
+          <div className="flex items-center gap-2 shrink-0 order-3 ml-auto text-[#1C1C1C] dark:text-[#f5f5f7]" style={(!isScrolled && !menuOpen) ? { color: "#FFFFFF" } : undefined}>
+            {mounted && (
+              <button
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                aria-label="Cambiar tema"
+                className="p-2 rounded-sm hover:text-[#E31C23] transition-colors focus-visible:outline-2 focus-visible:outline-[#E31C23]"
+              >
+                {theme === 'dark' ? <IconSun /> : <IconMoon />}
+              </button>
+            )}
+            {config?.showSearch !== false && (
+              <button
+                aria-label="Buscar"
+                className="p-2 rounded-sm hover:text-[#E31C23] transition-colors focus-visible:outline-2 focus-visible:outline-[#E31C23]"
+              >
+                <IconSearch />
+              </button>
+            )}
+            {config?.showCart !== false && (
+              <button
+                onClick={toggleCart}
+                aria-label="Carrito de compras"
+                className="relative p-2 rounded-sm hover:text-[#E31C23] transition-colors focus-visible:outline-2 focus-visible:outline-[#E31C23]"
+              >
+                <IconCart />
+                {totalItems > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 flex items-center justify-center bg-[#E31C23] text-white text-[10px] font-montserrat font-medium rounded-full">
+                    {totalItems}
+                  </span>
+                )}
+              </button>
+            )}
+            {config?.showUser !== false && (
+              <Link
+                href={isCustomer ? "/cuenta" : "/login"}
+                aria-label="Mi cuenta"
+                className="p-2 rounded-sm hover:text-[#E31C23] transition-colors focus-visible:outline-2 focus-visible:outline-[#E31C23]"
+              >
+                {isCustomer ? <UserAvatar initial={userInitial} /> : <IconUser />}
+              </Link>
+            )}
           </div>
         </div>
       </div>
@@ -261,20 +370,24 @@ export default function Header() {
         <div className="md:hidden bg-white border-b border-[#E0E0E0] shadow-lg">
           <nav aria-label="Menú móvil">
             <ul>
-              {NAV_ITEMS.map((item) => (
-                <li key={item.href} className="border-b border-[#E0E0E0] last:border-b-0">
-                  <Link
-                    href={item.href}
-                    onClick={() => setMenuOpen(false)}
-                    className={[
-                      "block px-6 py-4 font-barlow font-semibold text-sm tracking-wide uppercase transition-colors duration-150",
-                      item.sale
-                        ? "text-[#E31C23]"
-                        : "text-[#1C1C1C] hover:text-[#E31C23]",
-                    ].join(" ")}
-                  >
-                    {item.label}
-                  </Link>
+              {items.map((item) => (
+                <li key={item.id} className="border-b border-[#E0E0E0] last:border-b-0">
+                  {(() => {
+                    const isActive = pathname === item.href;
+                    return (
+                      <Link
+                        href={item.href}
+                        onClick={() => setMenuOpen(false)}
+                        className={[
+                          "block px-6 py-4 font-barlow font-semibold text-sm tracking-wide uppercase transition-colors duration-150",
+                          isActive ? "text-[#E31C23]" : "text-[#1C1C1C] hover:text-[#E31C23]",
+                        ].join(" ")}
+                        style={isActive ? { color: "#E31C23" } : undefined}
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })()}
                 </li>
               ))}
             </ul>
@@ -303,5 +416,6 @@ export default function Header() {
       )}
     </header>
     <CartDrawer />
+    </>
   );
 }

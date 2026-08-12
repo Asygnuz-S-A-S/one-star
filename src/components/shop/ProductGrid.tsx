@@ -1,7 +1,7 @@
 import Link from "next/link"
-import ProductCard from "@/components/home/ProductCard"
 import SortBar from "@/components/shop/SortBar"
 import { getProducts } from "@/server/services/product.service"
+import { AnimatedProductGrid } from "@/components/shop/AnimatedProductGrid"
 
 const PAGE_SIZE = 24
 
@@ -15,6 +15,7 @@ type SearchParams = {
   orden?: "precio_asc" | "precio_desc" | "reciente" | "antiguo"
   page?: string
   genero?: string
+  categoria?: string
 }
 
 interface ProductGridProps {
@@ -75,7 +76,9 @@ export default async function ProductGrid({
 
   const filterParams = {
     ...searchParams,
-    categorySlug,
+    // La prop categorySlug (rutas /hombre, etc.) tiene prioridad; si no,
+    // se admite el query param ?categoria= usado por el breadcrumb de la ficha.
+    categorySlug: categorySlug ?? searchParams.categoria,
     genderFilter,
     extraGenders,
     isOnSaleOnly,
@@ -95,11 +98,11 @@ export default async function ProductGrid({
     <div>
       {/* Section header */}
       <div className={`px-4 md:px-8 py-8 ${headerClassName ?? ""}`}>
-        <h1 className="font-[var(--font-barlow)] font-bold text-3xl md:text-5xl uppercase tracking-tight text-[#1C1C1C]">
+        <h1 className="font-[var(--font-barlow)] font-bold text-3xl md:text-5xl uppercase tracking-tight text-[#1C1C1C] dark:text-white">
           {title}
         </h1>
         {subtitle && (
-          <p className="font-[var(--font-montserrat)] text-[#4A4A4A] mt-1 text-sm">
+          <p className="font-[var(--font-montserrat)] text-[#4A4A4A] dark:text-white/50 mt-1 text-sm">
             {subtitle}
           </p>
         )}
@@ -108,7 +111,7 @@ export default async function ProductGrid({
       {/* Sort bar (client) */}
       <SortBar
         total={total}
-        currentParams={new URLSearchParams(currentSearch)}
+        currentParams={currentSearch}
       />
 
       {/* Active filter chips */}
@@ -126,7 +129,7 @@ export default async function ProductGrid({
           ))}
           <Link
             href="?"
-            className="inline-flex items-center gap-1.5 border border-[#E0E0E0] text-[#4A4A4A] font-[var(--font-montserrat)] text-xs px-3 py-1.5 hover:border-[#1C1C1C] hover:text-[#1C1C1C] transition-colors"
+            className="inline-flex items-center gap-1.5 border border-[#E0E0E0] dark:border-white/15 text-[#4A4A4A] dark:text-white/50 font-[var(--font-montserrat)] text-xs px-3 py-1.5 hover:border-[#1C1C1C] dark:hover:border-white/40 hover:text-[#1C1C1C] dark:hover:text-white/80 transition-colors"
           >
             Limpiar todo
           </Link>
@@ -136,10 +139,10 @@ export default async function ProductGrid({
       {/* Grid */}
       {products.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 px-4 text-center">
-          <p className="font-[var(--font-barlow)] font-bold text-xl text-[#1C1C1C] mb-2">
+          <p className="font-[var(--font-barlow)] font-bold text-xl text-[#1C1C1C] dark:text-white mb-2">
             Sin resultados
           </p>
-          <p className="font-[var(--font-montserrat)] text-[#4A4A4A] text-sm mb-6">
+          <p className="font-[var(--font-montserrat)] text-[#4A4A4A] dark:text-white/50 text-sm mb-6">
             No encontramos productos con estos filtros.
           </p>
           <Link
@@ -150,24 +153,10 @@ export default async function ProductGrid({
           </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 px-4 md:px-8 py-6">
-          {products.map((product) => {
-            const image = product.images[0]
-            return (
-              <Link key={product.id} href={`/producto/${product.slug}`}>
-                <ProductCard
-                  id={product.id}
-                  name={product.name}
-                  brand={product.brand ?? "One Star"} // TODO: brand is optional in schema
-                  price={product.basePrice}
-                  salePrice={product.salePrice ?? undefined}
-                  imageUrl={image?.url}
-                  isOnSale={product.isOnSale}
-                />
-              </Link>
-            )
-          })}
-        </div>
+        <AnimatedProductGrid
+          products={products}
+          animationKey={currentSearch}
+        />
       )}
 
       {/* Pagination */}
@@ -176,29 +165,29 @@ export default async function ProductGrid({
           {page > 1 ? (
             <Link
               href={`?${buildPaginationParams(currentSearch, page - 1)}`}
-              className="font-[var(--font-barlow)] font-bold uppercase text-xs tracking-widest border border-[#1C1C1C] px-6 py-3 hover:bg-[#1C1C1C] hover:text-white transition-colors"
+              className="font-[var(--font-barlow)] font-bold uppercase text-xs tracking-widest border border-[#1C1C1C] dark:border-white/30 dark:text-white/70 px-6 py-3 hover:bg-[#1C1C1C] hover:text-white dark:hover:bg-white dark:hover:text-black transition-colors"
             >
               ← Anterior
             </Link>
           ) : (
-            <span className="font-[var(--font-barlow)] font-bold uppercase text-xs tracking-widest border border-[#E0E0E0] px-6 py-3 text-[#E0E0E0] cursor-not-allowed">
+            <span className="font-[var(--font-barlow)] font-bold uppercase text-xs tracking-widest border border-[#E0E0E0] dark:border-white/10 px-6 py-3 text-[#E0E0E0] dark:text-white/15 cursor-not-allowed">
               ← Anterior
             </span>
           )}
 
-          <span className="font-[var(--font-montserrat)] text-sm text-[#4A4A4A]">
+          <span className="font-[var(--font-montserrat)] text-sm text-[#4A4A4A] dark:text-white/40">
             {page} / {totalPages}
           </span>
 
           {page < totalPages ? (
             <Link
               href={`?${buildPaginationParams(currentSearch, page + 1)}`}
-              className="font-[var(--font-barlow)] font-bold uppercase text-xs tracking-widest border border-[#1C1C1C] px-6 py-3 hover:bg-[#1C1C1C] hover:text-white transition-colors"
+              className="font-[var(--font-barlow)] font-bold uppercase text-xs tracking-widest border border-[#1C1C1C] dark:border-white/30 dark:text-white/70 px-6 py-3 hover:bg-[#1C1C1C] hover:text-white dark:hover:bg-white dark:hover:text-black transition-colors"
             >
               Siguiente →
             </Link>
           ) : (
-            <span className="font-[var(--font-barlow)] font-bold uppercase text-xs tracking-widest border border-[#E0E0E0] px-6 py-3 text-[#E0E0E0] cursor-not-allowed">
+            <span className="font-[var(--font-barlow)] font-bold uppercase text-xs tracking-widest border border-[#E0E0E0] dark:border-white/10 px-6 py-3 text-[#E0E0E0] dark:text-white/15 cursor-not-allowed">
               Siguiente →
             </span>
           )}

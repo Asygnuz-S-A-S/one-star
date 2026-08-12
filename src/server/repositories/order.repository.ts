@@ -79,6 +79,69 @@ export async function updateOrderStatusAndTracking(
   })
 }
 
+/**
+ * Devuelve el stock actual de las variantes solicitadas.
+ * Usado para validar disponibilidad antes de crear un pedido.
+ */
+export async function getVariantsStock(variantIds: string[]) {
+  const inventory = await prisma.inventoryLevel.findMany({
+    where: { variantId: { in: variantIds }, storeLocationId: null },
+    select: { variantId: true, stock: true, variant: { select: { sku: true } } },
+  })
+  return inventory.map(inv => ({
+    id: inv.variantId,
+    stock: inv.stock,
+    sku: inv.variant.sku
+  }))
+}
+
+/**
+ * Marca un pedido como PAID y descuenta el stock de cada variante dentro de
+ * una transacción. Re-valida el stock para evitar sobreventa por condiciones
+ * de carrera. Idempotente: si el pedido ya está PAID no descuenta de nuevo.
+ */
+export async function markOrderPaidWithStock(id: string, trackingNumber?: string) {
+  return prisma.$transaction(async (tx) => {
+    const order = await tx.order.findUnique({
+      where: { id },
+      include: { items: true },
+    })
+    if (!order) throw new Error("Pedido no encontrado.")
+
+    // Idempotencia: no descontar dos veces si ya estaba pagado.
+    if (order.status === "PAID") {
+      if (trackingNumber !== undefined) {
+        return tx.order.update({ where: { id }, data: { trackingNumber } })
+      }
+      return order
+    }
+
+    for (const item of order.items) {
+      if (!item.variantId) continue
+      const inventory = await tx.inventoryLevel.findFirst({
+        where: { variantId: item.variantId, storeLocationId: null }
+      })
+      if (!inventory || inventory.stock < item.quantity) {
+        throw new Error(
+          `Stock insuficiente en Bodega Web para completar el pedido (variante ${item.variantId}).`
+        )
+      }
+      await tx.inventoryLevel.update({
+        where: { id: inventory.id },
+        data: { stock: { decrement: item.quantity } },
+      })
+    }
+
+    return tx.order.update({
+      where: { id },
+      data: {
+        status: "PAID",
+        ...(trackingNumber !== undefined ? { trackingNumber } : {}),
+      },
+    })
+  })
+}
+
 export async function getOrderStats() {
   const [total, pending] = await Promise.all([
     prisma.order.count(),
@@ -95,4 +158,8 @@ export async function getOrderStats() {
     pendingCount: pending,
     revenue: revenueResult._sum.total?.toNumber() ?? 0,
   }
+}
+
+export async function updateOrderPaymentReference(id: string, paymentReference: string) {
+  return prisma.order.update({ where: { id }, data: { paymentReference } })
 }

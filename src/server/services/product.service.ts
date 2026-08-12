@@ -4,12 +4,9 @@ import {
   findProductBySlug,
   findProductByIdForAdmin,
   countProducts,
-  getUniqueBrands as fetchBrands,
+  fetchBrands,
   createProductRecord,
-  updateProductRecord,
   deleteProductRecord,
-  deleteVariantsByProduct,
-  deleteImagesByProduct,
   searchProductsByName,
   runInTransaction,
 } from "../repositories/product.repository"
@@ -28,12 +25,20 @@ export interface ProductImageDTO {
   position: number
 }
 
+export interface InventoryLevelDTO {
+  id: string
+  storeLocationId: string | null
+  storeName: string | null
+  stock: number
+}
+
 export interface VariantDTO {
   id: string
   sku: string
   size: string
   color: string
-  stock: number
+  stock: number // Virtual Store Stock
+  inventory: InventoryLevelDTO[]
   sizeUS: string | null
   sizeCM: string | null
   sizeEUR: string | null
@@ -43,6 +48,8 @@ export interface CrossSellDTO {
   id: string
   slug: string
   name: string
+  brandId: string | null
+  brandName: string | null
   brand: string | null
   basePrice: number
   isOnSale: boolean
@@ -55,6 +62,9 @@ export interface ProductDTO {
   id: string
   slug: string
   name: string
+  brandId: string | null
+  brandName: string | null
+  /** Nombre de la marca (alias plano de brandName para la UI de la tienda) */
   brand: string | null
   basePrice: number
   isOnSale: boolean
@@ -67,9 +77,13 @@ export interface ProductDTO {
   gender: string | null
   categoryId: string
   category: CategoryDTO
+  availableOnline: boolean
+  availableInStores: boolean
   images: ProductImageDTO[]
   variants: VariantDTO[]
   crossSells: CrossSellDTO[]
+  hasStock: boolean
+  isNew: boolean
   createdAt: string
   updatedAt: string
 }
@@ -94,6 +108,10 @@ export interface VariantInput {
   size: string
   color: string
   stock: number
+  inventory: Array<{
+    storeLocationId: string | null
+    stock: number
+  }>
   sizeUS?: string | null
   sizeCM?: string | null
   sizeEUR?: string | null
@@ -108,7 +126,7 @@ export interface ImageInput {
 export interface ProductInput {
   name: string
   slug: string
-  brand?: string | null
+  brandId?: string | null
   gender?: string | null
   categoryId: string
   description?: string | null
@@ -119,6 +137,8 @@ export interface ProductInput {
   salePrice?: number | null
   metaTitle?: string | null
   metaDescription?: string | null
+  availableOnline: boolean
+  availableInStores: boolean
   variants: VariantInput[]
   images: ImageInput[]
   crossSellIds?: string[]
@@ -133,6 +153,12 @@ type RawVariant = {
   sizeUS: string | null
   sizeCM: string | null
   sizeEUR: string | null
+  inventory?: Array<{
+    id: string
+    storeLocationId: string | null
+    stock: number
+    storeLocation?: { name: string } | null
+  }>
 }
 
 type RawImage = { id: string; url: string; alt: string; position: number }
@@ -143,7 +169,8 @@ type RawProduct = {
   id: string
   slug: string
   name: string
-  brand: string | null
+  brandId: string | null
+  brand: { id: string; name: string; slug: string } | null
   basePrice: RawPrice
   isOnSale: boolean
   salePrice: RawPrice | null
@@ -155,13 +182,16 @@ type RawProduct = {
   gender?: string | null
   categoryId: string
   category: { id: string; name: string; slug: string }
+  availableOnline?: boolean
+  availableInStores?: boolean
   images: RawImage[]
   variants: RawVariant[]
   crossSells?: Array<{
     id: string
     slug: string
     name: string
-    brand: string | null
+    brandId: string | null
+    brand: { id: string; name: string } | null
     basePrice: RawPrice
     isOnSale: boolean
     salePrice: RawPrice | null
@@ -173,12 +203,23 @@ type RawProduct = {
 }
 
 function mapVariant(v: RawVariant): VariantDTO {
+  const inventory = (v.inventory ?? []).map(inv => ({
+    id: inv.id,
+    storeLocationId: inv.storeLocationId,
+    storeName: inv.storeLocation?.name ?? null,
+    stock: inv.stock
+  }))
+  
+  // Web stock is where storeLocationId is null or isWebWarehouse
+  const webStock = inventory.find(i => i.storeLocationId === null)?.stock ?? v.stock
+
   return {
     id: v.id,
     sku: v.sku,
     size: v.size,
     color: v.color,
-    stock: v.stock,
+    stock: webStock,
+    inventory,
     sizeUS: v.sizeUS ?? null,
     sizeCM: v.sizeCM ?? null,
     sizeEUR: v.sizeEUR ?? null,
@@ -190,7 +231,9 @@ function mapToDTO(raw: RawProduct): ProductDTO {
     id: raw.id,
     slug: raw.slug,
     name: raw.name,
-    brand: raw.brand ?? null,
+    brandId: raw.brandId ?? null,
+    brandName: raw.brand?.name ?? null,
+    brand: raw.brand?.name ?? null,
     basePrice: raw.basePrice.toNumber(),
     isOnSale: raw.isOnSale,
     salePrice: raw.salePrice ? raw.salePrice.toNumber() : null,
@@ -206,6 +249,8 @@ function mapToDTO(raw: RawProduct): ProductDTO {
       name: raw.category.name,
       slug: raw.category.slug,
     },
+    availableOnline: raw.availableOnline ?? true,
+    availableInStores: raw.availableInStores ?? true,
     images: raw.images.map((img) => ({
       id: img.id,
       url: img.url,
@@ -217,7 +262,9 @@ function mapToDTO(raw: RawProduct): ProductDTO {
       id: cs.id,
       slug: cs.slug,
       name: cs.name,
-      brand: cs.brand ?? null,
+      brandId: cs.brandId ?? null,
+      brandName: cs.brand?.name ?? null,
+      brand: cs.brand?.name ?? null,
       basePrice: cs.basePrice.toNumber(),
       isOnSale: cs.isOnSale,
       salePrice: cs.salePrice ? cs.salePrice.toNumber() : null,
@@ -229,6 +276,8 @@ function mapToDTO(raw: RawProduct): ProductDTO {
       })),
       variants: cs.variants.map(mapVariant),
     })),
+    hasStock: raw.variants.reduce((acc, v) => acc + (v.stock || 0), 0) > 0,
+    isNew: raw.createdAt > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Created in last 30 days
     createdAt: raw.createdAt.toISOString(),
     updatedAt: raw.updatedAt.toISOString(),
   }
@@ -249,7 +298,7 @@ function buildPrismaWhere(
   }
 
   if (filter.q) where.name = { contains: filter.q, mode: "insensitive" }
-  if (filter.marca) where.brand = { contains: filter.marca, mode: "insensitive" }
+  if (filter.marca) where.brand = { is: { name: { contains: filter.marca, mode: "insensitive" } } }
 
   const hasMin = filter.precio_min && !isNaN(Number(filter.precio_min))
   const hasMax = filter.precio_max && !isNaN(Number(filter.precio_max))
@@ -319,7 +368,7 @@ export async function createProduct(input: ProductInput): Promise<ProductDTO> {
   const raw = await createProductRecord({
     name: input.name,
     slug: input.slug,
-    brand: input.brand ?? null,
+    ...(input.brandId ? { brand: { connect: { id: input.brandId } } } : {}),
     gender: (input.gender as Gender) ?? null,
     category: { connect: { id: input.categoryId } },
     description: input.description ?? null,
@@ -330,12 +379,20 @@ export async function createProduct(input: ProductInput): Promise<ProductDTO> {
     salePrice: input.salePrice ?? null,
     metaTitle: input.metaTitle ?? null,
     metaDescription: input.metaDescription ?? null,
+    availableOnline: input.availableOnline,
+    availableInStores: input.availableInStores,
     variants: {
       create: input.variants.map((v) => ({
         sku: v.sku,
         size: v.size,
         color: v.color,
         stock: v.stock,
+        inventory: {
+          create: v.inventory.map((inv) => ({
+            storeLocationId: inv.storeLocationId,
+            stock: inv.stock,
+          })),
+        },
         sizeUS: v.sizeUS ?? null,
         sizeCM: v.sizeCM ?? null,
         sizeEUR: v.sizeEUR ?? null,
@@ -368,7 +425,7 @@ export async function updateProduct(
       data: {
         name: input.name,
         slug: input.slug,
-        brand: input.brand ?? null,
+        brand: input.brandId ? { connect: { id: input.brandId } } : { disconnect: true },
         gender: (input.gender as Gender) ?? null,
         category: { connect: { id: input.categoryId } },
         description: input.description ?? null,
@@ -379,12 +436,20 @@ export async function updateProduct(
         salePrice: input.salePrice ?? null,
         metaTitle: input.metaTitle ?? null,
         metaDescription: input.metaDescription ?? null,
+        availableOnline: input.availableOnline,
+        availableInStores: input.availableInStores,
         variants: {
           create: input.variants.map((v) => ({
             sku: v.sku,
             size: v.size,
             color: v.color,
             stock: v.stock,
+            inventory: {
+              create: v.inventory.map((inv) => ({
+                storeLocationId: inv.storeLocationId,
+                stock: inv.stock,
+              })),
+            },
             sizeUS: v.sizeUS ?? null,
             sizeCM: v.sizeCM ?? null,
             sizeEUR: v.sizeEUR ?? null,
@@ -403,6 +468,7 @@ export async function updateProduct(
       },
       include: {
         category: true,
+        brand: { select: { id: true, name: true, slug: true } },
         images: { orderBy: { position: "asc" } },
         variants: true,
       },
@@ -438,6 +504,6 @@ export async function getRelatedProducts(
 export async function searchProducts(
   q: string,
   excludeId?: string
-): Promise<{ id: string; name: string; brand: string | null }[]> {
+): Promise<{ id: string; name: string; brandId: string | null; brand: { name: string } | null }[]> {
   return searchProductsByName(q, excludeId)
 }
