@@ -27,4 +27,9 @@ describe("detectLoggroGender", () => {
     expect(detectLoggroGender("TENIS JUNIOR BLANCO")).toBe("INFANTIL")
     expect(detectLoggroGender("ZAPATO BEBÉ AZUL")).toBe("BEBE")
   })
+
+  it("mantiene los productos infantiles fuera de las secciones adultas", () => {
+    expect(detectLoggroGender("TENIS NIÑOS UNISEX BLANCO")).toBe("NINO")
+    expect(detectLoggroGender("TENIS NIÑO NIÑA BLANCO")).toBeUndefined()
+  })
 })
