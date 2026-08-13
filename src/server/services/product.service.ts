@@ -141,6 +141,9 @@ export function getCategorySectionProductFilter(
 ): Pick<AppProductFilter, "categorySlug" | "extraGenders"> {
   if (slug === "hombre") return { extraGenders: ["HOMBRE", "UNISEX"] }
   if (slug === "mujer") return { extraGenders: ["MUJER", "UNISEX"] }
+  if (slug === "ninos") {
+    return { extraGenders: ["NINO", "NINA", "INFANTIL", "BEBE"] }
+  }
   return { categorySlug: slug }
 }
 
