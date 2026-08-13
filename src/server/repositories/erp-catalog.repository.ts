@@ -104,6 +104,23 @@ export async function fillMissingCatalogProductGenders(
   return results.reduce((total, result) => total + result.count, 0)
 }
 
+/** Mueve únicamente productos que aún conservan la categoría de importación. */
+export async function fillDefaultCatalogProductCategories(
+  candidates: Array<{ erpId: string; categoryId: string }>,
+  defaultCategoryId: string
+): Promise<number> {
+  if (candidates.length === 0) return 0
+  const results = await prisma.$transaction(
+    candidates.map(({ erpId, categoryId }) =>
+      prisma.product.updateMany({
+        where: { erpId, categoryId: defaultCategoryId },
+        data: { categoryId },
+      })
+    )
+  )
+  return results.reduce((total, result) => total + result.count, 0)
+}
+
 export async function findMissingCatalogProductErpIds(
   erpIds: string[]
 ): Promise<string[]> {
