@@ -138,6 +138,46 @@ describe("normalizeLoggroCatalog", () => {
     expect(snapshot.groups[0].gender).toBeUndefined()
   })
 
+  it("rechaza el grupo si alguna variante contiene señales contradictorias", () => {
+    const snapshot = normalizeLoggroCatalog(
+      [
+        {
+          uuid: "parent-variant-conflict",
+          codigo: "VAR-CONFLICT",
+          descripcion: "TENIS MODELO NEGRO",
+          definicion: true,
+        },
+        {
+          uuid: "variant-clean",
+          codigo: "VAR-CONFLICT_8",
+          descripcion: "TENIS MODELO HOMBRE NEGRO",
+          definicion: false,
+          definidoEn_uuid: "parent-variant-conflict",
+        },
+        {
+          uuid: "variant-ambiguous",
+          codigo: "VAR-CONFLICT_9",
+          descripcion: "TENIS MODELO HOMBRE MUJER NEGRO",
+          definicion: false,
+          definidoEn_uuid: "parent-variant-conflict",
+        },
+      ],
+      {
+        stockByCodigo: new Map([
+          ["VAR-CONFLICT_8", 1],
+          ["VAR-CONFLICT_9", 1],
+        ]),
+        complete: true,
+        requestedCount: 2,
+        resolvedCount: 2,
+        missingCodes: [],
+        errors: [],
+      }
+    )
+
+    expect(snapshot.groups[0].gender).toBeUndefined()
+  })
+
   it("expone una clave agnóstica de familia derivada del código padre", () => {
     const snapshot = normalizeLoggroCatalog(
       [
