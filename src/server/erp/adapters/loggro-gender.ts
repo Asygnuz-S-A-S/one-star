@@ -14,6 +14,10 @@ function normalizedWords(value: string): string[] {
 export function detectLoggroGender(value?: string): ERPProductGender | undefined {
   if (!value) return undefined
   const words = new Set(normalizedWords(value))
-  if (words.has("MUJER") || words.has("DAMA")) return "MUJER"
-  return words.has("HOMBRE") ? "HOMBRE" : undefined
+  if (words.has("UNISEX")) return "UNISEX"
+
+  const female = words.has("MUJER") || words.has("DAMA")
+  const male = words.has("HOMBRE") || words.has("CABALLERO")
+  if (female === male) return undefined
+  return female ? "MUJER" : "HOMBRE"
 }
