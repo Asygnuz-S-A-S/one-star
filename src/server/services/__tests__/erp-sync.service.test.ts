@@ -17,6 +17,8 @@ vi.mock("@/server/repositories/erp-catalog.repository", () => ({
   createCatalogProduct: vi.fn(),
   createCatalogVariant: vi.fn(),
   createDefaultImportCategory: vi.fn(),
+  ensureCatalogCategory: vi.fn(),
+  fillDefaultCatalogProductCategories: vi.fn().mockResolvedValue(0),
   findCatalogBrandByErpId: vi.fn(),
   findCatalogBrandBySlug: vi.fn(),
   findCatalogProductBySlug: vi.fn(),
@@ -473,6 +475,72 @@ describe("syncCatalogFromERP", () => {
 
     expect(repository.createCatalogProduct).toHaveBeenCalledWith(
       expect.objectContaining({ gender: "UNISEX" })
+    )
+  })
+
+  it("crea un producto nuevo dentro de la categoría sugerida por el adaptador", async () => {
+    process.env.ERP_CATALOG_WRITES_ENABLED = "true"
+    mockFindDefaultImportCategory.mockResolvedValue({ id: "default-category" } as never)
+    const repository = await import("@/server/repositories/erp-catalog.repository")
+    vi.mocked(repository.findCatalogProductBySlug).mockResolvedValue(null)
+    vi.mocked(repository.ensureCatalogCategory).mockResolvedValue({
+      id: "sandals-category",
+      slug: "chanclas-y-sandalias",
+    } as never)
+    vi.mocked(repository.createCatalogProduct).mockResolvedValue({
+      id: "product-sandals",
+      variants: [],
+    } as never)
+    mockGetERPAdapter.mockReturnValue({
+      fetchCatalog: vi.fn().mockResolvedValue({
+        groups: [
+          {
+            erpId: "erp-sandals",
+            sku: "SANDALS-BLK",
+            name: "SANDALIA MUJER NEGRA",
+            categorySuggestion: {
+              slug: "chanclas-y-sandalias",
+              name: "Chanclas y Sandalias",
+            },
+            basePrice: 120_000,
+            variants: [
+              {
+                erpId: "variant-sandals",
+                sku: "SANDALS-BLK_8",
+                name: "SANDALIA MUJER NEGRA",
+                basePrice: 120_000,
+                stock: 1,
+              },
+            ],
+          },
+        ],
+        diagnostics: {
+          sourceItemCount: 2,
+          definitionCount: 1,
+          variantCount: 1,
+          groupCount: 1,
+        },
+        stock: {
+          status: "complete",
+          complete: true,
+          requestedCount: 1,
+          resolvedCount: 1,
+          totalStock: 1,
+          missingCodes: [],
+          errors: [],
+        },
+      }),
+      ping: vi.fn(),
+    } as never)
+
+    await syncCatalogFromERP("MANUAL")
+
+    expect(repository.ensureCatalogCategory).toHaveBeenCalledWith({
+      slug: "chanclas-y-sandalias",
+      name: "Chanclas y Sandalias",
+    })
+    expect(repository.createCatalogProduct).toHaveBeenCalledWith(
+      expect.objectContaining({ categoryId: "sandals-category" })
     )
   })
 
