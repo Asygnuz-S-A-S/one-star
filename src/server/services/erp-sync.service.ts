@@ -23,6 +23,7 @@ import {
   createCatalogProduct,
   createCatalogVariant,
   createDefaultImportCategory,
+  ensureCatalogCategory,
   findCatalogBrandByErpId,
   findCatalogBrandBySlug,
   findCatalogProductBySlug,
@@ -233,6 +234,7 @@ async function runCatalogSync(options: CatalogSyncOptions): Promise<ERPCatalogSy
     // Paleta activa: permite deducir el color de cada variante desde el texto
     // que envía el ERP. Se lee una sola vez por sincronización.
     const paletteNames = (await findManyProductColors(true)).map((c) => c.name)
+    const suggestedCategoryIds = new Map<string, string>()
     const colorFamilyKeyUpdates: Array<{ productId: string; key: string | null }> = []
     const genderCandidates: Array<{
       erpId: string
@@ -247,6 +249,18 @@ async function runCatalogSync(options: CatalogSyncOptions): Promise<ERPCatalogSy
 
       // Buscar si el producto principal ya existe
       let existingProduct = await findCatalogProductBySlug(baseSku)
+      let suggestedCategoryId: string | undefined
+      if (
+        group.categorySuggestion &&
+        (!existingProduct || existingProduct.categoryId === defaultCategory.id)
+      ) {
+        suggestedCategoryId = suggestedCategoryIds.get(group.categorySuggestion.slug)
+        if (!suggestedCategoryId) {
+          const category = await ensureCatalogCategory(group.categorySuggestion)
+          suggestedCategoryId = category.id
+          suggestedCategoryIds.set(group.categorySuggestion.slug, category.id)
+        }
+      }
 
       // 2.5 Buscar o crear la MARCA real (Loggro usa el campo Categoría para Marcas)
       let targetBrandId: string | null = null
@@ -312,7 +326,7 @@ async function runCatalogSync(options: CatalogSyncOptions): Promise<ERPCatalogSy
           slug: baseSku,
           basePrice: group.basePrice,
           unitOfMeasure: group.unitOfMeasure,
-          categoryId: defaultCategory.id, // Lo mandamos a Sin Categoría temporalmente
+          categoryId: suggestedCategoryId ?? defaultCategory.id,
           brandId: targetBrandId,
           gender: group.gender,
           erpId: group.erpId,

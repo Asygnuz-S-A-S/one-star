@@ -17,6 +17,17 @@ export async function createDefaultImportCategory() {
   })
 }
 
+export async function ensureCatalogCategory(data: { slug: string; name: string }) {
+  return prisma.category.upsert({
+    where: { slug: data.slug },
+    update: {},
+    create: {
+      ...data,
+      description: `Categoría sugerida automáticamente desde el catálogo ERP: ${data.name}`,
+    },
+  })
+}
+
 export async function findCatalogProductBySlug(slug: string) {
   return prisma.product.findUnique({
     where: { slug },
