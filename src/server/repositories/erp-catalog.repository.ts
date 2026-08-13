@@ -54,7 +54,6 @@ export async function updateCatalogProduct(
     basePrice: number
     unitOfMeasure?: string
     brandId: string | null
-    gender?: Gender
   }
 ) {
   return prisma.product.update({ where: { id }, data })

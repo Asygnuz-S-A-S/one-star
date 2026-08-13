@@ -27,6 +27,7 @@ import {
   findCatalogBrandBySlug,
   findCatalogProductBySlug,
   findDefaultImportCategory,
+  fillMissingCatalogProductGenders,
   updateCatalogBrandErpId,
   updateCatalogProduct,
   updateCatalogVariant,
@@ -233,6 +234,10 @@ async function runCatalogSync(options: CatalogSyncOptions): Promise<ERPCatalogSy
     // que envía el ERP. Se lee una sola vez por sincronización.
     const paletteNames = (await findManyProductColors(true)).map((c) => c.name)
     const colorFamilyKeyUpdates: Array<{ productId: string; key: string | null }> = []
+    const genderCandidates: Array<{
+      erpId: string
+      gender: NonNullable<ERPCatalogProductGroup["gender"]>
+    }> = []
 
     // El adaptador ya normalizó el catálogo plano del ERP en productos padre
     // con variantes vendibles. El servicio no conoce campos propios de Loggro.
@@ -296,11 +301,10 @@ async function runCatalogSync(options: CatalogSyncOptions): Promise<ERPCatalogSy
           basePrice: group.basePrice,
           unitOfMeasure: group.unitOfMeasure,
           brandId: targetBrandId,
-          // El ERP solo completa vacíos; una selección del administrador prevalece.
-          ...(existingProduct.gender == null && group.gender
-            ? { gender: group.gender }
-            : {}),
         })
+        if (existingProduct.gender == null && group.gender) {
+          genderCandidates.push({ erpId: group.erpId, gender: group.gender })
+        }
       } else {
         // Crear el producto principal
         existingProduct = await createCatalogProduct({
@@ -358,6 +362,7 @@ async function runCatalogSync(options: CatalogSyncOptions): Promise<ERPCatalogSy
       })
     }
 
+    await fillMissingCatalogProductGenders(genderCandidates)
     const colorFamilyResult = await applyErpColorFamilyKeyUpdates(colorFamilyKeyUpdates)
     const colorFamilyActions = colorFamilyResult.reconciliation.plan.actions
 
