@@ -68,13 +68,14 @@ describe("syncMissingProductGendersFromERP", () => {
     } as never)
 
     await expect(
-      syncMissingProductGendersFromERP({ dryRun: false })
+      syncMissingProductGendersFromERP({ dryRun: false } as never)
     ).rejects.toThrow("huella")
     expect(mockFillMissingGenders).not.toHaveBeenCalled()
   })
 
   it("aplica únicamente los candidatos normalizados cuando se confirma", async () => {
     mockFillMissingGenders.mockResolvedValue(1)
+    mockFindMissingErpIds.mockResolvedValue(["erp-women"])
     mockGetERPAdapter.mockReturnValue({
       fetchCatalog: vi.fn().mockResolvedValue({
         groups: [
@@ -99,7 +100,11 @@ describe("syncMissingProductGendersFromERP", () => {
       }),
     } as never)
 
-    const result = await syncMissingProductGendersFromERP({ dryRun: false })
+    const preview = await syncMissingProductGendersFromERP({ dryRun: true })
+    const result = await syncMissingProductGendersFromERP({
+      dryRun: false,
+      fingerprint: preview.fingerprint!,
+    })
 
     expect(mockFillMissingGenders).toHaveBeenCalledWith([
       { erpId: "erp-women", gender: "MUJER" },
@@ -109,6 +114,8 @@ describe("syncMissingProductGendersFromERP", () => {
       candidateCount: 1,
       unclassifiedCount: 1,
       updatedCount: 1,
+      fingerprint: preview.fingerprint,
     })
+    expect(mockFindMissingErpIds).toHaveBeenCalledTimes(2)
   })
 })

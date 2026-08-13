@@ -24,8 +24,12 @@ function genderCandidatesFingerprint(
 }
 
 export async function syncMissingProductGendersFromERP(
-  options: { dryRun?: boolean } = {}
+  options: { dryRun?: true } | { dryRun: false; fingerprint: string } = {}
 ): Promise<ErpGenderBackfillResult> {
+  if (options.dryRun === false && !options.fingerprint?.trim()) {
+    throw new Error("Debes proporcionar la huella aprobada de la vista previa.")
+  }
+
   const adapter = getERPAdapter()
   if (!adapter.fetchCatalog) {
     throw new Error("El ERP configurado no permite leer el catálogo.")
@@ -38,31 +42,38 @@ export async function syncMissingProductGendersFromERP(
       : []
   ).sort((left, right) => left.erpId.localeCompare(right.erpId))
   const unclassifiedCount = snapshot.groups.length - classifiedCandidates.length
-  const dryRun = options.dryRun ?? true
+  const missingErpIds = new Set(
+    await findMissingCatalogProductErpIds(
+      classifiedCandidates.map((candidate) => candidate.erpId)
+    )
+  )
+  const candidates = classifiedCandidates.filter((candidate) =>
+    missingErpIds.has(candidate.erpId)
+  )
+  const fingerprint = genderCandidatesFingerprint(candidates)
 
-  if (dryRun) {
-    const missingErpIds = new Set(
-      await findMissingCatalogProductErpIds(
-        classifiedCandidates.map((candidate) => candidate.erpId)
-      )
-    )
-    const candidates = classifiedCandidates.filter((candidate) =>
-      missingErpIds.has(candidate.erpId)
-    )
+  if (options.dryRun !== false) {
     return {
       dryRun: true,
       candidateCount: candidates.length,
       unclassifiedCount,
       updatedCount: 0,
-      fingerprint: genderCandidatesFingerprint(candidates),
+      fingerprint,
     }
   }
 
-  const updatedCount = await fillMissingCatalogProductGenders(classifiedCandidates)
+  if (fingerprint !== options.fingerprint) {
+    throw new Error(
+      "La vista previa de géneros cambió. Genera una nueva huella antes de aplicar."
+    )
+  }
+
+  const updatedCount = await fillMissingCatalogProductGenders(candidates)
   return {
     dryRun: false,
-    candidateCount: classifiedCandidates.length,
+    candidateCount: candidates.length,
     unclassifiedCount,
     updatedCount,
+    fingerprint,
   }
 }
