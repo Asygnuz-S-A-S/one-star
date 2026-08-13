@@ -37,6 +37,37 @@ describe("normalizeLoggroCatalog", () => {
     expect(snapshot.groups[0].gender).toBe("MUJER")
   })
 
+  it("prioriza el género del producto padre sobre una talla mal etiquetada", () => {
+    const snapshot = normalizeLoggroCatalog(
+      [
+        {
+          uuid: "parent-men",
+          codigo: "MEN-BKW",
+          descripcion: "TENIS SKECHERS HOMBRE NEGRO",
+          definicion: true,
+        },
+        {
+          uuid: "variant-men",
+          codigo: "MEN-BKW_5",
+          descripcion: "TENIS SKECHERS HOMBRE NEGRO",
+          descripcionDetallada: "TENIS SKECHERS HOMBRE NEGRO TALLA 5 MUJER",
+          definicion: false,
+          definidoEn_uuid: "parent-men",
+        },
+      ],
+      {
+        stockByCodigo: new Map([["MEN-BKW_5", 1]]),
+        complete: true,
+        requestedCount: 1,
+        resolvedCount: 1,
+        missingCodes: [],
+        errors: [],
+      }
+    )
+
+    expect(snapshot.groups[0].gender).toBe("HOMBRE")
+  })
+
   it("expone una clave agnóstica de familia derivada del código padre", () => {
     const snapshot = normalizeLoggroCatalog(
       [
