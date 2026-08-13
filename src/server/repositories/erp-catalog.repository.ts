@@ -76,6 +76,24 @@ export async function createCatalogProduct(data: {
   })
 }
 
+/** Completa géneros vacíos por identidad ERP sin sobrescribir revisiones manuales. */
+export async function fillMissingCatalogProductGenders(
+  candidates: Array<{ erpId: string; gender: Gender }>
+): Promise<number> {
+  if (candidates.length === 0) return 0
+
+  const results = await prisma.$transaction(
+    candidates.map(({ erpId, gender }) =>
+      prisma.product.updateMany({
+        where: { erpId, gender: null },
+        data: { gender },
+      })
+    )
+  )
+
+  return results.reduce((total, result) => total + result.count, 0)
+}
+
 export async function updateCatalogVariant(
   id: string,
   data: {
