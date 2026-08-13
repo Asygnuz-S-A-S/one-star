@@ -1,14 +1,26 @@
 import "server-only"
 
+import { createHash } from "node:crypto"
 import { getERPAdapter } from "@/server/erp"
-import type { ERPProductGender } from "@/server/erp/erp.types"
-import { fillMissingCatalogProductGenders } from "@/server/repositories/erp-catalog.repository"
+import {
+  fillMissingCatalogProductGenders,
+  findMissingCatalogProductErpIds,
+} from "@/server/repositories/erp-catalog.repository"
 
 export interface ErpGenderBackfillResult {
   dryRun: boolean
   candidateCount: number
   unclassifiedCount: number
   updatedCount: number
+  fingerprint?: string
+}
+
+function genderCandidatesFingerprint(
+  candidates: Array<{ erpId: string; gender: string }>
+): string {
+  return createHash("sha256")
+    .update(JSON.stringify(candidates))
+    .digest("hex")
 }
 
 export async function syncMissingProductGendersFromERP(
@@ -20,27 +32,36 @@ export async function syncMissingProductGendersFromERP(
   }
 
   const snapshot = await adapter.fetchCatalog()
-  const candidates = snapshot.groups.flatMap((group) =>
+  const classifiedCandidates = snapshot.groups.flatMap((group) =>
     group.gender
-      ? [{ erpId: group.erpId, gender: group.gender as ERPProductGender }]
+      ? [{ erpId: group.erpId, gender: group.gender }]
       : []
-  )
-  const unclassifiedCount = snapshot.groups.length - candidates.length
+  ).sort((left, right) => left.erpId.localeCompare(right.erpId))
+  const unclassifiedCount = snapshot.groups.length - classifiedCandidates.length
   const dryRun = options.dryRun ?? true
 
   if (dryRun) {
+    const missingErpIds = new Set(
+      await findMissingCatalogProductErpIds(
+        classifiedCandidates.map((candidate) => candidate.erpId)
+      )
+    )
+    const candidates = classifiedCandidates.filter((candidate) =>
+      missingErpIds.has(candidate.erpId)
+    )
     return {
       dryRun: true,
       candidateCount: candidates.length,
       unclassifiedCount,
       updatedCount: 0,
+      fingerprint: genderCandidatesFingerprint(candidates),
     }
   }
 
-  const updatedCount = await fillMissingCatalogProductGenders(candidates)
+  const updatedCount = await fillMissingCatalogProductGenders(classifiedCandidates)
   return {
     dryRun: false,
-    candidateCount: candidates.length,
+    candidateCount: classifiedCandidates.length,
     unclassifiedCount,
     updatedCount,
   }

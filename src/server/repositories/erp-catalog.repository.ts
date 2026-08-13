@@ -93,6 +93,17 @@ export async function fillMissingCatalogProductGenders(
   return results.reduce((total, result) => total + result.count, 0)
 }
 
+export async function findMissingCatalogProductErpIds(
+  erpIds: string[]
+): Promise<string[]> {
+  if (erpIds.length === 0) return []
+  const products = await prisma.product.findMany({
+    where: { erpId: { in: erpIds }, gender: null },
+    select: { erpId: true },
+  })
+  return products.flatMap((product) => product.erpId ? [product.erpId] : [])
+}
+
 export async function updateCatalogVariant(
   id: string,
   data: {
