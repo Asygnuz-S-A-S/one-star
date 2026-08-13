@@ -2,7 +2,10 @@ import { notFound } from "next/navigation"
 import ProductGrid from "@/components/shop/ProductGrid"
 import FilterSidebar from "@/components/shop/FilterSidebar"
 import ShopLayout from "@/components/shop/ShopLayout"
-import { getUniqueBrands } from "@/server/services/product.service"
+import {
+  getCategorySectionProductFilter,
+  getUniqueBrands,
+} from "@/server/services/product.service"
 import { getUniqueSizes, getUniqueColors } from "@/server/services/variant.service"
 import { getColorPalette } from "@/server/services/product-color.service"
 import { getCategoryBySlug } from "@/server/services/category.service"
@@ -49,6 +52,8 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
     notFound()
   }
 
+  const sectionFilter = getCategorySectionProductFilter(category.slug)
+
   const [brands, sizes, colors, colorPalette] = await Promise.all([
     getUniqueBrands(),
     getUniqueSizes(),
@@ -74,7 +79,8 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
     >
       <ProductGrid
         searchParams={resolvedSearchParams}
-        categorySlug={category.slug}
+        categorySlug={sectionFilter.categorySlug}
+        extraGenders={sectionFilter.extraGenders}
         title={category.name}
         subtitle={`Colección de ${category.name.toLowerCase()}`}
         colorPalette={colorPalette}

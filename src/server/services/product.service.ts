@@ -131,6 +131,19 @@ export interface AppProductFilter {
   extraGenders?: string[]
 }
 
+/**
+ * Hombre y Mujer son secciones por género, no categorías de mercancía.
+ * Un producto UNISEX pertenece a ambas; el resto de slugs conserva el filtro
+ * normal por categoría.
+ */
+export function getCategorySectionProductFilter(
+  slug: string
+): Pick<AppProductFilter, "categorySlug" | "extraGenders"> {
+  if (slug === "hombre") return { extraGenders: ["HOMBRE", "UNISEX"] }
+  if (slug === "mujer") return { extraGenders: ["MUJER", "UNISEX"] }
+  return { categorySlug: slug }
+}
+
 export interface VariantInput {
   sku: string
   size: string
