@@ -37,6 +37,8 @@ describe("detectLoggroCategory", () => {
     expect(detectLoggroCategory("MEDIA BOTA CONVERSE HIGH STREET")).toBeUndefined()
     expect(detectLoggroCategory("BOLSA TELA GRIS GRANDE")).toBeUndefined()
     expect(detectLoggroCategory("MEDIAS CONVERSE OBSEQUIOS")).toBeUndefined()
+    expect(detectLoggroCategory("CORDONES CONVERSE SUELTOS OBSEGUIO")).toBeUndefined()
     expect(detectLoggroCategory("TENIS INFANTIL ROSADO BOLSO")).toBeUndefined()
+    expect(detectLoggroCategory("TENIS SKECHERS MUJER NEGRO SIN CORDON")).toBeUndefined()
   })
 })
