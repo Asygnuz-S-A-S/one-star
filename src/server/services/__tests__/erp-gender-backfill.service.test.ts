@@ -62,6 +62,17 @@ describe("syncMissingProductGendersFromERP", () => {
     expect(mockFillMissingGenders).not.toHaveBeenCalled()
   })
 
+  it("rechaza una aplicación sin la huella aprobada", async () => {
+    mockGetERPAdapter.mockReturnValue({
+      fetchCatalog: vi.fn(),
+    } as never)
+
+    await expect(
+      syncMissingProductGendersFromERP({ dryRun: false })
+    ).rejects.toThrow("huella")
+    expect(mockFillMissingGenders).not.toHaveBeenCalled()
+  })
+
   it("aplica únicamente los candidatos normalizados cuando se confirma", async () => {
     mockFillMissingGenders.mockResolvedValue(1)
     mockGetERPAdapter.mockReturnValue({
