@@ -270,39 +270,9 @@ export async function placeOrder(
     throw error
   }
 
-  // 2. Notifica al ERP de forma asincrónica (fire-and-forget con modo degradado).
-  //    Si el ERP falla, el pedido ya está guardado y se puede reintentar luego.
-
-  erp
-    .onOrderConfirmed({
-      orderId: order.id,
-      customer: {
-        name: data.customerName ?? "Cliente",
-        email: data.customerEmail ?? "",
-      },
-      items: pricedItems.map((i) => ({
-        sku: i.sku,
-        productName: i.productName,
-        quantity: i.quantity,
-        unitPrice: i.unitPrice,
-      })),
-      total,
-      paymentMethod: data.paymentMethod ?? "pending",
-      shippingAddress,
-    })
-    .then((result) => {
-      if (!result.success) {
-        // TODO: en producción, encolar este reintento en una cola de trabajos
-        // (e.g., BullMQ, pg-boss) para garantizar eventual consistencia.
-        console.error(
-          `[ERP] Sincronización falló para pedido ${order.id}:`,
-          result.error
-        )
-      }
-    })
-    .catch((err) => {
-      console.error(`[ERP] Error inesperado sincronizando pedido ${order.id}:`, err)
-    })
+  // 2. Un pedido recién creado permanece PENDING y todavía no debe generar
+  //    movimientos en el ERP. La salida de inventario se enviará únicamente
+  //    después de una transición de pago confirmada e idempotente.
 
   // 3. Correo de confirmación de compra al cliente (fire-and-forget: si el
   //    correo falla, el pedido ya quedó guardado y no se ve afectado).
