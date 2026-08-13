@@ -2,6 +2,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest"
 
 vi.mock("server-only", () => ({}))
 
+const erpMocks = vi.hoisted(() => ({
+  onOrderConfirmed: vi.fn().mockResolvedValue({ success: true }),
+}))
+
 vi.mock("@/server/repositories/order.repository", () => ({
   createOrder: vi.fn(),
   findOrderById: vi.fn(),
@@ -17,7 +21,7 @@ vi.mock("@/server/repositories/order.repository", () => ({
 
 vi.mock("@/server/erp", () => ({
   getERPAdapter: vi.fn(() => ({
-    onOrderConfirmed: vi.fn().mockResolvedValue({ success: true }),
+    onOrderConfirmed: erpMocks.onOrderConfirmed,
   })),
 }))
 
@@ -166,6 +170,14 @@ describe("placeOrder", () => {
     mockCreate.mockResolvedValue(rawOrder as never)
     await placeOrder("user-1", orderInput)
     expect(mockCreate).toHaveBeenCalledTimes(1)
+  })
+
+  it("no notifica al ERP mientras el pedido permanece pendiente", async () => {
+    mockCreate.mockResolvedValue(rawOrder as never)
+
+    await placeOrder("user-1", orderInput)
+
+    expect(erpMocks.onOrderConfirmed).not.toHaveBeenCalled()
   })
 })
 
