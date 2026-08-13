@@ -4,19 +4,23 @@ vi.mock("server-only", () => ({}))
 vi.mock("@/server/erp", () => ({ getERPAdapter: vi.fn() }))
 vi.mock("@/server/repositories/erp-catalog.repository", () => ({
   fillMissingCatalogProductGenders: vi.fn(),
+  findMissingCatalogProductErpIds: vi.fn(),
 }))
 
 import { getERPAdapter } from "@/server/erp"
 import { fillMissingCatalogProductGenders } from "@/server/repositories/erp-catalog.repository"
+import { findMissingCatalogProductErpIds } from "@/server/repositories/erp-catalog.repository"
 import { syncMissingProductGendersFromERP } from "../erp-gender-backfill.service"
 
 const mockGetERPAdapter = vi.mocked(getERPAdapter)
 const mockFillMissingGenders = vi.mocked(fillMissingCatalogProductGenders)
+const mockFindMissingErpIds = vi.mocked(findMissingCatalogProductErpIds)
 
 describe("syncMissingProductGendersFromERP", () => {
   beforeEach(() => vi.clearAllMocks())
 
   it("previsualiza únicamente grupos clasificados sin escribir", async () => {
+    mockFindMissingErpIds.mockResolvedValue(["erp-men"])
     mockGetERPAdapter.mockReturnValue({
       fetchCatalog: vi.fn().mockResolvedValue({
         groups: [
@@ -46,10 +50,15 @@ describe("syncMissingProductGendersFromERP", () => {
 
     expect(result).toEqual({
       dryRun: true,
-      candidateCount: 2,
+      candidateCount: 1,
       unclassifiedCount: 1,
       updatedCount: 0,
+      fingerprint: expect.any(String),
     })
+    expect(mockFindMissingErpIds).toHaveBeenCalledWith([
+      "erp-men",
+      "erp-unisex",
+    ])
     expect(mockFillMissingGenders).not.toHaveBeenCalled()
   })
 
