@@ -108,6 +108,36 @@ describe("normalizeLoggroCatalog", () => {
     expect(snapshot.groups[0].gender).toBeUndefined()
   })
 
+  it("no resuelve desde variantes cuando el nombre padre es contradictorio", () => {
+    const snapshot = normalizeLoggroCatalog(
+      [
+        {
+          uuid: "parent-conflict",
+          codigo: "CONFLICT-BLK",
+          descripcion: "TENIS HOMBRE MUJER NEGRO",
+          definicion: true,
+        },
+        {
+          uuid: "variant-conflict",
+          codigo: "CONFLICT-BLK_8",
+          descripcion: "TENIS HOMBRE NEGRO",
+          definicion: false,
+          definidoEn_uuid: "parent-conflict",
+        },
+      ],
+      {
+        stockByCodigo: new Map([["CONFLICT-BLK_8", 1]]),
+        complete: true,
+        requestedCount: 1,
+        resolvedCount: 1,
+        missingCodes: [],
+        errors: [],
+      }
+    )
+
+    expect(snapshot.groups[0].gender).toBeUndefined()
+  })
+
   it("expone una clave agnóstica de familia derivada del código padre", () => {
     const snapshot = normalizeLoggroCatalog(
       [
