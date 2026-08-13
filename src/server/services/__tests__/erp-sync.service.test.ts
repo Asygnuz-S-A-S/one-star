@@ -544,7 +544,7 @@ describe("syncCatalogFromERP", () => {
     )
   })
 
-  it("completa la categoría solo para un producto ERP que sigue en Sin Categoría", async () => {
+  it("conserva Sin Categoría en productos existentes para no reinterpretar una decisión manual", async () => {
     process.env.ERP_CATALOG_WRITES_ENABLED = "true"
     mockFindDefaultImportCategory.mockResolvedValue({ id: "default-category" } as never)
     const repository = await import("@/server/repositories/erp-catalog.repository")
@@ -598,10 +598,8 @@ describe("syncCatalogFromERP", () => {
 
     await syncCatalogFromERP("MANUAL")
 
-    expect(repository.fillDefaultCatalogProductCategories).toHaveBeenCalledWith(
-      [{ erpId: "erp-accessory", categoryId: "accessories-category" }],
-      "default-category"
-    )
+    expect(repository.ensureCatalogCategory).not.toHaveBeenCalled()
+    expect(repository.fillDefaultCatalogProductCategories).not.toHaveBeenCalled()
     expect(repository.updateCatalogProduct).toHaveBeenCalledWith(
       "product-accessory",
       expect.not.objectContaining({ categoryId: expect.anything() })

@@ -29,7 +29,6 @@ import {
   findCatalogProductBySlug,
   findDefaultImportCategory,
   fillMissingCatalogProductGenders,
-  fillDefaultCatalogProductCategories,
   updateCatalogBrandErpId,
   updateCatalogProduct,
   updateCatalogVariant,
@@ -241,7 +240,6 @@ async function runCatalogSync(options: CatalogSyncOptions): Promise<ERPCatalogSy
       erpId: string
       gender: NonNullable<ERPCatalogProductGroup["gender"]>
     }> = []
-    const categoryCandidates: Array<{ erpId: string; categoryId: string }> = []
 
     // El adaptador ya normalizó el catálogo plano del ERP en productos padre
     // con variantes vendibles. El servicio no conoce campos propios de Loggro.
@@ -252,10 +250,7 @@ async function runCatalogSync(options: CatalogSyncOptions): Promise<ERPCatalogSy
       // Buscar si el producto principal ya existe
       let existingProduct = await findCatalogProductBySlug(baseSku)
       let suggestedCategoryId: string | undefined
-      if (
-        group.categorySuggestion &&
-        (!existingProduct || existingProduct.categoryId === defaultCategory.id)
-      ) {
+      if (group.categorySuggestion && !existingProduct) {
         suggestedCategoryId = suggestedCategoryIds.get(group.categorySuggestion.slug)
         if (!suggestedCategoryId) {
           const category = await ensureCatalogCategory(group.categorySuggestion)
@@ -321,15 +316,6 @@ async function runCatalogSync(options: CatalogSyncOptions): Promise<ERPCatalogSy
         if (existingProduct.gender == null && group.gender) {
           genderCandidates.push({ erpId: group.erpId, gender: group.gender })
         }
-        if (
-          existingProduct.categoryId === defaultCategory.id &&
-          suggestedCategoryId
-        ) {
-          categoryCandidates.push({
-            erpId: group.erpId,
-            categoryId: suggestedCategoryId,
-          })
-        }
       } else {
         // Crear el producto principal
         existingProduct = await createCatalogProduct({
@@ -388,7 +374,6 @@ async function runCatalogSync(options: CatalogSyncOptions): Promise<ERPCatalogSy
     }
 
     await fillMissingCatalogProductGenders(genderCandidates)
-    await fillDefaultCatalogProductCategories(categoryCandidates, defaultCategory.id)
     const colorFamilyResult = await applyErpColorFamilyKeyUpdates(colorFamilyKeyUpdates)
     const colorFamilyActions = colorFamilyResult.reconciliation.plan.actions
 
