@@ -22,12 +22,12 @@ a **quien carga en Loggro** y a **quien completa la ficha en la web**.
 | **Color** | ⚠️ Deducido del nombre — 90 % acierta | Automático + web |
 | **Marca** | ❌ Solo el código (`004`), sin nombre | Automatizable |
 | **Categoría del menú** | ❌ Todos entran en "Sin Categoría" | Web |
-| **Género** | ❌ No llega (está en el nombre) | Automatizable |
+| **Género** | ⚠️ Deducido del nombre y descripciones | Automático + web |
 | **Fotos** | ❌ Nunca llegan | **Web (inevitable)** |
 | **Descripción larga** | ❌ No existe en el ERP | Web |
 
-**Los 367 productos ERP entran sin categoría, sin género, sin descripción y sin foto.**
-Ese es hoy el 100 % del retrabajo manual.
+Los productos ERP siguen entrando sin descripción ni foto. El género ya se deduce de señales
+explícitas y solo completa productos sin clasificar; una selección manual nunca se sobrescribe.
 
 ---
 
@@ -108,7 +108,7 @@ Ordenado por impacto:
 |---|---|---|
 | 1 | **Ignorar ítems `definicion: true`** | Elimina tallas basura y productos partidos |
 | 2 | **Marca desde el nombre** ("TENIS SKECHERS…" → Skechers) | **91 %** de los 367 productos |
-| 3 | **Género desde el nombre** (HOMBRE/MUJER/UNISEX/NIÑO…) | **72 %** de los productos |
+| 3 | **Género desde el nombre** (HOMBRE/MUJER/UNISEX/NIÑO…) | **98,4 %** de los productos |
 | 4 | **Categoría desde la primera palabra** (TENIS 196, BOTA 20, CAMISETA 16, SANDALIA 8…) | mayoría del catálogo |
 | 5 | Marcar como no publicable lo que no es mercancía (bolsas, pruebas, precio $0) | evita despublicar a mano |
 
@@ -154,8 +154,25 @@ Loggro (persona del ERP)              Web (persona de contenido)
 ```
 
 **Regla de oro:** la web nunca pisa lo que se edita a mano. Fotos, descripción,
-categoría y color asignado se conservan en cada sincronización; el ERP solo
-manda precio y stock.
+categoría, género y color asignados se conservan en cada sincronización; el ERP
+solo completa el género cuando aún está vacío y continúa actualizando precio y stock.
+
+### Cobertura real de género (2026-08-13)
+
+La lectura de los 367 productos padre actuales produjo: 87 Hombre, 72 Mujer, 131 Unisex,
+23 Niño, 14 Niña y 34 Infantil. Quedaron 6 sin clasificar: las 5 bolsas de empaque y el SKU
+`1162012-BWHT`, cuyo nombre padre contiene señales contradictorias (`HOMBRE MUJER`).
+
+El backfill local se aplicó el 2026-08-13: dejó clasificados 361 productos ERP cuyo género estaba vacío.
+La escritura fue condicional por `erpId + gender IS NULL`, por lo que no cambió clasificaciones
+manuales ni tocó stock, precio, categoría, variantes, fotos o datos dentro de Loggro.
+
+El nombre del producto padre tiene precedencia. Esto evita errores observados en Loggro donde el
+padre dice `HOMBRE`, pero la descripción de una talla termina en `MUJER` (y viceversa). El detalle
+de variante solo se consulta cuando el nombre padre no contiene una señal reconocible.
+
+En la tienda, `/c/hombre` muestra `HOMBRE + UNISEX`, `/c/mujer` muestra `MUJER + UNISEX` y
+`/c/ninos` reúne Niño, Niña, Infantil y Bebé. Las demás rutas siguen filtrando por categoría.
 
 ---
 

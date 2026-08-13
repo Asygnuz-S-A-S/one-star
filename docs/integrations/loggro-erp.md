@@ -70,9 +70,20 @@ Para asegurar que Loggro mantenga el control contable sin destruir el enriquecim
 | Precio Base | Loggro | **Loggro Sobrescribe siempre** en cada sincronización. |
 | Stock | Loggro | **Loggro Sobrescribe siempre** en cada sincronización (a nivel variante). |
 | Unidad de Medida | Loggro | **Loggro Sobrescribe siempre**. |
+| Género | Compartido | Loggro completa el campo solo si está vacío; una selección manual se conserva. |
 | Categoría | One Star | Loggro asigna "Sin Categoría" al crear. Luego One Star mantiene el control. |
 | Imágenes | One Star | Loggro no envía imágenes. One Star mantiene el control. |
 | Descripción Larga | One Star | One Star mantiene el control. |
+
+El adaptador deduce el género solo a partir de palabras completas y explícitas: Hombre/Caballero,
+Mujer/Dama, Unisex, Niño, Niña, Infantil/Junior/Kids y Bebé. El nombre del producto padre tiene
+precedencia sobre descripciones de talla contradictorias; si no hay una señal segura, el campo
+queda vacío. El core recibe únicamente el valor normalizado y no conoce estas reglas de Loggro.
+
+Para completar productos históricos se usa un backfill separado del stock: primero genera una
+vista previa de filas realmente vacías y su huella SHA-256; la aplicación exige la misma huella y
+recalcula los candidatos antes de escribir. Cada actualización usa `erpId + gender IS NULL`, por
+lo que el proceso es idempotente y no sobrescribe una edición administrativa concurrente.
 
 ## Flujo de ventas (Web → Loggro)
 
