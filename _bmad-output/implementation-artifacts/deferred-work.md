@@ -42,3 +42,10 @@
 - Implementar el control público de `showArrows` del hero, que ya existía en el constructor pero no tenía consumidor efectivo.
 - Endurecer la concurrencia preexistente de posiciones de navegación/secciones y las transiciones de logo principal con operaciones atómicas en repositorio.
 - Sanear URLs históricas de logos también en el header público y mejorar semántica/foco de los modales administrativos trasladados.
+
+## 2026-08-13 — Deuda de instalación expuesta al documentar el proyecto
+
+- Fijar la versión de pnpm en `package.json`/Corepack y en `Dockerfile`; actualmente la imagen instala `pnpm` sin versión, por lo que los builds no son totalmente reproducibles.
+- Propagar correctamente en Docker Compose las variables y argumentos de build de Alegra, ePayco y Sentry; hoy el flujo de contenedores solo integra Loggro, Cloudinary y Resend.
+- Alinear `.env.example` y `docs/architecture.md` con el código de autenticación: `BETTER_AUTH_SECRET` se describe como alias, pero `src/lib/auth.ts` solo consume `AUTH_SECRET` o `NEXTAUTH_SECRET`.
+- Separar el seed demo del arranque repetible de Docker Compose para que recrear `migrate` no pueda sobrescribir precios, promociones o stock editados en los productos de muestra.
