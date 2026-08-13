@@ -6,6 +6,37 @@ import { normalizeLoggroCatalog } from "../loggro-catalog.normalizer"
 import type { LoggroCatalogItem } from "../loggro.client"
 
 describe("normalizeLoggroCatalog", () => {
+  it("expone el género normalizado desde los textos del producto y sus variantes", () => {
+    const snapshot = normalizeLoggroCatalog(
+      [
+        {
+          uuid: "parent-women",
+          codigo: "WOMEN-GRN",
+          descripcion: "TENIS SKECHERS OUTDOOR VERDE",
+          definicion: true,
+        },
+        {
+          uuid: "variant-women",
+          codigo: "WOMEN-GRN_8",
+          descripcion: "TENIS SKECHERS OUTDOOR VERDE",
+          descripcionDetallada: "TENIS SKECHERS MUJER OUTDOOR VERDE TALLA 8",
+          definicion: false,
+          definidoEn_uuid: "parent-women",
+        },
+      ],
+      {
+        stockByCodigo: new Map([["WOMEN-GRN_8", 1]]),
+        complete: true,
+        requestedCount: 1,
+        resolvedCount: 1,
+        missingCodes: [],
+        errors: [],
+      }
+    )
+
+    expect(snapshot.groups[0].gender).toBe("MUJER")
+  })
+
   it("expone una clave agnóstica de familia derivada del código padre", () => {
     const snapshot = normalizeLoggroCatalog(
       [
