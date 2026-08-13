@@ -64,6 +64,32 @@ describe("LoggroClient.getDisponibilidadSnapshot", () => {
     expect(locations).toEqual([])
   })
 
+  it("rechaza un override de bodega separados o perteneciente a otra sede", () => {
+    const client = new LoggroClient("token")
+    const internal = client as unknown as {
+      selectStockWarehouse: (
+        warehouses: Array<{ uuid: string; nombre: string; padre: string }>,
+        establishmentUuid: string,
+        configuredUuid?: string
+      ) => { uuid: string } | undefined
+    }
+    const warehouses = [
+      { uuid: "bod-pos", nombre: "Bodega Punto de Venta Centro", padre: "est-1" },
+      { uuid: "bod-separados", nombre: "Bodega Separados Centro", padre: "est-1" },
+      { uuid: "bod-otra", nombre: "Bodega Punto de Venta Otra", padre: "est-2" },
+    ]
+
+    expect(
+      internal.selectStockWarehouse(warehouses, "est-1", "bod-separados")
+    ).toBeUndefined()
+    expect(
+      internal.selectStockWarehouse(warehouses, "est-1", "bod-otra")
+    ).toBeUndefined()
+    expect(
+      internal.selectStockWarehouse(warehouses, "est-1", "bod-pos")
+    ).toEqual(expect.objectContaining({ uuid: "bod-pos" }))
+  })
+
   it("acota los descartes de SKU inválidos por lote", async () => {
     const client = new LoggroClient("token")
     vi.spyOn(
@@ -87,7 +113,7 @@ describe("LoggroClient.getDisponibilidadSnapshot", () => {
     const codes = Array.from({ length: 100 }, (_, index) => `INVALID-${index}`)
     const snapshot = await client.getDisponibilidadSnapshot(codes)
 
-    expect(fetchMock.mock.calls.length).toBeLessThanOrEqual(11)
+    expect(fetchMock.mock.calls.length).toBe(10)
     expect(snapshot.complete).toBe(false)
     expect(snapshot.resolvedCount).toBe(0)
   })
