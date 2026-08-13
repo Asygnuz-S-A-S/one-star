@@ -16,7 +16,10 @@ vi.mock("@/server/db/prisma", () => ({
   },
 }))
 
-import { fillMissingCatalogProductGenders } from "../erp-catalog.repository"
+import {
+  fillDefaultCatalogProductCategories,
+  fillMissingCatalogProductGenders,
+} from "../erp-catalog.repository"
 
 describe("fillMissingCatalogProductGenders", () => {
   beforeEach(() => {
@@ -41,6 +44,35 @@ describe("fillMissingCatalogProductGenders", () => {
       data: { gender: "MUJER" },
     })
     expect(transaction).toHaveBeenCalledOnce()
+    expect(updated).toBe(1)
+  })
+})
+
+describe("fillDefaultCatalogProductCategories", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    updateMany
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 0 })
+  })
+
+  it("actualiza solo la categoría por defecto y devuelve las filas modificadas", async () => {
+    const updated = await fillDefaultCatalogProductCategories(
+      [
+        { erpId: "erp-cap", categoryId: "accessories" },
+        { erpId: "erp-sandals", categoryId: "sandals" },
+      ],
+      "default"
+    )
+
+    expect(updateMany).toHaveBeenNthCalledWith(1, {
+      where: { erpId: "erp-cap", categoryId: "default" },
+      data: { categoryId: "accessories" },
+    })
+    expect(updateMany).toHaveBeenNthCalledWith(2, {
+      where: { erpId: "erp-sandals", categoryId: "default" },
+      data: { categoryId: "sandals" },
+    })
     expect(updated).toBe(1)
   })
 })
