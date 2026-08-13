@@ -10,6 +10,28 @@ function normalizedWords(value: string): string[] {
     .match(/[A-Z0-9]+/g) ?? []
 }
 
+const GENDER_SIGNAL_WORDS = new Set([
+  "UNISEX",
+  "NINA",
+  "NINAS",
+  "NINO",
+  "NINOS",
+  "BEBE",
+  "BEBES",
+  "INFANTIL",
+  "INFANTILES",
+  "JUNIOR",
+  "KIDS",
+  "MUJER",
+  "DAMA",
+  "HOMBRE",
+  "CABALLERO",
+])
+
+export function hasLoggroGenderSignal(value?: string): boolean {
+  return value ? normalizedWords(value).some((word) => GENDER_SIGNAL_WORDS.has(word)) : false
+}
+
 /** Traduce únicamente señales explícitas del texto de Loggro al contrato ERP común. */
 export function detectLoggroGender(value?: string): ERPProductGender | undefined {
   if (!value) return undefined
