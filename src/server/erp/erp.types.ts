@@ -77,6 +77,11 @@ export type ERPProductGender =
   | "INFANTIL"
   | "BEBE"
 
+export interface ERPCatalogCategorySuggestion {
+  slug: string
+  name: string
+}
+
 export interface ERPCatalogProductGroup {
   /** Identidad estable del producto padre en el ERP. */
   erpId: string
