@@ -28,6 +28,7 @@ import {
   deleteProduct,
   searchProducts,
   updateProduct,
+  getCategorySectionProductFilter,
 } from "../product.service"
 import {
   findManyProducts,
@@ -77,6 +78,20 @@ const rawProduct = {
   createdAt: new Date("2024-01-01"),
   updatedAt: new Date("2024-06-01"),
 }
+
+describe("getCategorySectionProductFilter", () => {
+  it("incluye Unisex en Hombre y Mujer sin alterar las demás categorías", () => {
+    expect(getCategorySectionProductFilter("hombre")).toEqual({
+      extraGenders: ["HOMBRE", "UNISEX"],
+    })
+    expect(getCategorySectionProductFilter("mujer")).toEqual({
+      extraGenders: ["MUJER", "UNISEX"],
+    })
+    expect(getCategorySectionProductFilter("accesorios")).toEqual({
+      categorySlug: "accesorios",
+    })
+  })
+})
 
 describe("getProducts", () => {
   beforeEach(() => {
