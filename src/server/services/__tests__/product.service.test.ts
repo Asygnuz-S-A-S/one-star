@@ -87,6 +87,9 @@ describe("getCategorySectionProductFilter", () => {
     expect(getCategorySectionProductFilter("mujer")).toEqual({
       extraGenders: ["MUJER", "UNISEX"],
     })
+    expect(getCategorySectionProductFilter("ninos")).toEqual({
+      extraGenders: ["NINO", "NINA", "INFANTIL", "BEBE"],
+    })
     expect(getCategorySectionProductFilter("accesorios")).toEqual({
       categorySlug: "accesorios",
     })
