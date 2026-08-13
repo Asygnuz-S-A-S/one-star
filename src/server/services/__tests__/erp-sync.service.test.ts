@@ -360,6 +360,62 @@ describe("syncCatalogFromERP", () => {
     ])
   })
 
+  it("completa el género de un producto ERP existente que aún no está clasificado", async () => {
+    process.env.ERP_CATALOG_WRITES_ENABLED = "true"
+    mockFindDefaultImportCategory.mockResolvedValue({ id: "category" } as never)
+    const repository = await import("@/server/repositories/erp-catalog.repository")
+    vi.mocked(repository.findCatalogProductBySlug).mockResolvedValue({
+      id: "product-women",
+      gender: null,
+      variants: [],
+    } as never)
+    mockGetERPAdapter.mockReturnValue({
+      fetchCatalog: vi.fn().mockResolvedValue({
+        groups: [
+          {
+            erpId: "erp-women",
+            sku: "WOMEN-GRN",
+            name: "TENIS SKECHERS MUJER VERDE",
+            gender: "MUJER",
+            basePrice: 100_000,
+            variants: [
+              {
+                erpId: "variant-women",
+                sku: "WOMEN-GRN_8",
+                name: "TENIS SKECHERS MUJER VERDE",
+                basePrice: 100_000,
+                stock: 2,
+              },
+            ],
+          },
+        ],
+        diagnostics: {
+          sourceItemCount: 2,
+          definitionCount: 1,
+          variantCount: 1,
+          groupCount: 1,
+        },
+        stock: {
+          status: "complete",
+          complete: true,
+          requestedCount: 1,
+          resolvedCount: 1,
+          totalStock: 2,
+          missingCodes: [],
+          errors: [],
+        },
+      }),
+      ping: vi.fn(),
+    } as never)
+
+    await syncCatalogFromERP("MANUAL")
+
+    expect(repository.updateCatalogProduct).toHaveBeenCalledWith(
+      "product-women",
+      expect.objectContaining({ gender: "MUJER" })
+    )
+  })
+
   it("sanea el error antes de persistirlo y devolverlo", async () => {
     mockGetERPAdapter.mockReturnValue({
       fetchCatalog: vi.fn().mockRejectedValue(
