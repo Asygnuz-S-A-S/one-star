@@ -472,6 +472,62 @@ describe("syncCatalogFromERP", () => {
     )
   })
 
+  it("conserva el género asignado manualmente aunque el ERP sugiera otro", async () => {
+    process.env.ERP_CATALOG_WRITES_ENABLED = "true"
+    mockFindDefaultImportCategory.mockResolvedValue({ id: "category" } as never)
+    const repository = await import("@/server/repositories/erp-catalog.repository")
+    vi.mocked(repository.findCatalogProductBySlug).mockResolvedValue({
+      id: "product-reviewed",
+      gender: "HOMBRE",
+      variants: [],
+    } as never)
+    mockGetERPAdapter.mockReturnValue({
+      fetchCatalog: vi.fn().mockResolvedValue({
+        groups: [
+          {
+            erpId: "erp-reviewed",
+            sku: "REVIEWED-BLK",
+            name: "TENIS MUJER NEGRO",
+            gender: "MUJER",
+            basePrice: 100_000,
+            variants: [
+              {
+                erpId: "variant-reviewed",
+                sku: "REVIEWED-BLK_8",
+                name: "TENIS MUJER NEGRO",
+                basePrice: 100_000,
+                stock: 1,
+              },
+            ],
+          },
+        ],
+        diagnostics: {
+          sourceItemCount: 2,
+          definitionCount: 1,
+          variantCount: 1,
+          groupCount: 1,
+        },
+        stock: {
+          status: "complete",
+          complete: true,
+          requestedCount: 1,
+          resolvedCount: 1,
+          totalStock: 1,
+          missingCodes: [],
+          errors: [],
+        },
+      }),
+      ping: vi.fn(),
+    } as never)
+
+    await syncCatalogFromERP("MANUAL")
+
+    expect(repository.updateCatalogProduct).toHaveBeenCalledWith(
+      "product-reviewed",
+      expect.not.objectContaining({ gender: expect.anything() })
+    )
+  })
+
   it("sanea el error antes de persistirlo y devolverlo", async () => {
     mockGetERPAdapter.mockReturnValue({
       fetchCatalog: vi.fn().mockRejectedValue(
