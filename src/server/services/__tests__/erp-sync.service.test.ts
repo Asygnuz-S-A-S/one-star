@@ -21,6 +21,7 @@ vi.mock("@/server/repositories/erp-catalog.repository", () => ({
   findCatalogBrandBySlug: vi.fn(),
   findCatalogProductBySlug: vi.fn(),
   findDefaultImportCategory: vi.fn(),
+  fillMissingCatalogProductGenders: vi.fn().mockResolvedValue(0),
   updateCatalogBrandErpId: vi.fn(),
   updateCatalogProduct: vi.fn(),
   updateCatalogVariant: vi.fn(),
@@ -410,9 +411,12 @@ describe("syncCatalogFromERP", () => {
 
     await syncCatalogFromERP("MANUAL")
 
+    expect(repository.fillMissingCatalogProductGenders).toHaveBeenCalledWith([
+      { erpId: "erp-women", gender: "MUJER" },
+    ])
     expect(repository.updateCatalogProduct).toHaveBeenCalledWith(
       "product-women",
-      expect.objectContaining({ gender: "MUJER" })
+      expect.not.objectContaining({ gender: expect.anything() })
     )
   })
 
