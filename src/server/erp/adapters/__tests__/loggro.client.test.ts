@@ -27,6 +27,71 @@ describe("LoggroClient.getDisponibilidadSnapshot", () => {
     })
   })
 
+  it("prefiere la bodega de punto de venta aunque Loggro liste primero separados", async () => {
+    const client = new LoggroClient("token")
+    vi.spyOn(client, "getEstablecimientos").mockResolvedValue([
+      { uuid: "est-1", nombre: "Centro", tipoNodo: "EST" },
+    ])
+    vi.spyOn(client, "getBodegas").mockResolvedValue([
+      { uuid: "bod-separados", nombre: "0002S - Bodega Separados Centro", padre: "est-1" },
+      { uuid: "bod-pos", nombre: "0002 - Bodega Punto de Venta Centro", padre: "est-1" },
+    ])
+    const internal = client as unknown as {
+      resolveStockLocations: (timeoutMs?: number, useCache?: boolean) => Promise<
+        Array<{ bodegaUuid: string }>
+      >
+    }
+
+    const locations = await internal.resolveStockLocations(1_000, false)
+
+    expect(locations).toEqual([expect.objectContaining({ bodegaUuid: "bod-pos" })])
+  })
+
+  it("consulta sedes en paralelo al construir el snapshot completo", async () => {
+    const client = new LoggroClient("token")
+    vi.spyOn(
+      client as unknown as { resolveStockLocations: () => Promise<unknown[]> },
+      "resolveStockLocations"
+    ).mockResolvedValue([
+      { establecimientoUuid: "est-1", establecimientoNombre: "Uno", bodegaUuid: "bod-1" },
+      { establecimientoUuid: "est-2", establecimientoNombre: "Dos", bodegaUuid: "bod-2" },
+    ])
+
+    let started = 0
+    let releaseBoth: (() => void) | undefined
+    const bothStarted = new Promise<void>((resolve) => {
+      releaseBoth = resolve
+    })
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(async (_url: string, init?: RequestInit) => {
+      started += 1
+      if (started === 2) releaseBoth?.()
+      await Promise.race([
+        bothStarted,
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Las sedes se consultaron secuencialmente.")), 100)
+        ),
+      ])
+      const body = JSON.parse(String(init?.body)) as {
+        items: Array<{ codigoItem: string }>
+      }
+      return new Response(
+        JSON.stringify({
+          contenido: body.items.map(({ codigoItem }) => ({
+            codigo: codigoItem,
+            cantidadDisponible: 1,
+          })),
+        }),
+        { status: 200 }
+      )
+    }))
+
+    const snapshot = await client.getDisponibilidadSnapshot(["SKU-1"])
+
+    expect(started).toBe(2)
+    expect(snapshot.complete).toBe(true)
+    expect(snapshot.stockByCodigo.get("SKU-1")).toBe(2)
+  })
+
   it("limita la duración de las peticiones HTTP con una señal de aborto", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ contenido: [] }), {
