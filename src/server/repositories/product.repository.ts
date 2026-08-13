@@ -61,17 +61,18 @@ export async function findProductCatalogCandidates(
 export async function findProductsByIds(ids: readonly string[]) {
   if (ids.length === 0) return []
   return prisma.product.findMany({
-    where: { id: { in: [...ids] } },
+    where: { id: { in: [...ids] }, isPublished: true },
     include: productInclude,
   })
 }
 
 export async function findProductBySlug(slug: string) {
   return prisma.product.findFirst({
-    where: { slug },
+    where: { slug, isPublished: true },
     include: {
       ...productInclude,
       crossSells: {
+        where: { isPublished: true },
         include: {
           brand: { select: { id: true, name: true } },
           images: { take: 1, orderBy: { position: "asc" } },
@@ -138,7 +139,10 @@ export async function countProducts(
 export async function fetchBrands(): Promise<string[]> {
   const brands = await prisma.brand.findMany({
     select: { name: true },
-    where: { isActive: true },
+    where: {
+      isActive: true,
+      products: { some: { isPublished: true } },
+    },
     orderBy: { name: "asc" }
   })
   return brands.map((b) => b.name)
@@ -171,6 +175,7 @@ export interface AdminProductRelationsUpdate {
   metaDescription?: string | null
   availableOnline: boolean
   availableInStores: boolean
+  isPublished: boolean
   variants: Array<{
     sku: string
     size: string
@@ -386,6 +391,7 @@ export async function updateProductWithAdminRelations(
         metaDescription: input.metaDescription ?? null,
         availableOnline: input.availableOnline,
         availableInStores: input.availableInStores,
+        isPublished: input.isPublished,
         images: {
           create: input.images.map((image, index) => ({
             url: image.url,

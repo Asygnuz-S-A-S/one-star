@@ -106,6 +106,7 @@ export interface ProductDTO {
   category: CategoryDTO
   availableOnline: boolean
   availableInStores: boolean
+  isPublished: boolean
   images: ProductImageDTO[]
   variants: VariantDTO[]
   colorSiblings: ColorSiblingDTO[]
@@ -184,6 +185,7 @@ export interface ProductInput {
   metaDescription?: string | null
   availableOnline: boolean
   availableInStores: boolean
+  isPublished: boolean
   variants: VariantInput[]
   images: ImageInput[]
   colorFamilyProductIds?: string[]
@@ -222,6 +224,7 @@ type RawRelatedProduct = {
   isOnSale: boolean
   salePrice: RawPrice | null
   availableOnline?: boolean
+  isPublished?: boolean
   images: RawImage[]
   variants: RawVariant[]
 }
@@ -245,6 +248,7 @@ type RawProduct = {
   category: { id: string; name: string; slug: string }
   availableOnline?: boolean
   availableInStores?: boolean
+  isPublished?: boolean
   images: RawImage[]
   variants: RawVariant[]
   colorFamily?: { products: RawRelatedProduct[] } | null
@@ -329,10 +333,11 @@ function mapToDTO(raw: RawProduct): ProductDTO {
     },
     availableOnline: raw.availableOnline ?? true,
     availableInStores: raw.availableInStores ?? true,
+    isPublished: raw.isPublished ?? true,
     images: raw.images.map(mapImage),
     variants: raw.variants.map(mapVariant),
     colorSiblings: (raw.colorFamily?.products ?? [])
-      .filter((product) => product.id !== raw.id && product.availableOnline !== false)
+      .filter((product) => product.id !== raw.id && product.isPublished !== false)
       .map(mapRelatedProduct),
     crossSells: (raw.crossSells ?? []).map(mapRelatedProduct),
     hasStock: raw.variants.reduce((acc, v) => acc + (v.stock || 0), 0) > 0,
@@ -398,7 +403,7 @@ export async function getProducts(
   pageSize = 24
 ): Promise<{ products: ProductDTO[]; total: number }> {
   const page = Math.max(1, Number(filter.page ?? 1))
-  const where = buildPrismaWhere(filter)
+  const where = { ...buildPrismaWhere(filter), isPublished: true }
   const orderBy = buildPrismaOrderBy(filter.orden)
   const candidates = await findProductCatalogCandidates(where, orderBy)
   const visiblePage = buildVisibleProductPage(candidates, page, pageSize)
@@ -435,7 +440,7 @@ export async function getAdminProducts(
 
 export async function getProductBySlug(slug: string): Promise<ProductDTO | null> {
   const raw = await findProductBySlug(slug)
-  return raw ? mapToDTO(raw) : null
+  return raw && raw.isPublished !== false ? mapToDTO(raw) : null
 }
 
 export async function getTotalProductsCount(): Promise<number> {
@@ -463,6 +468,7 @@ export async function createProduct(input: ProductInput): Promise<ProductDTO> {
     metaDescription: input.metaDescription ?? null,
     availableOnline: input.availableOnline,
     availableInStores: input.availableInStores,
+    isPublished: input.isPublished,
     variants: {
       create: input.variants.map((v) => ({
         sku: v.sku,
@@ -519,7 +525,7 @@ export async function getRelatedProducts(
   take = 4
 ): Promise<ProductDTO[]> {
   const rows = await findManyProducts(
-    { categoryId, NOT: { slug: excludeSlug } },
+    { categoryId, isPublished: true, NOT: { slug: excludeSlug } },
     { createdAt: "desc" },
     take,
     0

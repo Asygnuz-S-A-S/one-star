@@ -14,6 +14,7 @@ export interface ProductExtended extends Product {
   videoUrl: string | null
   availableOnline: boolean
   availableInStores: boolean
+  isPublished: boolean
 }
 
 export interface VariantExtended extends Variant {

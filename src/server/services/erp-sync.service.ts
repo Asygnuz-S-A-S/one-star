@@ -285,6 +285,7 @@ async function runCatalogSync(options: CatalogSyncOptions): Promise<ERPCatalogSy
           categoryId: suggestedCategoryId ?? defaultCategory.id,
           brandId: suggestedBrandId,
           gender: group.gender,
+          isPublished: group.onlineCatalogExclusionReason ? false : true,
           erpId: group.erpId,
         })
       }

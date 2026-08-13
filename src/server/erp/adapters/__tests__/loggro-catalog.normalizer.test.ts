@@ -6,6 +6,119 @@ import { normalizeLoggroCatalog } from "../loggro-catalog.normalizer"
 import type { LoggroCatalogItem } from "../loggro.client"
 
 describe("normalizeLoggroCatalog", () => {
+  it("expone una razón normalizada para excluir artículos internos del catálogo online", () => {
+    const snapshot = normalizeLoggroCatalog(
+      [
+        {
+          uuid: "parent-bag",
+          codigo: "BAG-L",
+          descripcion: "BOLSA TELA GRIS GRANDE",
+          definicion: true,
+          codigoCategoria: "011",
+          precioDefecto: 2_000,
+        },
+        {
+          uuid: "variant-bag",
+          codigo: "BAG-L_UNICA",
+          descripcion: "BOLSA TELA GRIS GRANDE",
+          definicion: false,
+          definidoEn_uuid: "parent-bag",
+          precioDefecto: 2_000,
+        },
+      ],
+      {
+        stockByCodigo: new Map([["BAG-L_UNICA", 1]]),
+        complete: true,
+        requestedCount: 1,
+        resolvedCount: 1,
+        missingCodes: [],
+        errors: [],
+      }
+    )
+
+    expect(snapshot.groups[0].onlineCatalogExclusionReason).toBe("INTERNAL_ITEM")
+  })
+
+  it("usa el precio de la variante cuando el padre no contiene precio", () => {
+    const snapshot = normalizeLoggroCatalog(
+      [
+        {
+          uuid: "parent-without-price",
+          codigo: "MODEL-BLK",
+          descripcion: "TENIS VANS AUTHENTIC NEGRO",
+          definicion: true,
+          codigoCategoria: "003",
+        },
+        {
+          uuid: "variant-with-price",
+          codigo: "MODEL-BLK_9",
+          descripcion: "TENIS VANS AUTHENTIC NEGRO",
+          definicion: false,
+          definidoEn_uuid: "parent-without-price",
+          precioDefecto: 249_900,
+        },
+      ],
+      {
+        stockByCodigo: new Map([["MODEL-BLK_9", 1]]),
+        complete: true,
+        requestedCount: 1,
+        resolvedCount: 1,
+        missingCodes: [],
+        errors: [],
+      }
+    )
+
+    expect(snapshot.groups[0]).toMatchObject({
+      basePrice: 249_900,
+      onlineCatalogExclusionReason: undefined,
+    })
+  })
+
+  it("busca el primer precio definido entre todas las variantes", () => {
+    const snapshot = normalizeLoggroCatalog(
+      [
+        {
+          uuid: "parent-without-price",
+          codigo: "MODEL-WHT",
+          descripcion: "TENIS VANS AUTHENTIC BLANCO",
+          definicion: true,
+          codigoCategoria: "003",
+        },
+        {
+          uuid: "variant-without-price",
+          codigo: "MODEL-WHT_8",
+          descripcion: "TENIS VANS AUTHENTIC BLANCO",
+          definicion: false,
+          definidoEn_uuid: "parent-without-price",
+        },
+        {
+          uuid: "variant-with-price",
+          codigo: "MODEL-WHT_9",
+          descripcion: "TENIS VANS AUTHENTIC BLANCO",
+          definicion: false,
+          definidoEn_uuid: "parent-without-price",
+          precioDefecto: 249_900,
+        },
+      ],
+      {
+        stockByCodigo: new Map([
+          ["MODEL-WHT_8", 1],
+          ["MODEL-WHT_9", 1],
+        ]),
+        complete: true,
+        requestedCount: 2,
+        resolvedCount: 2,
+        missingCodes: [],
+        errors: [],
+      }
+    )
+
+    expect(snapshot.groups[0]).toMatchObject({
+      basePrice: 249_900,
+      onlineCatalogExclusionReason: undefined,
+    })
+  })
+
   it("expone una sugerencia de marca normalizada sin filtrar códigos Loggro al core", () => {
     const snapshot = normalizeLoggroCatalog(
       [

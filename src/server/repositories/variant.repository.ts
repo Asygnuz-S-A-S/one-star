@@ -9,6 +9,7 @@ export async function findManyVariants(): Promise<Variant[]> {
 
 export async function getUniqueSizes(): Promise<string[]> {
   const variants = await prisma.variant.findMany({
+    where: { product: { isPublished: true } },
     select: { size: true },
     distinct: ["size"],
   })
@@ -22,6 +23,7 @@ export async function getUniqueSizes(): Promise<string[]> {
  */
 export async function getUniqueColors(): Promise<string[]> {
   const variants = await prisma.variant.findMany({
+    where: { product: { isPublished: true } },
     select: { color: true },
     distinct: ["color"],
     orderBy: { color: "asc" },
@@ -40,7 +42,10 @@ export async function countVariants(): Promise<number> {
  */
 export async function findVariantsForPricing(variantIds: string[]) {
   return prisma.variant.findMany({
-    where: { id: { in: variantIds } },
+    where: {
+      id: { in: variantIds },
+      product: { isPublished: true, availableOnline: true },
+    },
     select: {
       id: true,
       sku: true,

@@ -6,6 +6,9 @@ export async function findCartByUserId(userId: string) {
     where: { userId },
     include: {
       items: {
+        where: {
+          product: { isPublished: true, availableOnline: true },
+        },
         include: {
           product: true,
           variant: true

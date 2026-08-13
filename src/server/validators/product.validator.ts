@@ -56,6 +56,7 @@ export const productFormSchema = z.object({
   metaDescription: z.string().optional().nullable(),
   availableOnline: z.boolean().default(true),
   availableInStores: z.boolean().default(true),
+  isPublished: z.boolean().default(true),
   variants: z.array(variantSchema).default([]),
   images: z.array(imageSchema).default([]),
   colorFamilyProductIds: z.array(z.string().min(1)).optional(),

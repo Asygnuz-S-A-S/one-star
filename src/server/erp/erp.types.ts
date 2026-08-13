@@ -87,6 +87,12 @@ export interface ERPCatalogBrandSuggestion {
   name: string
 }
 
+export type ERPOnlineCatalogExclusionReason =
+  | "INTERNAL_ITEM"
+  | "GIFT"
+  | "TEST_ITEM"
+  | "NON_POSITIVE_PRICE"
+
 export interface ERPCatalogProductGroup {
   /** Identidad estable del producto padre en el ERP. */
   erpId: string
@@ -99,6 +105,8 @@ export interface ERPCatalogProductGroup {
   categorySuggestion?: ERPCatalogCategorySuggestion
   /** Marca comercial normalizada por el adaptador; ausente cuando no hay una señal segura. */
   brandSuggestion?: ERPCatalogBrandSuggestion
+  /** Señal conservadora para no publicar artículos internos o no vendibles. */
+  onlineCatalogExclusionReason?: ERPOnlineCatalogExclusionReason
   basePrice: number
   unitOfMeasure?: string
   categoryName?: string

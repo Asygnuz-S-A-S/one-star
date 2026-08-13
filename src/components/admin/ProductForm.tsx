@@ -134,6 +134,7 @@ export default function ProductForm({
   const [videoUrl, setVideoUrl] = useState(product?.videoUrl ?? "")
   const [availableOnline, setAvailableOnline] = useState(product?.availableOnline ?? true)
   const [availableInStores, setAvailableInStores] = useState(product?.availableInStores ?? true)
+  const [isPublished, setIsPublished] = useState(product?.isPublished ?? true)
 
   // Pricing
   const [basePrice] = useState(product?.basePrice ? String(Number(product.basePrice)) : "")
@@ -504,6 +505,7 @@ export default function ProductForm({
     formData.set("metaDescription", metaDescription)
     formData.set("availableOnline", String(availableOnline))
     formData.set("availableInStores", String(availableInStores))
+    formData.set("isPublished", String(isPublished))
     
     // Ensure all variants map their 'inventory' objects correctly with numbers
     const cleanVariants = variants.map(v => ({
@@ -655,7 +657,19 @@ export default function ProductForm({
             className={inputClass}
           />
         </Field>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 mt-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 mt-6">
+          <div className="flex items-center gap-3 mb-4">
+            <button
+              type="button"
+              onClick={() => setIsPublished((value) => !value)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isPublished ? "bg-[#E31C23]" : "bg-gray-200"}`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm ${isPublished ? "translate-x-6" : "translate-x-1"}`}
+              />
+            </button>
+            <span className="text-sm font-medium text-[#1C1C1C]">Publicado en catálogo</span>
+          </div>
           <div className="flex items-center gap-3 mb-4">
             <button
               type="button"

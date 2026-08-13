@@ -24,6 +24,7 @@ import {
   getAdminProducts,
   getProducts,
   getProductBySlug,
+  getRelatedProducts,
   getUniqueBrands,
   deleteProduct,
   searchProducts,
@@ -111,6 +112,18 @@ describe("getProducts", () => {
     expect(result.total).toBe(1)
     expect(result.products).toHaveLength(1)
     expect(result.products[0].slug).toBe("nike-air-max")
+  })
+
+  it("consulta únicamente productos habilitados para la tienda online", async () => {
+    await getProducts({ categorySlug: "accesorios" })
+
+    expect(mockFindCatalogCandidates).toHaveBeenCalledWith(
+      {
+        isPublished: true,
+        category: { slug: "accesorios" },
+      },
+      [{ createdAt: "desc" }, { id: "asc" }]
+    )
   })
 
   it("colapsa los productos de una familia antes de paginar", async () => {
@@ -202,6 +215,17 @@ describe("getProductBySlug", () => {
     expect(result).toBeNull()
   })
 
+  it("trata como inexistente un producto deshabilitado para la tienda online", async () => {
+    mockFindBySlug.mockResolvedValue({
+      ...rawProduct,
+      isPublished: false,
+    } as never)
+
+    const result = await getProductBySlug("producto-interno")
+
+    expect(result).toBeNull()
+  })
+
   it("incluye variantes y la categoría en el DTO", async () => {
     mockFindBySlug.mockResolvedValue(rawProduct as never)
     const result = await getProductBySlug("nike-air-max")
@@ -248,7 +272,7 @@ describe("getProductBySlug", () => {
             ...rawProduct,
             id: "prod-offline",
             slug: "nike-air-max-oculto",
-            availableOnline: false,
+            isPublished: false,
           },
         ],
       },
@@ -265,6 +289,25 @@ describe("getUniqueBrands", () => {
     mockGetBrands.mockResolvedValue(["Nike", "Adidas"])
     const brands = await getUniqueBrands()
     expect(brands).toEqual(["Nike", "Adidas"])
+  })
+})
+
+describe("getRelatedProducts", () => {
+  it("excluye productos deshabilitados de las recomendaciones públicas", async () => {
+    mockFindManyProducts.mockResolvedValue([])
+
+    await getRelatedProducts("category", "actual", 4)
+
+    expect(mockFindManyProducts).toHaveBeenCalledWith(
+      {
+        categoryId: "category",
+        isPublished: true,
+        NOT: { slug: "actual" },
+      },
+      { createdAt: "desc" },
+      4,
+      0
+    )
   })
 })
 
@@ -315,6 +358,7 @@ describe("updateProduct", () => {
       isOnSale: false,
       availableOnline: true,
       availableInStores: true,
+      isPublished: true,
       variants: [
         {
           sku: "NK-001",

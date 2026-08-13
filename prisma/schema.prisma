@@ -76,6 +76,7 @@ model Product {
   colorFamily         ProductColorFamily? @relation(fields: [colorFamilyId], references: [id], onDelete: SetNull)
   availableOnline     Boolean        @default(true)
   availableInStores   Boolean        @default(true)
+  isPublished         Boolean        @default(true)
   images              ProductImage[]
   variants            Variant[]
   cartItems           CartItem[]

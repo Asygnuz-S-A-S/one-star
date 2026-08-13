@@ -135,6 +135,7 @@ export async function createCatalogProduct(data: {
   categoryId: string
   brandId: string | null
   gender?: Gender
+  isPublished?: boolean
   erpId: string
 }) {
   return prisma.product.create({
@@ -199,6 +200,34 @@ export async function findDefaultCatalogProductErpIds(
     select: { erpId: true },
   })
   return products.flatMap((product) => product.erpId ? [product.erpId] : [])
+}
+
+export async function findPublishedCatalogProducts(
+  erpIds: string[]
+): Promise<Array<{ erpId: string; updatedAt: Date }>> {
+  if (erpIds.length === 0) return []
+  const products = await prisma.product.findMany({
+    where: { erpId: { in: erpIds }, isPublished: true },
+    select: { erpId: true, updatedAt: true },
+  })
+  return products.flatMap((product) =>
+    product.erpId ? [{ erpId: product.erpId, updatedAt: product.updatedAt }] : []
+  )
+}
+
+export async function unpublishCatalogProducts(
+  candidates: Array<{ erpId: string; updatedAt: Date }>
+): Promise<number> {
+  if (candidates.length === 0) return 0
+  const results = await prisma.$transaction(
+    candidates.map(({ erpId, updatedAt }) =>
+      prisma.product.updateMany({
+        where: { erpId, isPublished: true, updatedAt },
+        data: { isPublished: false },
+      })
+    )
+  )
+  return results.reduce((total, result) => total + result.count, 0)
 }
 
 export async function updateCatalogVariant(

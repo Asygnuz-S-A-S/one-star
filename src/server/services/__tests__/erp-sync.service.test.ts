@@ -538,6 +538,117 @@ describe("syncCatalogFromERP", () => {
     )
   })
 
+  it("crea como no visible online un artículo que el adaptador identifica como interno", async () => {
+    process.env.ERP_CATALOG_WRITES_ENABLED = "true"
+    mockFindDefaultImportCategory.mockResolvedValue({ id: "category" } as never)
+    const repository = await import("@/server/repositories/erp-catalog.repository")
+    vi.mocked(repository.findCatalogProductBySlug).mockResolvedValue(null)
+    vi.mocked(repository.createCatalogProduct).mockResolvedValue({
+      id: "internal-bag",
+      variants: [],
+    } as never)
+    mockGetERPAdapter.mockReturnValue({
+      fetchCatalog: vi.fn().mockResolvedValue({
+        groups: [
+          {
+            erpId: "erp-bag",
+            sku: "BAG-L",
+            name: "BOLSA TELA GRIS GRANDE",
+            onlineCatalogExclusionReason: "INTERNAL_ITEM",
+            basePrice: 2_000,
+            variants: [
+              {
+                erpId: "variant-bag",
+                sku: "BAG-L_UNICA",
+                name: "BOLSA TELA GRIS GRANDE",
+                basePrice: 2_000,
+                stock: 1,
+              },
+            ],
+          },
+        ],
+        diagnostics: {
+          sourceItemCount: 2,
+          definitionCount: 1,
+          variantCount: 1,
+          groupCount: 1,
+        },
+        stock: {
+          status: "complete",
+          complete: true,
+          requestedCount: 1,
+          resolvedCount: 1,
+          totalStock: 1,
+          missingCodes: [],
+          errors: [],
+        },
+      }),
+      ping: vi.fn(),
+    } as never)
+
+    await syncCatalogFromERP("MANUAL")
+
+    expect(repository.createCatalogProduct).toHaveBeenCalledWith(
+      expect.objectContaining({ isPublished: false })
+    )
+  })
+
+  it("conserva la publicación elegida para un producto ERP existente", async () => {
+    process.env.ERP_CATALOG_WRITES_ENABLED = "true"
+    mockFindDefaultImportCategory.mockResolvedValue({ id: "category" } as never)
+    const repository = await import("@/server/repositories/erp-catalog.repository")
+    vi.mocked(repository.findCatalogProductBySlug).mockResolvedValue({
+      id: "existing-product",
+      isPublished: true,
+      variants: [],
+    } as never)
+    mockGetERPAdapter.mockReturnValue({
+      fetchCatalog: vi.fn().mockResolvedValue({
+        groups: [
+          {
+            erpId: "erp-existing",
+            sku: "EXISTING",
+            name: "ARTICULO OBSEQUIO",
+            onlineCatalogExclusionReason: "GIFT",
+            basePrice: 5_000,
+            variants: [
+              {
+                erpId: "variant-existing",
+                sku: "EXISTING_UNICA",
+                name: "ARTICULO OBSEQUIO",
+                basePrice: 5_000,
+                stock: 1,
+              },
+            ],
+          },
+        ],
+        diagnostics: {
+          sourceItemCount: 2,
+          definitionCount: 1,
+          variantCount: 1,
+          groupCount: 1,
+        },
+        stock: {
+          status: "complete",
+          complete: true,
+          requestedCount: 1,
+          resolvedCount: 1,
+          totalStock: 1,
+          missingCodes: [],
+          errors: [],
+        },
+      }),
+      ping: vi.fn(),
+    } as never)
+
+    await syncCatalogFromERP("MANUAL")
+
+    expect(repository.updateCatalogProduct).toHaveBeenCalledWith(
+      "existing-product",
+      expect.not.objectContaining({ isPublished: expect.anything() })
+    )
+  })
+
   it("conserva la marca de un producto existente aunque el ERP sugiera otra", async () => {
     process.env.ERP_CATALOG_WRITES_ENABLED = "true"
     mockFindDefaultImportCategory.mockResolvedValue({ id: "category" } as never)

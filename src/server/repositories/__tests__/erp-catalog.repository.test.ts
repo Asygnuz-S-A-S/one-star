@@ -21,6 +21,7 @@ vi.mock("@/server/db/prisma", () => ({
 import {
   fillDefaultCatalogProductCategories,
   fillMissingCatalogProductGenders,
+  unpublishCatalogProducts,
   replaceProvisionalCatalogProductBrands,
 } from "../erp-catalog.repository"
 
@@ -75,6 +76,33 @@ describe("fillDefaultCatalogProductCategories", () => {
     expect(updateMany).toHaveBeenNthCalledWith(2, {
       where: { erpId: "erp-sandals", categoryId: "default" },
       data: { categoryId: "sandals" },
+    })
+    expect(updated).toBe(1)
+  })
+})
+
+describe("unpublishCatalogProducts", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    updateMany
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 0 })
+  })
+
+  it("oculta solo productos que aún están visibles y devuelve el total modificado", async () => {
+    const updatedAt = new Date("2026-08-13T14:00:00.000Z")
+    const updated = await unpublishCatalogProducts([
+      { erpId: "erp-bag", updatedAt },
+      { erpId: "erp-gift", updatedAt },
+    ])
+
+    expect(updateMany).toHaveBeenNthCalledWith(1, {
+      where: { erpId: "erp-bag", isPublished: true, updatedAt },
+      data: { isPublished: false },
+    })
+    expect(updateMany).toHaveBeenNthCalledWith(2, {
+      where: { erpId: "erp-gift", isPublished: true, updatedAt },
+      data: { isPublished: false },
     })
     expect(updated).toBe(1)
   })

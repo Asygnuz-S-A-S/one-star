@@ -45,6 +45,7 @@ function extractFormData(formData: FormData) {
     metaDescription: (formData.get("metaDescription") as string)?.trim() || null,
     availableOnline: formData.get("availableOnline") !== "false",
     availableInStores: formData.get("availableInStores") !== "false",
+    isPublished: formData.get("isPublished") !== "false",
     variants: JSON.parse((formData.get("variants") as string) || "[]"),
     images: JSON.parse((formData.get("images") as string) || "[]"),
     colorFamilyProductIds: JSON.parse((formData.get("colorFamilyProductIds") as string) || "[]"),
