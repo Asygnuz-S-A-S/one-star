@@ -97,12 +97,19 @@ export function normalizeLoggroCatalog(
       continue
     }
 
+    const variantTexts = group.variants.map(
+      (variant) => `${variant.name} ${variant.detailedName ?? ""}`
+    )
+    const variantResults = variantTexts.map((text) => ({
+      gender: detectLoggroGender(text),
+      hasSignal: hasLoggroGenderSignal(text),
+    }))
+    if (variantResults.some((result) => result.hasSignal && !result.gender)) {
+      group.gender = undefined
+      continue
+    }
     const variantGenders = new Set(
-      group.variants
-        .map((variant) =>
-          detectLoggroGender(`${variant.name} ${variant.detailedName ?? ""}`)
-        )
-        .filter((gender) => gender !== undefined)
+      variantResults.flatMap((result) => result.gender ? [result.gender] : [])
     )
     group.gender = variantGenders.size === 1 ? [...variantGenders][0] : undefined
   }
