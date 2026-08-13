@@ -62,3 +62,40 @@ la lectura de existencias del proveedor.
 2. Confirmar establecimiento, bodega y cantidad para esos SKU.
 3. Reproducir exactamente esas cantidades mediante el endpoint de disponibilidad.
 4. Mantener pausadas las escrituras hasta que los resultados coincidan.
+
+## Seguimiento de la lectura de stock
+
+El 2026-08-13 se verificó el endpoint oficial de disponibilidad contra toda la estructura
+empresarial entregada por Loggro:
+
+- 1.530 SKU inventariables y activos.
+- 7 bodegas consultadas, incluyendo Punto de Venta, Separados y establecimiento principal.
+- 112 peticiones HTTP 200.
+- 10.710 filas de disponibilidad resueltas.
+- 0 SKU con `cantidadDisponible` mayor que cero.
+
+El formato observado coincide con el contrato consumido por el adaptador: `codigo` y
+`cantidadDisponible`. La API real exige además una bodega asociada; omitirla retorna HTTP 400.
+
+Se corrigieron dos fragilidades del cliente:
+
+1. La bodega publicable ya no depende del orden de la respuesta: se prioriza `Bodega Punto de Venta`
+   y no `Bodega Separados`.
+2. Los lotes se consultan con concurrencia máxima de cuatro peticiones.
+
+Después de la corrección, la descarga completa resolvió los 1.530 SKU en 22,5 segundos, sin
+faltantes ni errores. El resultado siguió siendo `all_zero`, por lo que el bloqueo de seguridad
+permanece activo.
+
+### Acción requerida en Loggro
+
+El operador del ERP debe localizar un SKU que la interfaz muestre con existencias, indicando:
+
+- código exacto de la variante;
+- establecimiento;
+- bodega;
+- cantidad disponible mostrada.
+
+Si ningún SKU tiene saldo, primero se deben registrar o revisar las entradas/movimientos de
+inventario en Loggro. No se debe habilitar la sincronización de escritura ni inventar stock local
+para ocultar esta condición.

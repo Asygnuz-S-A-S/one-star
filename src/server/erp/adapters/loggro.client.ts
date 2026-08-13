@@ -47,6 +47,8 @@ const STOCK_SCOPE = (process.env.LOGGRO_STOCK_SCOPE ?? "all").toLowerCase().trim
 // La consulta de disponibilidad falla el lote completo si UN código no existe;
 // por eso se consulta en tandas y se reintenta descartando los no encontrados.
 const DISPONIBILIDAD_CHUNK_SIZE = 100
+/** Evita serializar decenas de lotes sin saturar la API de Loggro. */
+const DISPONIBILIDAD_CONCURRENCY = 4
 
 // Paginación del catálogo. Loggro devuelve solo 10 ítems si no se pide `tamano`
 // y rechaza (400) cualquier página mayor a 100, así que se recorre de a 100.
@@ -173,6 +175,44 @@ interface RawResponse {
   status: number
   text: string
   failure?: "timeout" | "network"
+}
+
+function stockWarehouseForEstablishment(
+  warehouses: LoggroBodega[],
+  establishmentUuid: string
+): LoggroBodega | undefined {
+  const related = warehouses.filter((warehouse) => warehouse.padre === establishmentUuid)
+  return related.find((warehouse) =>
+    warehouse.nombre
+      ?.normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toUpperCase()
+      .includes("BODEGA PUNTO DE VENTA")
+  ) ?? related[0]
+}
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  operation: (item: T) => Promise<R>
+): Promise<R[]> {
+  const results = new Array<R>(items.length)
+  let nextIndex = 0
+
+  async function worker(): Promise<void> {
+    while (nextIndex < items.length) {
+      const index = nextIndex++
+      results[index] = await operation(items[index])
+    }
+  }
+
+  await Promise.all(
+    Array.from(
+      { length: Math.min(Math.max(1, concurrency), items.length) },
+      () => worker()
+    )
+  )
+  return results
 }
 
 // ─── Cliente ──────────────────────────────────────────────────────────────────
@@ -622,7 +662,7 @@ export class LoggroClient {
 
       const bodega =
         (ENV_BODEGA_UUID && bodegas.find((b) => b.uuid === ENV_BODEGA_UUID)) ||
-        bodegas.find((b) => b.padre === establecimientoUuid) ||
+        stockWarehouseForEstablishment(bodegas, establecimientoUuid) ||
         bodegas[0]
 
       const bodegaUuid = bodega?.uuid ?? ENV_BODEGA_UUID
@@ -679,7 +719,7 @@ export class LoggroClient {
       const locations: InventoryLocation[] = []
 
       for (const est of tiendas) {
-        const bodega = bodegas.find((b) => b.padre === est.uuid)
+        const bodega = stockWarehouseForEstablishment(bodegas, est.uuid)
         if (!bodega) continue
         locations.push({
           establecimientoUuid: est.uuid,
@@ -867,17 +907,38 @@ export class LoggroClient {
       }
     }
 
+    const tasks = locations.flatMap((location) => {
+      const chunks: Array<{ location: InventoryLocation; codes: string[] }> = []
+      for (let i = 0; i < unique.length; i += DISPONIBILIDAD_CHUNK_SIZE) {
+        chunks.push({
+          location,
+          codes: unique.slice(i, i + DISPONIBILIDAD_CHUNK_SIZE),
+        })
+      }
+      return chunks
+    })
+
+    const chunkResults = await mapWithConcurrency(
+      tasks,
+      DISPONIBILIDAD_CONCURRENCY,
+      async ({ location, codes }) => {
+        const chunkStock = new Map<string, number>()
+        const result = await this.fetchDisponibilidadChunk(location, codes, chunkStock)
+        return { ...result, stockByCodigo: chunkStock }
+      }
+    )
+
     const incompleteCodes = new Set<string>()
     const errors: string[] = []
 
     // El stock de cada tienda se ACUMULA sobre el mismo mapa: un SKU disponible
-    // en varias sedes suma sus existencias.
-    for (const location of locations) {
-      for (let i = 0; i < unique.length; i += DISPONIBILIDAD_CHUNK_SIZE) {
-        const chunk = unique.slice(i, i + DISPONIBILIDAD_CHUNK_SIZE)
-        const result = await this.fetchDisponibilidadChunk(location, chunk, stock)
-        result.missingCodes.forEach((codigo) => incompleteCodes.add(codigo))
-        errors.push(...result.errors)
+    // en varias sedes suma sus existencias. Cada tarea usa su propio mapa para
+    // que la concurrencia no comparta estado mutable durante las peticiones.
+    for (const result of chunkResults) {
+      result.missingCodes.forEach((codigo) => incompleteCodes.add(codigo))
+      errors.push(...result.errors)
+      for (const [codigo, cantidad] of result.stockByCodigo) {
+        stock.set(codigo, (stock.get(codigo) ?? 0) + cantidad)
       }
     }
 

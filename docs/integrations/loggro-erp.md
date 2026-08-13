@@ -29,7 +29,14 @@ El endpoint de catálogo **no** incluye existencias. El stock se consulta aparte
 
 Notas de comportamiento:
 - El establecimiento y la bodega se resuelven en `loggro.client.ts` desde `LOGGRO_ESTABLECIMIENTO_UUID` / `LOGGRO_BODEGA_UUID`, o se auto-detectan (establecimiento tipo `EST` + su bodega hija).
+- Cuando una sede tiene varias bodegas, la auto-detección prioriza la denominada
+  `Bodega Punto de Venta`; las bodegas de `Separados` no se suman al stock publicable.
+- Los lotes de disponibilidad se consultan con concurrencia acotada. Cada petición conserva su
+  propio acumulador y solo después se consolidan las sedes, evitando tanto la ejecución
+  estrictamente secuencial como el estado mutable compartido.
 - La consulta es **estricta**: si un `codigoItem` no es un ítem inventariable (p. ej. un producto base sin talla), Loggro responde `400 "Producto no encontrado: X"` para **todo** el lote. El cliente descarta el código faltante y reintenta con el resto.
+- Una respuesta completa con todos los SKU en cero se clasifica como `all_zero` y bloquea las
+  escrituras. No se interpreta como inventario válido hasta contrastar un SKU positivo conocido.
 
 ## 2. Arquitectura de Mapeo de Catálogo (Flat vs Jerárquico)
 El desafío principal de la integración es la diferencia en los modelos de datos:
