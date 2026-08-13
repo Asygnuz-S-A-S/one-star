@@ -92,6 +92,43 @@ describe("LoggroClient.getDisponibilidadSnapshot", () => {
     expect(snapshot.resolvedCount).toBe(0)
   })
 
+  it("detiene tareas pendientes cuando se agota el presupuesto total del snapshot", async () => {
+    const client = new LoggroClient("token")
+    vi.spyOn(
+      client as unknown as { resolveStockLocations: () => Promise<unknown[]> },
+      "resolveStockLocations"
+    ).mockResolvedValue([
+      { establecimientoUuid: "est-1", establecimientoNombre: "Uno", bodegaUuid: "bod-1" },
+    ])
+
+    const initialTime = Date.now()
+    let currentTime = initialTime
+    vi.spyOn(Date, "now").mockImplementation(() => currentTime)
+    const fetchMock = vi.fn().mockImplementation(async (_url: string, init?: RequestInit) => {
+      currentTime = initialTime + 61_000
+      const body = JSON.parse(String(init?.body)) as {
+        items: Array<{ codigoItem: string }>
+      }
+      return new Response(
+        JSON.stringify({
+          contenido: body.items.map(({ codigoItem }) => ({
+            codigo: codigoItem,
+            cantidadDisponible: 1,
+          })),
+        }),
+        { status: 200 }
+      )
+    })
+    vi.stubGlobal("fetch", fetchMock)
+
+    const codes = Array.from({ length: 500 }, (_, index) => `SKU-${index}`)
+    const snapshot = await client.getDisponibilidadSnapshot(codes)
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(snapshot.complete).toBe(false)
+    expect(snapshot.resolvedCount).toBe(100)
+  })
+
   it("consulta sedes en paralelo al construir el snapshot completo", async () => {
     const client = new LoggroClient("token")
     vi.spyOn(
