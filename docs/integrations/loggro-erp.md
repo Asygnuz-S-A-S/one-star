@@ -28,7 +28,12 @@ El endpoint de catálogo **no** incluye existencias. El stock se consulta aparte
 ```
 
 Notas de comportamiento:
-- El establecimiento y la bodega se resuelven en `loggro.client.ts` desde `LOGGRO_ESTABLECIMIENTO_UUID` / `LOGGRO_BODEGA_UUID`, o se auto-detectan (establecimiento tipo `EST` + su bodega hija).
+- Con alcance `primary`, el establecimiento y la bodega se resuelven desde
+  `LOGGRO_ESTABLECIMIENTO_UUID` / `LOGGRO_BODEGA_UUID`, o se auto-detectan (establecimiento tipo
+  `EST` + su bodega hija). Una bodega configurada debe pertenecer a la sede seleccionada y no
+  puede ser de `Separados`; un override inconsistente se rechaza en vez de publicar otro stock.
+- Con alcance `all`, se auto-detecta una bodega publicable por cada sede `EST`; el override de la
+  ubicación principal no limita la consolidación de las demás tiendas.
 - Cuando una sede tiene varias bodegas, la auto-detección prioriza la denominada
   `Bodega Punto de Venta`; las bodegas de `Separados` se excluyen del stock publicable. Si no
   existe una bodega publicable, la lectura queda parcial en vez de usar una bodega por posición.

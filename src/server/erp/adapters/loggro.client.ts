@@ -185,21 +185,27 @@ function stockWarehouseForEstablishment(
   warehouses: LoggroBodega[],
   establishmentUuid: string
 ): LoggroBodega | undefined {
-  const normalizedName = (warehouse: LoggroBodega): string =>
-    warehouse.nombre
-      ?.normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toUpperCase() ?? ""
   const publishable = warehouses
     .filter((warehouse) => warehouse.padre === establishmentUuid)
-    .filter((warehouse) => !normalizedName(warehouse).includes("SEPARADOS"))
+    .filter((warehouse) => !isSeparatedWarehouse(warehouse))
     .sort((left, right) =>
       (left.nombre ?? left.uuid).localeCompare(right.nombre ?? right.uuid, "es")
     )
 
   return publishable.find((warehouse) =>
-    normalizedName(warehouse).includes("BODEGA PUNTO DE VENTA")
+    normalizedWarehouseName(warehouse).includes("BODEGA PUNTO DE VENTA")
   ) ?? publishable[0]
+}
+
+function normalizedWarehouseName(warehouse: LoggroBodega): string {
+  return warehouse.nombre
+    ?.normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase() ?? ""
+}
+
+function isSeparatedWarehouse(warehouse: LoggroBodega): boolean {
+  return normalizedWarehouseName(warehouse).includes("SEPARADOS")
 }
 
 async function mapWithConcurrency<T, R>(
@@ -247,6 +253,27 @@ export class LoggroClient {
       "Content-Type": "application/json",
       Accept: "application/json",
     }
+  }
+
+  /**
+   * Una bodega configurada explícitamente también debe ser publicable y pertenecer
+   * al establecimiento seleccionado. Un override inválido falla de forma cerrada.
+   */
+  private selectStockWarehouse(
+    warehouses: LoggroBodega[],
+    establishmentUuid: string,
+    configuredUuid?: string
+  ): LoggroBodega | undefined {
+    if (!configuredUuid) {
+      return stockWarehouseForEstablishment(warehouses, establishmentUuid)
+    }
+
+    return warehouses.find(
+      (warehouse) =>
+        warehouse.uuid === configuredUuid &&
+        warehouse.padre === establishmentUuid &&
+        !isSeparatedWarehouse(warehouse)
+    )
   }
 
   /** Petición que lanza si la respuesta no es 2xx. */
@@ -671,11 +698,13 @@ export class LoggroClient {
         )
       }
 
-      const bodega =
-        (ENV_BODEGA_UUID && bodegas.find((b) => b.uuid === ENV_BODEGA_UUID)) ||
-        stockWarehouseForEstablishment(bodegas, establecimientoUuid)
+      const bodega = this.selectStockWarehouse(
+        bodegas,
+        establecimientoUuid,
+        ENV_BODEGA_UUID
+      )
 
-      const bodegaUuid = bodega?.uuid ?? ENV_BODEGA_UUID
+      const bodegaUuid = bodega?.uuid
       if (!bodegaUuid) {
         throw new Error(
           `[LoggroClient] El establecimiento "${establecimiento?.nombre ?? establecimientoUuid}" ` +
@@ -987,7 +1016,7 @@ export class LoggroClient {
 
     for (
       let attempt = 0;
-      attempt <= MAX_MISSING_DISCARDS_PER_CHUNK && pending.length > 0;
+      attempt < MAX_MISSING_DISCARDS_PER_CHUNK && pending.length > 0;
       attempt++
     ) {
       const remainingMs = deadline - Date.now()
