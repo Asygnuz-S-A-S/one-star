@@ -14,4 +14,9 @@ describe("detectLoggroGender", () => {
     expect(detectLoggroGender("TENIS SKECHERS MUJER VERDE")).toBe("MUJER")
     expect(detectLoggroGender("SKECEHRS ZAPATILLA DAMA BEIGE")).toBe("MUJER")
   })
+
+  it("prioriza UNISEX y no adivina textos contradictorios", () => {
+    expect(detectLoggroGender("TENIS HOMBRE MUJER UNISEX BLANCO")).toBe("UNISEX")
+    expect(detectLoggroGender("TENIS HOMBRE MUJER BLANCO")).toBeUndefined()
+  })
 })
