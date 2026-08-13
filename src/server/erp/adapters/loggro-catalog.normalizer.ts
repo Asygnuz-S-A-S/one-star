@@ -87,12 +87,13 @@ export function normalizeLoggroCatalog(
 
   const normalizedGroups = [...groupsById.values()]
   for (const group of normalizedGroups) {
-    group.gender = detectLoggroGender(
-      [
-        group.name,
-        ...group.variants.flatMap((variant) => [variant.name, variant.detailedName ?? ""]),
-      ].join(" ")
-    )
+    group.gender =
+      detectLoggroGender(group.name) ??
+      detectLoggroGender(
+        group.variants
+          .flatMap((variant) => [variant.name, variant.detailedName ?? ""])
+          .join(" ")
+      )
   }
   const normalizedVariants = normalizedGroups.flatMap((group) => group.variants)
   const totalStock = normalizedVariants.reduce(
