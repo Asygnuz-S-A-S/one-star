@@ -68,6 +68,46 @@ describe("normalizeLoggroCatalog", () => {
     expect(snapshot.groups[0].gender).toBe("HOMBRE")
   })
 
+  it("deja vacío el género cuando las variantes no tienen consenso", () => {
+    const snapshot = normalizeLoggroCatalog(
+      [
+        {
+          uuid: "parent-ambiguous",
+          codigo: "AMB-BLK",
+          descripcion: "TENIS MODELO NEGRO",
+          definicion: true,
+        },
+        {
+          uuid: "variant-men",
+          codigo: "AMB-BLK_8",
+          descripcion: "TENIS MODELO HOMBRE NEGRO",
+          definicion: false,
+          definidoEn_uuid: "parent-ambiguous",
+        },
+        {
+          uuid: "variant-unisex",
+          codigo: "AMB-BLK_9",
+          descripcion: "TENIS MODELO UNISEX NEGRO",
+          definicion: false,
+          definidoEn_uuid: "parent-ambiguous",
+        },
+      ],
+      {
+        stockByCodigo: new Map([
+          ["AMB-BLK_8", 1],
+          ["AMB-BLK_9", 1],
+        ]),
+        complete: true,
+        requestedCount: 2,
+        resolvedCount: 2,
+        missingCodes: [],
+        errors: [],
+      }
+    )
+
+    expect(snapshot.groups[0].gender).toBeUndefined()
+  })
+
   it("expone una clave agnóstica de familia derivada del código padre", () => {
     const snapshot = normalizeLoggroCatalog(
       [
