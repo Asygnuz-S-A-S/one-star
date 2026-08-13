@@ -71,7 +71,7 @@ Para asegurar que Loggro mantenga el control contable sin destruir el enriquecim
 | Stock | Loggro | **Loggro Sobrescribe siempre** en cada sincronización (a nivel variante). |
 | Unidad de Medida | Loggro | **Loggro Sobrescribe siempre**. |
 | Género | Compartido | Loggro completa el campo solo si está vacío; una selección manual se conserva. |
-| Categoría | One Star | Loggro asigna "Sin Categoría" al crear. Luego One Star mantiene el control. |
+| Categoría | Compartido | Al crear, el adaptador puede sugerir Accesorios o Chanclas y Sandalias desde el nombre; sin señal segura usa "Sin Categoría". Después One Star mantiene el control. |
 | Imágenes | One Star | Loggro no envía imágenes. One Star mantiene el control. |
 | Descripción Larga | One Star | One Star mantiene el control. |
 
@@ -84,6 +84,13 @@ Para completar productos históricos se usa un backfill separado del stock: prim
 vista previa de filas realmente vacías y su huella SHA-256; la aplicación exige la misma huella y
 recalcula los candidatos antes de escribir. Cada actualización usa `erpId + gender IS NULL`, por
 lo que el proceso es idempotente y no sobrescribe una edición administrativa concurrente.
+
+La categoría sigue el mismo principio de preservación, pero con reglas independientes dentro del
+adaptador Loggro. El core recibe una sugerencia normalizada (`slug` y nombre), sin conocer palabras
+propias del ERP. En el alta de un producto nuevo se utiliza esa sugerencia; una sincronización
+recurrente nunca reclasifica productos existentes. El backfill histórico exige vista previa y
+huella SHA-256, y actualiza únicamente filas que todavía estén en `sin-categoria`, evitando pisar
+una selección manual o concurrente.
 
 ## Flujo de ventas (Web → Loggro)
 

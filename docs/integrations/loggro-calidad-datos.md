@@ -1,6 +1,6 @@
 # Cómo llegan los datos de Loggro y cómo evitar retrabajo
 
-**Análisis actualizado el 2026-08-06** sobre la sincronización real: 1897 registros
+**Análisis actualizado el 2026-08-13** sobre la sincronización real: 1897 registros
 del ERP → **367 productos padre con 1530 variantes reales**. Sirve para coordinar
 a **quien carga en Loggro** y a **quien completa la ficha en la web**.
 
@@ -21,7 +21,7 @@ a **quien carga en Loggro** y a **quien completa la ficha en la web**.
 | Tallas | ✅ Sí, del sufijo `_38` | Loggro |
 | **Color** | ⚠️ Deducido del nombre — 90 % acierta | Automático + web |
 | **Marca** | ❌ Solo el código (`004`), sin nombre | Automatizable |
-| **Categoría del menú** | ❌ Todos entran en "Sin Categoría" | Web |
+| **Categoría del menú** | ⚠️ Accesorios y chanclas/sandalias se deducen del nombre | Automático + web |
 | **Género** | ⚠️ Deducido del nombre y descripciones | Automático + web |
 | **Fotos** | ❌ Nunca llegan | **Web (inevitable)** |
 | **Descripción larga** | ❌ No existe en el ERP | Web |
@@ -109,7 +109,7 @@ Ordenado por impacto:
 | 1 | **Ignorar ítems `definicion: true`** | Elimina tallas basura y productos partidos |
 | 2 | **Marca desde el nombre** ("TENIS SKECHERS…" → Skechers) | **91 %** de los 367 productos |
 | 3 | **Género desde el nombre** (HOMBRE/MUJER/UNISEX/NIÑO…) | **98,4 %** de los productos |
-| 4 | **Categoría desde la primera palabra** (TENIS 196, BOTA 20, CAMISETA 16, SANDALIA 8…) | mayoría del catálogo |
+| 4 | **Categoría conservadora para accesorios y chanclas/sandalias** | 27 productos actuales |
 | 5 | Marcar como no publicable lo que no es mercancía (bolsas, pruebas, precio $0) | evita despublicar a mano |
 
 Con 1–4, cada producto llegaría a la web **con marca, género, categoría, color,
@@ -154,8 +154,9 @@ Loggro (persona del ERP)              Web (persona de contenido)
 ```
 
 **Regla de oro:** la web nunca pisa lo que se edita a mano. Fotos, descripción,
-categoría, género y color asignados se conservan en cada sincronización; el ERP
-solo completa el género cuando aún está vacío y continúa actualizando precio y stock.
+categoría, género y color asignados se conservan en cada sincronización. El ERP
+solo propone categoría al crear un producto nuevo, completa el género cuando aún
+está vacío y continúa actualizando precio y stock.
 
 ### Cobertura real de género (2026-08-13)
 
@@ -173,6 +174,23 @@ de variante solo se consulta cuando el nombre padre no contiene una señal recon
 
 En la tienda, `/c/hombre` muestra `HOMBRE + UNISEX`, `/c/mujer` muestra `MUJER + UNISEX` y
 `/c/ninos` reúne Niño, Niña, Infantil y Bebé. Las demás rutas siguen filtrando por categoría.
+
+### Cobertura real de categorías explícitas (2026-08-13)
+
+El nombre padre permite clasificar de forma conservadora 27 productos actuales: 14 como
+`accesorios` y 13 como `chanclas-y-sandalias`. Accesorios reconoce gorras, mochilas, maletines,
+cinturones, cordones, medias/calcetines y productos Reshoevn8r; chanclas y sandalias comparten
+una sola categoría de tienda.
+
+La regla excluye bolsas de empaque, obsequios, `MEDIA BOTA`, tenis `SIN CORDON` y palabras que
+aparezcan accidentalmente dentro del nombre de otro producto. El backfill local fue aplicado
+con una vista previa de 27 candidatos y una huella SHA-256 aprobada. Una segunda vista previa
+dejó 0 candidatos, por lo que el proceso es idempotente.
+
+En sincronizaciones normales la categoría sugerida solo se usa al crear productos nuevos.
+Los productos existentes, incluso si un administrador decide dejarlos en `sin-categoria`, no
+se reclasifican automáticamente. Los históricos se corrigen únicamente con el backfill explícito,
+que además condiciona cada escritura a que el producto todavía conserve la categoría por defecto.
 
 ---
 
