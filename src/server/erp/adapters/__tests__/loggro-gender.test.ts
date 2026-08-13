@@ -9,4 +9,9 @@ describe("detectLoggroGender", () => {
     expect(detectLoggroGender("TENIS ON CLOUD 6 HOMBRE NEGRO")).toBe("HOMBRE")
     expect(detectLoggroGender("SOMBRERO NEGRO")).toBeUndefined()
   })
+
+  it("normaliza MUJER y el alias DAMA", () => {
+    expect(detectLoggroGender("TENIS SKECHERS MUJER VERDE")).toBe("MUJER")
+    expect(detectLoggroGender("SKECEHRS ZAPATILLA DAMA BEIGE")).toBe("MUJER")
+  })
 })
