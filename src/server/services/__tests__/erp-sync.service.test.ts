@@ -544,6 +544,70 @@ describe("syncCatalogFromERP", () => {
     )
   })
 
+  it("completa la categoría solo para un producto ERP que sigue en Sin Categoría", async () => {
+    process.env.ERP_CATALOG_WRITES_ENABLED = "true"
+    mockFindDefaultImportCategory.mockResolvedValue({ id: "default-category" } as never)
+    const repository = await import("@/server/repositories/erp-catalog.repository")
+    vi.mocked(repository.findCatalogProductBySlug).mockResolvedValue({
+      id: "product-accessory",
+      categoryId: "default-category",
+      variants: [],
+    } as never)
+    vi.mocked(repository.ensureCatalogCategory).mockResolvedValue({
+      id: "accessories-category",
+      slug: "accesorios",
+    } as never)
+    mockGetERPAdapter.mockReturnValue({
+      fetchCatalog: vi.fn().mockResolvedValue({
+        groups: [
+          {
+            erpId: "erp-accessory",
+            sku: "CAP-RED",
+            name: "GORRA NEW ERA ROJA",
+            categorySuggestion: { slug: "accesorios", name: "Accesorios" },
+            basePrice: 100_000,
+            variants: [
+              {
+                erpId: "variant-accessory",
+                sku: "CAP-RED_UNICA",
+                name: "GORRA NEW ERA ROJA",
+                basePrice: 100_000,
+                stock: 1,
+              },
+            ],
+          },
+        ],
+        diagnostics: {
+          sourceItemCount: 2,
+          definitionCount: 1,
+          variantCount: 1,
+          groupCount: 1,
+        },
+        stock: {
+          status: "complete",
+          complete: true,
+          requestedCount: 1,
+          resolvedCount: 1,
+          totalStock: 1,
+          missingCodes: [],
+          errors: [],
+        },
+      }),
+      ping: vi.fn(),
+    } as never)
+
+    await syncCatalogFromERP("MANUAL")
+
+    expect(repository.fillDefaultCatalogProductCategories).toHaveBeenCalledWith(
+      [{ erpId: "erp-accessory", categoryId: "accessories-category" }],
+      "default-category"
+    )
+    expect(repository.updateCatalogProduct).toHaveBeenCalledWith(
+      "product-accessory",
+      expect.not.objectContaining({ categoryId: expect.anything() })
+    )
+  })
+
   it("conserva el género asignado manualmente aunque el ERP sugiera otro", async () => {
     process.env.ERP_CATALOG_WRITES_ENABLED = "true"
     mockFindDefaultImportCategory.mockResolvedValue({ id: "category" } as never)
