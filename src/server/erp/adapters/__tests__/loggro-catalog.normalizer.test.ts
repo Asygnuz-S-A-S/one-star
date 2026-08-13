@@ -6,6 +6,40 @@ import { normalizeLoggroCatalog } from "../loggro-catalog.normalizer"
 import type { LoggroCatalogItem } from "../loggro.client"
 
 describe("normalizeLoggroCatalog", () => {
+  it("expone una sugerencia de marca normalizada sin filtrar códigos Loggro al core", () => {
+    const snapshot = normalizeLoggroCatalog(
+      [
+        {
+          uuid: "parent-columbia",
+          codigo: "TEE-COL",
+          descripcion: "CAMISETA COLUMBIA TEMPORADA LOGO AZUL HOMBRE",
+          definicion: true,
+          codigoCategoria: "008",
+        },
+        {
+          uuid: "variant-columbia",
+          codigo: "TEE-COL_M",
+          descripcion: "CAMISETA COLUMBIA TEMPORADA LOGO AZUL HOMBRE",
+          definicion: false,
+          definidoEn_uuid: "parent-columbia",
+        },
+      ],
+      {
+        stockByCodigo: new Map([["TEE-COL_M", 1]]),
+        complete: true,
+        requestedCount: 1,
+        resolvedCount: 1,
+        missingCodes: [],
+        errors: [],
+      }
+    )
+
+    expect(snapshot.groups[0].brandSuggestion).toEqual({
+      slug: "columbia",
+      name: "Columbia",
+    })
+  })
+
   it("expone una sugerencia normalizada de categoría desde el producto padre", () => {
     const snapshot = normalizeLoggroCatalog(
       [

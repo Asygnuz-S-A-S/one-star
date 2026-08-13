@@ -9,6 +9,7 @@ import type { LoggroCatalogItem } from "./loggro.client"
 import { deriveLoggroColorFamilyKey } from "./loggro-color-family-key"
 import { detectLoggroGender, hasLoggroGenderSignal } from "./loggro-gender"
 import { detectLoggroCategory } from "./loggro-category"
+import { detectLoggroBrand } from "./loggro-brand"
 
 export interface LoggroStockSnapshot {
   stockByCodigo: Map<string, number>
@@ -88,6 +89,7 @@ export function normalizeLoggroCatalog(
 
   const normalizedGroups = [...groupsById.values()]
   for (const group of normalizedGroups) {
+    group.brandSuggestion = detectLoggroBrand(group.brandErpId, group.name)
     group.categorySuggestion = detectLoggroCategory(group.name)
     const parentGender = detectLoggroGender(group.name)
     if (parentGender) {

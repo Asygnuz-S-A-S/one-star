@@ -82,6 +82,11 @@ export interface ERPCatalogCategorySuggestion {
   name: string
 }
 
+export interface ERPCatalogBrandSuggestion {
+  slug: string
+  name: string
+}
+
 export interface ERPCatalogProductGroup {
   /** Identidad estable del producto padre en el ERP. */
   erpId: string
@@ -92,6 +97,8 @@ export interface ERPCatalogProductGroup {
   gender?: ERPProductGender
   /** Categoría web sugerida por el adaptador; el core preserva asignaciones manuales. */
   categorySuggestion?: ERPCatalogCategorySuggestion
+  /** Marca comercial normalizada por el adaptador; ausente cuando no hay una señal segura. */
+  brandSuggestion?: ERPCatalogBrandSuggestion
   basePrice: number
   unitOfMeasure?: string
   categoryName?: string
