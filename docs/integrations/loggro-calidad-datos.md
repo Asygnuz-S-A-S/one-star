@@ -78,7 +78,7 @@ Converse, Columbia, Reshoevn8r y obsequios. Por eso el adaptador prioriza una ma
 en el nombre y usa el código solo como respaldo. `001 + 008` pueden terminar en Converse,
 `003 + 010` en Vans y `009 + 013` en Discovery, sin unir sus categorías de producto.
 
-### 2.3 Productos que no deberían publicarse
+### 2.3 Productos que no deberían publicarse — *corregido*
 
 | Producto | Por qué |
 |---|---|
@@ -86,7 +86,8 @@ en el nombre y usa el código solo como respaldo. `001 + 008` pueden terminar en
 | `Tenis NewB de prueba`, `Nike test` | Pruebas |
 | `RESHOEVN8R 8OZ CLEANING SOLUTION` | Producto real, pero conviene revisar su categoría |
 
-Entran a la tienda como cualquier otro producto y hay que despublicarlos a mano.
+Antes entraban a la tienda como cualquier otro producto. Ahora bolsas internas, obsequios,
+pruebas y registros con precio no positivo reciben una razón normalizada y nacen no publicados.
 
 ### 2.4 Errores de digitación en el ERP
 
@@ -111,7 +112,7 @@ Ordenado por impacto:
 | 2 | **Marca desde nombre + código auditado** ("TENIS SKECHERS…" → Skechers) | **100 %** de los 367 productos |
 | 3 | **Género desde el nombre** (HOMBRE/MUJER/UNISEX/NIÑO…) | **98,4 %** de los productos |
 | 4 | **Categoría conservadora para accesorios y chanclas/sandalias** | 27 productos actuales |
-| 5 | Marcar como no publicable lo que no es mercancía (bolsas, pruebas, precio $0) | evita despublicar a mano |
+| 5 | **Marcar como no publicable lo que no es mercancía** (bolsas, obsequios, pruebas, precio $0) | evita despublicar a mano |
 
 Con 1–4, cada producto llegaría a la web **con marca, género, categoría, color,
 tallas, precio y stock**, y a la persona de la web solo le quedarían **las fotos
@@ -204,6 +205,18 @@ La aplicación exigió una vista previa con huella SHA-256 y condicionó cada ca
 producto más el código y nombre exactos de la marca provisional. Una segunda vista previa dejó
 0 candidatos. La sincronización normal usa la sugerencia solo al crear productos nuevos; nunca
 reemplaza una marca existente ni una selección manual.
+
+### Cobertura real de publicación (2026-08-13)
+
+El backfill despublicó 8 artículos ERP: las 5 bolsas internas del código `011` y 3 obsequios
+identificados por `OBSEQUIO/OBSEGUIO`. Permanecen en el panel administrativo y conservan precio,
+stock, variantes y disponibilidad física, pero no aparecen en el catálogo, filtros, carruseles,
+relacionados, API o ficha directa, ni pueden comprarse desde un carrito antiguo.
+
+`isPublished` es independiente de `availableOnline`: un producto comercial marcado como “solo en
+tiendas” sigue visible. La vista previa del backfill enumera cada candidato y su razón; la huella y
+la escritura incluyen `updatedAt` para preservar cambios administrativos concurrentes. Una segunda
+vista previa dejó 0 candidatos.
 
 ---
 

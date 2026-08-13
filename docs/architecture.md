@@ -115,7 +115,7 @@ src/
 
 ### Catálogo
 - **Category** → slug único, relación 1:N con Product
-- **Product** → precio base, precio de oferta, género (enum), marca, slug, SEO meta, descripción extendida, videoUrl; relaciones con ProductImage, Variant, CartItem, OrderItem y cross-sells (M:M auto-relación)
+- **Product** → precio base, precio de oferta, género (enum), marca, slug, SEO meta, descripción extendida, videoUrl, publicación y disponibilidad por canal; relaciones con ProductImage, Variant, CartItem, OrderItem y cross-sells (M:M auto-relación)
 - **ProductImage** → url, alt, position, `color` (nullable), cascade delete
 - **Variant** → SKU único, talla (US/CM/EUR), color, stock
 - **ProductColorFamily** → agrupación local opcional de varios `Product` que son el mismo modelo en colores distintos
@@ -164,6 +164,23 @@ comparten el color seleccionado; la página `productos/[slug]` sigue siendo Serv
 Se referencia siempre por la constante `PLACEHOLDER_IMAGE_URL` de `src/lib/product-image.ts`
 (nunca hardcodear la ruta). Aplica en ficha, galería, tarjetas, carrito, checkout, historial de
 pedidos y panel admin.
+
+#### Publicación y disponibilidad por canal
+
+`Product.isPublished` controla si el producto pertenece al catálogo público. Un producto no
+publicado no aparece en grids, filtros, búsqueda pública, carruseles, relacionados, API ni ficha
+directa, y tampoco puede agregarse a un pedido. El administrador conserva acceso completo y puede
+volver a publicarlo.
+
+`availableOnline` y `availableInStores` tienen una semántica distinta: describen en qué canal se
+puede comprar un producto publicado. Por ejemplo, `isPublished=true` con `availableOnline=false`
+y `availableInStores=true` sigue mostrando la ficha como “solo disponible en tiendas físicas”.
+El checkout exige simultáneamente `isPublished=true` y `availableOnline=true`.
+
+El adaptador ERP puede sugerir que un artículo nuevo nazca no publicado. La sincronización
+recurrente nunca cambia `isPublished` en productos existentes. Los históricos se corrigen con un
+backfill explícito cuya huella incluye `erpId`, nombre, razón y `updatedAt`; la escritura repite
+esas condiciones para no sobrescribir una edición administrativa concurrente.
 
 ### Usuarios (dual-model)
 - **User** (negocio): email, passwordHash, role, datos de perfil completos (cédula, teléfono, fecha nacimiento, marca preferida, género)

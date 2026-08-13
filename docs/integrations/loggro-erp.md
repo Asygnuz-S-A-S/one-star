@@ -73,6 +73,8 @@ Para asegurar que Loggro mantenga el control contable sin destruir el enriquecim
 | Género | Compartido | Loggro completa el campo solo si está vacío; una selección manual se conserva. |
 | Categoría | Compartido | Al crear, el adaptador puede sugerir Accesorios o Chanclas y Sandalias desde el nombre; sin señal segura usa "Sin Categoría". Después One Star mantiene el control. |
 | Marca | Compartido | Al crear, el adaptador normaliza nombre + código ERP; después One Star mantiene el control. |
+| Publicación | Compartido | Artículos internos, obsequios, pruebas o precio no positivo nacen no publicados; después One Star mantiene el control. |
+| Disponibilidad por canal | One Star | Independiente de publicación: permite mostrar un producto como disponible solo online o solo en tiendas. |
 | Imágenes | One Star | Loggro no envía imágenes. One Star mantiene el control. |
 | Descripción Larga | One Star | One Star mantiene el control. |
 
@@ -99,6 +101,13 @@ varias marcas, se desambigua por el nombre del producto. Los nuevos productos us
 pero la sincronización recurrente no cambia marcas existentes. El backfill histórico exige huella
 SHA-256 y reemplaza solo relaciones cuyo producto, código ERP y nombre `Por nombrar (00X)` sigan
 coincidiendo; después elimina únicamente marcas provisionales sin productos.
+
+La publicación recibe una razón genérica normalizada del adaptador. Las palabras, códigos y faltas
+ortográficas propios de Loggro no salen de `src/server/erp/`. Para históricos, la vista previa
+devuelve identidad, nombre y razón de cada candidato; su huella incorpora además `updatedAt` y la
+actualización exige que el producto siga publicado con esa misma versión. Esto evita pisar una
+edición manual concurrente. Despublicar no modifica precio, inventario, variantes, disponibilidad
+física ni datos en Loggro.
 
 ## Flujo de ventas (Web → Loggro)
 
