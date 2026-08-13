@@ -3,6 +3,8 @@ import "server-only"
 import { createHash } from "node:crypto"
 import { getERPAdapter } from "@/server/erp"
 import {
+  ensureCatalogCategory,
+  fillDefaultCatalogProductCategories,
   findDefaultCatalogProductErpIds,
   findDefaultImportCategory,
 } from "@/server/repositories/erp-catalog.repository"
@@ -26,8 +28,11 @@ function fingerprintOf(candidates: CategoryCandidate[]): string {
 }
 
 export async function syncDefaultProductCategoriesFromERP(
-  options: { dryRun?: true } = {}
+  options: { dryRun?: true } | { dryRun: false; fingerprint: string } = {}
 ): Promise<ErpCategoryBackfillResult> {
+  if (options.dryRun === false && !options.fingerprint?.trim()) {
+    throw new Error("Debes proporcionar la huella aprobada de la vista previa.")
+  }
   const adapter = getERPAdapter()
   if (!adapter.fetchCatalog) {
     throw new Error("El ERP configurado no permite leer el catálogo.")
@@ -59,11 +64,38 @@ export async function syncDefaultProductCategoriesFromERP(
     counts[candidate.categorySlug] = (counts[candidate.categorySlug] ?? 0) + 1
   }
 
-  return {
-    dryRun: options.dryRun ?? true,
+  const fingerprint = fingerprintOf(candidates)
+  const baseResult = {
     candidateCount: candidates.length,
     counts,
-    updatedCount: 0,
-    fingerprint: fingerprintOf(candidates),
+    fingerprint,
   }
+
+  if (options.dryRun !== false) {
+    return { ...baseResult, dryRun: true, updatedCount: 0 }
+  }
+  if (fingerprint !== options.fingerprint) {
+    throw new Error(
+      "La vista previa de categorías cambió. Genera una nueva huella antes de aplicar."
+    )
+  }
+
+  const categoryIds = new Map<string, string>()
+  for (const candidate of candidates) {
+    if (categoryIds.has(candidate.categorySlug)) continue
+    const category = await ensureCatalogCategory({
+      slug: candidate.categorySlug,
+      name: candidate.categoryName,
+    })
+    categoryIds.set(candidate.categorySlug, category.id)
+  }
+  const updates = candidates.map((candidate) => ({
+    erpId: candidate.erpId,
+    categoryId: categoryIds.get(candidate.categorySlug)!,
+  }))
+  const updatedCount = await fillDefaultCatalogProductCategories(
+    updates,
+    defaultCategory.id
+  )
+  return { ...baseResult, dryRun: false, updatedCount }
 }
