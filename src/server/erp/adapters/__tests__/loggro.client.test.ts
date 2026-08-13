@@ -47,6 +47,51 @@ describe("LoggroClient.getDisponibilidadSnapshot", () => {
     expect(locations).toEqual([expect.objectContaining({ bodegaUuid: "bod-pos" })])
   })
 
+  it("omite la sede cuando solo tiene bodegas de separados", async () => {
+    const client = new LoggroClient("token")
+    vi.spyOn(client, "getEstablecimientos").mockResolvedValue([
+      { uuid: "est-1", nombre: "Centro", tipoNodo: "EST" },
+    ])
+    vi.spyOn(client, "getBodegas").mockResolvedValue([
+      { uuid: "bod-separados", nombre: "0002S - Bodega Separados Centro", padre: "est-1" },
+    ])
+    const internal = client as unknown as {
+      resolveStockLocations: (timeoutMs?: number, useCache?: boolean) => Promise<unknown[]>
+    }
+
+    const locations = await internal.resolveStockLocations(1_000, false)
+
+    expect(locations).toEqual([])
+  })
+
+  it("acota los descartes de SKU inválidos por lote", async () => {
+    const client = new LoggroClient("token")
+    vi.spyOn(
+      client as unknown as { resolveStockLocations: () => Promise<unknown[]> },
+      "resolveStockLocations"
+    ).mockResolvedValue([
+      { establecimientoUuid: "est-1", establecimientoNombre: "Uno", bodegaUuid: "bod-1" },
+    ])
+    const fetchMock = vi.fn().mockImplementation(async (_url: string, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as {
+        items: Array<{ codigoItem: string }>
+      }
+      const missing = body.items[0].codigoItem
+      return new Response(
+        JSON.stringify({ errores: [{ mensaje: `Producto no encontrado: ${missing}` }] }),
+        { status: 400 }
+      )
+    })
+    vi.stubGlobal("fetch", fetchMock)
+
+    const codes = Array.from({ length: 100 }, (_, index) => `INVALID-${index}`)
+    const snapshot = await client.getDisponibilidadSnapshot(codes)
+
+    expect(fetchMock.mock.calls.length).toBeLessThanOrEqual(11)
+    expect(snapshot.complete).toBe(false)
+    expect(snapshot.resolvedCount).toBe(0)
+  })
+
   it("consulta sedes en paralelo al construir el snapshot completo", async () => {
     const client = new LoggroClient("token")
     vi.spyOn(
