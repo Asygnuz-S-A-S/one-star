@@ -2,18 +2,12 @@ import "server-only"
 
 import type { ERPCatalogCategorySuggestion } from "../erp.types"
 
-function normalizedWords(value: string): Set<string> {
-  return new Set(
-    value
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toUpperCase()
-      .match(/[A-Z0-9]+/g) ?? []
-  )
-}
-
 function normalizedTokens(value: string): string[] {
-  return [...normalizedWords(value)]
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .match(/[A-Z0-9]+/g) ?? []
 }
 
 /** Traduce señales explícitas del nombre Loggro a una categoría web sugerida. */
@@ -21,8 +15,8 @@ export function detectLoggroCategory(
   value?: string
 ): ERPCatalogCategorySuggestion | undefined {
   if (!value) return undefined
-  const words = normalizedWords(value)
   const tokens = normalizedTokens(value)
+  const words = new Set(tokens)
   if (
     words.has("CHANCLA") ||
     words.has("CHANCLAS") ||
@@ -35,6 +29,8 @@ export function detectLoggroCategory(
   if (
     words.has("OBSEQUIO") ||
     words.has("OBSEQUIOS") ||
+    words.has("OBSEGUIO") ||
+    words.has("OBSEGUIOS") ||
     tokens[0] === "BOLSA" ||
     tokens[0] === "BOLSAS"
   ) {
@@ -54,8 +50,9 @@ export function detectLoggroCategory(
     explicitAccessoryStart.has(tokens[0] ?? "") ||
     words.has("CINTURON") ||
     words.has("CINTURONES") ||
-    words.has("CORDON") ||
-    words.has("CORDONES") ||
+    tokens[0] === "CORDON" ||
+    tokens[0] === "CORDONES" ||
+    (tokens[0] === "VANS" && ["CORDON", "CORDONES"].includes(tokens[1] ?? "")) ||
     words.has("SOCKS") ||
     words.has("MEDIAS") ||
     words.has("CALCETIN") ||
