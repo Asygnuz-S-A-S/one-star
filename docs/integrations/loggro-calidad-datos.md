@@ -20,7 +20,7 @@ a **quien carga en Loggro** y a **quien completa la ficha en la web**.
 | Stock por talla | ✅ Sí (suma las 3 tiendas) | Loggro |
 | Tallas | ✅ Sí, del sufijo `_38` | Loggro |
 | **Color** | ⚠️ Deducido del nombre — 90 % acierta | Automático + web |
-| **Marca** | ❌ Solo el código (`004`), sin nombre | Automatizable |
+| **Marca** | ⚠️ Loggro envía código; el adaptador lo normaliza con el nombre | Automático + web |
 | **Categoría del menú** | ⚠️ Accesorios y chanclas/sandalias se deducen del nombre | Automático + web |
 | **Género** | ⚠️ Deducido del nombre y descripciones | Automático + web |
 | **Fotos** | ❌ Nunca llegan | **Web (inevitable)** |
@@ -56,9 +56,9 @@ en `1155111-MVR`. **Es la causa de los 40 productos con una sola talla.**
 → **Corregido:** los ítems `definicion: true` ya no crean tallas ni productos
 duplicados; `definidoEn_uuid` determina el producto padre.
 
-### 2.2 Marcas sin nombre
+### 2.2 Marcas sin nombre — *corregido*
 
-Loggro envía el código de categoría (`004`), nunca el nombre. Resultado:
+Loggro envía el código de categoría (`004`), nunca el nombre. Antes esto creaba
 13 marcas llamadas "Por nombrar (00X)", visibles en el filtro de la tienda.
 
 Equivalencias deducidas de los nombres de producto:
@@ -73,9 +73,10 @@ Equivalencias deducidas de los nombres de producto:
 | 007 | Hoka | 20 | | 009 | Discovery | 1 |
 | 005 | New Balance | 13 | | | | |
 
-**Ojo:** la categoría de Loggro mezcla *marca + línea* (001 = Converse calzado,
-008 = Converse ropa). Al pasarla a "marca" en la web, ambas deberían ser
-**Converse**, y la diferencia calzado/ropa debería ir en la **categoría**.
+**Ojo:** la categoría de Loggro mezcla *marca + línea* y el código `008` incluso mezcla
+Converse, Columbia, Reshoevn8r y obsequios. Por eso el adaptador prioriza una marca explícita
+en el nombre y usa el código solo como respaldo. `001 + 008` pueden terminar en Converse,
+`003 + 010` en Vans y `009 + 013` en Discovery, sin unir sus categorías de producto.
 
 ### 2.3 Productos que no deberían publicarse
 
@@ -107,7 +108,7 @@ Ordenado por impacto:
 | # | Mejora | Ahorro |
 |---|---|---|
 | 1 | **Ignorar ítems `definicion: true`** | Elimina tallas basura y productos partidos |
-| 2 | **Marca desde el nombre** ("TENIS SKECHERS…" → Skechers) | **91 %** de los 367 productos |
+| 2 | **Marca desde nombre + código auditado** ("TENIS SKECHERS…" → Skechers) | **100 %** de los 367 productos |
 | 3 | **Género desde el nombre** (HOMBRE/MUJER/UNISEX/NIÑO…) | **98,4 %** de los productos |
 | 4 | **Categoría conservadora para accesorios y chanclas/sandalias** | 27 productos actuales |
 | 5 | Marcar como no publicable lo que no es mercancía (bolsas, pruebas, precio $0) | evita despublicar a mano |
@@ -191,6 +192,18 @@ En sincronizaciones normales la categoría sugerida solo se usa al crear product
 Los productos existentes, incluso si un administrador decide dejarlos en `sin-categoria`, no
 se reclasifican automáticamente. Los históricos se corrigen únicamente con el backfill explícito,
 que además condiciona cada escritura a que el producto todavía conserve la categoría por defecto.
+
+### Cobertura real de marcas (2026-08-13)
+
+El backfill local reemplazó las marcas provisionales de los 367 productos ERP y eliminó los
+13 registros `Por nombrar (00X)` que quedaron vacíos. La distribución ERP resultante fue:
+142 Skechers, 91 Converse, 62 Vans, 17 Discovery, 12 On, 11 Hoka, 11 New Balance, 6 Reshoevn8r,
+3 Columbia, 3 Nike, 3 New Era y 6 productos sin fabricante identificable bajo `Sin marca`.
+
+La aplicación exigió una vista previa con huella SHA-256 y condicionó cada cambio al `erpId` del
+producto más el código y nombre exactos de la marca provisional. Una segunda vista previa dejó
+0 candidatos. La sincronización normal usa la sugerencia solo al crear productos nuevos; nunca
+reemplaza una marca existente ni una selección manual.
 
 ---
 

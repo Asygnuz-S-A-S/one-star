@@ -72,6 +72,7 @@ Para asegurar que Loggro mantenga el control contable sin destruir el enriquecim
 | Unidad de Medida | Loggro | **Loggro Sobrescribe siempre**. |
 | Género | Compartido | Loggro completa el campo solo si está vacío; una selección manual se conserva. |
 | Categoría | Compartido | Al crear, el adaptador puede sugerir Accesorios o Chanclas y Sandalias desde el nombre; sin señal segura usa "Sin Categoría". Después One Star mantiene el control. |
+| Marca | Compartido | Al crear, el adaptador normaliza nombre + código ERP; después One Star mantiene el control. |
 | Imágenes | One Star | Loggro no envía imágenes. One Star mantiene el control. |
 | Descripción Larga | One Star | One Star mantiene el control. |
 
@@ -91,6 +92,13 @@ propias del ERP. En el alta de un producto nuevo se utiliza esa sugerencia; una 
 recurrente nunca reclasifica productos existentes. El backfill histórico exige vista previa y
 huella SHA-256, y actualiza únicamente filas que todavía estén en `sin-categoria`, evitando pisar
 una selección manual o concurrente.
+
+La marca también llega al core como una sugerencia normalizada (`slug` y nombre). Las reglas de
+códigos y errores ortográficos viven únicamente en el adaptador Loggro; el código `008`, que mezcla
+varias marcas, se desambigua por el nombre del producto. Los nuevos productos usan la sugerencia,
+pero la sincronización recurrente no cambia marcas existentes. El backfill histórico exige huella
+SHA-256 y reemplaza solo relaciones cuyo producto, código ERP y nombre `Por nombrar (00X)` sigan
+coincidiendo; después elimina únicamente marcas provisionales sin productos.
 
 ## Flujo de ventas (Web → Loggro)
 
