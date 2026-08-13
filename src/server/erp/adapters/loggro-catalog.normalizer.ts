@@ -8,6 +8,7 @@ import { parseSku } from "@/lib/sku"
 import type { LoggroCatalogItem } from "./loggro.client"
 import { deriveLoggroColorFamilyKey } from "./loggro-color-family-key"
 import { detectLoggroGender, hasLoggroGenderSignal } from "./loggro-gender"
+import { detectLoggroCategory } from "./loggro-category"
 
 export interface LoggroStockSnapshot {
   stockByCodigo: Map<string, number>
@@ -87,6 +88,7 @@ export function normalizeLoggroCatalog(
 
   const normalizedGroups = [...groupsById.values()]
   for (const group of normalizedGroups) {
+    group.categorySuggestion = detectLoggroCategory(group.name)
     const parentGender = detectLoggroGender(group.name)
     if (parentGender) {
       group.gender = parentGender

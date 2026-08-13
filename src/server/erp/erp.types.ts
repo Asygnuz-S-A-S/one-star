@@ -90,6 +90,8 @@ export interface ERPCatalogProductGroup {
   name: string
   /** Clasificación normalizada por el adaptador; ausente cuando no hay una señal segura. */
   gender?: ERPProductGender
+  /** Categoría web sugerida por el adaptador; el core preserva asignaciones manuales. */
+  categorySuggestion?: ERPCatalogCategorySuggestion
   basePrice: number
   unitOfMeasure?: string
   categoryName?: string
