@@ -6,6 +6,39 @@ import { normalizeLoggroCatalog } from "../loggro-catalog.normalizer"
 import type { LoggroCatalogItem } from "../loggro.client"
 
 describe("normalizeLoggroCatalog", () => {
+  it("expone una sugerencia normalizada de categoría desde el producto padre", () => {
+    const snapshot = normalizeLoggroCatalog(
+      [
+        {
+          uuid: "parent-sandals",
+          codigo: "SANDALS-BLK",
+          descripcion: "SANDALIA SKECHERS MUJER NEGRA",
+          definicion: true,
+        },
+        {
+          uuid: "variant-sandals",
+          codigo: "SANDALS-BLK_8",
+          descripcion: "SANDALIA SKECHERS MUJER NEGRA",
+          definicion: false,
+          definidoEn_uuid: "parent-sandals",
+        },
+      ],
+      {
+        stockByCodigo: new Map([["SANDALS-BLK_8", 1]]),
+        complete: true,
+        requestedCount: 1,
+        resolvedCount: 1,
+        missingCodes: [],
+        errors: [],
+      }
+    )
+
+    expect(snapshot.groups[0].categorySuggestion).toEqual({
+      slug: "chanclas-y-sandalias",
+      name: "Chanclas y Sandalias",
+    })
+  })
+
   it("expone el género normalizado desde los textos del producto y sus variantes", () => {
     const snapshot = normalizeLoggroCatalog(
       [
