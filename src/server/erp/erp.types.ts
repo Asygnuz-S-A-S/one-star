@@ -68,6 +68,15 @@ export interface ERPCatalogVariant {
   unitOfMeasure?: string
 }
 
+export type ERPProductGender =
+  | "UNISEX"
+  | "HOMBRE"
+  | "MUJER"
+  | "NINO"
+  | "NINA"
+  | "INFANTIL"
+  | "BEBE"
+
 export interface ERPCatalogProductGroup {
   /** Identidad estable del producto padre en el ERP. */
   erpId: string
