@@ -19,4 +19,12 @@ describe("detectLoggroGender", () => {
     expect(detectLoggroGender("TENIS HOMBRE MUJER UNISEX BLANCO")).toBe("UNISEX")
     expect(detectLoggroGender("TENIS HOMBRE MUJER BLANCO")).toBeUndefined()
   })
+
+  it("normaliza las señales infantiles explícitas", () => {
+    expect(detectLoggroGender("TENIS BOUNDLESS GRIS NIÑA")).toBe("NINA")
+    expect(detectLoggroGender("TENIS AZUL NIÑOS")).toBe("NINO")
+    expect(detectLoggroGender("ZAPATILLA INFANTIL ROSADA")).toBe("INFANTIL")
+    expect(detectLoggroGender("TENIS JUNIOR BLANCO")).toBe("INFANTIL")
+    expect(detectLoggroGender("ZAPATO BEBÉ AZUL")).toBe("BEBE")
+  })
 })
