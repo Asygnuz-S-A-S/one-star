@@ -11,6 +11,9 @@ No contiene credenciales ni cuerpos crudos de la API.
 - `nextRunAt`: `null` mientras dure la reparación.
 - Los pedidos recién creados en estado `PENDING` no invocan `onOrderConfirmed` ni generan
   salidas de inventario en Loggro.
+- Todas las exportaciones automáticas de pedidos hacia el ERP están temporalmente pausadas,
+  incluso para pedidos que luego cambien a `PAID`. La reactivación requiere implementar primero
+  una transición pagada idempotente, con registro de entrega y reintentos.
 - La sincronización manual y los diagnósticos autenticados de solo lectura permanecen disponibles.
 
 ## Catálogo observado
@@ -59,4 +62,3 @@ la lectura de existencias del proveedor.
 2. Confirmar establecimiento, bodega y cantidad para esos SKU.
 3. Reproducir exactamente esas cantidades mediante el endpoint de disponibilidad.
 4. Mantener pausadas las escrituras hasta que los resultados coincidan.
-

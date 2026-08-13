@@ -64,7 +64,7 @@ Para asegurar que Loggro mantenga el control contable sin destruir el enriquecim
 > `PENDING` y no invocan `onOrderConfirmed`. Por tanto, no generan salidas en Loggro antes de
 > confirmar el pago. La exportación se reactivará únicamente desde una transición idempotente a
 > `PAID`, después de completar la reparación de inventario. Ver
-> `docs/integrations/loggro-baseline-2026-08-13.md`.
+> [la línea base de la contención](loggro-baseline-2026-08-13.md).
 
 Cuando el flujo de exportación esté habilitado y se confirme el pago, `onOrderConfirmed` (en
 `loggro.adapter.ts`) **descuenta el stock** en Loggro registrando una salida de inventario:
