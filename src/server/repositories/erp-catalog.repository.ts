@@ -132,6 +132,18 @@ export async function findMissingCatalogProductErpIds(
   return products.flatMap((product) => product.erpId ? [product.erpId] : [])
 }
 
+export async function findDefaultCatalogProductErpIds(
+  erpIds: string[],
+  defaultCategoryId: string
+): Promise<string[]> {
+  if (erpIds.length === 0) return []
+  const products = await prisma.product.findMany({
+    where: { erpId: { in: erpIds }, categoryId: defaultCategoryId },
+    select: { erpId: true },
+  })
+  return products.flatMap((product) => product.erpId ? [product.erpId] : [])
+}
+
 export async function updateCatalogVariant(
   id: string,
   data: {
