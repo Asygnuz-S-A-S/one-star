@@ -82,6 +82,9 @@ Se corrigieron dos fragilidades del cliente:
 1. La bodega publicable ya no depende del orden de la respuesta: se prioriza `Bodega Punto de Venta`
    y no `Bodega Separados`.
 2. Los lotes se consultan con concurrencia máxima de cuatro peticiones.
+3. Las bodegas `Separados` se excluyen incluso cuando no existe otra bodega candidata.
+4. La lectura tiene un presupuesto total de 60 segundos y limita a 10 los descartes de SKU
+   inválidos por lote; superar esos límites produce un resultado parcial y bloquea escrituras.
 
 Después de la corrección, la descarga completa resolvió los 1.530 SKU en 22,5 segundos, sin
 faltantes ni errores. El resultado siguió siendo `all_zero`, por lo que el bloqueo de seguridad

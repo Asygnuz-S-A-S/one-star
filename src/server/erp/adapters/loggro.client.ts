@@ -49,6 +49,10 @@ const STOCK_SCOPE = (process.env.LOGGRO_STOCK_SCOPE ?? "all").toLowerCase().trim
 const DISPONIBILIDAD_CHUNK_SIZE = 100
 /** Evita serializar decenas de lotes sin saturar la API de Loggro. */
 const DISPONIBILIDAD_CONCURRENCY = 4
+/** Presupuesto total de una descarga de stock completa. */
+const DISPONIBILIDAD_SNAPSHOT_TIMEOUT_MS = 60_000
+/** Evita una tormenta de reintentos cuando un lote contiene muchos códigos inválidos. */
+const MAX_MISSING_DISCARDS_PER_CHUNK = 10
 
 // Paginación del catálogo. Loggro devuelve solo 10 ítems si no se pide `tamano`
 // y rechaza (400) cualquier página mayor a 100, así que se recorre de a 100.
@@ -181,14 +185,21 @@ function stockWarehouseForEstablishment(
   warehouses: LoggroBodega[],
   establishmentUuid: string
 ): LoggroBodega | undefined {
-  const related = warehouses.filter((warehouse) => warehouse.padre === establishmentUuid)
-  return related.find((warehouse) =>
+  const normalizedName = (warehouse: LoggroBodega): string =>
     warehouse.nombre
       ?.normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
-      .toUpperCase()
-      .includes("BODEGA PUNTO DE VENTA")
-  ) ?? related[0]
+      .toUpperCase() ?? ""
+  const publishable = warehouses
+    .filter((warehouse) => warehouse.padre === establishmentUuid)
+    .filter((warehouse) => !normalizedName(warehouse).includes("SEPARADOS"))
+    .sort((left, right) =>
+      (left.nombre ?? left.uuid).localeCompare(right.nombre ?? right.uuid, "es")
+    )
+
+  return publishable.find((warehouse) =>
+    normalizedName(warehouse).includes("BODEGA PUNTO DE VENTA")
+  ) ?? publishable[0]
 }
 
 async function mapWithConcurrency<T, R>(
@@ -662,8 +673,7 @@ export class LoggroClient {
 
       const bodega =
         (ENV_BODEGA_UUID && bodegas.find((b) => b.uuid === ENV_BODEGA_UUID)) ||
-        stockWarehouseForEstablishment(bodegas, establecimientoUuid) ||
-        bodegas[0]
+        stockWarehouseForEstablishment(bodegas, establecimientoUuid)
 
       const bodegaUuid = bodega?.uuid ?? ENV_BODEGA_UUID
       if (!bodegaUuid) {
@@ -730,6 +740,9 @@ export class LoggroClient {
 
       // Sin tiendas utilizables, se cae a la ubicación principal.
       if (locations.length === 0) {
+        // Si Loggro sí devolvió tiendas pero ninguna tiene una bodega publicable,
+        // no caer en "Separados" ni en una bodega ajena por orden de respuesta.
+        if (tiendas.length > 0) return []
         return [await this.resolveLocation(remainingMs(), useCache)]
       }
 
@@ -867,6 +880,7 @@ export class LoggroClient {
    * informa si todas las bodegas respondieron para todos los SKU solicitados.
    */
   async getDisponibilidadSnapshot(codigos: string[]): Promise<LoggroStockSnapshot> {
+    const deadline = Date.now() + DISPONIBILIDAD_SNAPSHOT_TIMEOUT_MS
     const stock = new Map<string, number>()
     const unique = [...new Set(codigos.filter(Boolean))]
     if (unique.length === 0) {
@@ -923,7 +937,12 @@ export class LoggroClient {
       DISPONIBILIDAD_CONCURRENCY,
       async ({ location, codes }) => {
         const chunkStock = new Map<string, number>()
-        const result = await this.fetchDisponibilidadChunk(location, codes, chunkStock)
+        const result = await this.fetchDisponibilidadChunk(
+          location,
+          codes,
+          chunkStock,
+          deadline
+        )
         return { ...result, stockByCodigo: chunkStock }
       }
     )
@@ -960,17 +979,35 @@ export class LoggroClient {
   private async fetchDisponibilidadChunk(
     location: InventoryLocation,
     chunk: string[],
-    out: Map<string, number>
+    out: Map<string, number>,
+    deadline: number
   ): Promise<{ missingCodes: string[]; errors: string[] }> {
     let pending = [...chunk]
     const missingCodes: string[] = []
 
-    for (let attempt = 0; attempt <= chunk.length && pending.length > 0; attempt++) {
-      const res = await this.requestSafe("POST", `${INV}/productos/disponibilidad-productos`, {
-        establecimientoUuid: location.establecimientoUuid,
-        bodegaUuid: location.bodegaUuid,
-        items: pending.map((codigoItem) => ({ codigoItem })),
-      })
+    for (
+      let attempt = 0;
+      attempt <= MAX_MISSING_DISCARDS_PER_CHUNK && pending.length > 0;
+      attempt++
+    ) {
+      const remainingMs = deadline - Date.now()
+      if (remainingMs <= 0) {
+        return {
+          missingCodes: [...missingCodes, ...pending],
+          errors: ["Se agotó el tiempo total para consultar la disponibilidad en Loggro."],
+        }
+      }
+
+      const res = await this.requestSafe(
+        "POST",
+        `${INV}/productos/disponibilidad-productos`,
+        {
+          establecimientoUuid: location.establecimientoUuid,
+          bodegaUuid: location.bodegaUuid,
+          items: pending.map((codigoItem) => ({ codigoItem })),
+        },
+        remainingMs
+      )
 
       if (res.ok) {
         const data = this.parseJson<LoggroContenidoResponse<LoggroDisponibilidadItem>>(res.text)
@@ -1010,7 +1047,10 @@ export class LoggroClient {
     return {
       missingCodes: [...missingCodes, ...pending],
       errors: pending.length > 0
-        ? ["Loggro agotó los reintentos de disponibilidad para un lote."]
+        ? [
+            `Loggro superó el límite de ${MAX_MISSING_DISCARDS_PER_CHUNK} ` +
+              "descartes de SKU inválidos para un lote.",
+          ]
         : [],
     }
   }

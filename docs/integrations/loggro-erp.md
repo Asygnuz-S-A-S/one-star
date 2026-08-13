@@ -30,10 +30,14 @@ El endpoint de catálogo **no** incluye existencias. El stock se consulta aparte
 Notas de comportamiento:
 - El establecimiento y la bodega se resuelven en `loggro.client.ts` desde `LOGGRO_ESTABLECIMIENTO_UUID` / `LOGGRO_BODEGA_UUID`, o se auto-detectan (establecimiento tipo `EST` + su bodega hija).
 - Cuando una sede tiene varias bodegas, la auto-detección prioriza la denominada
-  `Bodega Punto de Venta`; las bodegas de `Separados` no se suman al stock publicable.
+  `Bodega Punto de Venta`; las bodegas de `Separados` se excluyen del stock publicable. Si no
+  existe una bodega publicable, la lectura queda parcial en vez de usar una bodega por posición.
 - Los lotes de disponibilidad se consultan con concurrencia acotada. Cada petición conserva su
   propio acumulador y solo después se consolidan las sedes, evitando tanto la ejecución
   estrictamente secuencial como el estado mutable compartido.
+- La descarga completa tiene un presupuesto total de 60 segundos y cada lote permite como máximo
+  10 descartes de códigos inválidos. Al superar cualquiera de los límites, el snapshot queda
+  parcial y no puede escribir inventario.
 - La consulta es **estricta**: si un `codigoItem` no es un ítem inventariable (p. ej. un producto base sin talla), Loggro responde `400 "Producto no encontrado: X"` para **todo** el lote. El cliente descarta el código faltante y reintenta con el resto.
 - Una respuesta completa con todos los SKU en cero se clasifica como `all_zero` y bloquea las
   escrituras. No se interpreta como inventario válido hasta contrastar un SKU positivo conocido.
