@@ -12,19 +12,15 @@ vi.mock("@/server/repositories/erp-sync-log.repository", () => ({
   findRecentErpSyncLogs: vi.fn().mockResolvedValue([]),
 }))
 vi.mock("@/server/repositories/erp-catalog.repository", () => ({
-  countCatalogBrandsBySlug: vi.fn(),
-  createCatalogBrand: vi.fn(),
   createCatalogProduct: vi.fn(),
   createCatalogVariant: vi.fn(),
   createDefaultImportCategory: vi.fn(),
+  ensureCatalogBrand: vi.fn(),
   ensureCatalogCategory: vi.fn(),
   fillDefaultCatalogProductCategories: vi.fn().mockResolvedValue(0),
-  findCatalogBrandByErpId: vi.fn(),
-  findCatalogBrandBySlug: vi.fn(),
   findCatalogProductBySlug: vi.fn(),
   findDefaultImportCategory: vi.fn(),
   fillMissingCatalogProductGenders: vi.fn().mockResolvedValue(0),
-  updateCatalogBrandErpId: vi.fn(),
   updateCatalogProduct: vi.fn(),
   updateCatalogVariant: vi.fn(),
 }))
@@ -475,6 +471,127 @@ describe("syncCatalogFromERP", () => {
 
     expect(repository.createCatalogProduct).toHaveBeenCalledWith(
       expect.objectContaining({ gender: "UNISEX" })
+    )
+  })
+
+  it("crea productos nuevos con la marca canónica sugerida por el adaptador", async () => {
+    process.env.ERP_CATALOG_WRITES_ENABLED = "true"
+    mockFindDefaultImportCategory.mockResolvedValue({ id: "category" } as never)
+    const repository = await import("@/server/repositories/erp-catalog.repository")
+    vi.mocked(repository.findCatalogProductBySlug).mockResolvedValue(null)
+    vi.mocked(repository.ensureCatalogBrand).mockResolvedValue({
+      id: "skechers-brand",
+      slug: "skechers",
+      name: "Skechers",
+    } as never)
+    vi.mocked(repository.createCatalogProduct).mockResolvedValue({
+      id: "product-skechers",
+      variants: [],
+    } as never)
+    mockGetERPAdapter.mockReturnValue({
+      fetchCatalog: vi.fn().mockResolvedValue({
+        groups: [
+          {
+            erpId: "erp-skechers",
+            sku: "SKECHERS-BLK",
+            name: "TENIS SKECHERS HOMBRE NEGRO",
+            brandSuggestion: { slug: "skechers", name: "Skechers" },
+            basePrice: 120_000,
+            variants: [
+              {
+                erpId: "variant-skechers",
+                sku: "SKECHERS-BLK_9",
+                name: "TENIS SKECHERS HOMBRE NEGRO",
+                basePrice: 120_000,
+                stock: 1,
+              },
+            ],
+          },
+        ],
+        diagnostics: {
+          sourceItemCount: 2,
+          definitionCount: 1,
+          variantCount: 1,
+          groupCount: 1,
+        },
+        stock: {
+          status: "complete",
+          complete: true,
+          requestedCount: 1,
+          resolvedCount: 1,
+          totalStock: 1,
+          missingCodes: [],
+          errors: [],
+        },
+      }),
+      ping: vi.fn(),
+    } as never)
+
+    await syncCatalogFromERP("MANUAL")
+
+    expect(repository.ensureCatalogBrand).toHaveBeenCalledWith({
+      slug: "skechers",
+      name: "Skechers",
+    })
+    expect(repository.createCatalogProduct).toHaveBeenCalledWith(
+      expect.objectContaining({ brandId: "skechers-brand" })
+    )
+  })
+
+  it("conserva la marca de un producto existente aunque el ERP sugiera otra", async () => {
+    process.env.ERP_CATALOG_WRITES_ENABLED = "true"
+    mockFindDefaultImportCategory.mockResolvedValue({ id: "category" } as never)
+    const repository = await import("@/server/repositories/erp-catalog.repository")
+    vi.mocked(repository.findCatalogProductBySlug).mockResolvedValue({
+      id: "product-reviewed",
+      brandId: "manual-brand",
+      variants: [],
+    } as never)
+    mockGetERPAdapter.mockReturnValue({
+      fetchCatalog: vi.fn().mockResolvedValue({
+        groups: [
+          {
+            erpId: "erp-reviewed",
+            sku: "REVIEWED-BLK",
+            name: "TENIS VANS NEGRO",
+            brandSuggestion: { slug: "vans", name: "Vans" },
+            basePrice: 100_000,
+            variants: [
+              {
+                erpId: "variant-reviewed",
+                sku: "REVIEWED-BLK_8",
+                name: "TENIS VANS NEGRO",
+                basePrice: 100_000,
+                stock: 1,
+              },
+            ],
+          },
+        ],
+        diagnostics: {
+          sourceItemCount: 2,
+          definitionCount: 1,
+          variantCount: 1,
+          groupCount: 1,
+        },
+        stock: {
+          status: "complete",
+          complete: true,
+          requestedCount: 1,
+          resolvedCount: 1,
+          totalStock: 1,
+          missingCodes: [],
+          errors: [],
+        },
+      }),
+      ping: vi.fn(),
+    } as never)
+
+    await syncCatalogFromERP("MANUAL")
+
+    expect(repository.ensureCatalogBrand).not.toHaveBeenCalled()
+    expect(repository.updateCatalogProduct).toHaveBeenCalledWith(
+      "product-reviewed",
+      expect.not.objectContaining({ brandId: expect.anything() })
     )
   })
 

@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 vi.mock("server-only", () => ({}))
 
-const { updateMany, transaction } = vi.hoisted(() => ({
+const { brandDeleteMany, updateMany, transaction } = vi.hoisted(() => ({
+  brandDeleteMany: vi.fn(),
   updateMany: vi.fn(),
   transaction: vi.fn(async (operations: Array<Promise<unknown>>) =>
     Promise.all(operations)
@@ -12,6 +13,7 @@ const { updateMany, transaction } = vi.hoisted(() => ({
 vi.mock("@/server/db/prisma", () => ({
   prisma: {
     product: { updateMany },
+    brand: { deleteMany: brandDeleteMany },
     $transaction: transaction,
   },
 }))
@@ -19,6 +21,7 @@ vi.mock("@/server/db/prisma", () => ({
 import {
   fillDefaultCatalogProductCategories,
   fillMissingCatalogProductGenders,
+  replaceProvisionalCatalogProductBrands,
 } from "../erp-catalog.repository"
 
 describe("fillMissingCatalogProductGenders", () => {
@@ -74,5 +77,46 @@ describe("fillDefaultCatalogProductCategories", () => {
       data: { categoryId: "sandals" },
     })
     expect(updated).toBe(1)
+  })
+})
+
+describe("replaceProvisionalCatalogProductBrands", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    updateMany
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 0 })
+    brandDeleteMany.mockResolvedValue({ count: 1 })
+  })
+
+  it("reemplaza solo la marca provisional exacta y elimina únicamente las que quedan vacías", async () => {
+    const result = await replaceProvisionalCatalogProductBrands([
+      { erpId: "erp-a", sourceBrandErpId: "008", targetBrandId: "columbia" },
+      { erpId: "erp-b", sourceBrandErpId: "001", targetBrandId: "converse" },
+    ])
+
+    expect(updateMany).toHaveBeenNthCalledWith(1, {
+      where: {
+        erpId: "erp-a",
+        brand: { erpId: "008", name: "Por nombrar (008)" },
+      },
+      data: { brandId: "columbia" },
+    })
+    expect(updateMany).toHaveBeenNthCalledWith(2, {
+      where: {
+        erpId: "erp-b",
+        brand: { erpId: "001", name: "Por nombrar (001)" },
+      },
+      data: { brandId: "converse" },
+    })
+    expect(brandDeleteMany).toHaveBeenCalledWith({
+      where: {
+        OR: [
+          { erpId: "008", name: "Por nombrar (008)", products: { none: {} } },
+          { erpId: "001", name: "Por nombrar (001)", products: { none: {} } },
+        ],
+      },
+    })
+    expect(result).toEqual({ updatedCount: 1, deletedProvisionalBrandCount: 1 })
   })
 })

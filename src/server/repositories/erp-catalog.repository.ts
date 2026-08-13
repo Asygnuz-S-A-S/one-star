@@ -28,6 +28,14 @@ export async function ensureCatalogCategory(data: { slug: string; name: string }
   })
 }
 
+export async function ensureCatalogBrand(data: { slug: string; name: string }) {
+  return prisma.brand.upsert({
+    where: { slug: data.slug },
+    update: {},
+    create: data,
+  })
+}
+
 export async function findCatalogProductBySlug(slug: string) {
   return prisma.product.findUnique({
     where: { slug },
@@ -35,28 +43,77 @@ export async function findCatalogProductBySlug(slug: string) {
   })
 }
 
-export async function findCatalogBrandByErpId(erpId: string) {
-  return prisma.brand.findUnique({ where: { erpId } })
+export async function findProvisionalCatalogProductBrands(erpIds: string[]): Promise<
+  Array<{ erpId: string; brandErpId: string; brandName: string }>
+> {
+  if (erpIds.length === 0) return []
+  const products = await prisma.product.findMany({
+    where: {
+      erpId: { in: erpIds },
+      brand: {
+        erpId: { not: null },
+        name: { startsWith: "Por nombrar (" },
+      },
+    },
+    select: {
+      erpId: true,
+      brand: { select: { erpId: true, name: true } },
+    },
+  })
+  return products.flatMap((product) =>
+    product.erpId && product.brand?.erpId
+      ? [{
+          erpId: product.erpId,
+          brandErpId: product.brand.erpId,
+          brandName: product.brand.name,
+        }]
+      : []
+  )
 }
 
-export async function findCatalogBrandBySlug(slug: string) {
-  return prisma.brand.findUnique({ where: { slug } })
-}
-
-export async function updateCatalogBrandErpId(id: string, erpId: string) {
-  return prisma.brand.update({ where: { id }, data: { erpId } })
-}
-
-export async function countCatalogBrandsBySlug(slug: string): Promise<number> {
-  return prisma.brand.count({ where: { slug } })
-}
-
-export async function createCatalogBrand(data: {
-  name: string
-  slug: string
-  erpId?: string
-}) {
-  return prisma.brand.create({ data })
+export async function replaceProvisionalCatalogProductBrands(
+  candidates: Array<{
+    erpId: string
+    sourceBrandErpId: string
+    targetBrandId: string
+  }>
+): Promise<{ updatedCount: number; deletedProvisionalBrandCount: number }> {
+  if (candidates.length === 0) {
+    return { updatedCount: 0, deletedProvisionalBrandCount: 0 }
+  }
+  const sourceBrandErpIds = [...new Set(
+    candidates.map((candidate) => candidate.sourceBrandErpId)
+  )]
+  const results = await prisma.$transaction([
+    ...candidates.map((candidate) =>
+      prisma.product.updateMany({
+        where: {
+          erpId: candidate.erpId,
+          brand: {
+            erpId: candidate.sourceBrandErpId,
+            name: `Por nombrar (${candidate.sourceBrandErpId})`,
+          },
+        },
+        data: { brandId: candidate.targetBrandId },
+      })
+    ),
+    prisma.brand.deleteMany({
+      where: {
+        OR: sourceBrandErpIds.map((erpId) => ({
+          erpId,
+          name: `Por nombrar (${erpId})`,
+          products: { none: {} },
+        })),
+      },
+    }),
+  ])
+  const deletion = results.at(-1)!
+  return {
+    updatedCount: results
+      .slice(0, -1)
+      .reduce((total, result) => total + result.count, 0),
+    deletedProvisionalBrandCount: deletion.count,
+  }
 }
 
 export async function updateCatalogProduct(
@@ -64,7 +121,7 @@ export async function updateCatalogProduct(
   data: {
     basePrice: number
     unitOfMeasure?: string
-    brandId: string | null
+    brandId?: string | null
   }
 ) {
   return prisma.product.update({ where: { id }, data })

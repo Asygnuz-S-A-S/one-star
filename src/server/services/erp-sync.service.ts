@@ -18,18 +18,14 @@ import {
   findRecentErpSyncLogs,
 } from "@/server/repositories/erp-sync-log.repository"
 import {
-  countCatalogBrandsBySlug,
-  createCatalogBrand,
   createCatalogProduct,
   createCatalogVariant,
   createDefaultImportCategory,
+  ensureCatalogBrand,
   ensureCatalogCategory,
-  findCatalogBrandByErpId,
-  findCatalogBrandBySlug,
   findCatalogProductBySlug,
   findDefaultImportCategory,
   fillMissingCatalogProductGenders,
-  updateCatalogBrandErpId,
   updateCatalogProduct,
   updateCatalogVariant,
 } from "@/server/repositories/erp-catalog.repository"
@@ -234,6 +230,7 @@ async function runCatalogSync(options: CatalogSyncOptions): Promise<ERPCatalogSy
     // Paleta activa: permite deducir el color de cada variante desde el texto
     // que envía el ERP. Se lee una sola vez por sincronización.
     const paletteNames = (await findManyProductColors(true)).map((c) => c.name)
+    const suggestedBrandIds = new Map<string, string>()
     const suggestedCategoryIds = new Map<string, string>()
     const colorFamilyKeyUpdates: Array<{ productId: string; key: string | null }> = []
     const genderCandidates: Array<{
@@ -259,50 +256,13 @@ async function runCatalogSync(options: CatalogSyncOptions): Promise<ERPCatalogSy
         }
       }
 
-      // 2.5 Buscar o crear la MARCA real (Loggro usa el campo Categoría para Marcas)
-      let targetBrandId: string | null = null
-      const loggroBrandName = group.categoryName?.trim()
-      const loggroBrandErpId = group.brandErpId?.trim()
-
-      if (loggroBrandName || loggroBrandErpId) {
-        let brand = null
-        
-        // 1. Intentar buscar por erpId
-        if (loggroBrandErpId) {
-          brand = await findCatalogBrandByErpId(loggroBrandErpId)
-        }
-        
-        // 2. Si no existe por erpId, buscar por slug
-        if (!brand && loggroBrandName) {
-          const brandSlug = loggroBrandName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)+/g, "")
-          brand = await findCatalogBrandBySlug(brandSlug)
-        }
-        
-        if (brand) {
-          // Si encontró la marca pero no tiene el erpId actualizado, lo actualizamos
-          if (loggroBrandErpId && brand.erpId !== loggroBrandErpId) {
-            await updateCatalogBrandErpId(brand.id, loggroBrandErpId)
-          }
-          targetBrandId = brand.id
-        } else {
-          // Si no existe, crear la marca nueva
-          let safeName = loggroBrandName || `Por nombrar (${loggroBrandErpId || Date.now()})`
-          if (loggroBrandName === loggroBrandErpId) {
-            safeName = `Por nombrar (${loggroBrandErpId})`
-          }
-          
-          const baseSlug = safeName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)+/g, "")
-          
-          let brandSlug = baseSlug
-          const count = await countCatalogBrandsBySlug(brandSlug)
-          if (count > 0) brandSlug = `${baseSlug}-${Date.now()}`
-            
-          brand = await createCatalogBrand({
-            name: safeName,
-            slug: brandSlug,
-            erpId: loggroBrandErpId || undefined,
-          })
-          targetBrandId = brand.id
+      let suggestedBrandId: string | null = null
+      if (group.brandSuggestion && !existingProduct) {
+        suggestedBrandId = suggestedBrandIds.get(group.brandSuggestion.slug) ?? null
+        if (!suggestedBrandId) {
+          const brand = await ensureCatalogBrand(group.brandSuggestion)
+          suggestedBrandId = brand.id
+          suggestedBrandIds.set(group.brandSuggestion.slug, brand.id)
         }
       }
 
@@ -311,7 +271,6 @@ async function runCatalogSync(options: CatalogSyncOptions): Promise<ERPCatalogSy
         await updateCatalogProduct(existingProduct.id, {
           basePrice: group.basePrice,
           unitOfMeasure: group.unitOfMeasure,
-          brandId: targetBrandId,
         })
         if (existingProduct.gender == null && group.gender) {
           genderCandidates.push({ erpId: group.erpId, gender: group.gender })
@@ -324,7 +283,7 @@ async function runCatalogSync(options: CatalogSyncOptions): Promise<ERPCatalogSy
           basePrice: group.basePrice,
           unitOfMeasure: group.unitOfMeasure,
           categoryId: suggestedCategoryId ?? defaultCategory.id,
-          brandId: targetBrandId,
+          brandId: suggestedBrandId,
           gender: group.gender,
           erpId: group.erpId,
         })
