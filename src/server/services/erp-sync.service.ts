@@ -310,6 +310,7 @@ async function runCatalogSync(options: CatalogSyncOptions): Promise<ERPCatalogSy
           unitOfMeasure: group.unitOfMeasure,
           categoryId: defaultCategory.id, // Lo mandamos a Sin Categoría temporalmente
           brandId: targetBrandId,
+          gender: group.gender,
           erpId: group.erpId,
         })
       }

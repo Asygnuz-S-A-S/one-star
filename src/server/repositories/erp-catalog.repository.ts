@@ -67,6 +67,7 @@ export async function createCatalogProduct(data: {
   unitOfMeasure?: string
   categoryId: string
   brandId: string | null
+  gender?: Gender
   erpId: string
 }) {
   return prisma.product.create({
