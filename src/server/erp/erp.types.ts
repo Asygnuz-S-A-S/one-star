@@ -83,6 +83,8 @@ export interface ERPCatalogProductGroup {
   /** Código del producto padre; se usa como slug técnico inicial. */
   sku: string
   name: string
+  /** Clasificación normalizada por el adaptador; ausente cuando no hay una señal segura. */
+  gender?: ERPProductGender
   basePrice: number
   unitOfMeasure?: string
   categoryName?: string

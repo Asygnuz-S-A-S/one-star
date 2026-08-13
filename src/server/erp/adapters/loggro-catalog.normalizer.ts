@@ -7,6 +7,7 @@ import type {
 import { parseSku } from "@/lib/sku"
 import type { LoggroCatalogItem } from "./loggro.client"
 import { deriveLoggroColorFamilyKey } from "./loggro-color-family-key"
+import { detectLoggroGender } from "./loggro-gender"
 
 export interface LoggroStockSnapshot {
   stockByCodigo: Map<string, number>
@@ -85,6 +86,14 @@ export function normalizeLoggroCatalog(
   }
 
   const normalizedGroups = [...groupsById.values()]
+  for (const group of normalizedGroups) {
+    group.gender = detectLoggroGender(
+      [
+        group.name,
+        ...group.variants.flatMap((variant) => [variant.name, variant.detailedName ?? ""]),
+      ].join(" ")
+    )
+  }
   const normalizedVariants = normalizedGroups.flatMap((group) => group.variants)
   const totalStock = normalizedVariants.reduce(
     (total, variant) => total + (variant.stock ?? 0),
