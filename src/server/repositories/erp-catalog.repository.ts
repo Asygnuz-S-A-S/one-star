@@ -1,6 +1,7 @@
 import "server-only"
 
 import { prisma } from "@/server/db/prisma"
+import type { Gender } from "@prisma/client"
 
 export async function findDefaultImportCategory() {
   return prisma.category.findUnique({ where: { slug: "sin-categoria" } })
@@ -53,6 +54,7 @@ export async function updateCatalogProduct(
     basePrice: number
     unitOfMeasure?: string
     brandId: string | null
+    gender?: Gender
   }
 ) {
   return prisma.product.update({ where: { id }, data })

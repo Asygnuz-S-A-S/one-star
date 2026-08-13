@@ -296,6 +296,10 @@ async function runCatalogSync(options: CatalogSyncOptions): Promise<ERPCatalogSy
           basePrice: group.basePrice,
           unitOfMeasure: group.unitOfMeasure,
           brandId: targetBrandId,
+          // El ERP solo completa vacíos; una selección del administrador prevalece.
+          ...(existingProduct.gender == null && group.gender
+            ? { gender: group.gender }
+            : {}),
         })
       } else {
         // Crear el producto principal
