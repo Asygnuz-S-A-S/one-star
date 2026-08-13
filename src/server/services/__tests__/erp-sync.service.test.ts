@@ -416,6 +416,62 @@ describe("syncCatalogFromERP", () => {
     )
   })
 
+  it("crea los productos nuevos con el género normalizado por el adaptador", async () => {
+    process.env.ERP_CATALOG_WRITES_ENABLED = "true"
+    mockFindDefaultImportCategory.mockResolvedValue({ id: "category" } as never)
+    const repository = await import("@/server/repositories/erp-catalog.repository")
+    vi.mocked(repository.findCatalogProductBySlug).mockResolvedValue(null)
+    vi.mocked(repository.createCatalogProduct).mockResolvedValue({
+      id: "product-unisex",
+      gender: "UNISEX",
+      variants: [],
+    } as never)
+    mockGetERPAdapter.mockReturnValue({
+      fetchCatalog: vi.fn().mockResolvedValue({
+        groups: [
+          {
+            erpId: "erp-unisex",
+            sku: "UNISEX-WHT",
+            name: "TENIS CONVERSE UNISEX BLANCO",
+            gender: "UNISEX",
+            basePrice: 120_000,
+            variants: [
+              {
+                erpId: "variant-unisex",
+                sku: "UNISEX-WHT_9",
+                name: "TENIS CONVERSE UNISEX BLANCO",
+                basePrice: 120_000,
+                stock: 1,
+              },
+            ],
+          },
+        ],
+        diagnostics: {
+          sourceItemCount: 2,
+          definitionCount: 1,
+          variantCount: 1,
+          groupCount: 1,
+        },
+        stock: {
+          status: "complete",
+          complete: true,
+          requestedCount: 1,
+          resolvedCount: 1,
+          totalStock: 1,
+          missingCodes: [],
+          errors: [],
+        },
+      }),
+      ping: vi.fn(),
+    } as never)
+
+    await syncCatalogFromERP("MANUAL")
+
+    expect(repository.createCatalogProduct).toHaveBeenCalledWith(
+      expect.objectContaining({ gender: "UNISEX" })
+    )
+  })
+
   it("sanea el error antes de persistirlo y devolverlo", async () => {
     mockGetERPAdapter.mockReturnValue({
       fetchCatalog: vi.fn().mockRejectedValue(
