@@ -10,7 +10,7 @@ Para el flujo de desarrollo recomendado necesitas:
 
 - Git.
 - Node.js 20.19 o superior, o 22.13 o superior (Node.js 22 LTS recomendado).
-- pnpm 11.5.2 (la versión usada para verificar esta guía).
+- pnpm 10.34.5 (versión fijada en `package.json` y en el `Dockerfile`).
 - Docker Desktop o Docker Engine con Docker Compose, para ejecutar PostgreSQL.
 
 Comprueba las versiones instaladas:
@@ -26,7 +26,7 @@ Si no tienes pnpm, puedes habilitarlo con Corepack:
 
 ```bash
 corepack enable
-corepack prepare pnpm@11.5.2 --activate
+corepack prepare pnpm@10.34.5 --activate
 ```
 
 ## Instalación local recomendada
@@ -197,6 +197,36 @@ docker compose down
 > `docker compose down -v` también elimina el volumen de PostgreSQL y todos sus
 > datos. Úsalo únicamente si realmente quieres reiniciar la base desde cero.
 
+## Despliegue con Docker Compose en producción
+
+La fuente oficial de los despliegues es la rama `develop`. El archivo
+`docker-compose.prod.yml` arranca PostgreSQL, aplica las migraciones versionadas
+con `prisma migrate deploy` y solo después inicia la aplicación. No ejecuta el
+seed, no incluye Adminer y no publica puertos del host.
+
+1. En el servidor, crea un archivo `.env.production` fuera de Git a partir del
+   inventario de `.env.example`. Define también `POSTGRES_USER`,
+   `POSTGRES_PASSWORD` y `POSTGRES_DB`; `DATABASE_URL` y `DIRECT_URL` deben
+   apuntar al servicio `db` usando esas mismas credenciales.
+2. Valida la configuración y despliega:
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml config --quiet
+docker compose --env-file .env.production -f docker-compose.prod.yml up --build -d
+docker compose --env-file .env.production -f docker-compose.prod.yml ps
+docker compose --env-file .env.production -f docker-compose.prod.yml logs migrate
+```
+
+Si una migración falla, `app` no inicia. Corrige la conexión o la migración y
+vuelve a ejecutar el mismo `up`; `prisma migrate deploy` es idempotente y omite
+las migraciones ya aplicadas.
+
+La aplicación solo declara el puerto interno `3000` en la red
+`onestar_frontend`. El reverse proxy administrado por el servidor debe unirse a
+esa red y dirigir el dominio al servicio `app:3000`. PostgreSQL permanece
+aislado en `onestar_backend`. Esta separación evita exponer directamente la
+aplicación, Adminer o la base de datos a Internet.
+
 ## Variables de entorno
 
 El inventario completo, con ejemplos y comentarios, está en
@@ -223,11 +253,11 @@ ERP_PROVIDER="null"
 ERP_CATALOG_WRITES_ENABLED="false"
 ```
 
-El `docker-compose.yml` actual propaga al contenedor las variables de Loggro,
-Cloudinary y Resend. Para usar Alegra, ePayco o Sentry dentro de Docker también
-debes incorporarlas a los argumentos de build o al bloque `environment` según
-sean públicas o de servidor. En desarrollo con `pnpm dev`, Next.js sí lee todas
-las variables directamente desde `.env`.
+Los archivos Compose propagan las variables públicas de ePayco y Sentry como
+argumentos de build porque Next.js las incorpora al bundle del navegador durante
+`next build`. Cambiar una variable `NEXT_PUBLIC_*` exige reconstruir la imagen;
+reiniciar un contenedor ya construido no actualiza el bundle. En desarrollo con
+`pnpm dev`, Next.js lee las variables directamente desde `.env`.
 
 ## Comandos disponibles
 

@@ -23,7 +23,7 @@
 | DnD banners | @atlaskit/pragmatic-drag-and-drop | 1.x |
 | Hotkeys admin | hotkeys-js | 4.x |
 | Tipografía | Barlow + Montserrat (fontsource) | 5.x |
-| Package manager | pnpm | workspace |
+| Package manager | pnpm | 10.34.5 |
 | Containerización | Docker + docker-compose | — |
 
 ## Estructura de Carpetas
@@ -249,6 +249,9 @@ Zod valida en la capa de `validators/` antes de llamar servicios. Los errores se
 
 ```bash
 # Base de datos
+POSTGRES_USER=...                 # Inicializa el contenedor PostgreSQL de producción
+POSTGRES_PASSWORD=...             # Solo en el entorno del servidor; nunca versionar
+POSTGRES_DB=...                   # Base creada por el contenedor PostgreSQL
 DATABASE_URL=postgresql://...     # Conexión de runtime
 DIRECT_URL=postgresql://...       # Conexión directa para migraciones de Prisma
 # En local ambas apuntan al mismo Postgres. En serverless NO son intercambiables:
@@ -339,6 +342,13 @@ el coordinador; no contienen una frecuencia de negocio fija.
 `503` en vez de ejecutar la sincronización sin autenticar.
 
 Procedimiento paso a paso: **`docs/deploy-vercel.md`**.
+
+En servidor propio, `docker-compose.prod.yml` ejecuta `prisma migrate deploy`
+en un servicio efímero antes de iniciar `app`. No ejecuta seed ni incorpora el
+CLI de Prisma al `runner`. Ningún servicio publica puertos: el reverse proxy del
+servidor se conecta a `onestar_frontend` y PostgreSQL queda aislado en
+`onestar_backend`. Las variables `NEXT_PUBLIC_*` se entregan como argumentos de
+build y requieren reconstruir la imagen cuando cambian.
 
 ## Capa ERP — Referencia Rápida
 

@@ -28,6 +28,9 @@ services:
       args:
         AUTH_SECRET: ${AUTH_SECRET}
         NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+        NEXT_PUBLIC_EPAYCO_PUBLIC_KEY: ${NEXT_PUBLIC_EPAYCO_PUBLIC_KEY:-}
+        NEXT_PUBLIC_EPAYCO_TEST: ${NEXT_PUBLIC_EPAYCO_TEST:-true}
+        NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
     command: >
       sh -c "npx prisma migrate deploy && npx prisma db seed"
     environment:
@@ -45,6 +48,9 @@ services:
       args:
         AUTH_SECRET: ${AUTH_SECRET}
         NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+        NEXT_PUBLIC_EPAYCO_PUBLIC_KEY: ${NEXT_PUBLIC_EPAYCO_PUBLIC_KEY:-}
+        NEXT_PUBLIC_EPAYCO_TEST: ${NEXT_PUBLIC_EPAYCO_TEST:-true}
+        NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
     ports:
       - "3000:3000"
     environment:
@@ -54,6 +60,12 @@ services:
       AUTH_SECRET: ${AUTH_SECRET}
       BETTER_AUTH_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      NEXT_PUBLIC_EPAYCO_PUBLIC_KEY: ${NEXT_PUBLIC_EPAYCO_PUBLIC_KEY:-}
+      NEXT_PUBLIC_EPAYCO_TEST: ${NEXT_PUBLIC_EPAYCO_TEST:-true}
+      EPAYCO_PRIVATE_KEY: ${EPAYCO_PRIVATE_KEY:-}
+      EPAYCO_CUSTOMER_ID: ${EPAYCO_CUSTOMER_ID:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
       # ── Integración ERP (Loggro) — interpolado desde el .env del host ──
       ERP_PROVIDER: ${ERP_PROVIDER:-null}
       LOGGRO_API_TOKEN: ${LOGGRO_API_TOKEN:-}

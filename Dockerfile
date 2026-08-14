@@ -13,8 +13,8 @@ WORKDIR /app
 
 COPY package.json pnpm-lock.yaml ./
 
-# Instalar pnpm y luego las dependencias con frozen lockfile
-RUN npm install -g pnpm && pnpm config set node-linker hoisted && pnpm install --frozen-lockfile
+# Instalar la versión reproducible de pnpm y luego las dependencias con frozen lockfile
+RUN npm install -g pnpm@10.34.5 && pnpm config set node-linker hoisted && pnpm install --frozen-lockfile
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage 2 — builder
@@ -39,12 +39,18 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # Variables necesarias en build:
 # - AUTH_SECRET: better-auth se inicializa al recolectar páginas; sin secret
 #   lanza error en producción.
-# - NEXT_PUBLIC_APP_URL: las variables NEXT_PUBLIC_* se "inyectan" en tiempo de
-#   build dentro del bundle del cliente, así que debe existir aquí.
+# - NEXT_PUBLIC_*: se "inyectan" en tiempo de build dentro del bundle del
+#   cliente, así que deben existir aquí y no solo en el runtime del contenedor.
 ARG AUTH_SECRET
 ARG NEXT_PUBLIC_APP_URL
+ARG NEXT_PUBLIC_EPAYCO_PUBLIC_KEY
+ARG NEXT_PUBLIC_EPAYCO_TEST
+ARG NEXT_PUBLIC_SENTRY_DSN
 ENV AUTH_SECRET=${AUTH_SECRET}
 ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
+ENV NEXT_PUBLIC_EPAYCO_PUBLIC_KEY=${NEXT_PUBLIC_EPAYCO_PUBLIC_KEY}
+ENV NEXT_PUBLIC_EPAYCO_TEST=${NEXT_PUBLIC_EPAYCO_TEST}
+ENV NEXT_PUBLIC_SENTRY_DSN=${NEXT_PUBLIC_SENTRY_DSN}
 
 # Generar el cliente Prisma con el engine para Alpine (linux-musl-openssl-3.0.x).
 # Esta variable hace que el engine sea buscado en node_modules/.prisma en runtime.

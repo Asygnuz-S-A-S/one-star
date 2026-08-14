@@ -106,7 +106,7 @@ no lo permite).
 |---|---|---|
 | 3.1 | Contratar el servidor | Hetzner CX22 (~$5) o Lightsail 2 GB ($12, 3 meses gratis) |
 | 3.2 | Instalar Docker + swap de 4 GB | El swap evita que `next build` muera por OOM con 2 GB de RAM |
-| 3.3 | Compose de producción: app + Postgres + Caddy | Caddy da HTTPS automático; partir del `docker-compose.yml` actual quitando Adminer y los puertos expuestos |
+| 3.3 | Compose de producción: app + Postgres + migraciones | Usar `docker-compose.prod.yml`: sin Adminer ni puertos publicados; el proxy HTTPS del servidor se conecta a `onestar_frontend` |
 | 3.4 | Dominio real apuntando al servidor | Reemplaza el `*.vercel.app` |
 | 3.5 | Migrar los datos desde Supabase | Procedimiento abajo |
 | 3.6 | `NEXT_PUBLIC_EPAYCO_TEST=false` y llaves de producción de ePayco | Cobros reales |
