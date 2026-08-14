@@ -377,6 +377,13 @@ servidor se conecta a `onestar_frontend` y PostgreSQL queda aislado en
 `onestar_backend`. Las variables `NEXT_PUBLIC_*` se entregan como argumentos de
 build y requieren reconstruir la imagen cuando cambian.
 
+El reverse proxy es también la frontera de confianza para el límite de login
+administrador: debe eliminar cualquier `X-Real-IP` recibido del cliente y
+reescribirlo con la IP remota observada. La aplicación valida exclusivamente
+esa cabecera e ignora `X-Forwarded-For`; si `X-Real-IP` falta o no contiene una
+IP válida, agrupa el intento bajo `unknown` para fallar de forma cerrada. El
+contenedor `app` no debe exponerse directamente a Internet.
+
 ## Capa ERP — Referencia Rápida
 
 ```

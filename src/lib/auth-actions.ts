@@ -1,7 +1,13 @@
 "use server"
 
+import { isIP } from "node:net"
 import { compareSync } from "bcryptjs"
+import { headers } from "next/headers"
 import { prisma } from "@/server/db/prisma"
+import {
+  consumeAdminLoginAttempt,
+  resetAdminLoginAttempts,
+} from "@/server/services/admin-login-rate-limit.service"
 
 export type AuthActionResult =
   | { success: true }
@@ -16,6 +22,19 @@ export async function prepareAdminSignIn(
   email: string,
   password: string
 ): Promise<AuthActionResult> {
+  const headerList = await headers()
+  // Production ingress must overwrite X-Real-IP. X-Forwarded-For is ignored
+  // because its leftmost entries can be supplied directly by the client.
+  const trustedIp = headerList.get("x-real-ip")?.trim()
+  const ip = trustedIp && isIP(trustedIp) ? trustedIp : "unknown"
+  const attempt = consumeAdminLoginAttempt(ip, email)
+  if (!attempt.allowed) {
+    return {
+      success: false,
+      error: "Demasiados intentos. Intenta de nuevo en 15 minutos.",
+    }
+  }
+
   const admin = await prisma.adminUser.findUnique({ where: { email } })
   if (!admin || !compareSync(password, admin.passwordHash)) {
     return { success: false, error: "Credenciales incorrectas." }
@@ -28,6 +47,8 @@ export async function prepareAdminSignIn(
     passwordHash: admin.passwordHash,
     userType: "admin",
   })
+
+  resetAdminLoginAttempts(ip, email)
 
   return { success: true }
 }

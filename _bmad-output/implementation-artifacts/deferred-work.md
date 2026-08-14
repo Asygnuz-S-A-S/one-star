@@ -53,3 +53,7 @@
 ## 2026-08-14 — Deuda preexistente expuesta al activar CSP
 
 - Serializar de forma segura el JSON-LD de producto reemplazando `<` por `\u003c` antes de insertarlo en `<script>`. El uso directo de `JSON.stringify` ya permitía cerrar anticipadamente el elemento con contenido malicioso; el nonce bloquea JavaScript adicional sin nonce, pero no corrige la inyección HTML preexistente.
+
+## 2026-08-14 — Defensa adicional para autenticación administrativa
+
+- Evaluar un segundo límite en el handler de credenciales de better-auth para impedir que cuentas administrativas ya sincronizadas omitan `prepareAdminSignIn`. Requiere diseñar cómo distinguir administradores sin alterar el login de clientes y queda fuera del límite solicitado específicamente dentro de la Server Action.
