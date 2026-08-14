@@ -289,6 +289,13 @@ pnpm test
 pnpm build
 ```
 
+GitHub Actions ejecuta automáticamente `pnpm test` y `pnpm build` en cada
+pull request cuya base sea `develop` y después de cada push a esa rama. El
+workflow usa variables ficticias, no ejecuta migraciones ni despliegues y falla
+si la instalación, la generación de Prisma Client, las pruebas o el build
+fallan. En la protección de `develop`, configura `CI / test-and-build` como
+check obligatorio antes de integrar cambios.
+
 Para las pruebas E2E, instala una vez el navegador de Playwright:
 
 ```bash
