@@ -215,6 +215,33 @@ esas condiciones para no sobrescribir una edición administrativa concurrente.
 | 6 | **Docker Compose** con servicio Postgres | Entorno local reproducible; mismo Dockerfile para staging/prod |
 | 7 | **`server-only`** en módulos de servidor | Previene importar código de servidor en componentes de cliente en build time |
 | 8 | **Capa ERP agnóstica (Ports & Adapters)** en `src/server/erp/` | La tienda NO depende de ningún ERP específico. Cambiar de Alegra a otro ERP = solo cambiar `ERP_PROVIDER` en `.env` y crear un adaptador. El core nunca se modifica. Ver `REQUERIMIENTOS.md §D` |
+| 9 | **CSP dinámica con nonce por request** | Bloquea scripts no autorizados sin romper Next.js, ePayco, Sentry, mapas ni el preview administrativo |
+
+### Content Security Policy
+
+`src/proxy.ts` genera un nonce criptográfico distinto para cada request HTML,
+lo reenvía como `x-nonce` al render de Next.js y adjunta la misma política a la
+respuesta, incluidos los redirects de autenticación. El layout raíz es dinámico
+y distribuye el nonce a `next-themes`, al script de checkout de ePayco y al
+JSON-LD de producto.
+
+En producción, `script-src` usa nonce y `strict-dynamic`, sin
+`'unsafe-inline'` ni `'unsafe-eval'`. Solo desarrollo incorpora
+`'unsafe-eval'`, `ws:` y `wss:` para source maps y recarga en caliente.
+`style-src 'unsafe-inline'` se conserva porque Motion, Leaflet, `next-themes` y
+el constructor visual generan estilos en runtime; esta excepción no habilita
+JavaScript inline.
+
+La política permite conexiones únicamente a ePayco, los endpoints de ingestión
+de Sentry y Nominatim. Los frames y formularios externos se restringen a
+ePayco. Imágenes y medios admiten HTTPS para Cloudinary, CARTO y los recursos
+administrables. `object-src 'none'`, `base-uri 'self'` y
+`frame-ancestors 'none'` permanecen cerrados; solo `/?preview=true` admite
+`frame-ancestors 'self'` para el iframe interno del panel.
+
+Agregar un proveedor de scripts, tracking, conexiones o frames exige actualizar
+el inventario en `src/lib/content-security-policy.ts`, sus pruebas y esta
+sección. No se deben usar comodines globales ni nonces fijos.
 
 ## Decisiones Arquitectónicas Pendientes
 

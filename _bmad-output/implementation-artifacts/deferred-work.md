@@ -49,3 +49,7 @@
 - Propagar correctamente en Docker Compose las variables y argumentos de build de Alegra, ePayco y Sentry; hoy el flujo de contenedores solo integra Loggro, Cloudinary y Resend.
 - Alinear `.env.example` y `docs/architecture.md` con el código de autenticación: `BETTER_AUTH_SECRET` se describe como alias, pero `src/lib/auth.ts` solo consume `AUTH_SECRET` o `NEXTAUTH_SECRET`.
 - Separar el seed demo del arranque repetible de Docker Compose para que recrear `migrate` no pueda sobrescribir precios, promociones o stock editados en los productos de muestra.
+
+## 2026-08-14 — Deuda preexistente expuesta al activar CSP
+
+- Serializar de forma segura el JSON-LD de producto reemplazando `<` por `\u003c` antes de insertarlo en `<script>`. El uso directo de `JSON.stringify` ya permitía cerrar anticipadamente el elemento con contenido malicioso; el nonce bloquea JavaScript adicional sin nonce, pero no corrige la inyección HTML preexistente.

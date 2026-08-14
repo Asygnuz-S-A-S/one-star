@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation"
+import { headers } from "next/headers"
 import Link from "next/link"
 import Image from "next/image"
 import type { Metadata } from "next"
@@ -37,6 +38,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function ProductPage({ params, searchParams }: PageProps) {
+  const nonce = (await headers()).get("x-nonce") ?? undefined
   const { slug } = await params
   const { color: initialColor } = (await searchParams) ?? {}
   const product = await getProductBySlug(slug)
@@ -108,6 +110,7 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
     <>
       {/* JSON-LD for SEO */}
       <script
+        nonce={nonce}
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />

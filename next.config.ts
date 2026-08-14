@@ -4,8 +4,6 @@ import { NEXT_IMAGE_REMOTE_PATTERNS } from "./src/lib/image-optimization"
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  // Nota: CSP queda pendiente a propósito — requiere infraestructura de nonces
-  // e inventariar los scripts de ePayco/Sentry antes de activarla sin romper el checkout.
   async headers() {
     return [
       {

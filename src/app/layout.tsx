@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import "./globals.css";
 import Header from "@/components/Header";
 import Providers from "@/app/providers";
@@ -21,6 +22,8 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+
   // Queries independientes en paralelo; si la BD falla, la página
   // se renderiza con fallbacks en lugar de caerse entera.
   const [navigationItems, topBanner, primaryLogos, headerConfig] = await Promise.all([
@@ -49,7 +52,7 @@ export default async function RootLayout({
   return (
     <html lang="es" className="h-full antialiased" suppressHydrationWarning>
       <body className={`min-h-full flex flex-col bg-white text-[#1C1C1C] dark:bg-[#0f0f0f] dark:text-[#f5f5f7] transition-colors duration-300 ${paddingClass}`}>
-        <Providers>
+        <Providers nonce={nonce}>
           <Header items={navigationItems} banner={topBanner} logos={primaryLogos} config={headerConfig} />
           <main className="flex-1">{children}</main>
         </Providers>

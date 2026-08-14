@@ -2,6 +2,8 @@
 
 import Script from "next/script"
 
+import { useCspNonce } from "@/app/providers"
+
 export interface EpaycoCheckoutData {
   orderId: string
   amount: number
@@ -25,6 +27,7 @@ export default function EpaycoButton({
   city,
   department,
 }: EpaycoCheckoutData) {
+  const nonce = useCspNonce()
   const isTest =
     process.env.NEXT_PUBLIC_EPAYCO_TEST === "true" ||
     process.env.NODE_ENV !== "production"
@@ -39,6 +42,7 @@ export default function EpaycoButton({
         class="epayco-button" y les aplica el comportamiento del lightbox.
       */}
       <Script
+        nonce={nonce}
         src="https://checkout.epayco.co/checkout.js"
         strategy="lazyOnload"
       />
