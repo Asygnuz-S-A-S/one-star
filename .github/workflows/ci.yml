@@ -62,3 +62,51 @@ jobs:
 
       - name: Build application
         run: pnpm build
+
+  docker-migrate-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: test-and-build
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: onestar_migrate_check
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d onestar_migrate_check"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      # Construye el stage `runner` (el que se despliega de verdad) y corre
+      # `prisma migrate deploy` contra una base real. El runner copia el CLI
+      # de Prisma y su árbol de dependencias (~28 paquetes) a mano desde el
+      # stage `builder` — este paso detecta en CI si un futuro bump de Prisma
+      # agrega una dependencia nueva que ese `COPY` manual no cubra, en vez de
+      # que la migración falle recién en el despliegue a producción.
+      - name: Build runner image
+        run: |
+          docker build --target runner \
+            --build-arg AUTH_SECRET=ci-only-dummy-auth-secret-at-least-32-characters \
+            --build-arg NEXT_PUBLIC_APP_URL=http://localhost:3000 \
+            --build-arg NEXT_PUBLIC_EPAYCO_PUBLIC_KEY=ci-only-dummy-public-key \
+            --build-arg NEXT_PUBLIC_EPAYCO_TEST=true \
+            --build-arg NEXT_PUBLIC_SENTRY_DSN= \
+            -t onestar-runner-ci .
+
+      - name: Run prisma migrate deploy against a real database
+        run: |
+          docker run --rm --network host \
+            -e DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/onestar_migrate_check?schema=public" \
+            -e DIRECT_URL="postgresql://postgres:postgres@127.0.0.1:5432/onestar_migrate_check?schema=public" \
+            onestar-runner-ci node node_modules/prisma/build/index.js migrate deploy
