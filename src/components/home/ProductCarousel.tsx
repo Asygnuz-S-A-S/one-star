@@ -2,11 +2,13 @@ import { getProductsBySlugsAction } from "@/server/actions/product.actions"
 import ProductCarouselClient from "./ProductCarouselClient"
 import ProductShowcaseClient from "./ProductShowcaseClient"
 
-export default async function ProductCarousel({ config = {} }: { config?: Record<string, any> }) {
-  const title = config.title || "Últimos Sneakers"
-  const theme = (config.theme as "light" | "dark") || "light"
+export default async function ProductCarousel({ config = {} }: { config?: Record<string, unknown> }) {
+  const title = typeof config.title === "string" && config.title ? config.title : "Últimos Sneakers"
+  const theme = config.theme === "dark" ? "dark" : "light"
   const layout = config.layout === "showcase" ? "showcase" : "carousel"
-  const productSlugs = (config.productSlugs as string[]) || []
+  const productSlugs = Array.isArray(config.productSlugs)
+    ? config.productSlugs.filter((slug): slug is string => typeof slug === "string")
+    : []
 
   if (productSlugs.length === 0) return null
 

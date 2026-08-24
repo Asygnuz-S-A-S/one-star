@@ -195,7 +195,7 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {(product.crossSells?.length ?? 0) > 0 && (
           <div className="mt-8 border-t border-[#E0E0E0] dark:border-white/10 pt-12">
-            <CrossSelling products={product.crossSells as any} />
+            <CrossSelling products={product.crossSells} />
           </div>
         )}
 

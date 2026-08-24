@@ -36,6 +36,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Install pnpm
@@ -54,8 +55,16 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Check migration safety
+        env:
+          MIGRATION_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: pnpm db:migrations:check --base "$MIGRATION_BASE_SHA"
+
       - name: Generate Prisma Client
         run: pnpm exec prisma generate
+
+      - name: Run lint
+        run: pnpm lint
 
       - name: Run unit tests
         run: pnpm test
@@ -89,11 +98,10 @@ jobs:
           persist-credentials: false
 
       # Construye el stage `runner` (el que se despliega de verdad) y corre
-      # `prisma migrate deploy` contra una base real. El runner copia el CLI
-      # de Prisma y su árbol de dependencias (~28 paquetes) a mano desde el
-      # stage `builder` — este paso detecta en CI si un futuro bump de Prisma
-      # agrega una dependencia nueva que ese `COPY` manual no cubra, en vez de
-      # que la migración falle recién en el despliegue a producción.
+      # `prisma migrate deploy` contra una base real. El runner instala la
+      # versión fijada del CLI de Prisma y npm resuelve automáticamente su
+      # árbol de dependencias; este paso valida que la instalación y las
+      # migraciones funcionen antes del despliegue a producción.
       - name: Build runner image
         run: |
           docker build --target runner \
@@ -110,3 +118,33 @@ jobs:
             -e DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/onestar_migrate_check?schema=public" \
             -e DIRECT_URL="postgresql://postgres:postgres@127.0.0.1:5432/onestar_migrate_check?schema=public" \
             onestar-runner-ci node node_modules/prisma/build/index.js migrate deploy
+
+      - name: Smoke-test runner application and Prisma Client
+        run: |
+          container_name=onestar-runner-ci-app
+          cleanup() {
+            docker rm -f "$container_name" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          docker run -d --name "$container_name" --network host \
+            -e DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/onestar_migrate_check?schema=public" \
+            -e DIRECT_URL="postgresql://postgres:postgres@127.0.0.1:5432/onestar_migrate_check?schema=public" \
+            -e AUTH_SECRET="ci-only-dummy-auth-secret-at-least-32-characters" \
+            -e BETTER_AUTH_SECRET="ci-only-dummy-auth-secret-at-least-32-characters" \
+            -e BETTER_AUTH_URL="http://localhost:3000" \
+            -e NEXT_PUBLIC_APP_URL="http://localhost:3000" \
+            -e ERP_PROVIDER="null" \
+            -e ERP_CATALOG_WRITES_ENABLED="false" \
+            onestar-runner-ci
+
+          for attempt in {1..30}; do
+            if curl --fail --silent --show-error http://127.0.0.1:3000/api/health \
+              | grep -q '"status":"ok"'; then
+              exit 0
+            fi
+            sleep 1
+          done
+
+          docker logs "$container_name"
+          exit 1

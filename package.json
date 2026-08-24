@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "eslint",
     "db:migrate": "prisma migrate dev",
+    "db:migrations:check": "tsx scripts/check-migration-safety.ts",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
     "test": "vitest run",

@@ -153,6 +153,56 @@ DIRECT_URL="postgresql://postgres.<project-ref>:[PASSWORD]@aws-1-us-west-2.poole
 Esto se corre **desde tu máquina**, una sola vez. Vercel no ejecuta migraciones
 por su cuenta.
 
+### Para cambios posteriores: expand/contract obligatorio
+
+Antes de aplicar cualquier migración en un entorno que ya sirve tráfico, el PR
+debe pasar `pnpm db:migrations:check --base <sha-base>`. CI usa la historia Git
+completa y obtiene `<sha-base>` del evento, por lo que sólo inspecciona las
+migraciones cambiadas; nunca intenta “corregir” migraciones históricas.
+El comando local compara `<sha-base>` con el commit `HEAD`: primero hay que
+guardar los cambios en un commit. No incluye archivos staged, modificados o
+untracked del working tree.
+
+El procedimiento seguro tiene tres despliegues separados:
+
+1. **Expandir:** crear una migración nueva y compatible. Las columnas nuevas
+   deben ser nullable o tener un default que la versión desplegada pueda
+   tolerar. `DEFAULT NULL` no sirve para columnas required; `PRIMARY KEY` las
+   vuelve required, mientras `SERIAL`/`IDENTITY` aportan un valor generado. Si el
+   default/identity se elimina después, se cambia a `DEFAULT NULL` o una
+   restricción de tabla vuelve required una columna sin valor generado, la
+   expansión es insegura. `ON DELETE SET DEFAULT` no sustituye un default propio.
+   Ejecutar `prisma migrate deploy` y desplegar la aplicación.
+2. **Migrar el uso:** ejecutar el backfill necesario, cambiar la aplicación para
+   dejar de leer/escribir el objeto antiguo y crear o actualizar
+   `prisma/migration-contracts/<id>.json` en ese mismo commit. Desplegarlo,
+   verificarlo en producción y guardar su SHA. El formato exacto y el checklist
+   están en `prisma/migration-contracts/README.md`.
+3. **Contraer:** sólo en un PR y despliegue posterior, crear otra migración con
+   los marcadores exactos `-- onestar:contract-after <sha>` y
+   `-- onestar:contract-id <id>`, seguidos del DDL destructivo. El gate comprueba
+   que el commit exista, sea ancestro de la rama base, haya cambiado ese
+   manifiesto, que el archivo siga byte-a-byte idéntico en la base y que sus
+   `objects` coincidan con los objetivos canónicos del DDL. Los bytes deben ser
+   idénticos en preparación, base y `HEAD`, sin commits intermedios que toquen el
+   manifiesto tanto en `preparación..base` como en `base..HEAD`; el SHA de
+   preparación también puede ser el merge que lo integra contra su primer padre,
+   pero no un merge ajeno.
+   El ID se consume una sola vez; no puede aparecer en otra migración nueva ni
+   en una ya presente en la base.
+
+El gate rechaza `DO` y `CALL` top-level porque no puede verificar estáticamente
+el SQL procedural llamado. Esta frontera no añade operaciones al catálogo DDL
+acordado y el análisis de DML permanece fuera de alcance.
+
+La validación Git prueba que los cambios quedaron separados, no que el segundo
+despliegue se ejecutó. Antes de correr `prisma migrate deploy` para la
+contracción, el operador debe confirmar manualmente en Vercel o en el servidor
+que `<sha>` fue desplegado con éxito. Si no puede confirmarlo, no se migra. No se
+edita, renombra ni borra una migración aplicada y nunca se usa `db push` o
+`migrate dev` para producción. Si el manifiesto necesita una corrección después
+del commit de preparación, se crea otro ID y se repite la fase 2.
+
 Pon temporalmente las dos URLs de Supabase en tu `.env` local y ejecuta:
 
 ```bash

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useSyncExternalStore } from "react"
 import {
   Chart as ChartJS,
   ArcElement,
@@ -19,6 +19,8 @@ interface TopProductsChartProps {
 }
 
 const PALETTE = ["#E31C23", "#FF6B6B", "#FF9B9B", "#FFC0C0", "#FFD6D6"]
+
+const subscribeToClient = () => () => {}
 
 const options: ChartOptions<"doughnut"> = {
   responsive: true,
@@ -53,10 +55,7 @@ const options: ChartOptions<"doughnut"> = {
 }
 
 export default function TopProductsChart({ products }: TopProductsChartProps) {
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => {
-    setMounted(true)
-  }, [])
+  const mounted = useSyncExternalStore(subscribeToClient, () => true, () => false)
 
   if (!mounted) {
     return <div className="h-full w-full bg-gray-50/50 animate-pulse rounded" />
