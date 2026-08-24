@@ -379,6 +379,59 @@ del servidor se conecta a `onestar_frontend` y PostgreSQL queda aislado en
 `onestar_backend`. Las variables `NEXT_PUBLIC_*` se entregan como argumentos de
 build y requieren reconstruir la imagen cuando cambian.
 
+### Invariante de migraciones: expand/contract
+
+Las migraciones aplicadas son inmutables y *forward-only*. CI compara únicamente
+los `prisma/migrations/*/migration.sql` cambiados contra el SHA base real del
+evento: una migración histórica modificada, eliminada o renombrada falla; una
+migración nueva con DDL destructivo también falla. Las expansiones deben permitir
+que la versión anterior y la nueva convivan: las columnas nuevas son nullable o
+tienen un valor generado/default compatible. `DEFAULT NULL` no cuenta; una
+columna `PRIMARY KEY` también es required, y retirar después el default de una
+columna required vuelve insegura la expansión. Esto incluye `PRIMARY KEY` de
+tabla sobre una columna recién agregada, `SET DEFAULT NULL`, `DROP DEFAULT` y
+`DROP IDENTITY` posteriores. Un `ON DELETE SET DEFAULT` referencial no es un
+default propio. `SERIAL` e `IDENTITY` sí cuentan como valores generados mientras
+no se retiren.
+
+Los cambios incompatibles se separan en tres despliegues:
+
+1. **Expand:** agregar objetos compatibles y ejecutar `prisma migrate deploy`
+   antes de reemplazar la aplicación.
+2. **Migrar consumidores:** backfill si aplica, retirar del código el uso del
+   objeto antiguo y crear o actualizar en ese mismo commit el manifiesto
+   `prisma/migration-contracts/<id>.json`. Luego desplegar y verificar ese commit
+   en producción.
+3. **Contract:** en una migración posterior, declarar
+   `-- onestar:contract-after <sha>` y `-- onestar:contract-id <id>`, y recién
+   entonces eliminar o renombrar el objeto. CI exige que `<sha>` exista y sea
+   ancestro del SHA base, que ese commit haya creado o actualizado el manifiesto
+   válido, que `objects` coincida exactamente con los objetivos canónicos del
+   DDL y que su contenido sea byte-a-byte idéntico en preparación, base y
+   `HEAD`, sin cambios intermedios aunque se restauren los mismos bytes. Un merge
+   que integra el manifiesto puede ser el SHA de preparación si lo cambia contra
+   su primer padre; un merge ajeno no sirve. La historia entre base y `HEAD`
+   tampoco puede tocar el manifiesto. Cada ID sólo
+   autoriza una migración: CI rechaza duplicados nuevos o un marcador ya
+   consumido en la base. Antes de correr `migrate deploy`, el operador todavía
+   debe confirmar manualmente que el commit de preparación sí llegó a
+   producción.
+
+El esquema v1, el formato `table:/column:/type:/constraint:` de los objetivos y
+la secuencia operativa están definidos en
+`prisma/migration-contracts/README.md`. Para verificar unicidad, CI sólo indexa
+marcadores `contract-id` históricos; no reevalúa el DDL aplicado. Si la evidencia
+cambia después de la preparación, la contracción falla y requiere un contrato
+nuevo.
+
+El gate detecta `DROP TABLE/COLUMN/TYPE/CONSTRAINT`, renombres de tabla o
+columna, `TRUNCATE`, cambios de tipo, `SET NOT NULL` y columnas nuevas `NOT NULL`
+sin default; ignora menciones dentro de comentarios y literales SQL. No existe
+bypass silencioso. `DO` y `CALL` top-level se rechazan porque el SQL procedural
+no puede verificarse estáticamente; esto no amplía el catálogo DDL y DML sigue
+fuera de alcance. En producción siguen prohibidos `prisma db push` y
+`prisma migrate dev`.
+
 El reverse proxy es también la frontera de confianza para el límite de login
 administrador: debe eliminar cualquier `X-Real-IP` recibido del cliente y
 reescribirlo con la IP remota observada. La aplicación valida exclusivamente
