@@ -439,6 +439,27 @@ esa cabecera e ignora `X-Forwarded-For`; si `X-Real-IP` falta o no contiene una
 IP válida, agrupa el intento bajo `unknown` para fallar de forma cerrada. El
 contenedor `app` no debe exponerse directamente a Internet.
 
+El límite admite cinco intentos por correo e IP confiable cada quince minutos.
+Cuando la IP no es confiable, el balde compartido `unknown` admite veinte para
+reducir el riesgo de que un tercero bloquee al administrador, pero nunca omite
+el control: el vigesimoprimero se rechaza antes de consultar credenciales. Una
+cabecera ausente, vacía o inválida también genera un evento Sentry `warning`
+con fingerprint estable y únicamente tags operativos (`security_event` y
+`reason`); no se envían correo, contraseña, IP ni el valor crudo de la cabecera.
+Como defensa final, el `beforeSend` del proceso Node reconstruye este evento
+desde una allowlist: solo conserva `event_id`, `timestamp`, `platform`, `level`,
+`message`, `fingerprint` y los tags exactos `security_event` y `reason`. Request,
+cookies, usuario, breadcrumbs, contexts, extra, transacción, excepción y
+cualquier otro campo heredado se descartan; los demás tipos de evento Sentry no
+se modifican.
+
+El proceso deduplica la alerta durante quince minutos después de que
+`captureMessage` retorna correctamente. Si Sentry lanza una excepción, la
+autenticación continúa y la siguiente solicitud puede reintentar la alerta sin
+esperar el cooldown. Para convertir el evento en una notificación a personas
+todavía debe configurarse la regla correspondiente en el proyecto de Sentry;
+esa configuración externa no pertenece al código de la aplicación.
+
 ## Capa ERP — Referencia Rápida
 
 ```

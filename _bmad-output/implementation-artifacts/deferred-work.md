@@ -57,3 +57,7 @@
 ## 2026-08-14 — Defensa adicional para autenticación administrativa
 
 - Evaluar un segundo límite en el handler de credenciales de better-auth para impedir que cuentas administrativas ya sincronizadas omitan `prepareAdminSignIn`. Requiere diseñar cómo distinguir administradores sin alterar el login de clientes y queda fuera del límite solicitado específicamente dentro de la Server Action.
+
+## 2026-08-24 — Canonicalización de IP en el límite administrativo
+
+- Canonicalizar representaciones IPv6 equivalentes antes de calcular la clave del limitador. El proxy confiable normalmente entrega un formato estable, pero el limitador preexistente distingue cadenas textuales que representan la misma dirección; corregirlo requiere definir y probar la política canónica sin mezclarla con el umbral especial para `unknown`.
