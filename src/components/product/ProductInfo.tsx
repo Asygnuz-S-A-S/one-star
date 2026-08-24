@@ -4,7 +4,7 @@ import { useState, useCallback } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
-import { motion, AnimatePresence, MotionConfig, type Variants } from "motion/react"
+import { motion, AnimatePresence, MotionConfig, type Transition, type Variants } from "motion/react"
 import type { ProductWithRelations, Variant } from "@/types/shop"
 import SizeGuideModal from "./SizeGuideModal"
 import { formatCOP } from "@/lib/shop-utils"
@@ -38,6 +38,13 @@ const itemVariants: Variants = {
 }
 
 const springy = { type: "spring", stiffness: 400, damping: 15 } as const
+
+/**
+ * El "pop" de confirmación al agregar al carrito recorre varios keyframes, y
+ * Motion solo admite dos con transiciones spring (lanza un error en runtime).
+ * Se anima con tween para conservar el rebote sin romper el botón.
+ */
+const popTween: Transition = { duration: 0.4, times: [0, 0.3, 0.65, 1], ease: "easeOut" }
 
 function getUniqueSizes(variants: Variant[], color: string): string[] {
   const filtered = variants.filter((v) => v.color === color)
@@ -398,7 +405,7 @@ export default function ProductInfo({
                 whileHover={canAct ? { scale: 1.03 } : undefined}
                 whileTap={canAct ? { scale: 0.95 } : undefined}
                 animate={justAdded ? { scale: [1, 1.08, 0.96, 1] } : { scale: 1 }}
-                transition={springy}
+                transition={justAdded ? popTween : springy}
                 className={`relative w-full py-4 font-[var(--font-barlow)] font-bold uppercase tracking-widest text-sm overflow-hidden ${
                   justAdded
                     ? "bg-green-600 text-white"
