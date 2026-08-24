@@ -34,14 +34,15 @@ function CheckoutSuccessContent() {
   const [savedItems, setSavedItems] = useState<SavedItem[]>([])
   const [savedSubtotal, setSavedSubtotal] = useState(0)
   const [mounted, setMounted] = useState(false)
-
   useEffect(() => {
     if (!orderId) {
       router.replace("/")
       return
     }
 
-    // Capture cart state before clearing
+    // Capture cart state before clearing. This effect intentionally hydrates
+    // UI state from the external persisted cart after the component mounts.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSavedItems(
       items.map((i) => ({
         name: i.name,
@@ -60,6 +61,7 @@ function CheckoutSuccessContent() {
     }, 300)
 
     return () => clearTimeout(timer)
+    // Snapshot exactly once for this success-page mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

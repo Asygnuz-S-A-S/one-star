@@ -1,6 +1,5 @@
 "use client"
 
-import { useRef } from "react"
 import { motion } from "motion/react"
 
 const DEFAULT_BRANDS = ["Nike", "New Balance", "Hoka", "Veja", "On Running", "Adidas", "Asics"]
@@ -13,16 +12,22 @@ const FONT_SIZES: Record<string, string> = {
   xl: "text-xl",
 }
 
-export default function BrandStrip({ brands = [], config = {} }: { brands?: string[], config?: Record<string, any> }) {
+export default function BrandStrip({
+  brands = [],
+  config = {},
+}: {
+  brands?: string[]
+  config?: Record<string, unknown>
+}) {
   const activeBrands = brands.length > 0 ? brands : DEFAULT_BRANDS
   const allBrands = [...activeBrands, ...activeBrands]
   
   // Customization from config
-  const title = config.title as string | undefined
-  const separator = (config.separator as string) || "·"
-  const bgSection = (config.bgSection as string) || "#E0E0E0"
-  const textColor = (config.textColor as string) || "#4A4A4A"
-  const fontSize = (config.fontSize as string) || "sm"
+  const title = typeof config.title === "string" ? config.title : undefined
+  const separator = typeof config.separator === "string" && config.separator ? config.separator : "·"
+  const bgSection = typeof config.bgSection === "string" && config.bgSection ? config.bgSection : "#E0E0E0"
+  const textColor = typeof config.textColor === "string" && config.textColor ? config.textColor : "#4A4A4A"
+  const fontSize = typeof config.fontSize === "string" ? config.fontSize : "sm"
   
   const fontSizeClass = FONT_SIZES[fontSize] || "text-sm"
 

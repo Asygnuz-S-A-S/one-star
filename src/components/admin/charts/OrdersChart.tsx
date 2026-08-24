@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useSyncExternalStore } from "react"
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -25,6 +25,8 @@ const STATUS_COLORS: Record<string, string> = {
   Entregado: "#10B981",
   Cancelado: "#9E9E9E",
 }
+
+const subscribeToClient = () => () => {}
 
 const options: ChartOptions<"bar"> = {
   responsive: true,
@@ -66,10 +68,7 @@ const options: ChartOptions<"bar"> = {
 }
 
 export default function OrdersChart({ data }: OrdersChartProps) {
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => {
-    setMounted(true)
-  }, [])
+  const mounted = useSyncExternalStore(subscribeToClient, () => true, () => false)
 
   if (!mounted) {
     return <div className="h-full w-full bg-gray-50/50 animate-pulse rounded" />

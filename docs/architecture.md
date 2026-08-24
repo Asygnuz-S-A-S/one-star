@@ -370,10 +370,12 @@ el coordinador; no contienen una frecuencia de negocio fija.
 
 Procedimiento paso a paso: **`docs/deploy-vercel.md`**.
 
-En servidor propio, `docker-compose.prod.yml` ejecuta `prisma migrate deploy`
-en un servicio efímero antes de iniciar `app`. No ejecuta seed ni incorpora el
-CLI de Prisma al `runner`. Ningún servicio publica puertos: el reverse proxy del
-servidor se conecta a `onestar_frontend` y PostgreSQL queda aislado en
+En servidor propio, `docker-compose.prod.yml` conserva un servicio efímero basado
+en `builder` que ejecuta `prisma migrate deploy` antes de iniciar `app`; no
+ejecuta seed. Además, el `runner` instala una copia aislada y fijada del CLI de
+Prisma para que la misma imagen final pueda aplicar migraciones desde un paso
+externo previo al despliegue. Ningún servicio publica puertos: el reverse proxy
+del servidor se conecta a `onestar_frontend` y PostgreSQL queda aislado en
 `onestar_backend`. Las variables `NEXT_PUBLIC_*` se entregan como argumentos de
 build y requieren reconstruir la imagen cuando cambian.
 

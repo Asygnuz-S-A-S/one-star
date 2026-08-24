@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useSession, signOut } from "@/lib/auth-client"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { updateProfile } from "./actions"
 import { formatDateLong, formatCurrency } from "@/lib/dates"
 import { PLACEHOLDER_IMAGE_URL } from "@/lib/product-image"
@@ -78,6 +79,8 @@ export default function CuentaPage() {
   // Load orders when tab changes
   useEffect(() => {
     if (activeTab === "pedidos" && orders.length === 0) {
+      // The effect synchronizes loading state with the external orders API.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setOrdersLoading(true)
       fetch("/api/cuenta/pedidos")
         .then((r) => r.json())
@@ -322,12 +325,12 @@ export default function CuentaPage() {
             ) : orders.length === 0 ? (
               <div className="flex flex-col items-center gap-4 py-12">
                 <p className="font-montserrat text-sm text-[#4A4A4A]">Aún no has realizado pedidos.</p>
-                <a
+                <Link
                   href="/"
                   className="bg-[#E31C23] text-white font-barlow font-bold text-sm tracking-widest uppercase px-6 py-2.5 rounded-lg hover:bg-[#c41920] transition-colors"
                 >
                   Explorar productos
-                </a>
+                </Link>
               </div>
             ) : (
               <div className="flex flex-col gap-4">

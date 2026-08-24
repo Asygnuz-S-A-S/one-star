@@ -1,10 +1,15 @@
 "use client"
 
 import dynamic from "next/dynamic"
-import React from "react"
 
 const ClientStoreMap = dynamic(() => import("./ClientStoreMap"), { ssr: false })
 
-export default function DynamicStoreMap(props: any) {
+interface DynamicStoreMapProps {
+  position: { lat: number; lng: number }
+  name: string
+  address: string
+}
+
+export default function DynamicStoreMap(props: DynamicStoreMapProps) {
   return <ClientStoreMap {...props} />
 }

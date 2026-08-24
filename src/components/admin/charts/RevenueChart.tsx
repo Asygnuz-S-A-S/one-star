@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useSyncExternalStore } from "react"
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -20,6 +20,8 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, 
 interface RevenueChartProps {
   data: RevenueByDayDTO[]
 }
+
+const subscribeToClient = () => () => {}
 
 const options: ChartOptions<"line"> = {
   responsive: true,
@@ -61,10 +63,7 @@ const options: ChartOptions<"line"> = {
 }
 
 export default function RevenueChart({ data }: RevenueChartProps) {
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => {
-    setMounted(true)
-  }, [])
+  const mounted = useSyncExternalStore(subscribeToClient, () => true, () => false)
 
   const labels = data.map((d) => {
     const [, month, day] = d.date.split("-")

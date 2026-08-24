@@ -38,11 +38,12 @@ const STORAGE_KEY = "onestar_cart"
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([])
   const [isOpen, setIsOpen] = useState(false)
-
   useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY)
       if (stored) {
+        // This effect intentionally hydrates state from external storage.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setItems(JSON.parse(stored) as CartItem[])
       }
     } catch {

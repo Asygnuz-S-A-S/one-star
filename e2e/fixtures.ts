@@ -3,7 +3,7 @@ import { test as base, expect, type Page } from "@playwright/test"
 // Extiende el test base con un fixture de página autenticada como admin.
 // Uso: test("mi test", async ({ adminPage }) => { ... })
 export const test = base.extend<{ adminPage: Page }>({
-  adminPage: async ({ page }, use) => {
+  adminPage: async ({ page }, provide) => {
     const email = process.env.TEST_ADMIN_EMAIL
     const password = process.env.TEST_ADMIN_PASSWORD
 
@@ -19,7 +19,7 @@ export const test = base.extend<{ adminPage: Page }>({
     await page.getByRole("button", { name: /ingresar/i }).click()
     await expect(page).toHaveURL(/\/admin(?!\/login)/, { timeout: 10_000 })
 
-    await use(page)
+    await provide(page)
   },
 })
 

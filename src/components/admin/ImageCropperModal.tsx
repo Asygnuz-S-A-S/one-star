@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useCallback } from "react"
-import Cropper from "react-easy-crop"
+import Cropper, { type Area } from "react-easy-crop"
 import { getCroppedImg } from "@/utils/cropImage"
 
 interface ImageCropperModalProps {
@@ -13,10 +13,10 @@ interface ImageCropperModalProps {
 export default function ImageCropperModal({ imageSrc, onClose, onCropComplete }: ImageCropperModalProps) {
   const [crop, setCrop] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null)
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
 
-  const handleCropComplete = useCallback((croppedArea: any, croppedAreaPixels: any) => {
+  const handleCropComplete = useCallback((_croppedArea: Area, croppedAreaPixels: Area) => {
     setCroppedAreaPixels(croppedAreaPixels)
   }, [])
 

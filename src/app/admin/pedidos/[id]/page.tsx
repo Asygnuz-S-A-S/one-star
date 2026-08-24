@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation"
 import Link from "next/link"
 import OrderDetailActions from "./OrderDetailActions"
-import { getOrderById } from "@/server/services/order.service"
+import { getOrderById, type OrderDTO } from "@/server/services/order.service"
 import { formatDateTime, formatCurrency } from "@/lib/dates"
 import { PLACEHOLDER_IMAGE_URL } from "@/lib/product-image"
 
@@ -32,12 +32,11 @@ const STATUS_BADGE: Record<string, string> = {
 export default async function PedidoDetailPage({ params }: Props) {
   const { id } = await params
 
-  let order: any = null
+  let order: OrderDTO | null = null
   try {
     order = await getOrderById(id)
   } catch (error) {
     if (process.env.NODE_ENV === "development") {
-      // eslint-disable-next-line no-console
       console.error("[PedidoDetail]", error)
     }
     notFound()
@@ -46,9 +45,10 @@ export default async function PedidoDetailPage({ params }: Props) {
   if (!order) notFound()
 
   const badge = STATUS_BADGE[order.status] ?? "bg-gray-100 text-gray-600"
-  const subtotal = order.items.reduce(
-    (sum: number, item: any) => sum + Number(item.unitPrice) * item.quantity,
-    0
+  const items = order.items ?? []
+  const subtotal = items.reduce(
+    (sum, item) => sum + item.unitPrice * item.quantity,
+    0,
   )
 
   let shippingAddress: Record<string, string> | null = null
@@ -83,7 +83,7 @@ export default async function PedidoDetailPage({ params }: Props) {
               Productos
             </h2>
             <div className="space-y-4">
-              {order.items?.map((item: any) => {
+              {items.map((item) => {
                 const imgUrl = item.productImage
                 return (
                   <div key={item.id} className="flex items-center gap-4">
