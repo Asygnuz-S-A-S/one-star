@@ -84,7 +84,7 @@ La protección remota se aplica después de revisar y publicar el PR: GitHub deb
 - `git diff --exit-code 51a20899752fc04c0e1243b79eaa91ad0ef1efe9 -- docker-compose.prod.yml` -- aprobado, sin cambios.
 - `git diff --check` y parseo YAML de `.github/workflows/ci.yml` -- aprobados.
 
-**Gate remoto después de publicar el PR:** el estado observado todavía exige solo `test-and-build` y mantiene `enforce_admins=false`. Se debe agregar `docker-migrate-check`, activar `enforce_admins=true` y verificar nuevamente mediante `gh api repos/Asygnuz-S-A-S/one-star/branches/develop/protection`.
+**Gate remoto aplicado después de publicar el PR #8:** `develop` exige `test-and-build` y `docker-migrate-check`, mantiene `strict=true` y aplica la protección a administradores con `enforce_admins=true`. El resultado se verificó mediante `gh api repos/Asygnuz-S-A-S/one-star/branches/develop/protection`.
 
 ## Suggested Review Order
 
