@@ -5,7 +5,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useSession } from "@/lib/auth-client";
 import { useCart } from "@/store";
-import { useTheme } from "next-themes";
 import { usePathname } from "next/navigation";
 import CartDrawer from "@/components/cart/CartDrawer";
 import TopBannerTicker from "@/components/TopBannerTicker";
@@ -105,30 +104,6 @@ function UserAvatar({ initial }: { initial: string }) {
   );
 }
 
-function IconMoon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
-    </svg>
-  );
-}
-
-function IconSun() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="12" cy="12" r="4" />
-      <path d="M12 2v2" />
-      <path d="M12 20v2" />
-      <path d="M4.93 4.93l1.41 1.41" />
-      <path d="M17.66 17.66l1.41 1.41" />
-      <path d="M2 12h2" />
-      <path d="M20 12h2" />
-      <path d="M4.93 19.07l1.41-1.41" />
-      <path d="M17.66 6.34l1.41-1.41" />
-    </svg>
-  );
-}
-
 export default function Header({
  
   items = [],
@@ -143,17 +118,10 @@ export default function Header({
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  const { theme, setTheme } = useTheme();
   
   const { data: session } = useSession();
   const { totalItems, toggleCart } = useCart();
   const pathname = usePathname();
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- evita diferencias de hidratación en controles dependientes del cliente
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -229,15 +197,6 @@ export default function Header({
 
           {/* Acciones rápidas */}
           <div className="flex items-center gap-1 text-[#1C1C1C] dark:text-[#f5f5f7]">
-            {mounted && (
-              <button
-                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                aria-label="Cambiar tema"
-                className="p-2 rounded-sm focus-visible:outline-2 focus-visible:outline-[#E31C23]"
-              >
-                {theme === 'dark' ? <IconSun /> : <IconMoon />}
-              </button>
-            )}
             <button
               onClick={toggleCart}
               aria-label="Carrito de compras"
@@ -309,15 +268,6 @@ export default function Header({
 
           {/* Acciones rápidas */}
           <div className="flex items-center gap-2 shrink-0 order-3 ml-auto text-[#1C1C1C] dark:text-[#f5f5f7]">
-            {mounted && (
-              <button
-                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                aria-label="Cambiar tema"
-                className="p-2 rounded-sm hover:text-[#E31C23] transition-colors focus-visible:outline-2 focus-visible:outline-[#E31C23]"
-              >
-                {theme === 'dark' ? <IconSun /> : <IconMoon />}
-              </button>
-            )}
             {config?.showSearch !== false && (
               <button
                 aria-label="Buscar"

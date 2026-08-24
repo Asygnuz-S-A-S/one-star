@@ -18,10 +18,18 @@ export default function Providers({
 }) {
   return (
     <CspNonceContext.Provider value={nonce}>
+      {/*
+        La tienda está diseñada en modo claro: sus superficies y textos usan
+        colores claros fijos. Dejar que el tema siguiera al sistema producía
+        campos de formulario oscuros con letra oscura (ilegibles) sobre
+        tarjetas blancas. Se fuerza "light" hasta que las pantallas usen los
+        tokens de tema de forma consistente.
+      */}
       <ThemeProvider
         attribute="class"
-        defaultTheme="system"
-        enableSystem
+        defaultTheme="light"
+        forcedTheme="light"
+        enableSystem={false}
         nonce={nonce}
       >
         {children}
