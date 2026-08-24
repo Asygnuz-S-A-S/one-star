@@ -12,6 +12,10 @@
    Tokens de diseño — Light Mode
 ═══════════════════════════════════════ */
 :root {
+  /* Evita que el navegador pinte los controles nativos (autocompletar,
+     desplegables, scrollbars) con el esquema oscuro del sistema. */
+  color-scheme: light;
+
   --background: #ffffff;
   --foreground: #1C1C1C;
   --font-barlow: "Barlow", sans-serif;
