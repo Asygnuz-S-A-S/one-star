@@ -1,9 +1,11 @@
 import "server-only"
 
 import { createHash } from "node:crypto"
+import { isIP } from "node:net"
 
 const WINDOW_MS = 15 * 60 * 1_000
 const MAX_ATTEMPTS = 5
+const MAX_UNKNOWN_IP_ATTEMPTS = 20
 const MAX_TRACKED_KEYS = 10_000
 
 type AttemptRecord = {
@@ -17,8 +19,12 @@ export type AdminLoginAttemptResult =
 
 const attempts = new Map<string, AttemptRecord>()
 
-function keyFor(ip: string, email: string): string {
-  const normalizedIp = ip.trim().slice(0, 128) || "unknown"
+function normalizeIp(ip: string): string {
+  const candidate = ip.trim().slice(0, 128)
+  return candidate && isIP(candidate) ? candidate : "unknown"
+}
+
+function keyFor(normalizedIp: string, email: string): string {
   const normalizedEmail = email.trim().toLowerCase().slice(0, 320)
 
   return createHash("sha256")
@@ -52,7 +58,10 @@ export function consumeAdminLoginAttempt(
   email: string,
   now = Date.now()
 ): AdminLoginAttemptResult {
-  const key = keyFor(ip, email)
+  const normalizedIp = normalizeIp(ip)
+  const maxAttempts =
+    normalizedIp === "unknown" ? MAX_UNKNOWN_IP_ATTEMPTS : MAX_ATTEMPTS
+  const key = keyFor(normalizedIp, email)
   const record = attempts.get(key)
 
   if (!record) {
@@ -71,7 +80,7 @@ export function consumeAdminLoginAttempt(
     return { allowed: true }
   }
 
-  if (record.count >= MAX_ATTEMPTS) {
+  if (record.count >= maxAttempts) {
     return {
       allowed: false,
       retryAfterSeconds: Math.ceil((record.resetAt - now) / 1_000),
@@ -83,5 +92,5 @@ export function consumeAdminLoginAttempt(
 }
 
 export function resetAdminLoginAttempts(ip: string, email: string): void {
-  attempts.delete(keyFor(ip, email))
+  attempts.delete(keyFor(normalizeIp(ip), email))
 }

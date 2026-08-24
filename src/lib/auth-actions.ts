@@ -8,6 +8,7 @@ import {
   consumeAdminLoginAttempt,
   resetAdminLoginAttempts,
 } from "@/server/services/admin-login-rate-limit.service"
+import { alertAdminLoginWithoutTrustedIp } from "@/server/services/admin-login-security-alert.service"
 
 export type AuthActionResult =
   | { success: true }
@@ -25,8 +26,15 @@ export async function prepareAdminSignIn(
   const headerList = await headers()
   // Production ingress must overwrite X-Real-IP. X-Forwarded-For is ignored
   // because its leftmost entries can be supplied directly by the client.
-  const trustedIp = headerList.get("x-real-ip")?.trim()
+  const rawTrustedIp = headerList.get("x-real-ip")
+  const trustedIp = rawTrustedIp?.trim()
   const ip = trustedIp && isIP(trustedIp) ? trustedIp : "unknown"
+
+  if (ip === "unknown") {
+    const reason = !trustedIp ? "missing" : "invalid"
+    alertAdminLoginWithoutTrustedIp(reason)
+  }
+
   const attempt = consumeAdminLoginAttempt(ip, email)
   if (!attempt.allowed) {
     return {

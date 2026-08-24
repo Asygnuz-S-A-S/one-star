@@ -50,6 +50,58 @@ describe("admin login rate limit", () => {
     })
   })
 
+  it("permite veinte intentos para unknown y bloquea el vigesimoprimero", () => {
+    const email = "admin-unknown@example.com"
+    const now = 3_500
+
+    for (let attempt = 1; attempt <= 20; attempt++) {
+      expect(consumeAdminLoginAttempt("unknown", email, now)).toEqual({
+        allowed: true,
+      })
+    }
+
+    expect(consumeAdminLoginAttempt("unknown", email, now)).toEqual({
+      allowed: false,
+      retryAfterSeconds: 900,
+    })
+  })
+
+  it("normaliza IP vacía e inválida al mismo balde unknown y permite resetearlo", () => {
+    const email = "admin-empty-ip@example.com"
+    const now = 3_600
+
+    for (let attempt = 1; attempt <= 10; attempt++) {
+      consumeAdminLoginAttempt("unknown", email, now)
+    }
+    for (let attempt = 11; attempt <= 19; attempt++) {
+      consumeAdminLoginAttempt("   ", email, now)
+    }
+    expect(consumeAdminLoginAttempt("not-an-ip", email, now)).toEqual({
+      allowed: true,
+    })
+
+    expect(consumeAdminLoginAttempt("unknown", email, now)).toMatchObject({
+      allowed: false,
+    })
+
+    resetAdminLoginAttempts("still-not-an-ip", email)
+
+    expect(consumeAdminLoginAttempt("unknown", email, now)).toEqual({ allowed: true })
+  })
+
+  it("abre una nueva ventana unknown al cumplirse quince minutos", () => {
+    const email = "admin-unknown-expired@example.com"
+    const now = 3_700
+
+    for (let attempt = 1; attempt <= 20; attempt++) {
+      consumeAdminLoginAttempt("unknown", email, now)
+    }
+
+    expect(
+      consumeAdminLoginAttempt("unknown", email, now + 15 * 60 * 1_000)
+    ).toEqual({ allowed: true })
+  })
+
   it("comparte el contador entre variaciones de mayúsculas y espacios del correo", () => {
     const ip = "198.51.100.13"
     const now = 4_000

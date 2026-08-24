@@ -1,4 +1,5 @@
 import * as Sentry from "@sentry/nextjs"
+import { sanitizeAdminLoginSecurityEvent } from "./server/services/admin-login-security-event-sanitizer.service"
 
 Sentry.init({
   dsn: process.env.SENTRY_DSN,
@@ -7,6 +8,7 @@ Sentry.init({
   tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
   // No enviar en desarrollo a menos que SENTRY_DSN esté explícitamente definido
   enabled: Boolean(process.env.SENTRY_DSN),
+  beforeSend: sanitizeAdminLoginSecurityEvent,
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
