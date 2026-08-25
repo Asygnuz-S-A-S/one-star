@@ -374,8 +374,15 @@ En servidor propio, `docker-compose.prod.yml` conserva un servicio efímero basa
 en `builder` que ejecuta `prisma migrate deploy` antes de iniciar `app`; no
 ejecuta seed. Además, el `runner` instala una copia aislada y fijada del CLI de
 Prisma para que la misma imagen final pueda aplicar migraciones desde un paso
-externo previo al despliegue. Ningún servicio publica puertos: el reverse proxy
-del servidor se conecta a `onestar_frontend` y PostgreSQL queda aislado en
+externo previo al despliegue. Su manifest y lock exclusivos viven en
+`docker/prisma-cli/`; para actualizar ese árbol se cambia la versión exacta del
+manifest y se regenera `package-lock.json` con npm 10.8.2 dentro de
+`node:20-alpine`. El runner usa `npm ci`, por lo que un drift entre ambos
+archivos hace fallar el build. Este lock fija versiones, tarballs e integridades
+de las dependencias npm, pero no vuelve byte-idéntica la imagen completa:
+`node:20-alpine`, los repositorios APK y los binarios por arquitectura siguen
+siendo variables. Ningún servicio publica puertos: el reverse proxy del servidor
+se conecta a `onestar_frontend` y PostgreSQL queda aislado en
 `onestar_backend`. Las variables `NEXT_PUBLIC_*` se entregan como argumentos de
 build y requieren reconstruir la imagen cuando cambian.
 

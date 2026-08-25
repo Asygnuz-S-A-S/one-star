@@ -1,0 +1,8 @@
+{
+  "name": "onestar-prisma-cli",
+  "private": true,
+  "version": "1.0.0",
+  "dependencies": {
+    "prisma": "6.19.3"
+  }
+}
