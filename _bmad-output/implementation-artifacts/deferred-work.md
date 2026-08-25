@@ -61,3 +61,11 @@
 ## 2026-08-24 — Canonicalización de IP en el límite administrativo
 
 - Canonicalizar representaciones IPv6 equivalentes antes de calcular la clave del limitador. El proxy confiable normalmente entrega un formato estable, pero el limitador preexistente distingue cadenas textuales que representan la misma dirección; corregirlo requiere definir y probar la política canónica sin mezclarla con el umbral especial para `unknown`.
+
+## 2026-08-25 — Cierre de pendientes de despliegue
+
+- Proteger `main` antes de activar el autodeploy: checks obligatorios, aplicación a administradores y al menos una aprobación humana.
+- Corregir el TLS de `new.tiendaonestar.com`: Traefik entrega actualmente su certificado autofirmado predeterminado en lugar de un certificado válido para el dominio.
+- Crear el administrador de producción después de confirmar `ADMIN_EMAIL` y `ADMIN_NAME`; generar y entregar la contraseña mediante un canal seguro.
+- Configurar y probar en ePayco la URL de confirmación `https://new.tiendaonestar.com/api/epayco/webhook` una vez que TLS y las credenciales de prueba estén listos.
+- Actualizar Prisma cuando exista una versión compatible que incorpore `deepmerge-ts >= 8.0.0`; Prisma 6.19.3 fija 7.1.5 y `npm audit` reporta `GHSA-ggr8-5vv4-36mx`. El CLI actual solo procesa configuración versionada en un proceso interno de una ejecución, pero el hallazgo debe revisarse antes de ampliar sus entradas o exposición.

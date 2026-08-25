@@ -112,8 +112,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts          ./prism
 # dependencias del bundle standalone. El symlink conserva el comando operativo
 # `node node_modules/prisma/build/index.js ...` usado por despliegue y CI.
 ENV NODE_PATH=/opt/prisma-cli/node_modules
-RUN npm install --prefix /opt/prisma-cli --cache /tmp/npm-cache \
-      --no-save --no-package-lock --omit=dev prisma@6.19.3 && \
+COPY docker/prisma-cli/package.json docker/prisma-cli/package-lock.json /opt/prisma-cli/
+RUN npm ci --prefix /opt/prisma-cli --cache /tmp/npm-cache --omit=dev && \
     ln -s /opt/prisma-cli/node_modules/prisma ./node_modules/prisma && \
     test "$(node -p "require('./node_modules/prisma/package.json').version")" = \
       "$(node -p "require('./node_modules/@prisma/client/package.json').version")" && \

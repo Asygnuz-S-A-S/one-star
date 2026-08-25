@@ -99,9 +99,9 @@ jobs:
 
       # Construye el stage `runner` (el que se despliega de verdad) y corre
       # `prisma migrate deploy` contra una base real. El runner instala la
-      # versión fijada del CLI de Prisma y npm resuelve automáticamente su
-      # árbol de dependencias; este paso valida que la instalación y las
-      # migraciones funcionen antes del despliegue a producción.
+      # versión fijada del CLI de Prisma con su árbol npm bloqueado; este paso
+      # valida que la instalación y las migraciones funcionen antes del
+      # despliegue a producción.
       - name: Build runner image
         run: |
           docker build --target runner \
