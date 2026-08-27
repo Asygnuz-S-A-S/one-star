@@ -218,10 +218,14 @@ docker compose --env-file .env.production -f docker-compose.prod.yml ps
 docker compose --env-file .env.production -f docker-compose.prod.yml logs app
 ```
 
-El entrypoint espera PostgreSQL hasta 12 intentos con pausas de 5 segundos; se
-pueden ajustar con `DATABASE_STARTUP_MAX_ATTEMPTS` y
-`DATABASE_STARTUP_RETRY_SECONDS`. Si la conexión o una migración falla, `app`
-no inicia. Corrige el entorno y vuelve a ejecutar el mismo `up`;
+El entrypoint espera PostgreSQL hasta 12 intentos, con sondeos acotados a 5
+segundos y pausas de 5 segundos; se pueden ajustar con
+`DATABASE_STARTUP_MAX_ATTEMPTS`, `DATABASE_STARTUP_PROBE_TIMEOUT_SECONDS` y
+`DATABASE_STARTUP_RETRY_SECONDS`. Cada ejecución del entrypoint tiene un límite
+finito; `restart: unless-stopped` puede iniciar otro ciclo acotado después de una
+salida fallida y también recupera la tienda tras reiniciar Docker o el VPS. Si la
+conexión o una migración sigue fallando, revisa `logs app`, corrige el entorno y
+vuelve a ejecutar el mismo `up`;
 `prisma migrate deploy` es idempotente y omite las migraciones ya aplicadas.
 
 La aplicación solo declara el puerto interno `3000` en la red

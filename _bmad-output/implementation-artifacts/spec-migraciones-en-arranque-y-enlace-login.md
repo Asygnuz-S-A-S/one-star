@@ -2,7 +2,7 @@
 title: 'Automatizar migraciones al arrancar y retirar enlace muerto del login'
 type: 'bugfix'
 created: '2026-08-27'
-status: 'in-progress'
+status: 'done'
 baseline_commit: '3b3e6b5f71623ca0749eb07bbd56117f628afebd'
 context:
   - '{project-root}/docs/architecture.md'
@@ -50,11 +50,11 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `scripts/docker-entrypoint.test.ts` y `e2e/auth.spec.ts` -- añadir primero reproducciones RED de todos los escenarios relevantes.
-- [ ] `docker-entrypoint.sh` y `Dockerfile` -- esperar la BD con reintentos acotados, migrar y ejecutar el CMD con propagación de señales.
-- [ ] `docker-compose.prod.yml` -- retirar el servicio de migración redundante y hacer que `app` dependa de la salud de `db`.
-- [ ] `src/app/login/page.tsx` -- retirar el CTA no funcional conservando la alineación del formulario.
-- [ ] `.env.example`, `README.md` y `docs/architecture.md` -- documentar valores predeterminados, overrides y nueva secuencia.
+- [x] `scripts/docker-entrypoint.test.ts` y `e2e/auth.spec.ts` -- añadir primero reproducciones RED de todos los escenarios relevantes.
+- [x] `docker-entrypoint.sh` y `Dockerfile` -- esperar la BD con reintentos acotados, migrar y ejecutar el CMD con propagación de señales.
+- [x] `docker-compose.prod.yml` -- retirar el servicio de migración redundante, hacer que `app` dependa de la salud de `db` y conservar la recuperación tras reinicios del host con ciclos internos acotados.
+- [x] `src/app/login/page.tsx` -- retirar el CTA no funcional conservando la alineación del formulario.
+- [x] `.env.example`, `README.md` y `docs/architecture.md` -- documentar valores predeterminados, overrides y nueva secuencia.
 
 **Acceptance Criteria:**
 - Given una imagen con migraciones compatibles, when el contenedor arranca normalmente y la BD termina disponible, then las migraciones se aplican antes de iniciar el servidor.
@@ -64,15 +64,51 @@ context:
 
 ## Spec Change Log
 
+- 2026-08-27: La revisión detectó que `on-failure:3` evitaba reinicios ilimitados pero dejaba la tienda detenida después de reiniciar Docker/VPS. Se conservó `unless-stopped` y se aclaró que el límite aplica a cada ejecución del entrypoint; un nuevo ciclo pertenece a la política externa de recuperación. KEEP: timeout por sondeo, límites numéricos, `DIRECT_URL` obligatoria, orden `probe → migrate → server` y ausencia del enlace muerto.
+
 ## Design Notes
 
-El sondeo usa `prisma db execute` con `SELECT 1` y variables de entorno, evitando agregar `psql` a la imagen o revelar la URL en la lista de procesos. El entrypoint solo prepara el arranque cuando recibe el CMD exacto de la aplicación; comandos operativos explícitos siguen funcionando como antes.
+El sondeo usa `prisma db execute` con `SELECT 1` y variables de entorno, evitando agregar `psql` a la imagen o revelar la URL en la lista de procesos. El entrypoint solo prepara el arranque cuando recibe el CMD exacto de la aplicación; comandos operativos explícitos siguen funcionando como antes. El entrypoint nunca mantiene un bucle interno ilimitado; `unless-stopped` puede lanzar otra ejecución acotada para preservar recuperación tras caídas o reinicios del host.
 
 ## Verification
 
 **Commands:**
-- `pnpm vitest run scripts/docker-entrypoint.test.ts` -- expected: escenarios del shell verdes.
+- `pnpm vitest run scripts/docker-entrypoint.test.ts scripts/docker-compose-prod.test.ts` -- expected: escenarios del shell y política Compose verdes.
 - `pnpm exec playwright test e2e/auth.spec.ts --project=chromium --grep "recuperación"` -- expected: login sin enlace muerto.
 - `docker compose --env-file <fixture> -f docker-compose.prod.yml config` -- expected: configuración válida sin servicio `migrate`.
 - `pnpm lint && pnpm exec tsc --noEmit && pnpm test && pnpm build` -- expected: calidad y regresión completas en verde.
 - `docker build --target runner ...` -- expected: imagen final incluye entrypoint ejecutable y Prisma 6.19.3.
+
+**Resultado (2026-08-27):** Las 12 pruebas del entrypoint, las 2 de Compose y el E2E focalizado pasaron; lint terminó con 22 advertencias preexistentes y 0 errores; TypeScript, 66 suites/535 pruebas, build de Next, validación de Compose e imagen `runner` pasaron. La imagen aplicó 14 migraciones ya presentes contra PostgreSQL local, reportó cero pendientes e inició Next. `pnpm test:coverage` ejecutó el baseline anterior de 527 pruebas, pero el umbral histórico global falló con 60.83% de líneas y 48.6% de funciones; el alcance nuevo de shell queda cubierto por sus escenarios aunque no pertenece al `include` V8 de servicios/repositorios.
+
+## Suggested Review Order
+
+**Arranque seguro de la imagen**
+
+- Valida configuración, sondea la conexión, migra y entrega señales al servidor.
+  [`docker-entrypoint.sh:6`](../../docker-entrypoint.sh#L6)
+
+- Empaqueta el script y lo establece antes del CMD standalone.
+  [`Dockerfile:103`](../../Dockerfile#L103)
+
+- Conserva recuperación tras reboot y elimina el job de migración redundante.
+  [`docker-compose.prod.yml:20`](../../docker-compose.prod.yml#L20)
+
+**Corrección del login**
+
+- Retira el CTA sin ruta manteniendo el campo de contraseña accesible.
+  [`page.tsx:135`](../../src/app/login/page.tsx#L135)
+
+**Cobertura y operación**
+
+- Recorre éxito, reintentos, límites, URLs, fallos y orden completo.
+  [`docker-entrypoint.test.ts:128`](../../scripts/docker-entrypoint.test.ts#L128)
+
+- Fija el contrato de topología y recuperación del Compose productivo.
+  [`docker-compose-prod.test.ts:8`](../../scripts/docker-compose-prod.test.ts#L8)
+
+- Protege el login contra la reaparición del enlace muerto.
+  [`auth.spec.ts:63`](../../e2e/auth.spec.ts#L63)
+
+- Documenta configuración, diagnóstico y secuencia del despliegue.
+  [`README.md:200`](../../README.md#L200)
