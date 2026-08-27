@@ -60,6 +60,11 @@ test.describe("Login", () => {
     await expect(page).toHaveURL(/\/registro/)
   })
 
+  test("no ofrece recuperación de contraseña mientras la ruta no exista", async ({ page }) => {
+    await expect(page.getByRole("link", { name: /olvidaste tu contraseña/i })).toHaveCount(0)
+    await expect(page.locator('a[href="/recuperar-contrasena"]')).toHaveCount(0)
+  })
+
   test("conserva un callback interno al navegar al registro", async ({ page }) => {
     await page.goto("/login?callbackUrl=%2Fcheckout")
 
