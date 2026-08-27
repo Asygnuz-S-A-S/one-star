@@ -28,6 +28,11 @@ function runEntrypoint(options: {
     join(binDirectory, "node"),
     `#!/bin/sh
 set -eu
+if [ "$*" = "server.js" ]; then
+  printf started > "$ENTRYPOINT_TEST_STATE/app-started"
+  exit 0
+fi
+
 printf '%s\n' "$*" >> "$ENTRYPOINT_TEST_STATE/node-calls"
 
 case "$*" in
@@ -52,10 +57,9 @@ printf '%s\n' "$1" >> "$ENTRYPOINT_TEST_STATE/sleep-calls"
 `,
   )
 
-  const appMarker = join(testDirectory, "app-started")
   const result = spawnSync(
-    entrypoint,
-    options.command ?? ["sh", "-c", `printf started > '${appMarker}'`],
+    "/bin/sh",
+    [entrypoint, ...(options.command ?? ["node", "server.js"])],
     {
       cwd: process.cwd(),
       encoding: "utf8",

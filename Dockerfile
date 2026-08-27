@@ -19,7 +19,7 @@ RUN npm install -g pnpm@10.34.5 && pnpm config set node-linker hoisted && pnpm i
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage 2 — builder
 # Genera el cliente Prisma para linux-musl y compila Next.js en modo standalone.
-# Este stage también es reutilizado por el servicio "migrate" de docker-compose.
+# Este stage contiene las herramientas de build y desarrollo.
 # ─────────────────────────────────────────────────────────────────────────────
 FROM node:20-alpine AS builder
 
@@ -101,9 +101,8 @@ COPY --from=builder --chown=nextjs:nodejs \
   ./node_modules/@prisma/client
 
 # ── Prisma CLI + migraciones ─────────────────────────────────────────────────
-# Permite correr `prisma migrate deploy` contra esta misma imagen como paso
-# previo al despliegue (no se ejecuta en el CMD, se invoca aparte, ej.
-# `docker run --rm -e DATABASE_URL=... -e DIRECT_URL=... <imagen> node node_modules/prisma/build/index.js migrate deploy`).
+# Permite que el entrypoint ejecute `prisma migrate deploy` antes de iniciar
+# server.js y conserva el CLI para comandos operativos explícitos.
 # Se conserva el entrypoint directo (no `npx prisma`) para mantener estable el
 # comando de despliegue sin depender de la resolución de binarios de npm.
 COPY --from=builder --chown=nextjs:nodejs /app/prisma                    ./prisma
@@ -119,9 +118,13 @@ RUN npm ci --prefix /opt/prisma-cli --cache /tmp/npm-cache --omit=dev && \
       "$(node -p "require('./node_modules/@prisma/client/package.json').version")" && \
     rm -rf /tmp/npm-cache
 
+COPY --chown=nextjs:nodejs docker-entrypoint.sh ./docker-entrypoint.sh
+RUN chmod 755 ./docker-entrypoint.sh
+
 USER nextjs
 
 EXPOSE 3000
 
 # server.js es el servidor mínimo generado por Next.js con output: 'standalone'
+ENTRYPOINT ["./docker-entrypoint.sh"]
 CMD ["node", "server.js"]

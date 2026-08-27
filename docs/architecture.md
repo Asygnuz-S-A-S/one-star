@@ -281,6 +281,8 @@ POSTGRES_PASSWORD=...             # Solo en el entorno del servidor; nunca versi
 POSTGRES_DB=...                   # Base creada por el contenedor PostgreSQL
 DATABASE_URL=postgresql://...     # Conexión de runtime
 DIRECT_URL=postgresql://...       # Conexión directa para migraciones de Prisma
+DATABASE_STARTUP_MAX_ATTEMPTS=12  # Intentos de conexión del entrypoint Docker antes de abortar
+DATABASE_STARTUP_RETRY_SECONDS=5  # Segundos entre sondeos de conexión del entrypoint
 # En local ambas apuntan al mismo Postgres. En serverless NO son intercambiables:
 # DATABASE_URL debe ir al pooler (modo transaction) con ?pgbouncer=true, porque
 # cada invocación abre su propia conexión; DIRECT_URL debe ser la conexión
@@ -370,21 +372,21 @@ el coordinador; no contienen una frecuencia de negocio fija.
 
 Procedimiento paso a paso: **`docs/deploy-vercel.md`**.
 
-En servidor propio, `docker-compose.prod.yml` conserva un servicio efímero basado
-en `builder` que ejecuta `prisma migrate deploy` antes de iniciar `app`; no
-ejecuta seed. Además, el `runner` instala una copia aislada y fijada del CLI de
-Prisma para que la misma imagen final pueda aplicar migraciones desde un paso
-externo previo al despliegue. Su manifest y lock exclusivos viven en
-`docker/prisma-cli/`; para actualizar ese árbol se cambia la versión exacta del
-manifest y se regenera `package-lock.json` con npm 10.8.2 dentro de
-`node:20-alpine`. El runner usa `npm ci`, por lo que un drift entre ambos
-archivos hace fallar el build. Este lock fija versiones, tarballs e integridades
-de las dependencias npm, pero no vuelve byte-idéntica la imagen completa:
-`node:20-alpine`, los repositorios APK y los binarios por arquitectura siguen
-siendo variables. Ningún servicio publica puertos: el reverse proxy del servidor
-se conecta a `onestar_frontend` y PostgreSQL queda aislado en
-`onestar_backend`. Las variables `NEXT_PUBLIC_*` se entregan como argumentos de
-build y requieren reconstruir la imagen cuando cambian.
+En servidor propio, el entrypoint del `runner` sondea PostgreSQL con reintentos
+acotados y ejecuta `prisma migrate deploy` antes de `node server.js`; nunca
+ejecuta seed. Por defecto intenta 12 veces con pausas de 5 segundos, configurables
+con `DATABASE_STARTUP_MAX_ATTEMPTS` y `DATABASE_STARTUP_RETRY_SECONDS`. Un fallo
+de conexión o migración impide iniciar la aplicación. Los comandos operativos
+explícitos omiten esta preparación. El CLI aislado y fijado del `runner` usa el
+manifest y lock exclusivos de `docker/prisma-cli/`; para actualizarlo se cambia
+la versión exacta y se regenera `package-lock.json` con npm 10.8.2 dentro de
+`node:20-alpine`. El runner usa `npm ci`, por lo que cualquier drift hace fallar
+el build. El lock fija versiones, tarballs e integridades npm, pero no vuelve
+byte-idéntica la imagen completa: la base Alpine, APK y la arquitectura todavía
+varían. Ningún servicio publica puertos: el reverse proxy se conecta a
+`onestar_frontend` y PostgreSQL queda aislado en `onestar_backend`. Las variables
+`NEXT_PUBLIC_*` se entregan como argumentos de build y requieren reconstruir la
+imagen cuando cambian.
 
 ### Invariante de migraciones: expand/contract
 

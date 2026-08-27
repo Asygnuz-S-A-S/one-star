@@ -200,9 +200,10 @@ docker compose down
 ## Despliegue con Docker Compose en producción
 
 La fuente oficial de los despliegues es la rama `develop`. El archivo
-`docker-compose.prod.yml` arranca PostgreSQL, aplica las migraciones versionadas
-con `prisma migrate deploy` y solo después inicia la aplicación. No ejecuta el
-seed, no incluye Adminer y no publica puertos del host.
+`docker-compose.prod.yml` arranca PostgreSQL y la imagen final aplica las
+migraciones versionadas con `prisma migrate deploy` desde su entrypoint antes de
+iniciar la aplicación. No ejecuta el seed, no incluye Adminer y no publica
+puertos del host.
 
 1. En el servidor, crea un archivo `.env.production` fuera de Git a partir del
    inventario de `.env.example`. Define también `POSTGRES_USER`,
@@ -214,12 +215,14 @@ seed, no incluye Adminer y no publica puertos del host.
 docker compose --env-file .env.production -f docker-compose.prod.yml config --quiet
 docker compose --env-file .env.production -f docker-compose.prod.yml up --build -d
 docker compose --env-file .env.production -f docker-compose.prod.yml ps
-docker compose --env-file .env.production -f docker-compose.prod.yml logs migrate
+docker compose --env-file .env.production -f docker-compose.prod.yml logs app
 ```
 
-Si una migración falla, `app` no inicia. Corrige la conexión o la migración y
-vuelve a ejecutar el mismo `up`; `prisma migrate deploy` es idempotente y omite
-las migraciones ya aplicadas.
+El entrypoint espera PostgreSQL hasta 12 intentos con pausas de 5 segundos; se
+pueden ajustar con `DATABASE_STARTUP_MAX_ATTEMPTS` y
+`DATABASE_STARTUP_RETRY_SECONDS`. Si la conexión o una migración falla, `app`
+no inicia. Corrige el entorno y vuelve a ejecutar el mismo `up`;
+`prisma migrate deploy` es idempotente y omite las migraciones ya aplicadas.
 
 La aplicación solo declara el puerto interno `3000` en la red
 `onestar_frontend`. El reverse proxy administrado por el servidor debe unirse a
