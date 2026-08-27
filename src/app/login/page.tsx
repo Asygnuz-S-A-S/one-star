@@ -134,20 +134,12 @@ function LoginForm() {
 
           {/* Contraseña */}
           <div className="flex flex-col gap-1">
-            <div className="flex items-center justify-between">
-              <label
-                htmlFor="password"
-                className="font-montserrat text-xs font-semibold text-[#4A4A4A] uppercase tracking-wide"
-              >
-                Contraseña
-              </label>
-              <Link
-                href="/recuperar-contrasena"
-                className="font-montserrat text-xs text-[#E31C23] hover:underline"
-              >
-                ¿Olvidaste tu contraseña?
-              </Link>
-            </div>
+            <label
+              htmlFor="password"
+              className="font-montserrat text-xs font-semibold text-[#4A4A4A] uppercase tracking-wide"
+            >
+              Contraseña
+            </label>
             <div className="relative">
               <input
                 id="password"
