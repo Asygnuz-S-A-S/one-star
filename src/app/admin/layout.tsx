@@ -1,5 +1,4 @@
 import { auth } from "@/lib/auth"
-import { redirect } from "next/navigation"
 import { headers } from "next/headers"
 import AdminSidebar from "@/components/admin/AdminSidebar"
 import AdminHotkeys from "@/components/admin/AdminHotkeys"
@@ -26,9 +25,10 @@ export default async function AdminLayout({
 
   // Without a valid admin session just pass children through.
   // proxy.ts enforces the redirect to /admin/login for protected routes;
-  // the login page itself must render without the admin chrome.
+  // the login page itself must render without the admin chrome while keeping
+  // the main landmark that PublicSiteFrame intentionally omits for /admin.
   if (!isAdmin) {
-    return <>{children}</>
+    return <main className="flex-1">{children}</main>
   }
 
   return (

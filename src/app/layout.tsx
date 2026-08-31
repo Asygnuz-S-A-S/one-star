@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import "./globals.css";
-import Header from "@/components/Header";
+import PublicSiteFrame from "@/components/PublicSiteFrame";
 import Providers from "@/app/providers";
 
 export const metadata: Metadata = {
@@ -44,17 +44,19 @@ export default async function RootLayout({
       return null;
     }),
   ]);
-  
-  // Si el banner está inactivo o no existe, solo ocupamos la altura de la barra nav
-  const isBannerActive = topBanner?.isActive ?? true;
-  const paddingClass = isBannerActive ? "pt-[88px] md:pt-[96px]" : "pt-[56px] md:pt-[64px]";
 
   return (
     <html lang="es" className="h-full antialiased" suppressHydrationWarning>
-      <body className={`min-h-full flex flex-col bg-white text-[#1C1C1C] dark:bg-[#0f0f0f] dark:text-[#f5f5f7] transition-colors duration-300 ${paddingClass}`}>
+      <body className="min-h-full flex flex-col bg-white text-[#1C1C1C] dark:bg-[#0f0f0f] dark:text-[#f5f5f7] transition-colors duration-300">
         <Providers nonce={nonce}>
-          <Header items={navigationItems} banner={topBanner} logos={primaryLogos} config={headerConfig} />
-          <main className="flex-1">{children}</main>
+          <PublicSiteFrame
+            items={navigationItems}
+            banner={topBanner}
+            logos={primaryLogos}
+            config={headerConfig}
+          >
+            {children}
+          </PublicSiteFrame>
         </Providers>
       </body>
 

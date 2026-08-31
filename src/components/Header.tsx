@@ -140,7 +140,7 @@ export default function Header({
     <>
     {/*
      * El header ocupa: barra anuncio (~32px) + barra nav (56px móvil / 64px desktop).
-     * position: fixed saca el header del flujo; el padding-top del body en layout.tsx compensa.
+     * position: fixed saca el header del flujo; PublicSiteFrame agrega el espaciador equivalente.
      * z-50 garantiza que quede sobre banners y contenido de la página.
      */}
     <header className="fixed top-0 left-0 right-0 z-50 w-full">
