@@ -1,5 +1,5 @@
 import "server-only"
-import { getERPAdapter } from "@/server/erp"
+import { getERPAdapter, supportsCatalogSync } from "@/server/erp"
 import type { ErpSyncLog, ErpSyncTrigger } from "@prisma/client"
 import type {
   ERPCatalogProductGroup,
@@ -378,6 +378,8 @@ export interface ErpSyncStatus {
   provider: string
   /** ¿El ERP respondió al healthcheck? */
   connected: boolean
+  /** ¿El adaptador efectivo permite descargar el catálogo? */
+  catalogSyncAvailable: boolean
   /** ¿Está habilitado el coordinador automático? */
   autoSyncEnabled: boolean
   /** Intervalo del auto-sync, en minutos. */
@@ -531,6 +533,7 @@ export async function getErpSyncStatus(): Promise<ErpSyncStatus> {
   return {
     provider: erpProviderName(),
     connected,
+    catalogSyncAvailable: supportsCatalogSync(adapter),
     autoSyncEnabled: schedule.enabled,
     autoSyncMinutes: schedule.intervalMinutes,
     nextAutoSyncAt: schedule.nextRunAt,

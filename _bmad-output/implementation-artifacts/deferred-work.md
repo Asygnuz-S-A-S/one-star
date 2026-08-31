@@ -69,3 +69,11 @@
 - Crear el administrador de producción después de confirmar `ADMIN_EMAIL` y `ADMIN_NAME`; generar y entregar la contraseña mediante un canal seguro.
 - Configurar y probar en ePayco la URL de confirmación `https://new.tiendaonestar.com/api/epayco/webhook` una vez que TLS y las credenciales de prueba estén listos.
 - Actualizar Prisma cuando exista una versión compatible que incorpore `deepmerge-ts >= 8.0.0`; Prisma 6.19.3 fija 7.1.5 y `npm audit` reporta `GHSA-ggr8-5vv4-36mx`. El CLI actual solo procesa configuración versionada en un proceso interno de una ejecución, pero el hallazgo debe revisarse antes de ampliar sus entradas o exposición.
+
+## 2026-08-31 — Correcciones posteriores a la auditoría E2E del administrador
+
+- Separar con route groups la carga del chrome público para que `/admin` no ejecute consultas de navegación, banner, logos y configuración que no consume; requiere la decisión arquitectónica marcada como **Ask First** en la spec de aislamiento del layout.
+- Impedir que la sincronización ERP automática permanezca activa cuando el proveedor configurado es `none` o no implementa `fetchCatalog`; limpiar el estado incoherente existente y conservar diagnóstico legible.
+- Unificar categorías del catálogo y categorías visuales: crear categorías únicamente desde `/admin/categorias` y hacer que Landing Builder seleccione, ordene y muestre categorías existentes para Inicio.
+- Recuperar de forma segura una sola vez ante `ChunkLoadError` después de despliegues y revisar la política externa que devuelve `429 Too Many Requests` durante barridos administrativos acelerados.
+- Convertir el editor de productos en un formulario semántico sin alterar su validación ni producir envíos dobles.

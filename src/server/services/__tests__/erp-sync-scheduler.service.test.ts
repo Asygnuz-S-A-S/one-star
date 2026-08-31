@@ -4,13 +4,22 @@ vi.mock("server-only", () => ({}))
 
 const mocks = vi.hoisted(() => ({
   claimDueErpSync: vi.fn(),
+  disableErpSyncSchedule: vi.fn(),
+  getERPAdapter: vi.fn(),
   getOrCreateErpSyncConfig: vi.fn(),
   saveErpSyncConfig: vi.fn(),
+  supportsCatalogSync: vi.fn(),
   syncCatalogFromERP: vi.fn(),
+}))
+
+vi.mock("@/server/erp", () => ({
+  getERPAdapter: mocks.getERPAdapter,
+  supportsCatalogSync: mocks.supportsCatalogSync,
 }))
 
 vi.mock("@/server/repositories/erp-sync-config.repository", () => ({
   claimDueErpSync: mocks.claimDueErpSync,
+  disableErpSyncSchedule: mocks.disableErpSyncSchedule,
   getOrCreateErpSyncConfig: mocks.getOrCreateErpSyncConfig,
   saveErpSyncConfig: mocks.saveErpSyncConfig,
 }))
@@ -25,7 +34,75 @@ import {
 } from "../erp-sync-scheduler.service"
 
 describe("erp-sync-scheduler.service", () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.getERPAdapter.mockReturnValue({})
+    mocks.supportsCatalogSync.mockReturnValue(true)
+  })
+
+  it("reconcilia una programación activa incompatible preservando el intervalo del repositorio", async () => {
+    const now = new Date("2026-08-31T12:00:00.000Z")
+    const observedAt = new Date("2026-08-31T11:55:00.000Z")
+    mocks.supportsCatalogSync.mockReturnValue(false)
+    mocks.getOrCreateErpSyncConfig.mockResolvedValue({
+      enabled: true,
+      intervalMinutes: 30,
+      nextRunAt: new Date("2026-08-31T12:30:00.000Z"),
+      updatedAt: observedAt,
+    })
+    mocks.disableErpSyncSchedule.mockResolvedValue({
+      enabled: false,
+      intervalMinutes: 120,
+      nextRunAt: null,
+    })
+
+    await expect(getErpSyncSchedule(now)).resolves.toEqual({
+      enabled: false,
+      intervalMinutes: 120,
+      nextRunAt: null,
+    })
+    expect(mocks.disableErpSyncSchedule).toHaveBeenCalledWith(observedAt)
+    expect(mocks.saveErpSyncConfig).not.toHaveBeenCalled()
+  })
+
+  it("no reescribe una programación incompatible que ya está inactiva y limpia", async () => {
+    mocks.supportsCatalogSync.mockReturnValue(false)
+    mocks.getOrCreateErpSyncConfig.mockResolvedValue({
+      enabled: false,
+      intervalMinutes: 60,
+      nextRunAt: null,
+    })
+
+    await expect(getErpSyncSchedule()).resolves.toEqual({
+      enabled: false,
+      intervalMinutes: 60,
+      nextRunAt: null,
+    })
+    expect(mocks.disableErpSyncSchedule).not.toHaveBeenCalled()
+  })
+
+  it("limpia un vencimiento residual aunque la programación incompatible ya esté inactiva", async () => {
+    const observedAt = new Date("2026-08-31T11:55:00.000Z")
+    mocks.supportsCatalogSync.mockReturnValue(false)
+    mocks.getOrCreateErpSyncConfig.mockResolvedValue({
+      enabled: false,
+      intervalMinutes: 60,
+      nextRunAt: new Date("2026-08-31T12:30:00.000Z"),
+      updatedAt: observedAt,
+    })
+    mocks.disableErpSyncSchedule.mockResolvedValue({
+      enabled: false,
+      intervalMinutes: 60,
+      nextRunAt: null,
+    })
+
+    await expect(getErpSyncSchedule()).resolves.toEqual({
+      enabled: false,
+      intervalMinutes: 60,
+      nextRunAt: null,
+    })
+    expect(mocks.disableErpSyncSchedule).toHaveBeenCalledWith(observedAt)
+  })
 
   it("solo ejecuta una vez cuando dos disparadores compiten por el mismo vencimiento", async () => {
     const config = {
@@ -58,10 +135,44 @@ describe("erp-sync-scheduler.service", () => {
     expect(mocks.syncCatalogFromERP).not.toHaveBeenCalled()
   })
 
+  it("omite un tick incompatible antes de reclamar o registrar una sincronización", async () => {
+    const observedAt = new Date("2026-08-31T11:55:00.000Z")
+    mocks.supportsCatalogSync.mockReturnValue(false)
+    mocks.getOrCreateErpSyncConfig.mockResolvedValue({
+      enabled: true,
+      intervalMinutes: 30,
+      nextRunAt: new Date("2026-08-31T11:30:00.000Z"),
+      updatedAt: observedAt,
+    })
+    mocks.disableErpSyncSchedule.mockResolvedValue({
+      enabled: false,
+      intervalMinutes: 30,
+      nextRunAt: null,
+    })
+
+    await expect(runDueErpSync()).resolves.toEqual({
+      executed: false,
+      reason: "catalog_sync_unavailable",
+    })
+    expect(mocks.disableErpSyncSchedule).toHaveBeenCalledWith(observedAt)
+    expect(mocks.claimDueErpSync).not.toHaveBeenCalled()
+    expect(mocks.syncCatalogFromERP).not.toHaveBeenCalled()
+  })
+
   it("rechaza una frecuencia manipulada antes de persistir", async () => {
     await expect(
       updateErpSyncSchedule({ enabled: true, intervalMinutes: 45 } as never)
     ).rejects.toThrow("frecuencia")
+
+    expect(mocks.saveErpSyncConfig).not.toHaveBeenCalled()
+  })
+
+  it("rechaza activar el automático cuando el adaptador no soporta catálogo", async () => {
+    mocks.supportsCatalogSync.mockReturnValue(false)
+
+    await expect(
+      updateErpSyncSchedule({ enabled: true, intervalMinutes: 60 })
+    ).rejects.toThrow("no ofrece sincronización de catálogo")
 
     expect(mocks.saveErpSyncConfig).not.toHaveBeenCalled()
   })

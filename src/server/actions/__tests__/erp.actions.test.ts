@@ -98,6 +98,23 @@ describe("saveErpSyncConfigAction", () => {
     })
   })
 
+  it("devuelve al panel la explicación cuando el ERP impide activar el automático", async () => {
+    mocks.requireAdmin.mockResolvedValue({ user: { userType: "admin" } })
+    mocks.updateErpSyncSchedule.mockRejectedValue(
+      new Error(
+        "El ERP configurado no ofrece sincronización de catálogo. Conecta un ERP compatible antes de activar la programación automática."
+      )
+    )
+
+    await expect(
+      saveErpSyncConfigAction({ enabled: true, intervalMinutes: 60 })
+    ).resolves.toEqual({
+      success: false,
+      error:
+        "El ERP configurado no ofrece sincronización de catálogo. Conecta un ERP compatible antes de activar la programación automática.",
+    })
+  })
+
   it("mantiene disponible la sincronización manual sin consultar la programación", async () => {
     mocks.requireAdmin.mockResolvedValue({ user: { userType: "admin" } })
     mocks.syncCatalogFromERP.mockResolvedValue({ success: true, processedCount: 2 })

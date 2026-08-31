@@ -202,6 +202,7 @@ esas condiciones para no sobrescribir una edición administrativa concurrente.
 - **ErpSyncConfig** → singleton persistente (`id=default`) con activación, intervalo permitido y próximo vencimiento.
 - El repositorio reclama un vencimiento con un `UPDATE ... WHERE nextRunAt <= now RETURNING` y adelanta `nextRunAt` antes de consultar el ERP. Así dos procesos no ejecutan el mismo vencimiento y no se mantiene una transacción durante llamadas HTTP.
 - Desactivar el automático pone `nextRunAt=null`; la sincronización manual permanece independiente.
+- La programación solo puede activarse cuando el `IERPAdapter` efectivo implementa `fetchCatalog`. Si una configuración heredada permanece activa con un adaptador incompatible —incluido el fallback nulo por credenciales ausentes— el scheduler la reconcilia a `enabled=false` y `nextRunAt=null` antes de reclamar el vencimiento. La operación compara el `updatedAt` observado y modifica únicamente esos dos campos: preserva el intervalo y no pisa una edición concurrente posterior; también limpia vencimientos residuales de configuraciones ya inactivas. Esos ticks se omiten con `catalog_sync_unavailable`, sin consultar el ERP ni generar fallos repetitivos.
 
 ## Decisiones Arquitectónicas Tomadas
 
