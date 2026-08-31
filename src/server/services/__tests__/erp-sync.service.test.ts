@@ -2,7 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 vi.mock("server-only", () => ({}))
 
-vi.mock("@/server/erp", () => ({ getERPAdapter: vi.fn() }))
+vi.mock("@/server/erp", () => ({
+  getERPAdapter: vi.fn(),
+  supportsCatalogSync: vi.fn(),
+}))
 vi.mock("@/server/db/prisma", () => ({ prisma: {} }))
 vi.mock("@/server/repositories/product-color.repository", () => ({
   findManyProductColors: vi.fn().mockResolvedValue([]),
@@ -33,7 +36,7 @@ vi.mock("@/server/services/erp-sync-scheduler.service", () => ({
   getErpSyncSchedule: vi.fn(),
 }))
 
-import { getERPAdapter } from "@/server/erp"
+import { getERPAdapter, supportsCatalogSync } from "@/server/erp"
 import { createErpSyncLog } from "@/server/repositories/erp-sync-log.repository"
 import { findRecentErpSyncLogs } from "@/server/repositories/erp-sync-log.repository"
 import { findDefaultImportCategory } from "@/server/repositories/erp-catalog.repository"
@@ -42,6 +45,7 @@ import { getErpSyncSchedule } from "@/server/services/erp-sync-scheduler.service
 import { getErpSyncStatus, runErpEndpointDiagnostics, syncCatalogFromERP } from "../erp-sync.service"
 
 const mockGetERPAdapter = vi.mocked(getERPAdapter)
+const mockSupportsCatalogSync = vi.mocked(supportsCatalogSync)
 const mockCreateErpSyncLog = vi.mocked(createErpSyncLog)
 const mockFindRecentErpSyncLogs = vi.mocked(findRecentErpSyncLogs)
 const mockFindDefaultImportCategory = vi.mocked(findDefaultImportCategory)
@@ -54,6 +58,7 @@ describe("syncCatalogFromERP", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     delete process.env.ERP_CATALOG_WRITES_ENABLED
+    mockSupportsCatalogSync.mockReturnValue(true)
     mockGetErpSyncSchedule.mockResolvedValue({
       enabled: true,
       intervalMinutes: 30,
@@ -77,6 +82,16 @@ describe("syncCatalogFromERP", () => {
       autoSyncMinutes: 120,
       nextAutoSyncAt: null,
     })
+  })
+
+  it("expone que el catálogo no está disponible según el adaptador efectivo", async () => {
+    mockGetERPAdapter.mockReturnValue({ ping: vi.fn().mockResolvedValue(false) } as never)
+    mockSupportsCatalogSync.mockReturnValue(false)
+    mockFindRecentErpSyncLogs.mockResolvedValue([])
+
+    const status = await getErpSyncStatus()
+
+    expect(status.catalogSyncAvailable).toBe(false)
   })
 
   it("bloquea escrituras cuando Loggro responde stock completo pero todo en cero", async () => {

@@ -17,11 +17,11 @@ export default async function IntegrationsPage() {
   const status = await getErpSyncStatus()
   return (
     <SyncPanel
-      key={erpSyncScheduleSnapshotKey({
+      key={`${erpSyncScheduleSnapshotKey({
         enabled: status.autoSyncEnabled,
         intervalMinutes: status.autoSyncMinutes,
         nextRunAt: status.nextAutoSyncAt,
-      })}
+      })}:${status.catalogSyncAvailable ? "catalog" : "no-catalog"}`}
       initialStatus={status}
     />
   )

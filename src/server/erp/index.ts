@@ -11,8 +11,10 @@ import "server-only"
  */
 
 export { getERPAdapter, resetERPAdapter } from "./erp.container"
+export { supportsCatalogSync } from "./erp-capabilities"
 export type { IERPAdapter } from "./ports/erp.port"
 export type {
+  ERPCatalogSyncResult,
   ERPCustomer,
   ERPInvoice,
   ERPOrderItem,

@@ -190,7 +190,29 @@ test.describe("Admin — auditoría E2E integral", () => {
 
     await expect(page.getByRole("heading", { name: "Programación automática", exact: true })).toBeVisible()
     await expect(page.getByRole("button", { name: "Probar endpoints", exact: true })).toBeVisible()
-    await expect(page.getByRole("button", { name: "Sincronizar catálogo", exact: true })).toBeVisible()
     await expect(page.getByRole("table")).toBeVisible()
+
+    const unavailableHeading = page.getByRole("heading", {
+      name: "Catálogo ERP no disponible",
+      exact: true,
+    })
+    const catalogUnavailable = (await unavailableHeading.count()) === 1
+
+    if (catalogUnavailable) {
+      await expect(unavailableHeading).toBeVisible()
+      await expect(page.getByText("El ERP no admite catálogo", { exact: true })).toBeVisible()
+      await expect(page.getByRole("switch", { name: "Activar sincronizaciones automáticas" })).toBeDisabled()
+      await expect(page.getByRole("combobox", { name: "Frecuencia" })).toBeDisabled()
+      await expect(page.getByRole("button", { name: "Guardar programación" })).toBeDisabled()
+      await expect(page.getByTestId("erp-next-run")).toContainText("No programada")
+      await expect(page.getByRole("button", { name: "Sincronización no disponible" })).toBeDisabled()
+      await expect(page.getByRole("button", { name: "Probar endpoints" })).toBeEnabled()
+    } else {
+      await expect(unavailableHeading).toHaveCount(0)
+      await expect(page.getByRole("switch", { name: "Activar sincronizaciones automáticas" })).toBeEnabled()
+      await expect(page.getByRole("combobox", { name: "Frecuencia" })).toBeEnabled()
+      await expect(page.getByRole("button", { name: "Guardar programación" })).toBeEnabled()
+      await expect(page.getByRole("button", { name: "Sincronizar catálogo" })).toBeEnabled()
+    }
   })
 })

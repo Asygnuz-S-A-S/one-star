@@ -46,6 +46,21 @@ export async function saveErpSyncConfig(
 }
 
 /**
+ * Reconcilia una programación incompatible sin reescribir su frecuencia.
+ * También limpia vencimientos residuales de configuraciones ya inactivas.
+ */
+export async function disableErpSyncSchedule(expectedUpdatedAt: Date): Promise<ErpSyncConfig> {
+  await prisma.erpSyncConfig.updateMany({
+    where: { id: ERP_SYNC_CONFIG_ID, updatedAt: expectedUpdatedAt },
+    data: { enabled: false, nextRunAt: null },
+  })
+
+  return prisma.erpSyncConfig.findUniqueOrThrow({
+    where: { id: ERP_SYNC_CONFIG_ID },
+  })
+}
+
+/**
  * Reclama y adelanta un vencimiento en una sola sentencia. La transacción
  * termina antes de cualquier llamada HTTP al ERP.
  */

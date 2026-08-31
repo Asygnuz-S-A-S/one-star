@@ -1,8 +1,13 @@
 import "server-only"
 
-import type { ERPCatalogSyncResult } from "@/server/erp/erp.types"
+import {
+  getERPAdapter,
+  supportsCatalogSync,
+  type ERPCatalogSyncResult,
+} from "@/server/erp"
 import {
   claimDueErpSync,
+  disableErpSyncSchedule,
   getOrCreateErpSyncConfig,
   saveErpSyncConfig,
 } from "@/server/repositories/erp-sync-config.repository"
@@ -20,7 +25,11 @@ export interface ErpSyncScheduleDTO {
 
 export type DueErpSyncResult =
   | { executed: false; reason: "disabled_or_not_due" }
+  | { executed: false; reason: "catalog_sync_unavailable" }
   | { executed: true; result: ERPCatalogSyncResult }
+
+export const CATALOG_SYNC_UNAVAILABLE_MESSAGE =
+  "El ERP configurado no ofrece sincronización de catálogo. Conecta un ERP compatible antes de activar la programación automática."
 
 function toDTO(config: {
   enabled: boolean
@@ -39,8 +48,24 @@ function toDTO(config: {
   }
 }
 
+function needsCapabilityReconciliation(config: {
+  enabled: boolean
+  nextRunAt: Date | null
+}): boolean {
+  return config.enabled || config.nextRunAt !== null
+}
+
 export async function getErpSyncSchedule(now = new Date()): Promise<ErpSyncScheduleDTO> {
-  return toDTO(await getOrCreateErpSyncConfig(now))
+  const config = await getOrCreateErpSyncConfig(now)
+
+  if (
+    !supportsCatalogSync(getERPAdapter()) &&
+    needsCapabilityReconciliation(config)
+  ) {
+    return toDTO(await disableErpSyncSchedule(config.updatedAt))
+  }
+
+  return toDTO(config)
 }
 
 export async function updateErpSyncSchedule(
@@ -48,6 +73,11 @@ export async function updateErpSyncSchedule(
   now = new Date()
 ): Promise<ErpSyncScheduleDTO> {
   const parsed = erpSyncConfigInputSchema.parse(input)
+
+  if (parsed.enabled && !supportsCatalogSync(getERPAdapter())) {
+    throw new Error(CATALOG_SYNC_UNAVAILABLE_MESSAGE)
+  }
+
   return toDTO(await saveErpSyncConfig(parsed, now))
 }
 
@@ -56,7 +86,15 @@ export async function updateErpSyncSchedule(
  * Solo quien obtiene el UPDATE atómico llama al ERP.
  */
 export async function runDueErpSync(now = new Date()): Promise<DueErpSyncResult> {
-  await getOrCreateErpSyncConfig(now)
+  const config = await getOrCreateErpSyncConfig(now)
+
+  if (!supportsCatalogSync(getERPAdapter())) {
+    if (needsCapabilityReconciliation(config)) {
+      await disableErpSyncSchedule(config.updatedAt)
+    }
+    return { executed: false, reason: "catalog_sync_unavailable" }
+  }
+
   const claimed = await claimDueErpSync(now)
 
   if (!claimed) {

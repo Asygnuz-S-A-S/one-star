@@ -147,11 +147,13 @@ export default function SyncPanel({ initialStatus }: SyncPanelProps) {
   const [result, setResult] = useState<SyncResult | null>(null)
   const [diagnostics, setDiagnostics] = useState<EndpointDiagnosticsState | null>(null)
   const [confirmedSchedule, setConfirmedSchedule] = useState<ErpSyncScheduleSnapshot>(() => ({
-    enabled: initialStatus.autoSyncEnabled,
+    enabled: initialStatus.catalogSyncAvailable && initialStatus.autoSyncEnabled,
     intervalMinutes: initialStatus.autoSyncMinutes,
     nextRunAt: initialStatus.nextAutoSyncAt,
   }))
-  const [scheduleEnabled, setScheduleEnabled] = useState(initialStatus.autoSyncEnabled)
+  const [scheduleEnabled, setScheduleEnabled] = useState(
+    initialStatus.catalogSyncAvailable && initialStatus.autoSyncEnabled
+  )
   const [scheduleInterval, setScheduleInterval] = useState<ErpSyncInterval>(
     initialStatus.autoSyncMinutes
   )
@@ -225,6 +227,7 @@ export default function SyncPanel({ initialStatus }: SyncPanelProps) {
       if (!response.success) {
         restoreConfirmedSchedule()
         setScheduleMessage({ success: false, text: response.error })
+        router.refresh()
         return
       }
 
@@ -295,7 +298,9 @@ export default function SyncPanel({ initialStatus }: SyncPanelProps) {
             </span>
           </div>
           <p className="mt-1 text-sm text-gray-500">
-            {confirmedSchedule.enabled
+            {!status.catalogSyncAvailable
+              ? "El ERP no admite catálogo"
+              : confirmedSchedule.enabled
               ? INTERVAL_LABELS[confirmedSchedule.intervalMinutes]
               : "Inactiva"}
           </p>
@@ -343,13 +348,30 @@ export default function SyncPanel({ initialStatus }: SyncPanelProps) {
         </section>
       )}
 
+      {!status.catalogSyncAvailable && (
+        <section
+          className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-950"
+          aria-labelledby="catalog-sync-unavailable"
+        >
+          <h2 id="catalog-sync-unavailable" className="text-lg font-semibold">
+            Catálogo ERP no disponible
+          </h2>
+          <p className="mt-2 max-w-3xl">
+            El ERP configurado no ofrece descarga de catálogo. Las sincronizaciones automáticas
+            están desactivadas y no pueden habilitarse hasta conectar un ERP compatible. Las
+            pruebas de endpoints continúan disponibles para diagnosticar la integración.
+          </p>
+        </section>
+      )}
+
       <section className="mt-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-xl">
             <h2 className="text-lg font-semibold text-[#1C1C1C]">Programación automática</h2>
             <p className="mt-1 text-sm text-gray-500">
-              Pausa las ejecuciones automáticas o decide cada cuánto deben comprobarse. La
-              sincronización manual seguirá disponible.
+              {status.catalogSyncAvailable
+                ? "Pausa las ejecuciones automáticas o decide cada cuánto deben comprobarse. La sincronización manual seguirá disponible."
+                : "La programación permanecerá inactiva mientras el ERP no permita descargar el catálogo."}
             </p>
 
             <label className="mt-5 flex cursor-pointer items-center gap-3 text-sm font-medium text-gray-800">
@@ -358,7 +380,10 @@ export default function SyncPanel({ initialStatus }: SyncPanelProps) {
                 role="switch"
                 checked={scheduleEnabled}
                 onChange={(event) => setScheduleEnabled(event.target.checked)}
-                disabled={scheduleSaving}
+                disabled={scheduleSaving || !status.catalogSyncAvailable}
+                aria-describedby={
+                  status.catalogSyncAvailable ? undefined : "catalog-sync-unavailable"
+                }
                 className="h-5 w-5 accent-[#1C1C1C]"
               />
               Activar sincronizaciones automáticas
@@ -371,7 +396,7 @@ export default function SyncPanel({ initialStatus }: SyncPanelProps) {
                 onChange={(event) =>
                   setScheduleInterval(Number(event.target.value) as ErpSyncInterval)
                 }
-                disabled={scheduleSaving}
+                disabled={scheduleSaving || !status.catalogSyncAvailable}
                 className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#1C1C1C] focus:outline-none focus:ring-2 focus:ring-[#1C1C1C]/20 disabled:cursor-not-allowed disabled:opacity-60 sm:w-64"
               >
                 {ERP_SYNC_INTERVALS.map((interval) => (
@@ -386,7 +411,12 @@ export default function SyncPanel({ initialStatus }: SyncPanelProps) {
           <button
             type="button"
             onClick={handleSaveSchedule}
-            disabled={scheduleSaving || syncLoading || diagnosticLoading}
+            disabled={
+              scheduleSaving ||
+              syncLoading ||
+              diagnosticLoading ||
+              !status.catalogSyncAvailable
+            }
             className="inline-flex shrink-0 items-center justify-center rounded-lg bg-[#1C1C1C] px-6 py-2.5 font-medium text-white transition-colors hover:bg-black focus:outline-none focus:ring-2 focus:ring-[#1C1C1C] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {scheduleSaving ? "Guardando…" : "Guardar programación"}
@@ -397,7 +427,7 @@ export default function SyncPanel({ initialStatus }: SyncPanelProps) {
           {scheduleDirty && (
             <p className="mb-2 font-medium text-amber-800">Hay cambios sin guardar.</p>
           )}
-          <p>
+          <p data-testid="erp-next-run">
             <span className="font-medium text-gray-800">Próxima ejecución:</span>{" "}
             {confirmedSchedule.enabled && confirmedSchedule.nextRunAt
               ? formatAbsolute(confirmedSchedule.nextRunAt)
@@ -472,17 +502,22 @@ export default function SyncPanel({ initialStatus }: SyncPanelProps) {
           <div>
             <h2 className="text-lg font-semibold text-[#1C1C1C]">Sincronizar ahora</h2>
             <p className="mt-1 max-w-xl text-sm text-gray-500">
-              Trae precios y stock desde el ERP. Los productos nuevos entran sin foto ni categoría;
-              las imágenes y descripciones que edites aquí se conservan.
+              {status.catalogSyncAvailable
+                ? "Trae precios y stock desde el ERP. Los productos nuevos entran sin foto ni categoría; las imágenes y descripciones que edites aquí se conservan."
+                : "Conecta un ERP con descarga de catálogo para traer precios, productos y stock."}
             </p>
           </div>
           <button
             type="button"
             onClick={handleSync}
-            disabled={syncLoading || diagnosticLoading}
+            disabled={syncLoading || diagnosticLoading || !status.catalogSyncAvailable}
             className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-[#1C1C1C] px-6 py-2.5 font-medium text-white transition-colors hover:bg-black focus:outline-none focus:ring-2 focus:ring-[#1C1C1C] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {syncLoading ? "Sincronizando…" : "Sincronizar catálogo"}
+            {syncLoading
+              ? "Sincronizando…"
+              : status.catalogSyncAvailable
+                ? "Sincronizar catálogo"
+                : "Sincronización no disponible"}
           </button>
         </div>
 
