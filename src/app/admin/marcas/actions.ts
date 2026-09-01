@@ -38,9 +38,14 @@ export async function updateBrandAction(id: string, formData: FormData): Promise
     await updateBrand(id, { name, logoUrl, isActive })
     revalidatePath("/admin/marcas")
     revalidatePath("/admin/productos")
+    revalidatePath("/")
     return { success: true, id }
-  } catch {
-    return { success: false, error: "Error al actualizar la marca." }
+  } catch (error) {
+    console.error("[updateBrandAction] Error:", error)
+    if (error instanceof Error && error.message.includes("Unique constraint")) {
+      return { success: false, error: "Ya existe una marca con ese nombre o slug." }
+    }
+    return { success: false, error: error instanceof Error ? error.message : "Error al actualizar la marca." }
   }
 }
 

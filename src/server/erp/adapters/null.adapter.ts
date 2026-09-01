@@ -34,14 +34,17 @@ export class NullERPAdapter implements IERPAdapter {
   }
 
   async getStockBySku(_sku: string): Promise<number | null> {
+    void _sku
     return null
   }
 
   async getBulkStock(_skus: string[]): Promise<ERPStockItem[]> {
+    void _skus
     return []
   }
 
   async upsertCustomer(_customer: ERPCustomer): Promise<ERPSyncResult> {
+    void _customer
     return { success: true }
   }
 

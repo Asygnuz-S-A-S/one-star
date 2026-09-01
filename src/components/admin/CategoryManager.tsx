@@ -5,7 +5,7 @@ import type { Category } from "@prisma/client"
 import { createCategoryAction, updateCategoryAction, deleteCategoryAction } from "@/server/actions/category.actions"
 
 export default function CategoryManager({ initialCategories }: { initialCategories: Category[] }) {
-  const [categories, setCategories] = useState(initialCategories)
+  const categories = initialCategories
   const [isEditing, setIsEditing] = useState<string | null>(null)
   
   // Form state

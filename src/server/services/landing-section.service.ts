@@ -28,7 +28,43 @@ export async function updateLandingSectionConfig(id: string, config: Prisma.Inpu
 export async function createLandingSection(type: string) {
   const validType = LandingSectionTypeSchema.parse(type)
   const position = (await repository.getMaximumLandingSectionPosition()) + 1
-  return repository.createLandingSection({ type: validType, position, isActive: true })
+
+  let defaultConfig: Prisma.InputJsonObject = {}
+  if (validType === "MEDIA_CAROUSEL") {
+    defaultConfig = {
+      title: "PROMOS Y NOVEDADES",
+      subtitle: "Descubre las últimas tendencias y colecciones exclusivas",
+      layout: "full-width",
+      height: "medium",
+      animation: "slide",
+      autoplay: true,
+      autoplayInterval: 6,
+      showArrows: true,
+      showDots: true,
+      items: [
+        {
+          id: "slide-" + Date.now(),
+          mediaType: "image",
+          imageUrl: "https://images.unsplash.com/photo-1552346154-21d32810aba3?q=80&w=1920&auto=format&fit=crop",
+          badge: "NUEVA TEMPORADA",
+          title: "ESTILO URBANO SIN LÍMITES",
+          subtitle: "Descubre los últimos lanzamientos diseñados para destacar.",
+          ctaText: "VER COLECCIÓN",
+          ctaLink: "/productos",
+          contentPosition: "bottom-left",
+          overlayOpacity: 45,
+          textColor: "light",
+        },
+      ],
+    }
+  }
+
+  return repository.createLandingSection({
+    type: validType,
+    position,
+    isActive: true,
+    config: defaultConfig,
+  })
 }
 
 export async function deleteLandingSection(id: string) {

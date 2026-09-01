@@ -51,7 +51,6 @@ export async function createCoupon(
     return { success: true }
   } catch (error: unknown) {
     if (process.env.NODE_ENV === "development") {
-      // eslint-disable-next-line no-console
       console.error("[createCoupon]", error instanceof Error ? error.message : error)
     }
     return { success: false, error: "Error al crear el cupón." }
@@ -69,7 +68,6 @@ export async function toggleCouponActive(
     return { success: true }
   } catch (error: unknown) {
     if (process.env.NODE_ENV === "development") {
-      // eslint-disable-next-line no-console
       console.error("[toggleCouponActive]", error instanceof Error ? error.message : error)
     }
     return { success: false, error: "Error al cambiar el estado." }

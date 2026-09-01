@@ -34,10 +34,26 @@ export async function POST(request: NextRequest) {
 
     const result = await storage.uploadImage(base64, { folder: "one-star/productos" })
 
+    // Registrar en MediaAsset para biblioteca centralizada
+    const fileType = file.type.startsWith("video/") ? "video" : "image"
+    try {
+      const { createMediaAsset } = await import("@/server/services/media-asset.service")
+      await createMediaAsset({
+        url: result.url,
+        publicId: result.publicId,
+        fileName: file.name || (fileType === "video" ? "video.mp4" : "imagen.jpg"),
+        fileType,
+        mimeType: file.type,
+        fileSize: file.size,
+        folder: "productos",
+      })
+    } catch (saveErr) {
+      console.warn("[api/upload] No se pudo registrar en MediaAsset:", saveErr)
+    }
+
     return NextResponse.json({ url: result.url, publicId: result.publicId })
   } catch (error: unknown) {
     if (process.env.NODE_ENV === "development") {
-      // eslint-disable-next-line no-console
       console.error("[api/upload]", error)
     }
     

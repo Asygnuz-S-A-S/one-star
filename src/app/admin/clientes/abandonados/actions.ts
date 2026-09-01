@@ -14,7 +14,6 @@ export async function markCartRecovered(
     return { success: true }
   } catch (error: unknown) {
     if (process.env.NODE_ENV === "development") {
-      // eslint-disable-next-line no-console
       console.error("[markCartRecovered]", error instanceof Error ? error.message : error)
     }
     return { success: false, error: "No se pudo marcar como recuperado." }

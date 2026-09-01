@@ -18,7 +18,6 @@ export async function updateOrderStatus(
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Error desconocido"
     if (process.env.NODE_ENV === "development") {
-      // eslint-disable-next-line no-console
       console.error("[updateOrderStatus]", message)
     }
     return { success: false, error: "No se pudo actualizar el pedido." }

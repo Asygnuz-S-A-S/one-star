@@ -3,6 +3,7 @@
 import React, { useState, useTransition } from "react"
 import type { BrandDTO } from "@/server/services/brand.service"
 import { createBrandAction, updateBrandAction, deleteBrandAction } from "@/app/admin/marcas/actions"
+import MediaLibraryModal from "./MediaLibraryModal"
 
 function slugify(text: string) {
   return text.toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim()
@@ -20,6 +21,7 @@ export default function BrandManager({ brands: initialBrands }: { brands: BrandD
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState("")
   const [uploadingLogo, setUploadingLogo] = useState(false)
+  const [showMediaModal, setShowMediaModal] = useState(false)
 
   const resetForm = () => {
     setName(""); setLogoUrl(""); setIsActive(true); setError("")
@@ -131,23 +133,58 @@ export default function BrandManager({ brands: initialBrands }: { brands: BrandD
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-[#1C1C1C] mb-1">Logo</label>
-            {logoUrl && (
-              <div className="mb-2 flex items-center gap-3">
-                <img src={logoUrl} alt="Logo" className="h-12 object-contain border rounded p-1" />
-                <button type="button" onClick={() => setLogoUrl("")} className="text-xs text-red-500 hover:underline">
-                  Quitar
-                </button>
+            <label className="block text-sm font-medium text-[#1C1C1C] mb-1">Logo de Marca</label>
+            {logoUrl ? (
+              <div className="mb-3 p-3 bg-gray-50 border border-gray-200 rounded-xl flex items-center gap-4">
+                <div className="w-16 h-12 bg-white border border-gray-200 rounded-lg p-1 flex items-center justify-center overflow-hidden">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={logoUrl} alt="Logo" className="max-h-full max-w-full object-contain" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowMediaModal(true)}
+                    className="px-3 py-1.5 bg-white border border-gray-300 hover:bg-gray-100 text-xs font-bold text-[#1C1C1C] rounded-lg transition-colors"
+                  >
+                    Cambiar desde Biblioteca
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLogoUrl("")}
+                    className="px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  >
+                    Quitar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowMediaModal(true)}
+                    className="px-4 py-2 bg-[#1C1C1C] text-white hover:bg-gray-800 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-colors shadow-sm"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    Elegir de Biblioteca de Medios
+                  </button>
+                  <span className="text-xs text-gray-400 font-bold uppercase">o</span>
+                  <label className="px-3 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors">
+                    <span>Subir archivo</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleLogoUpload}
+                      disabled={uploadingLogo}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+                {uploadingLogo && <p className="text-xs text-gray-400">Subiendo logo…</p>}
               </div>
             )}
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleLogoUpload}
-              disabled={uploadingLogo}
-              className="text-sm text-[#4A4A4A] file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:font-medium file:bg-gray-100 file:text-[#1C1C1C] hover:file:bg-gray-200 cursor-pointer"
-            />
-            {uploadingLogo && <p className="text-xs text-gray-400 mt-1">Subiendo logo…</p>}
           </div>
           <div className="flex items-center gap-2">
             <input
@@ -202,6 +239,7 @@ export default function BrandManager({ brands: initialBrands }: { brands: BrandD
                 <tr key={brand.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3">
                     {brand.logoUrl ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
                       <img src={brand.logoUrl} alt={brand.name} className="h-8 w-16 object-contain" />
                     ) : (
                       <div className="h-8 w-16 bg-gray-100 rounded flex items-center justify-center">
@@ -238,6 +276,17 @@ export default function BrandManager({ brands: initialBrands }: { brands: BrandD
           </table>
         )}
       </div>
+
+      {/* Media Library Modal */}
+      <MediaLibraryModal
+        isOpen={showMediaModal}
+        onClose={() => setShowMediaModal(false)}
+        acceptedType="image"
+        title="Seleccionar Logo de Marca"
+        onSelect={(media) => {
+          setLogoUrl(media.url)
+        }}
+      />
     </div>
   )
 }

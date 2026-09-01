@@ -42,8 +42,9 @@ export function useToast(): UseToastReturn {
   )
 
   useEffect(() => {
+    const currentTimers = timers.current
     return () => {
-      timers.current.forEach((timer) => clearTimeout(timer))
+      currentTimers.forEach((timer) => clearTimeout(timer))
     }
   }, [])
 
