@@ -43,6 +43,7 @@ export function DataTable<TData>({
     center: "text-center",
   }
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data,
     columns,

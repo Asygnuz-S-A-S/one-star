@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useRef } from "react"
+import React, { useState, useRef } from "react"
 import { getMediaAssetsAction, deleteMediaAssetAction, syncMediaAssetsAction } from "@/server/actions/media-asset.actions"
 import type { MediaAssetDTO } from "@/server/services/media-asset.service"
 
@@ -313,6 +313,7 @@ export default function MediaFileManager({ initialAssets }: { initialAssets: Med
                       </div>
                     </div>
                   ) : (
+                    /* eslint-disable-next-line @next/next/no-img-element */
                     <img
                       src={asset.url}
                       alt={asset.fileName}

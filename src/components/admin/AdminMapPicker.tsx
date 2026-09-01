@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useState } from "react"
+import React, { useEffect } from "react"
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet"
 import "leaflet/dist/leaflet.css"
 import L from "leaflet"
@@ -31,7 +31,7 @@ function LocationMarker({ position, onChange }: MapPickerProps) {
     if (position) {
       map.flyTo(position, 15) // Zoom in a bit when searching
     }
-  }, [map, position?.lat, position?.lng])
+  }, [map, position])
 
   return position === null ? null : (
     <Marker position={position} icon={customIcon} />

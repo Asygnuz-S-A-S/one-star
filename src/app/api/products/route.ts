@@ -23,7 +23,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(products);
   } catch (error: unknown) {
     if (process.env.NODE_ENV === "development") {
-      // eslint-disable-next-line no-console
       console.error("[GET /api/products]", error);
     }
     return NextResponse.json(

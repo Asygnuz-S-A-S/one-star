@@ -137,6 +137,7 @@ export default function BrandManager({ brands: initialBrands }: { brands: BrandD
             {logoUrl ? (
               <div className="mb-3 p-3 bg-gray-50 border border-gray-200 rounded-xl flex items-center gap-4">
                 <div className="w-16 h-12 bg-white border border-gray-200 rounded-lg p-1 flex items-center justify-center overflow-hidden">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={logoUrl} alt="Logo" className="max-h-full max-w-full object-contain" />
                 </div>
                 <div className="flex items-center gap-2">
@@ -238,6 +239,7 @@ export default function BrandManager({ brands: initialBrands }: { brands: BrandD
                 <tr key={brand.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3">
                     {brand.logoUrl ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
                       <img src={brand.logoUrl} alt={brand.name} className="h-8 w-16 object-contain" />
                     ) : (
                       <div className="h-8 w-16 bg-gray-100 rounded flex items-center justify-center">

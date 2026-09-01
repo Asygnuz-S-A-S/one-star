@@ -2,7 +2,6 @@
 
 import React, { useState } from "react"
 import { motion } from "motion/react"
-import Image from "next/image"
 import Link from "next/link"
 
 export interface BrandItem {
@@ -109,6 +108,7 @@ export default function BrandStrip({
                 {showLogo && brand.logoUrl ? (
                   <div className={`relative ${logoHeightConfig.container} w-auto min-w-[60px] max-w-[140px] flex items-center justify-center`}>
                     {/* Contenedor del Logo */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={brand.logoUrl}
                       alt={`Logo de ${brand.name}`}

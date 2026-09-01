@@ -54,7 +54,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ url: result.url, publicId: result.publicId })
   } catch (error: unknown) {
     if (process.env.NODE_ENV === "development") {
-      // eslint-disable-next-line no-console
       console.error("[api/upload]", error)
     }
     

@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache"
 import { requireAdmin } from "@/server/auth/require-admin"
 import {
   getMediaAssets,
-  createMediaAsset,
   deleteMediaAsset,
   autoSyncExistingAssets,
   type MediaAssetDTO,

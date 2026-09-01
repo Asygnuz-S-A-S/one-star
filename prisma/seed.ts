@@ -6,7 +6,7 @@ async function main() {
   console.log("Iniciando seed...");
 
   // ── Categorías ─────────────────────────────────────────────────────────────
-  const [lanzamientos, hombre, mujer, ninos, accesorios] = await Promise.all([
+  const [, hombre, mujer] = await Promise.all([
     prisma.category.upsert({
       where: { slug: "lanzamientos" },
       update: {},

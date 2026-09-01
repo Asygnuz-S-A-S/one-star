@@ -1,7 +1,6 @@
 "use client"
 
 import React, { useState, useEffect, useRef } from "react"
-import Image from "next/image"
 import { getMediaAssetsAction, deleteMediaAssetAction, syncMediaAssetsAction } from "@/server/actions/media-asset.actions"
 import type { MediaAssetDTO } from "@/server/services/media-asset.service"
 
@@ -56,10 +55,36 @@ export default function MediaLibraryModal({
   }
 
   useEffect(() => {
+    let isCancelled = false
     if (isOpen) {
-      loadAssets(filterType, search)
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setLoading(true)
+      setError("")
+      getMediaAssetsAction({
+        fileType: filterType === "all" ? undefined : filterType,
+        search,
+        limit: 100,
+      })
+        .then((res) => {
+          if (isCancelled) return
+          if (res.success && res.data) {
+            setAssets(res.data.items)
+            setTotal(res.data.total)
+          } else {
+            setError(res.error || "No se pudieron cargar los archivos.")
+          }
+        })
+        .catch(() => {
+          if (!isCancelled) setError("Error de conexión al cargar la biblioteca.")
+        })
+        .finally(() => {
+          if (!isCancelled) setLoading(false)
+        })
     }
-  }, [isOpen, filterType])
+    return () => {
+      isCancelled = true
+    }
+  }, [isOpen, filterType, search])
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -324,6 +349,7 @@ export default function MediaLibraryModal({
                               </div>
                             </div>
                           ) : (
+                            /* eslint-disable-next-line @next/next/no-img-element */
                             <img
                               src={asset.url}
                               alt={asset.fileName}
