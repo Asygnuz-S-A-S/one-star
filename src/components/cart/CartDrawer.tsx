@@ -203,7 +203,9 @@ export default function CartDrawer() {
                             <p className="font-montserrat text-xs text-[#4A4A4A]">{item.brand}</p>
                           )}
                           <p className="font-montserrat text-xs text-[#4A4A4A]">
-                            Talla: {item.size} · Color: {item.color}
+                            {item.kind === "gift_card"
+                              ? "Entrega digital · Vigencia de 12 meses"
+                              : `Talla: ${item.size} · Color: ${item.color}`}
                           </p>
 
                           <div className="flex items-center justify-between mt-auto pt-1">

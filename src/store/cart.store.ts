@@ -4,6 +4,7 @@ import { persist, createJSONStorage } from "zustand/middleware"
 export interface CartItem {
   id: string
   productId: string
+  kind?: "product" | "gift_card"
   slug: string
   name: string
   brand: string | null
