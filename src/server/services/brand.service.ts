@@ -59,7 +59,14 @@ export async function updateBrand(
   id: string,
   input: { name?: string; slug?: string; logoUrl?: string | null; isActive?: boolean }
 ): Promise<BrandDTO> {
-  const brand = await updateBrandRecord(id, input)
+  const slug = input.name ? slugify(input.name) : input.slug
+  const dataToUpdate: Record<string, unknown> = {}
+  if (input.name !== undefined) dataToUpdate.name = input.name
+  if (slug !== undefined) dataToUpdate.slug = slug
+  if (input.logoUrl !== undefined) dataToUpdate.logoUrl = input.logoUrl
+  if (input.isActive !== undefined) dataToUpdate.isActive = input.isActive
+
+  const brand = await updateBrandRecord(id, dataToUpdate)
   return mapToDTO(brand)
 }
 

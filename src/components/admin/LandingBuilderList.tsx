@@ -10,6 +10,7 @@ import Image from "next/image"
 import BannerForm from "@/components/admin/BannerForm"
 import HomeGridClient from "@/components/admin/HomeGridClient"
 import LogoManager from "@/components/admin/LogoManager"
+import MediaLibraryModal from "@/components/admin/MediaLibraryModal"
 
 const Editor = dynamic(() => import("@monaco-editor/react"), { ssr: false })
 import { LandingSection, LandingSectionType, TopBanner, NavigationItem, StoreLogo, HomeGridBlock } from "@prisma/client"
@@ -72,6 +73,7 @@ const SECTION_LABELS: Record<string, string> = {
   NEWSLETTER: "Suscripción al Newsletter",
   CUSTOM_HTML: "Código Libre HTML/CSS",
   PRODUCT_CAROUSEL: "Carrusel de Productos Personalizado",
+  MEDIA_CAROUSEL: "Carrusel Multimedia / Promos (Imagen/Video)",
 }
 
 export default function LandingBuilderList({ actions, initialSections, initialGlobals, initialBanners, initialGridBlocks = [], categories, unavailableAreas = [], onRefresh }: LandingBuilderListProps) {
@@ -211,6 +213,13 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
   // Config form state
   const [configInput, setConfigInput] = useState<Record<string, any>>({})
 
+  // Media Library Picker state
+  const [mediaPickerTarget, setMediaPickerTarget] = useState<{
+    onSelect: (url: string, fileType: string) => void
+    acceptedType?: "all" | "image" | "video"
+    title?: string
+  } | null>(null)
+
   // Add block state
   const [isAddingBlock, setIsAddingBlock] = useState(false)
 
@@ -223,13 +232,23 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
 
   const handleAddBlock = async (type: LandingSectionType) => {
     setIsSaving(true)
-    setIsAddingBlock(false)
-    const res = await createLandingSectionAction(type)
-    if (res.success && res.newSection) {
-      setSections([...sections, res.newSection])
+    try {
+      const res = await createLandingSectionAction(type)
+      if (res.success && res.newSection) {
+        setSections([...sections, res.newSection])
+        setIsAddingBlock(false)
+        startEditingConfig(res.newSection)
+      } else {
+        alert("No se pudo crear la sección: " + (res?.error || "Error desconocido"))
+        setIsAddingBlock(false)
+      }
+    } catch (err: unknown) {
+      alert("Error al crear la sección: " + (err instanceof Error ? err.message : "desconocido"))
+      setIsAddingBlock(false)
+    } finally {
+      setIsSaving(false)
+      triggerRefresh()
     }
-    setIsSaving(false)
-    triggerRefresh()
   }
 
   const handleDeleteBlock = async (id: string) => {
@@ -623,6 +642,20 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
             </div>
           </motion.div>
         </motion.div>
+      )}
+
+      {/* Media Library Selector Modal */}
+      {mediaPickerTarget && (
+        <MediaLibraryModal
+          isOpen={true}
+          onClose={() => setMediaPickerTarget(null)}
+          acceptedType={mediaPickerTarget.acceptedType || "all"}
+          title={mediaPickerTarget.title || "Biblioteca de Medios"}
+          onSelect={(media) => {
+            mediaPickerTarget.onSelect(media.url, media.fileType)
+            setMediaPickerTarget(null)
+          }}
+        />
       )}
     </AnimatePresence>
   )
@@ -1641,16 +1674,107 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
           )}
 
           {editingSection.type === "BRAND_STRIP" && (
-            <>
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wider">Separador</label>
-                <input
-                  type="text"
-                  value={configInput.separator || "·"}
-                  onChange={(e) => setConfigInput({...configInput, separator: e.target.value})}
-                  className="w-full p-2 border border-gray-300 rounded text-sm focus:ring-[#1C1C1C] focus:border-[#1C1C1C]"
-                  placeholder="Ej: ·, -, o |"
-                />
+            <div className="space-y-4">
+              <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-lg text-xs text-blue-900 flex items-start gap-2">
+                <svg className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <p className="font-semibold">Gestionar Logos de Marcas</p>
+                  <p className="mt-0.5 text-blue-700">
+                    Puedes subir o cambiar el logo oficial de cada marca en el módulo{" "}
+                    <a href="/admin/marcas" target="_blank" className="font-bold underline hover:text-blue-900">
+                      Administrar Marcas
+                    </a>.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wider">Modo de Visualización</label>
+                  <select
+                    value={configInput.displayMode || "auto"}
+                    onChange={(e) => setConfigInput({...configInput, displayMode: e.target.value})}
+                    className="w-full p-2 border border-gray-300 rounded text-sm bg-white"
+                  >
+                    <option value="auto">Logos con fallback a Texto</option>
+                    <option value="logoOnly">Solo Logos con Imagen</option>
+                    <option value="textOnly">Solo Texto de Marca</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wider">Tamaño de Logos</label>
+                  <select
+                    value={configInput.logoSize || "md"}
+                    onChange={(e) => setConfigInput({...configInput, logoSize: e.target.value})}
+                    className="w-full p-2 border border-gray-300 rounded text-sm bg-white"
+                  >
+                    <option value="xs">Extra Pequeño (28px)</option>
+                    <option value="sm">Pequeño (36px)</option>
+                    <option value="md">Mediano (48px) — default</option>
+                    <option value="lg">Grande (64px)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wider">Velocidad del Carrusel</label>
+                  <select
+                    value={configInput.speed || 24}
+                    onChange={(e) => setConfigInput({...configInput, speed: Number(e.target.value)})}
+                    className="w-full p-2 border border-gray-300 rounded text-sm bg-white"
+                  >
+                    <option value={15}>Rápido (15s)</option>
+                    <option value={24}>Normal (24s) — default</option>
+                    <option value={35}>Suave / Lento (35s)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wider">Separador</label>
+                  <input
+                    type="text"
+                    value={configInput.separator !== undefined ? configInput.separator : "·"}
+                    onChange={(e) => setConfigInput({...configInput, separator: e.target.value})}
+                    className="w-full p-2 border border-gray-300 rounded text-sm bg-white"
+                    placeholder="Ej: ·, -, o |"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2 pt-1 border-t border-gray-100">
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={configInput.grayscale !== false}
+                    onChange={(e) => setConfigInput({...configInput, grayscale: e.target.checked})}
+                    className="rounded text-[#1C1C1C] focus:ring-[#1C1C1C]"
+                  />
+                  <span>Escala de Grises Elegante (Color al pasar el cursor)</span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={configInput.pauseOnHover !== false}
+                    onChange={(e) => setConfigInput({...configInput, pauseOnHover: e.target.checked})}
+                    className="rounded text-[#1C1C1C] focus:ring-[#1C1C1C]"
+                  />
+                  <span>Pausar movimiento al pasar el cursor</span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={configInput.linkToBrand !== false}
+                    onChange={(e) => setConfigInput({...configInput, linkToBrand: e.target.checked})}
+                    className="rounded text-[#1C1C1C] focus:ring-[#1C1C1C]"
+                  />
+                  <span>Clickeable (Lleva a los productos de la marca)</span>
+                </label>
               </div>
 
               <div>
@@ -1702,22 +1826,7 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
                   />
                 </div>
               </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wider">Tamaño de Texto</label>
-                <select
-                  value={configInput.fontSize || "sm"}
-                  onChange={(e) => setConfigInput({...configInput, fontSize: e.target.value})}
-                  className="w-full p-2 border border-gray-300 rounded text-sm focus:ring-[#1C1C1C] focus:border-[#1C1C1C]"
-                >
-                  <option value="xs">Extra Pequeño (xs)</option>
-                  <option value="sm">Pequeño (sm) — default</option>
-                  <option value="base">Normal (base)</option>
-                  <option value="lg">Grande (lg)</option>
-                  <option value="xl">Extra Grande (xl)</option>
-                </select>
-              </div>
-            </>
+            </div>
           )}
 
           {["CATEGORY_GRID", "FEATURED_PRODUCTS", "NEW_ARRIVALS", "NEWSLETTER", "PRODUCT_CAROUSEL"].includes(editingSection.type) && (
@@ -1865,6 +1974,562 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
                 </div>
               </div>
             </>
+          )}
+
+          {editingSection.type === "MEDIA_CAROUSEL" && (
+            <div className="space-y-6">
+              {/* Ajustes Generales del Carrusel */}
+              <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg space-y-4">
+                <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Ajustes del Carrusel</h4>
+                
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wider">Subtítulo de Sección (Opcional)</label>
+                  <input
+                    type="text"
+                    value={configInput.subtitle || ""}
+                    onChange={(e) => setConfigInput({...configInput, subtitle: e.target.value})}
+                    className="w-full p-2 border border-gray-300 rounded text-sm bg-white"
+                    placeholder="Ej: Lo mejor del streetwear para esta temporada"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wider">Diseño / Layout</label>
+                    <select
+                      value={configInput.layout || "full-width"}
+                      onChange={(e) => setConfigInput({...configInput, layout: e.target.value})}
+                      className="w-full p-2 border border-gray-300 rounded text-sm bg-white"
+                    >
+                      <option value="full-width">Ancho Completo (Full Width)</option>
+                      <option value="container">Contenedor Centrado</option>
+                      <option value="card">Tarjeta Flotante Redondeada</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wider">Altura del Banner</label>
+                    <select
+                      value={configInput.height || "medium"}
+                      onChange={(e) => setConfigInput({...configInput, height: e.target.value})}
+                      className="w-full p-2 border border-gray-300 rounded text-sm bg-white"
+                    >
+                      <option value="small">Pequeño (340px - 400px)</option>
+                      <option value="medium">Mediano (440px - 540px)</option>
+                      <option value="large">Grande (550px - 700px)</option>
+                      <option value="screen">Pantalla Completa (90vh)</option>
+                      <option value="auto">Proporción Panorámica (16:9 / 21:9)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wider">Separación Superior (Margen)</label>
+                    <select
+                      value={configInput.marginTop || "md"}
+                      onChange={(e) => setConfigInput({...configInput, marginTop: e.target.value})}
+                      className="w-full p-2 border border-gray-300 rounded text-sm bg-white"
+                    >
+                      <option value="none">Sin separación (0px)</option>
+                      <option value="sm">Pequeña (16px - 24px)</option>
+                      <option value="md">Mediana (32px - 48px) — default</option>
+                      <option value="lg">Grande (48px - 64px)</option>
+                      <option value="xl">Extra Grande (64px - 96px)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wider">Separación Inferior (Margen)</label>
+                    <select
+                      value={configInput.marginBottom || "none"}
+                      onChange={(e) => setConfigInput({...configInput, marginBottom: e.target.value})}
+                      className="w-full p-2 border border-gray-300 rounded text-sm bg-white"
+                    >
+                      <option value="none">Sin separación (0px) — Seguido a la siguiente sección</option>
+                      <option value="sm">Pequeña (16px - 24px)</option>
+                      <option value="md">Mediana (32px - 48px)</option>
+                      <option value="lg">Grande (48px - 64px)</option>
+                      <option value="xl">Extra Grande (64px - 96px)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wider">Tipo de Transición</label>
+                    <select
+                      value={configInput.animation || "slide"}
+                      onChange={(e) => setConfigInput({...configInput, animation: e.target.value})}
+                      className="w-full p-2 border border-gray-300 rounded text-sm bg-white"
+                    >
+                      <option value="slide">Deslizamiento (Slide)</option>
+                      <option value="fade">Desvanecimiento (Fade)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wider">Intervalo Autoplay (Segs)</label>
+                    <input
+                      type="number"
+                      min="2"
+                      max="20"
+                      value={configInput.autoplayInterval || 6}
+                      onChange={(e) => setConfigInput({...configInput, autoplayInterval: parseInt(e.target.value) || 6})}
+                      className="w-full p-2 border border-gray-300 rounded text-sm bg-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-4 pt-2">
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={configInput.autoplay ?? true}
+                      onChange={(e) => setConfigInput({...configInput, autoplay: e.target.checked})}
+                      className="rounded border-gray-300 text-[#1C1C1C] focus:ring-[#1C1C1C]"
+                    />
+                    <span>Autoplay Activado</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={configInput.showArrows ?? true}
+                      onChange={(e) => setConfigInput({...configInput, showArrows: e.target.checked})}
+                      className="rounded border-gray-300 text-[#1C1C1C] focus:ring-[#1C1C1C]"
+                    />
+                    <span>Flechas Laterales</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={configInput.showDots ?? true}
+                      onChange={(e) => setConfigInput({...configInput, showDots: e.target.checked})}
+                      className="rounded border-gray-300 text-[#1C1C1C] focus:ring-[#1C1C1C]"
+                    />
+                    <span>Puntos de Navegación</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Gestor de Diapositivas / Slides */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">
+                    Diapositivas ({Array.isArray(configInput.items) ? configInput.items.length : 0})
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const currentItems = Array.isArray(configInput.items) ? configInput.items : []
+                      const newSlide = {
+                        id: "slide-" + Date.now(),
+                        mediaType: "image",
+                        imageUrl: "https://images.unsplash.com/photo-1552346154-21d32810aba3?q=80&w=1920&auto=format&fit=crop",
+                        badge: "NUEVA TEMPORADA",
+                        title: "ESTILO URBANO SIN LÍMITES",
+                        subtitle: "Descubre los últimos lanzamientos diseñados para destacar.",
+                        ctaText: "VER COLECCIÓN",
+                        ctaLink: "/productos",
+                        contentPosition: "bottom-left",
+                        overlayOpacity: 45,
+                        textColor: "light",
+                      }
+                      setConfigInput({...configInput, items: [...currentItems, newSlide]})
+                    }}
+                    className="px-3 py-1.5 bg-[#1C1C1C] text-white rounded text-xs font-bold uppercase hover:bg-gray-800 transition-colors shadow-sm"
+                  >
+                    + Añadir Diapositiva
+                  </button>
+                </div>
+
+                {(!Array.isArray(configInput.items) || configInput.items.length === 0) && (
+                  <div className="p-6 text-center border-2 border-dashed border-gray-200 rounded-lg bg-gray-50">
+                    <p className="text-xs text-gray-500 font-medium">Aún no has agregado diapositivas a este carrusel.</p>
+                    <p className="text-[11px] text-gray-400 mt-1">Si agregas 1 diapositiva, funcionará como banner/promo destacado; si agregas 2 o más, se convertirá en un carrusel dinámico.</p>
+                  </div>
+                )}
+
+                {Array.isArray(configInput.items) && configInput.items.map((slide: any, sIdx: number) => (
+                  <div key={slide.id || sIdx} className="p-4 border border-gray-200 rounded-lg bg-white shadow-sm space-y-4">
+                    {/* Header de la Diapositiva */}
+                    <div className="flex items-center justify-between border-b pb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="w-5 h-5 rounded-full bg-[#1C1C1C] text-white text-[10px] font-bold flex items-center justify-center">
+                          {sIdx + 1}
+                        </span>
+                        <span className="text-xs font-bold text-gray-800 uppercase tracking-wide">
+                          {slide.title || slide.badge || `Slide #${sIdx + 1}`}
+                        </span>
+                        <span className="text-[10px] px-2 py-0.5 rounded bg-gray-100 font-mono text-gray-600">
+                          {slide.mediaType === "video" ? "🎥 Video" : "🖼️ Imagen"}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        {sIdx > 0 && (
+                          <button
+                            type="button"
+                            title="Subir posición"
+                            onClick={() => {
+                              const items = [...configInput.items]
+                              const [moved] = items.splice(sIdx, 1)
+                              items.splice(sIdx - 1, 0, moved)
+                              setConfigInput({...configInput, items})
+                            }}
+                            className="p-1 text-gray-500 hover:text-black hover:bg-gray-100 rounded text-xs"
+                          >
+                            ▲
+                          </button>
+                        )}
+                        {sIdx < configInput.items.length - 1 && (
+                          <button
+                            type="button"
+                            title="Bajar posición"
+                            onClick={() => {
+                              const items = [...configInput.items]
+                              const [moved] = items.splice(sIdx, 1)
+                              items.splice(sIdx + 1, 0, moved)
+                              setConfigInput({...configInput, items})
+                            }}
+                            className="p-1 text-gray-500 hover:text-black hover:bg-gray-100 rounded text-xs"
+                          >
+                            ▼
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          title="Eliminar diapositiva"
+                          onClick={() => {
+                            const items = configInput.items.filter((_: any, i: number) => i !== sIdx)
+                            setConfigInput({...configInput, items})
+                          }}
+                          className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded text-xs ml-1"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Selector de Tipo de Medio */}
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-600 mb-1 uppercase tracking-wider">Tipo de Multimedia</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const items = [...configInput.items]
+                            items[sIdx] = { ...items[sIdx], mediaType: "image" }
+                            setConfigInput({...configInput, items})
+                          }}
+                          className={`p-2 rounded text-xs font-bold uppercase transition-colors border ${
+                            (slide.mediaType || "image") === "image"
+                              ? "bg-[#1C1C1C] text-white border-[#1C1C1C]"
+                              : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"
+                          }`}
+                        >
+                          🖼️ Imagen
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const items = [...configInput.items]
+                            items[sIdx] = { ...items[sIdx], mediaType: "video" }
+                            setConfigInput({...configInput, items})
+                          }}
+                          className={`p-2 rounded text-xs font-bold uppercase transition-colors border ${
+                            slide.mediaType === "video"
+                              ? "bg-[#1C1C1C] text-white border-[#1C1C1C]"
+                              : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"
+                          }`}
+                        >
+                          🎥 Video (MP4 / WebM)
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* URL o Archivo Multimedia */}
+                    {(slide.mediaType || "image") === "image" ? (
+                      <div className="space-y-2">
+                        <div>
+                          <label className="block text-[11px] font-bold text-gray-600 mb-1 uppercase tracking-wider">URL de Imagen (Desktop)</label>
+                          <input
+                            type="text"
+                            value={slide.imageUrl || ""}
+                            onChange={(e) => {
+                              const items = [...configInput.items]
+                              items[sIdx] = { ...items[sIdx], imageUrl: e.target.value }
+                              setConfigInput({...configInput, items})
+                            }}
+                            className="w-full p-2 border border-gray-300 rounded text-xs bg-white"
+                            placeholder="https://ejemplo.com/foto.jpg"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-bold text-gray-600 mb-1 uppercase tracking-wider">URL de Imagen Móvil (Opcional)</label>
+                          <input
+                            type="text"
+                            value={slide.mobileImageUrl || ""}
+                            onChange={(e) => {
+                              const items = [...configInput.items]
+                              items[sIdx] = { ...items[sIdx], mobileImageUrl: e.target.value }
+                              setConfigInput({...configInput, items})
+                            }}
+                            className="w-full p-2 border border-gray-300 rounded text-xs bg-white"
+                            placeholder="https://ejemplo.com/foto-mobile.jpg"
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div>
+                          <label className="block text-[11px] font-bold text-gray-600 mb-1 uppercase tracking-wider">URL de Video (MP4 / WebM / Cloudinary)</label>
+                          <input
+                            type="text"
+                            value={slide.videoUrl || ""}
+                            onChange={(e) => {
+                              const items = [...configInput.items]
+                              items[sIdx] = { ...items[sIdx], videoUrl: e.target.value }
+                              setConfigInput({...configInput, items})
+                            }}
+                            className="w-full p-2 border border-gray-300 rounded text-xs bg-white"
+                            placeholder="https://ejemplo.com/video.mp4"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-bold text-gray-600 mb-1 uppercase tracking-wider">Carátula / Poster de Carga (Opcional)</label>
+                          <input
+                            type="text"
+                            value={slide.posterUrl || ""}
+                            onChange={(e) => {
+                              const items = [...configInput.items]
+                              items[sIdx] = { ...items[sIdx], posterUrl: e.target.value }
+                              setConfigInput({...configInput, items})
+                            }}
+                            className="w-full p-2 border border-gray-300 rounded text-xs bg-white"
+                            placeholder="https://ejemplo.com/poster.jpg"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Botones de Selección y Subida */}
+                    <div className="p-2.5 bg-gray-50 border border-gray-200 rounded-lg flex flex-wrap items-center justify-between gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMediaPickerTarget({
+                            acceptedType: slide.mediaType === "video" ? "video" : "image",
+                            title: `Seleccionar ${slide.mediaType === "video" ? "Video" : "Imagen"} para Diapositiva #${sIdx + 1}`,
+                            onSelect: (url, fileType) => {
+                              const items = [...configInput.items]
+                              if (fileType === "video") {
+                                items[sIdx] = { ...items[sIdx], videoUrl: url, mediaType: "video" }
+                              } else {
+                                items[sIdx] = { ...items[sIdx], imageUrl: url, mediaType: "image" }
+                              }
+                              setConfigInput({ ...configInput, items })
+                            },
+                          })
+                        }}
+                        className="px-3 py-1.5 bg-[#1C1C1C] text-white hover:bg-gray-800 rounded text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors shadow-xs"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        Elegir de Biblioteca
+                      </button>
+
+                      <label className="cursor-pointer px-3 py-1.5 bg-white border border-gray-300 rounded text-xs font-bold text-gray-800 hover:bg-gray-100 transition-colors shadow-xs flex items-center gap-1">
+                        <span>Subir archivo</span>
+                        <input
+                          type="file"
+                          accept={slide.mediaType === "video" ? "video/*" : "image/*"}
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0]
+                            if (!file) return
+                            const fd = new FormData()
+                            fd.append("file", file)
+                            try {
+                              const res = await fetch("/api/upload", { method: "POST", body: fd })
+                              const data = await res.json()
+                              if (res.ok && data.url) {
+                                const items = [...configInput.items]
+                                if (file.type.startsWith("video/")) {
+                                  items[sIdx] = { ...items[sIdx], videoUrl: data.url, mediaType: "video" }
+                                } else {
+                                  items[sIdx] = { ...items[sIdx], imageUrl: data.url, mediaType: "image" }
+                                }
+                                setConfigInput({...configInput, items})
+                              } else {
+                                alert(data.error || "Error al subir archivo")
+                              }
+                            } catch {
+                              alert("Error de red al subir")
+                            }
+                          }}
+                        />
+                      </label>
+                    </div>
+
+                    {/* Textos y Contenidos del Slide */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-600 mb-1 uppercase tracking-wider">Badge / Etiqueta</label>
+                        <input
+                          type="text"
+                          value={slide.badge || ""}
+                          onChange={(e) => {
+                            const items = [...configInput.items]
+                            items[sIdx] = { ...items[sIdx], badge: e.target.value }
+                            setConfigInput({...configInput, items})
+                          }}
+                          className="w-full p-2 border border-gray-300 rounded text-xs bg-white"
+                          placeholder="Ej: 50% OFF"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-600 mb-1 uppercase tracking-wider">Posición del Texto</label>
+                        <select
+                          value={slide.contentPosition || "bottom-left"}
+                          onChange={(e) => {
+                            const items = [...configInput.items]
+                            items[sIdx] = { ...items[sIdx], contentPosition: e.target.value }
+                            setConfigInput({...configInput, items})
+                          }}
+                          className="w-full p-2 border border-gray-300 rounded text-xs bg-white"
+                        >
+                          <option value="bottom-left">Abajo Izquierda</option>
+                          <option value="left">Centro Izquierda</option>
+                          <option value="center">Centro</option>
+                          <option value="bottom-center">Abajo Centro</option>
+                          <option value="right">Centro Derecha</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-600 mb-1 uppercase tracking-wider">Título Principal</label>
+                      <input
+                        type="text"
+                        value={slide.title || ""}
+                        onChange={(e) => {
+                          const items = [...configInput.items]
+                          items[sIdx] = { ...items[sIdx], title: e.target.value }
+                          setConfigInput({...configInput, items})
+                        }}
+                        className="w-full p-2 border border-gray-300 rounded text-xs bg-white"
+                        placeholder="Ej: SUMMER SALE 2026"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-600 mb-1 uppercase tracking-wider">Subtítulo / Descripción</label>
+                      <textarea
+                        rows={2}
+                        value={slide.subtitle || ""}
+                        onChange={(e) => {
+                          const items = [...configInput.items]
+                          items[sIdx] = { ...items[sIdx], subtitle: e.target.value }
+                          setConfigInput({...configInput, items})
+                        }}
+                        className="w-full p-2 border border-gray-300 rounded text-xs bg-white"
+                        placeholder="Descripción destacada de la promo..."
+                      />
+                    </div>
+
+                    {/* Botón Principal */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-600 mb-1 uppercase tracking-wider">Texto Botón Principal</label>
+                        <input
+                          type="text"
+                          value={slide.ctaText || ""}
+                          onChange={(e) => {
+                            const items = [...configInput.items]
+                            items[sIdx] = { ...items[sIdx], ctaText: e.target.value }
+                            setConfigInput({...configInput, items})
+                          }}
+                          className="w-full p-2 border border-gray-300 rounded text-xs bg-white"
+                          placeholder="Ej: COMPRAR AHORA"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-600 mb-1 uppercase tracking-wider">Enlace Botón Principal</label>
+                        <input
+                          type="text"
+                          value={slide.ctaLink || ""}
+                          onChange={(e) => {
+                            const items = [...configInput.items]
+                            items[sIdx] = { ...items[sIdx], ctaLink: e.target.value }
+                            setConfigInput({...configInput, items})
+                          }}
+                          className="w-full p-2 border border-gray-300 rounded text-xs bg-white"
+                          placeholder="Ej: /productos"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Botón Secundario (Opcional) */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-600 mb-1 uppercase tracking-wider">Texto Botón Secundario (Opcional)</label>
+                        <input
+                          type="text"
+                          value={slide.secondaryCtaText || ""}
+                          onChange={(e) => {
+                            const items = [...configInput.items]
+                            items[sIdx] = { ...items[sIdx], secondaryCtaText: e.target.value }
+                            setConfigInput({...configInput, items})
+                          }}
+                          className="w-full p-2 border border-gray-300 rounded text-xs bg-white"
+                          placeholder="Ej: VER LOOKBOOK"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-600 mb-1 uppercase tracking-wider">Enlace Botón Secundario</label>
+                        <input
+                          type="text"
+                          value={slide.secondaryCtaLink || ""}
+                          onChange={(e) => {
+                            const items = [...configInput.items]
+                            items[sIdx] = { ...items[sIdx], secondaryCtaLink: e.target.value }
+                            setConfigInput({...configInput, items})
+                          }}
+                          className="w-full p-2 border border-gray-300 rounded text-xs bg-white"
+                          placeholder="Ej: /tiendas"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Opacidad del Overlay Sombreado */}
+                    <div>
+                      <div className="flex justify-between text-[11px] font-bold text-gray-600 mb-1 uppercase tracking-wider">
+                        <span>Sombreado / Overlay Oscuro</span>
+                        <span>{slide.overlayOpacity ?? 40}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="90"
+                        step="5"
+                        value={slide.overlayOpacity ?? 40}
+                        onChange={(e) => {
+                          const items = [...configInput.items]
+                          items[sIdx] = { ...items[sIdx], overlayOpacity: parseInt(e.target.value) || 0 }
+                          setConfigInput({...configInput, items})
+                        }}
+                        className="w-full accent-[#1C1C1C]"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
 
         </div>

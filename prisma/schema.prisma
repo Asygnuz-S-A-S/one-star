@@ -329,6 +329,7 @@ enum LandingSectionType {
   NEWSLETTER
   CUSTOM_HTML
   PRODUCT_CAROUSEL
+  MEDIA_CAROUSEL
 }
 
 model LandingSection {
@@ -545,4 +546,22 @@ model ErpSyncConfig {
   nextRunAt       DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+// Registro centralizado de archivos multimedia (imágenes y videos)
+// utilizados en productos, marcas, carruseles y banners.
+model MediaAsset {
+  id        String   @id @default(cuid())
+  url       String   @unique
+  publicId  String?
+  fileName  String
+  fileType  String   // "image" | "video"
+  mimeType  String?
+  fileSize  Int?     // bytes
+  folder    String?  @default("general")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([fileType])
+  @@index([createdAt])
 }

@@ -6,10 +6,11 @@ import NewArrivals from "@/components/home/NewArrivals"
 import NewsletterSection from "@/components/home/NewsletterSection"
 import CustomHtmlBlock from "@/components/home/CustomHtmlBlock"
 import ProductCarousel from "@/components/home/ProductCarousel"
+import MediaCarousel from "@/components/home/MediaCarousel"
 
 import { getVisibleBanners } from "@/server/services/banner.service"
 import { getVisibleGridBlocks } from "@/server/services/home-grid.service"
-import { getUniqueBrands } from "@/server/services/product.service"
+import { getAllBrands } from "@/server/services/brand.service"
 import { getActiveLandingSections } from "@/server/repositories/landing-section.repository"
 import { getTopBanner } from "@/server/repositories/top-banner.repository"
 
@@ -18,7 +19,7 @@ export const dynamic = "force-dynamic";
 export default async function Home() {
   // Queries independientes en paralelo; con fallbacks para que un fallo
   // puntual no tumbe toda la home.
-  const [visibleBanners, gridBlocks, uniqueBrands, sections, topBanner] = await Promise.all([
+  const [visibleBanners, gridBlocks, brandsList, sections, topBanner] = await Promise.all([
     getVisibleBanners().catch((error: unknown) => {
       console.error("[home] getVisibleBanners falló:", error)
       return []
@@ -27,8 +28,8 @@ export default async function Home() {
       console.error("[home] getVisibleGridBlocks falló:", error)
       return []
     }),
-    getUniqueBrands().catch((error: unknown) => {
-      console.error("[home] getUniqueBrands falló:", error)
+    getAllBrands(true).catch((error: unknown) => {
+      console.error("[home] getAllBrands falló:", error)
       return []
     }),
     getActiveLandingSections().catch((error: unknown) => {
@@ -55,7 +56,7 @@ export default async function Home() {
           case "FEATURED_PRODUCTS":
             return <FeaturedProducts key={section.id} config={config} />
           case "BRAND_STRIP":
-            return <BrandStrip key={section.id} brands={uniqueBrands} config={config} />
+            return <BrandStrip key={section.id} brands={brandsList} config={config} />
           case "NEW_ARRIVALS":
             return <NewArrivals key={section.id} config={config} />
           case "NEWSLETTER":
@@ -71,6 +72,8 @@ export default async function Home() {
           }
           case "PRODUCT_CAROUSEL":
             return <ProductCarousel key={section.id} config={config} />
+          case "MEDIA_CAROUSEL":
+            return <MediaCarousel key={section.id} config={config} />
           default:
             return null
         }

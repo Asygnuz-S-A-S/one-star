@@ -23,13 +23,15 @@ import { NullERPAdapter } from "./adapters/null.adapter"
  */
 
 let _adapter: IERPAdapter | null = null
+let _cachedProvider: string | null = null
 
 export function getERPAdapter(): IERPAdapter {
-  // Singleton: en producción (serverless) cada función puede tener su
-  // propia instancia, lo cual está bien ya que los adaptadores son stateless.
-  if (_adapter) return _adapter
-
   const provider = (process.env.ERP_PROVIDER ?? "null").toLowerCase().trim()
+
+  // Singleton: si ya existe para el mismo provider, reutilizar
+  if (_adapter && _cachedProvider === provider) return _adapter
+
+  _cachedProvider = provider
 
   switch (provider) {
     case "alegra": {
