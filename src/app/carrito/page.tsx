@@ -145,11 +145,17 @@ export default function CarritoPage() {
                   </button>
                 </div>
 
-                <p className="font-montserrat text-sm text-[#4A4A4A]">
-                  Talla: <span className="font-medium text-[#1C1C1C]">{item.size}</span>
-                  &nbsp;·&nbsp;
-                  Color: <span className="font-medium text-[#1C1C1C] capitalize">{item.color}</span>
-                </p>
+                {item.kind === "gift_card" ? (
+                  <p className="font-montserrat text-sm text-[#4A4A4A]">
+                    Entrega digital · Vigencia de 12 meses
+                  </p>
+                ) : (
+                  <p className="font-montserrat text-sm text-[#4A4A4A]">
+                    Talla: <span className="font-medium text-[#1C1C1C]">{item.size}</span>
+                    &nbsp;·&nbsp;
+                    Color: <span className="font-medium text-[#1C1C1C] capitalize">{item.color}</span>
+                  </p>
+                )}
 
                 <p className="font-montserrat text-xs text-[#4A4A4A]">SKU: {item.sku}</p>
 

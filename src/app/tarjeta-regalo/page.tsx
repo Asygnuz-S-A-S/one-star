@@ -1,5 +1,6 @@
 import React from "react"
 import Image from "next/image"
+import GiftCardPurchase from "@/components/gift-card/GiftCardPurchase"
 
 export const metadata = {
   title: "Tarjeta de Regalo | One Star",
@@ -45,26 +46,7 @@ export default function TarjetaRegaloPage() {
             </p>
             
             <div className="space-y-6">
-              <div>
-                <label className="block text-sm font-bold text-gray-700 dark:text-white mb-2 font-[var(--font-montserrat)]">Selecciona el monto</label>
-                <div className="grid grid-cols-3 gap-3">
-                  {["$50.000", "$100.000", "$200.000", "$300.000", "$500.000"].map((monto) => (
-                    <button 
-                      key={monto} 
-                      className="border border-[#E0E0E0] dark:border-white/20 bg-white dark:bg-[#1b1b1b] text-[#1C1C1C] dark:text-white hover:border-[#1C1C1C] dark:hover:border-white hover:bg-[#1C1C1C] dark:hover:bg-white hover:text-white dark:hover:text-[#1C1C1C] transition-colors py-3 rounded font-[var(--font-barlow)] font-bold text-lg"
-                    >
-                      {monto}
-                    </button>
-                  ))}
-                  <button className="border border-[#E0E0E0] dark:border-white/20 bg-white dark:bg-[#1b1b1b] text-[#1C1C1C] dark:text-white hover:border-[#1C1C1C] dark:hover:border-white hover:bg-[#1C1C1C] dark:hover:bg-white hover:text-white dark:hover:text-[#1C1C1C] transition-colors py-3 rounded font-[var(--font-barlow)] font-bold text-lg">
-                    Otro
-                  </button>
-                </div>
-              </div>
-              
-              <button className="w-full bg-[#E31C23] text-white py-4 font-[var(--font-barlow)] font-bold text-lg uppercase tracking-wider hover:bg-black transition-colors rounded">
-                Añadir al carrito
-              </button>
+              <GiftCardPurchase />
               
               <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-4">
                 La tarjeta de regalo digital se enviará por correo electrónico inmediatamente después de la compra. Válida por 12 meses.
