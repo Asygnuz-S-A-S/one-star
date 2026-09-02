@@ -197,11 +197,17 @@ function LoginForm() {
           <div className="flex-1 h-px bg-[#E0E0E0]" />
         </div>
 
-        {/* Google — TODO: configurar Google provider en auth.ts */}
+        {/* Google */}
         <button
           type="button"
-          disabled
-          className="w-full flex items-center justify-center gap-3 border border-[#E0E0E0] rounded-lg py-3 font-montserrat text-sm text-[#4A4A4A] hover:border-[#1C1C1C] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          onClick={() => {
+            const callbackUrl = getSafeCallbackUrl(searchParams.get("callbackUrl"), "/cuenta")
+            void authClient.signIn.social({
+              provider: "google",
+              callbackURL: callbackUrl,
+            })
+          }}
+          className="w-full flex items-center justify-center gap-3 border border-[#E0E0E0] rounded-lg py-3 font-montserrat text-sm text-[#4A4A4A] hover:border-[#1C1C1C] transition-colors"
         >
           <GoogleIcon />
           Continuar con Google
