@@ -18,6 +18,7 @@ vi.mock("@/server/repositories/product.repository", () => ({
   searchProductsByName: vi.fn(),
   runInTransaction: vi.fn(),
   updateProductWithAdminRelations: vi.fn(),
+  updateProductsPublishStatus: vi.fn(),
 }))
 
 import {
@@ -30,6 +31,7 @@ import {
   searchProducts,
   updateProduct,
   getCategorySectionProductFilter,
+  updateProductsPublishStatus,
 } from "../product.service"
 import {
   findManyProducts,
@@ -41,6 +43,7 @@ import {
   searchProductsByName,
   updateProductWithAdminRelations,
   countProducts,
+  updateProductsPublishStatus as updateProductsPublishStatusRepository,
 } from "@/server/repositories/product.repository"
 
 const mockFindManyProducts = vi.mocked(findManyProducts)
@@ -52,6 +55,7 @@ const mockDelete = vi.mocked(deleteProductRecord)
 const mockSearch = vi.mocked(searchProductsByName)
 const mockUpdateWithRelations = vi.mocked(updateProductWithAdminRelations)
 const mockCountProducts = vi.mocked(countProducts)
+const mockUpdateProductsPublishStatus = vi.mocked(updateProductsPublishStatusRepository)
 
 const makeDecimal = (n: number) => ({ toNumber: () => n })
 
@@ -179,6 +183,59 @@ describe("getProducts", () => {
 describe("getAdminProducts", () => {
   beforeEach(() => vi.clearAllMocks())
 
+  it("combina categoría, marca, publicación y agotados mediante filtros exactos", async () => {
+    mockFindManyProducts.mockResolvedValue([])
+    mockCountProducts.mockResolvedValue(0)
+
+    await getAdminProducts({
+      categoryId: "cat-1",
+      brandId: "brand-1",
+      status: "inactive",
+      hasStock: "no",
+      page: "1",
+    }, 20)
+
+    const expectedWhere = {
+      categoryId: "cat-1",
+      brandId: "brand-1",
+      isPublished: false,
+      variants: { none: { stock: { gt: 0 } } },
+    }
+    expect(mockFindManyProducts).toHaveBeenCalledWith(
+      expectedWhere,
+      [{ createdAt: "desc" }, { id: "asc" }],
+      20,
+      0
+    )
+    expect(mockCountProducts).toHaveBeenCalledWith(expectedWhere)
+  })
+
+  it("aplica stock, talla y color sobre la misma variante", async () => {
+    mockFindManyProducts.mockResolvedValue([])
+    mockCountProducts.mockResolvedValue(0)
+
+    await getAdminProducts({
+      hasStock: "yes",
+      talla: "42",
+      color: "Negro",
+    }, 20)
+
+    expect(mockFindManyProducts).toHaveBeenCalledWith(
+      {
+        variants: {
+          some: {
+            stock: { gt: 0 },
+            size: "42",
+            color: { contains: "Negro", mode: "insensitive" },
+          },
+        },
+      },
+      [{ createdAt: "desc" }, { id: "asc" }],
+      20,
+      0
+    )
+  })
+
   it("mantiene visibles todos los productos aunque pertenezcan a la misma familia de colores", async () => {
     mockFindManyProducts.mockResolvedValue([
       { ...rawProduct, id: "prod-1", colorFamilyId: "family-1" },
@@ -196,6 +253,16 @@ describe("getAdminProducts", () => {
       20,
       0
     )
+  })
+})
+
+describe("updateProductsPublishStatus", () => {
+  it("rechaza una actualización parcial de la selección", async () => {
+    mockUpdateProductsPublishStatus.mockResolvedValue({ count: 1 })
+
+    await expect(
+      updateProductsPublishStatus(["prod-1", "prod-2"], false)
+    ).rejects.toThrow("No se pudieron actualizar todos los productos seleccionados.")
   })
 })
 

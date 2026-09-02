@@ -77,3 +77,11 @@
 - Unificar categorías del catálogo y categorías visuales: crear categorías únicamente desde `/admin/categorias` y hacer que Landing Builder seleccione, ordene y muestre categorías existentes para Inicio.
 - Recuperar de forma segura una sola vez ante `ChunkLoadError` después de despliegues y revisar la política externa que devuelve `429 Too Many Requests` durante barridos administrativos acelerados.
 - Convertir el editor de productos en un formulario semántico sin alterar su validación ni producir envíos dobles.
+
+## 2026-09-01 — Revisión del PR #15
+
+- Corregir por separado la confirmación concurrente de pagos: reclamar atómicamente el pedido, decrementar `Variant.stock` con una condición `stock >= quantity` y evitar que callbacks simultáneos descuenten dos veces o produzcan stock negativo.
+- Unificar la fuente canónica de disponibilidad web: catálogo, checkout, `StoreAvailability`, formulario administrativo e inventario por bodega no deben mostrar valores contradictorios entre `Variant.stock` e `InventoryLevel`.
+- Añadir pruebas de integración PostgreSQL para pagos concurrentes, rollback por stock insuficiente e idempotencia de callbacks repetidos.
+- Definir una política global para páginas administrativas fuera de rango y cotas máximas de `page`; hoy una página positiva pero superior al total muestra un estado vacío y valores extremos pueden generar offsets innecesarios.
+- Añadir cobertura de componente/E2E para la acción masiva (doble clic, selección ante error y supervivencia del toast tras revalidación), además de ejecutar `pnpm lint` y `pnpm build` en un checkout limpio sin los scripts diagnósticos locales no versionados.

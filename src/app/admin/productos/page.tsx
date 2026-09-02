@@ -1,18 +1,13 @@
 import Link from "next/link"
-import { getAdminProducts, getUniqueBrands } from "@/server/services/product.service"
+import { getAdminProducts } from "@/server/services/product.service"
+import { getAllBrands } from "@/server/services/brand.service"
 import { getCategories } from "@/server/services/category.service"
+import { parseAdminProductFilters } from "@/server/validators/product.validator"
 import { ProductosTable } from "@/components/admin/ProductosTable"
 
 const PAGE_SIZE = 20
 
-interface SearchParams {
-  page?: string
-  q?: string
-  category?: string
-  status?: string
-  hasStock?: string
-  marca?: string
-}
+type SearchParams = Record<string, string | string[] | undefined>
 
 interface Props {
   searchParams: Promise<SearchParams>
@@ -20,27 +15,32 @@ interface Props {
 
 export default async function ProductosPage({ searchParams }: Props) {
   const params = await searchParams
-  const page = Math.max(1, parseInt(params.page ?? "1") || 1)
-  const q = params.q?.trim() ?? ""
-  const categoryFilter = params.category ?? ""
-  const statusFilter = params.status ?? ""
-  const hasStockFilter = params.hasStock ?? ""
-  const marcaFilter = params.marca ?? ""
+  const {
+    page,
+    q,
+    categoryId,
+    brandId,
+    status,
+    hasStock,
+  } = parseAdminProductFilters({
+    ...params,
+    brand: params.marca,
+  })
 
   const [{ products, total }, categories, brands] = await Promise.all([
     getAdminProducts(
       {
         q: q || undefined,
-        marca: marcaFilter || undefined,
-        ...(categoryFilter ? { categorySlug: undefined } : {}), // TODO: category by ID not slug
-        status: (statusFilter as "active" | "inactive" | "") || undefined,
-        hasStock: (hasStockFilter as "yes" | "no" | "") || undefined,
+        categoryId,
+        brandId,
+        status,
+        hasStock,
         page: String(page),
       },
       PAGE_SIZE
     ),
     getCategories(),
-    getUniqueBrands(),
+    getAllBrands(),
   ])
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
@@ -48,10 +48,10 @@ export default async function ProductosPage({ searchParams }: Props) {
   function buildPageUrl(p: number) {
     const qs = new URLSearchParams()
     if (q) qs.set("q", q)
-    if (categoryFilter) qs.set("category", categoryFilter)
-    if (statusFilter) qs.set("status", statusFilter)
-    if (hasStockFilter) qs.set("hasStock", hasStockFilter)
-    if (marcaFilter) qs.set("marca", marcaFilter)
+    if (categoryId) qs.set("category", categoryId)
+    if (status) qs.set("status", status)
+    if (hasStock) qs.set("hasStock", hasStock)
+    if (brandId) qs.set("marca", brandId)
     if (p > 1) qs.set("page", String(p))
     const s = qs.toString()
     return `/admin/productos${s ? `?${s}` : ""}`
@@ -80,12 +80,12 @@ export default async function ProductosPage({ searchParams }: Props) {
           type="text"
           name="q"
           defaultValue={q}
-          placeholder="Buscar por nombre o marca…"
+          placeholder="Buscar por nombre…"
           className="flex-1 min-w-[200px] border border-gray-200 rounded-lg px-3 py-2 text-sm text-[#1C1C1C] bg-white focus:outline-none focus:ring-2 focus:ring-[#E31C23]"
         />
         <select
           name="category"
-          defaultValue={categoryFilter}
+          defaultValue={categoryId ?? ""}
           className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-[#1C1C1C] bg-white focus:outline-none focus:ring-2 focus:ring-[#E31C23]"
         >
           <option value="">Todas las categorías</option>
@@ -97,7 +97,7 @@ export default async function ProductosPage({ searchParams }: Props) {
         </select>
         <select
           name="status"
-          defaultValue={statusFilter}
+          defaultValue={status ?? ""}
           className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-[#1C1C1C] bg-white focus:outline-none focus:ring-2 focus:ring-[#E31C23]"
         >
           <option value="">Todos los estados</option>
@@ -106,7 +106,7 @@ export default async function ProductosPage({ searchParams }: Props) {
         </select>
         <select
           name="hasStock"
-          defaultValue={hasStockFilter}
+          defaultValue={hasStock ?? ""}
           className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-[#1C1C1C] bg-white focus:outline-none focus:ring-2 focus:ring-[#E31C23]"
         >
           <option value="">Todo el inventario</option>
@@ -115,13 +115,13 @@ export default async function ProductosPage({ searchParams }: Props) {
         </select>
         <select
           name="marca"
-          defaultValue={marcaFilter}
+          defaultValue={brandId ?? ""}
           className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-[#1C1C1C] bg-white focus:outline-none focus:ring-2 focus:ring-[#E31C23]"
         >
           <option value="">Todas las marcas</option>
-          {brands.map((b) => (
-            <option key={b} value={b}>
-              {b}
+          {brands.map((brand) => (
+            <option key={brand.id} value={brand.id}>
+              {brand.name}
             </option>
           ))}
         </select>
@@ -131,7 +131,7 @@ export default async function ProductosPage({ searchParams }: Props) {
         >
           Filtrar
         </button>
-        {(q || categoryFilter || statusFilter || hasStockFilter || marcaFilter) && (
+        {(q || categoryId || status || hasStock || brandId) && (
           <Link
             href="/admin/productos"
             className="text-sm text-[#4A4A4A] px-3 py-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50"
@@ -141,30 +141,19 @@ export default async function ProductosPage({ searchParams }: Props) {
         )}
       </form>
 
-      {products.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-16 text-center">
-          <p className="text-[#4A4A4A] text-lg mb-4">
-            {q || categoryFilter || statusFilter || hasStockFilter || marcaFilter
-              ? "No se encontraron productos con esos filtros."
-              : "Aún no hay productos."}
-          </p>
-          <Link
-            href="/admin/integraciones"
-            className="inline-block bg-[#E31C23] text-white text-sm font-semibold px-5 py-2 rounded-lg hover:bg-red-700 transition-colors"
-          >
-            Sincronizar desde Loggro
-          </Link>
-        </div>
-      ) : (
-        <ProductosTable
-          products={products}
-          total={total}
-          page={page}
-          totalPages={totalPages}
-          prevHref={prevHref}
-          nextHref={nextHref}
-        />
-      )}
+      <ProductosTable
+        products={products}
+        total={total}
+        page={page}
+        totalPages={totalPages}
+        prevHref={prevHref}
+        nextHref={nextHref}
+        emptyMessage={
+          q || categoryId || status || hasStock || brandId
+            ? "No se encontraron productos con esos filtros."
+            : "Aún no hay productos."
+        }
+      />
     </div>
   )
 }

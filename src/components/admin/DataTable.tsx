@@ -24,6 +24,7 @@ interface PaginationProps {
 interface DataTableProps<TData> {
   data: TData[]
   columns: ColumnDef<TData, unknown>[]
+  getRowId?: (row: TData) => string
   pagination?: PaginationProps
   emptyMessage?: string
   toolbar?: (selectedRows: TData[], clearSelection: () => void) => React.ReactNode
@@ -32,6 +33,7 @@ interface DataTableProps<TData> {
 export function DataTable<TData>({
   data,
   columns,
+  getRowId,
   pagination,
   emptyMessage = "No se encontraron registros.",
   toolbar,
@@ -55,6 +57,7 @@ export function DataTable<TData>({
     onSortingChange: setSorting,
     onRowSelectionChange: setRowSelection,
     enableRowSelection: true,
+    getRowId,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     // Pagination is server-side; TanStack Table doesn't manage it
