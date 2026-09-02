@@ -129,10 +129,12 @@ export interface AppProductFilter {
   page?: string
   genero?: string
   categorySlug?: string
+  categoryId?: string
+  brandId?: string
   isOnSaleOnly?: boolean
   extraGenders?: string[]
-  status?: "active" | "inactive" | ""
-  hasStock?: "yes" | "no" | ""
+  status?: "active" | "inactive"
+  hasStock?: "yes" | "no"
 }
 
 /**
@@ -354,17 +356,10 @@ function buildPrismaWhere(
 
   if (filter.isOnSaleOnly) where.isOnSale = true
   if (filter.categorySlug) where.category = { slug: filter.categorySlug }
+  if (filter.categoryId) where.categoryId = filter.categoryId
+  if (filter.brandId) where.brandId = filter.brandId
   if (filter.status === "active") where.isPublished = true
   if (filter.status === "inactive") where.isPublished = false
-
-  if (filter.hasStock === "yes") {
-    where.variants = { ...where.variants, some: { ...where.variants?.some, stock: { gt: 0 } } }
-  } else if (filter.hasStock === "no") {
-    where.AND = [
-      ...(Array.isArray(where.AND) ? where.AND : (where.AND ? [where.AND] : [])),
-      { NOT: { variants: { some: { stock: { gt: 0 } } } } }
-    ] as any
-  }
 
   if (filter.extraGenders && filter.extraGenders.length > 0) {
     where.gender = { in: filter.extraGenders as Gender[] }
@@ -384,17 +379,28 @@ function buildPrismaWhere(
     }
   }
 
-  if (filter.talla) {
-    where.variants = { some: { size: filter.talla } }
+  const matchingVariant: Prisma.VariantWhereInput = {}
+  if (filter.hasStock === "yes") matchingVariant.stock = { gt: 0 }
+  if (filter.talla) matchingVariant.size = filter.talla
+  if (filter.color) {
+    matchingVariant.color = { contains: filter.color, mode: "insensitive" }
   }
 
-  if (filter.color) {
-    where.variants = {
-      some: {
-        ...(filter.talla ? { size: filter.talla } : {}),
-        color: { contains: filter.color, mode: "insensitive" },
-      },
+  const hasVariantCriteria = Object.keys(matchingVariant).length > 0
+  if (filter.hasStock === "no") {
+    const noPositiveStock: Prisma.ProductWhereInput = {
+      variants: { none: { stock: { gt: 0 } } },
     }
+    if (hasVariantCriteria) {
+      where.AND = [
+        noPositiveStock,
+        { variants: { some: matchingVariant } },
+      ]
+    } else {
+      where.variants = noPositiveStock.variants
+    }
+  } else if (hasVariantCriteria) {
+    where.variants = { some: matchingVariant }
   }
 
   return where
@@ -535,6 +541,9 @@ export async function updateProductsPublishStatus(
   isPublished: boolean
 ): Promise<number> {
   const result = await repoUpdateProductsPublishStatus(ids, isPublished)
+  if (result.count !== ids.length) {
+    throw new Error("No se pudieron actualizar todos los productos seleccionados.")
+  }
   return result.count
 }
 

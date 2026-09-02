@@ -1,3 +1,5 @@
+import "server-only"
+
 import { z } from "zod"
 
 export const productQuerySchema = z.object({
@@ -7,6 +9,63 @@ export const productQuerySchema = z.object({
 })
 
 export type ProductQuery = z.infer<typeof productQuerySchema>
+
+export const bulkProductPublishStatusSchema = z.object({
+  ids: z
+    .array(
+      z.string()
+        .trim()
+        .min(1, "El identificador del producto es obligatorio.")
+        .pipe(z.cuid("El identificador del producto no es válido."))
+    )
+    .min(1, "Selecciona al menos un producto.")
+    .max(100, "No puedes actualizar más de 100 productos a la vez.")
+    .refine(
+      (ids) => new Set(ids).size === ids.length,
+      "La selección contiene productos duplicados."
+    ),
+  isPublished: z.boolean(),
+})
+
+const optionalCuidQueryString = z.preprocess(
+  (value) => typeof value === "string" && value.trim() ? value.trim() : undefined,
+  z.cuid().optional().catch(undefined)
+)
+
+const adminProductFiltersSchema = z.object({
+  page: z.preprocess(
+    (value) => typeof value === "string" ? Number.parseInt(value, 10) : value,
+    z.number().int().positive().catch(1)
+  ),
+  q: z.preprocess(
+    (value) => typeof value === "string" ? value.trim() : "",
+    z.string().default("")
+  ),
+  category: optionalCuidQueryString,
+  brand: optionalCuidQueryString,
+  status: z.preprocess(
+    (value) => typeof value === "string" ? value : undefined,
+    z.enum(["active", "inactive"]).optional().catch(undefined)
+  ),
+  hasStock: z.preprocess(
+    (value) => typeof value === "string" ? value : undefined,
+    z.enum(["yes", "no"]).optional().catch(undefined)
+  ),
+})
+
+export function parseAdminProductFilters(
+  input: Record<string, string | string[] | undefined>
+) {
+  const parsed = adminProductFiltersSchema.parse(input)
+  return {
+    page: parsed.page,
+    q: parsed.q,
+    categoryId: parsed.category,
+    brandId: parsed.brand,
+    status: parsed.status,
+    hasStock: parsed.hasStock,
+  }
+}
 
 const variantSchema = z.object({
   sku: z.string().min(1, "El SKU es requerido."),
