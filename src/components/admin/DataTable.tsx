@@ -9,6 +9,7 @@ import {
   useReactTable,
   type ColumnDef,
   type SortingState,
+  type RowSelectionState,
 } from "@tanstack/react-table"
 
 interface PaginationProps {
@@ -23,17 +24,22 @@ interface PaginationProps {
 interface DataTableProps<TData> {
   data: TData[]
   columns: ColumnDef<TData, unknown>[]
+  getRowId?: (row: TData) => string
   pagination?: PaginationProps
   emptyMessage?: string
+  toolbar?: (selectedRows: TData[], clearSelection: () => void) => React.ReactNode
 }
 
 export function DataTable<TData>({
   data,
   columns,
+  getRowId,
   pagination,
   emptyMessage = "No se encontraron registros.",
+  toolbar,
 }: DataTableProps<TData>) {
   const [sorting, setSorting] = useState<SortingState>([])
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
 
   // Tailwind v4 solo detecta clases literales; las interpoladas (`text-${x}`)
   // se purgan del build. Mapeamos a strings completos para que sí se apliquen.
@@ -47,8 +53,11 @@ export function DataTable<TData>({
   const table = useReactTable({
     data,
     columns,
-    state: { sorting },
+    state: { sorting, rowSelection },
     onSortingChange: setSorting,
+    onRowSelectionChange: setRowSelection,
+    enableRowSelection: true,
+    getRowId,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     // Pagination is server-side; TanStack Table doesn't manage it
@@ -63,8 +72,15 @@ export function DataTable<TData>({
     )
   }
 
+  const selectedRows = table.getSelectedRowModel().rows.map(r => r.original)
+
   return (
     <>
+      {toolbar && selectedRows.length > 0 && (
+        <div className="mb-4">
+          {toolbar(selectedRows, () => setRowSelection({}))}
+        </div>
+      )}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">

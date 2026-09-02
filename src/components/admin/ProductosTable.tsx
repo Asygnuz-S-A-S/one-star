@@ -2,19 +2,45 @@
 
 import Link from "next/link"
 import Image from "next/image"
+import { useRef, useTransition } from "react"
 import { type ColumnDef } from "@tanstack/react-table"
 import { DataTable } from "./DataTable"
+import { bulkToggleProductsPublishStatus } from "@/app/admin/productos/actions"
 import type { ProductDTO } from "@/server/services/product.service"
 import { PLACEHOLDER_IMAGE_URL } from "@/lib/product-image"
-
-function getProductStatus(variants: { stock: number }[], isOnSale: boolean) {
-  const totalStock = variants.reduce((sum, v) => sum + v.stock, 0)
-  if (totalStock === 0) return { label: "AGOTADO", color: "bg-gray-100 text-gray-600" }
-  if (isOnSale) return { label: "SALE", color: "bg-red-100 text-[#E31C23]" }
-  return { label: "ACTIVO", color: "bg-green-100 text-green-700" }
-}
+import { useToast } from "@/hooks/useToast"
+import ToastContainer from "@/components/ui/ToastContainer"
+import {
+  createSingleFlightRunner,
+  getAdminProductStatus,
+  getBulkPublishFeedback,
+  getProductRowId,
+} from "./product-table.model"
 
 const columns: ColumnDef<ProductDTO, unknown>[] = [
+  {
+    id: "select",
+    header: ({ table }) => (
+      <input
+        type="checkbox"
+        checked={table.getIsAllPageRowsSelected()}
+        onChange={table.getToggleAllPageRowsSelectedHandler()}
+        className="w-4 h-4 rounded border-gray-300 text-[#E31C23] focus:ring-[#E31C23] cursor-pointer"
+        aria-label="Seleccionar todos"
+      />
+    ),
+    cell: ({ row }) => (
+      <input
+        type="checkbox"
+        checked={row.getIsSelected()}
+        onChange={row.getToggleSelectedHandler()}
+        className="w-4 h-4 rounded border-gray-300 text-[#E31C23] focus:ring-[#E31C23] cursor-pointer"
+        aria-label="Seleccionar fila"
+      />
+    ),
+    enableSorting: false,
+    meta: { width: "40px", align: "center" },
+  },
   {
     id: "foto",
     header: "Foto",
@@ -102,11 +128,11 @@ const columns: ColumnDef<ProductDTO, unknown>[] = [
     id: "estado",
     header: "Estado",
     accessorFn: (row) => {
-      const { label } = getProductStatus(row.variants, row.isOnSale)
+      const { label } = getAdminProductStatus(row)
       return label
     },
     cell: ({ row }) => {
-      const status = getProductStatus(row.original.variants, row.original.isOnSale)
+      const status = getAdminProductStatus(row.original)
       return (
         <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${status.color}`}>
           {status.label}
@@ -147,6 +173,7 @@ interface ProductosTableProps {
   totalPages: number
   prevHref?: string
   nextHref?: string
+  emptyMessage?: string
 }
 
 export function ProductosTable({
@@ -156,13 +183,82 @@ export function ProductosTable({
   totalPages,
   prevHref,
   nextHref,
+  emptyMessage = "Aún no hay productos.",
 }: ProductosTableProps) {
+  const [isPending, startTransition] = useTransition()
+  const updateRunner = useRef(createSingleFlightRunner())
+  const { toasts, showToast, dismissToast } = useToast()
+
+  function updatePublishStatus(
+    selectedRows: ProductDTO[],
+    isPublished: boolean,
+    clearSelection: () => void
+  ) {
+    startTransition(async () => {
+      await updateRunner.current.run(async () => {
+        try {
+          const result = await bulkToggleProductsPublishStatus(
+            selectedRows.map((row) => row.id),
+            isPublished
+          )
+          const feedback = getBulkPublishFeedback(result, isPublished)
+          showToast(feedback.message, feedback.type)
+          if (feedback.clearSelection) clearSelection()
+        } catch {
+          showToast("No se pudieron actualizar los productos.", "error")
+        }
+      })
+    })
+  }
+
   return (
-    <DataTable
-      data={products}
-      columns={columns}
-      pagination={{ page, totalPages, totalCount: total, unit: "productos", prevHref, nextHref }}
-      emptyMessage="Aún no hay productos."
-    />
+    <>
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+      {products.length === 0 ? (
+        <div className="bg-white rounded-xl border border-gray-200 p-16 text-center">
+          <p className="text-[#4A4A4A] text-lg mb-4">{emptyMessage}</p>
+          <Link
+            href="/admin/integraciones"
+            className="inline-block bg-[#E31C23] text-white text-sm font-semibold px-5 py-2 rounded-lg hover:bg-red-700 transition-colors"
+          >
+            Sincronizar desde Loggro
+          </Link>
+        </div>
+      ) : (
+        <DataTable
+          key={`${page}:${products.map((product) => product.id).join(":")}`}
+          data={products}
+          columns={columns}
+          getRowId={getProductRowId}
+          pagination={{ page, totalPages, totalCount: total, unit: "productos", prevHref, nextHref }}
+          emptyMessage={emptyMessage}
+          toolbar={(selectedRows, clearSelection) => (
+            <div className="flex items-center gap-4 bg-[#F9FAFB] border border-gray-200 p-3 rounded-xl">
+              <span className="text-sm font-semibold text-[#1C1C1C]">
+                {selectedRows.length} producto{selectedRows.length !== 1 && "s"} seleccionado{selectedRows.length !== 1 && "s"}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => updatePublishStatus(selectedRows, true, clearSelection)}
+                  disabled={isPending}
+                  className="px-3 py-1.5 text-xs font-semibold bg-white border border-gray-200 rounded-lg text-[#1C1C1C] hover:bg-gray-50 transition-colors disabled:opacity-50"
+                >
+                  {isPending ? "Procesando..." : "Activar"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => updatePublishStatus(selectedRows, false, clearSelection)}
+                  disabled={isPending}
+                  className="px-3 py-1.5 text-xs font-semibold bg-[#E31C23] border border-[#E31C23] rounded-lg text-white hover:bg-red-700 transition-colors disabled:opacity-50"
+                >
+                  {isPending ? "Procesando..." : "Desactivar"}
+                </button>
+              </div>
+            </div>
+          )}
+        />
+      )}
+    </>
   )
 }

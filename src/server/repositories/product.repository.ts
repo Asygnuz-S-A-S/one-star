@@ -497,3 +497,19 @@ export async function runInTransaction<T>(
 ): Promise<T> {
   return prisma.$transaction(fn)
 }
+
+export async function updateProductsPublishStatus(
+  ids: string[],
+  isPublished: boolean
+) {
+  return prisma.$transaction(async (tx) => {
+    const result = await tx.product.updateMany({
+      where: { id: { in: ids } },
+      data: { isPublished, updatedAt: new Date() },
+    })
+    if (result.count !== ids.length) {
+      throw new Error("No se pudieron actualizar todos los productos seleccionados.")
+    }
+    return result
+  })
+}

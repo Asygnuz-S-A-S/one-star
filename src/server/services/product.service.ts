@@ -11,6 +11,7 @@ import {
   deleteProductRecord,
   searchProductsByName,
   updateProductWithAdminRelations,
+  updateProductsPublishStatus as repoUpdateProductsPublishStatus,
 } from "../repositories/product.repository"
 import type { Prisma, Gender } from "@prisma/client"
 import { buildVisibleProductPage } from "@/server/domain/product-color-family.plan"
@@ -128,8 +129,12 @@ export interface AppProductFilter {
   page?: string
   genero?: string
   categorySlug?: string
+  categoryId?: string
+  brandId?: string
   isOnSaleOnly?: boolean
   extraGenders?: string[]
+  status?: "active" | "inactive"
+  hasStock?: "yes" | "no"
 }
 
 /**
@@ -276,15 +281,12 @@ function mapVariant(v: RawVariant): VariantDTO {
     stock: inv.stock
   }))
   
-  // Web stock is where storeLocationId is null or isWebWarehouse
-  const webStock = inventory.find(i => i.storeLocationId === null)?.stock ?? v.stock
-
   return {
     id: v.id,
     sku: v.sku,
     size: v.size,
     color: v.color,
-    stock: webStock,
+    stock: v.stock,
     inventory,
     sizeUS: v.sizeUS ?? null,
     sizeCM: v.sizeCM ?? null,
@@ -354,6 +356,10 @@ function buildPrismaWhere(
 
   if (filter.isOnSaleOnly) where.isOnSale = true
   if (filter.categorySlug) where.category = { slug: filter.categorySlug }
+  if (filter.categoryId) where.categoryId = filter.categoryId
+  if (filter.brandId) where.brandId = filter.brandId
+  if (filter.status === "active") where.isPublished = true
+  if (filter.status === "inactive") where.isPublished = false
 
   if (filter.extraGenders && filter.extraGenders.length > 0) {
     where.gender = { in: filter.extraGenders as Gender[] }
@@ -373,17 +379,28 @@ function buildPrismaWhere(
     }
   }
 
-  if (filter.talla) {
-    where.variants = { some: { size: filter.talla } }
+  const matchingVariant: Prisma.VariantWhereInput = {}
+  if (filter.hasStock === "yes") matchingVariant.stock = { gt: 0 }
+  if (filter.talla) matchingVariant.size = filter.talla
+  if (filter.color) {
+    matchingVariant.color = { contains: filter.color, mode: "insensitive" }
   }
 
-  if (filter.color) {
-    where.variants = {
-      some: {
-        ...(filter.talla ? { size: filter.talla } : {}),
-        color: { contains: filter.color, mode: "insensitive" },
-      },
+  const hasVariantCriteria = Object.keys(matchingVariant).length > 0
+  if (filter.hasStock === "no") {
+    const noPositiveStock: Prisma.ProductWhereInput = {
+      variants: { none: { stock: { gt: 0 } } },
     }
+    if (hasVariantCriteria) {
+      where.AND = [
+        noPositiveStock,
+        { variants: { some: matchingVariant } },
+      ]
+    } else {
+      where.variants = noPositiveStock.variants
+    }
+  } else if (hasVariantCriteria) {
+    where.variants = { some: matchingVariant }
   }
 
   return where
@@ -517,6 +534,17 @@ export async function getProductByIdForAdmin(id: string): Promise<AdminProductDe
 
 export async function deleteProduct(id: string): Promise<void> {
   await deleteProductRecord(id)
+}
+
+export async function updateProductsPublishStatus(
+  ids: string[],
+  isPublished: boolean
+): Promise<number> {
+  const result = await repoUpdateProductsPublishStatus(ids, isPublished)
+  if (result.count !== ids.length) {
+    throw new Error("No se pudieron actualizar todos los productos seleccionados.")
+  }
+  return result.count
 }
 
 export async function getRelatedProducts(
