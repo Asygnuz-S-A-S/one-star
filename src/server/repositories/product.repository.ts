@@ -497,3 +497,13 @@ export async function runInTransaction<T>(
 ): Promise<T> {
   return prisma.$transaction(fn)
 }
+
+export async function updateProductsPublishStatus(
+  ids: string[],
+  isPublished: boolean
+) {
+  return prisma.product.updateMany({
+    where: { id: { in: ids } },
+    data: { isPublished, updatedAt: new Date() },
+  })
+}

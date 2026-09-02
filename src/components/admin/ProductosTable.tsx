@@ -2,8 +2,10 @@
 
 import Link from "next/link"
 import Image from "next/image"
+import { useState, useTransition } from "react"
 import { type ColumnDef } from "@tanstack/react-table"
 import { DataTable } from "./DataTable"
+import { bulkToggleProductsPublishStatus } from "@/app/admin/productos/actions"
 import type { ProductDTO } from "@/server/services/product.service"
 import { PLACEHOLDER_IMAGE_URL } from "@/lib/product-image"
 
@@ -15,6 +17,29 @@ function getProductStatus(variants: { stock: number }[], isOnSale: boolean) {
 }
 
 const columns: ColumnDef<ProductDTO, unknown>[] = [
+  {
+    id: "select",
+    header: ({ table }) => (
+      <input
+        type="checkbox"
+        checked={table.getIsAllPageRowsSelected()}
+        onChange={table.getToggleAllPageRowsSelectedHandler()}
+        className="w-4 h-4 rounded border-gray-300 text-[#E31C23] focus:ring-[#E31C23] cursor-pointer"
+        aria-label="Seleccionar todos"
+      />
+    ),
+    cell: ({ row }) => (
+      <input
+        type="checkbox"
+        checked={row.getIsSelected()}
+        onChange={row.getToggleSelectedHandler()}
+        className="w-4 h-4 rounded border-gray-300 text-[#E31C23] focus:ring-[#E31C23] cursor-pointer"
+        aria-label="Seleccionar fila"
+      />
+    ),
+    enableSorting: false,
+    meta: { width: "40px", align: "center" },
+  },
   {
     id: "foto",
     header: "Foto",
@@ -157,12 +182,47 @@ export function ProductosTable({
   prevHref,
   nextHref,
 }: ProductosTableProps) {
+  const [isPending, startTransition] = useTransition()
+
   return (
     <DataTable
       data={products}
       columns={columns}
       pagination={{ page, totalPages, totalCount: total, unit: "productos", prevHref, nextHref }}
       emptyMessage="Aún no hay productos."
+      toolbar={(selectedRows, clearSelection) => (
+        <div className="flex items-center gap-4 bg-[#F9FAFB] border border-gray-200 p-3 rounded-xl mb-4">
+          <span className="text-sm font-semibold text-[#1C1C1C]">
+            {selectedRows.length} producto{selectedRows.length !== 1 && 's'} seleccionado{selectedRows.length !== 1 && 's'}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                startTransition(async () => {
+                  await bulkToggleProductsPublishStatus(selectedRows.map(r => r.id), true)
+                  clearSelection()
+                })
+              }}
+              disabled={isPending}
+              className="px-3 py-1.5 text-xs font-semibold bg-white border border-gray-200 rounded-lg text-[#1C1C1C] hover:bg-gray-50 transition-colors disabled:opacity-50"
+            >
+              {isPending ? "Procesando..." : "Activar"}
+            </button>
+            <button
+              onClick={() => {
+                startTransition(async () => {
+                  await bulkToggleProductsPublishStatus(selectedRows.map(r => r.id), false)
+                  clearSelection()
+                })
+              }}
+              disabled={isPending}
+              className="px-3 py-1.5 text-xs font-semibold bg-[#E31C23] border border-[#E31C23] rounded-lg text-white hover:bg-red-700 transition-colors disabled:opacity-50"
+            >
+              {isPending ? "Procesando..." : "Desactivar"}
+            </button>
+          </div>
+        </div>
+      )}
     />
   )
 }

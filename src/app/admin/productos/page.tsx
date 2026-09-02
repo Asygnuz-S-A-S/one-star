@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { getAdminProducts } from "@/server/services/product.service"
+import { getAdminProducts, getUniqueBrands } from "@/server/services/product.service"
 import { getCategories } from "@/server/services/category.service"
 import { ProductosTable } from "@/components/admin/ProductosTable"
 
@@ -9,6 +9,9 @@ interface SearchParams {
   page?: string
   q?: string
   category?: string
+  status?: string
+  hasStock?: string
+  marca?: string
 }
 
 interface Props {
@@ -20,17 +23,24 @@ export default async function ProductosPage({ searchParams }: Props) {
   const page = Math.max(1, parseInt(params.page ?? "1") || 1)
   const q = params.q?.trim() ?? ""
   const categoryFilter = params.category ?? ""
+  const statusFilter = params.status ?? ""
+  const hasStockFilter = params.hasStock ?? ""
+  const marcaFilter = params.marca ?? ""
 
-  const [{ products, total }, categories] = await Promise.all([
+  const [{ products, total }, categories, brands] = await Promise.all([
     getAdminProducts(
       {
         q: q || undefined,
-        ...(categoryFilter ? { categorySlug: undefined } : {}),
+        marca: marcaFilter || undefined,
+        ...(categoryFilter ? { categorySlug: undefined } : {}), // TODO: category by ID not slug
+        status: (statusFilter as "active" | "inactive" | "") || undefined,
+        hasStock: (hasStockFilter as "yes" | "no" | "") || undefined,
         page: String(page),
       },
       PAGE_SIZE
     ),
     getCategories(),
+    getUniqueBrands(),
   ])
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
@@ -39,6 +49,9 @@ export default async function ProductosPage({ searchParams }: Props) {
     const qs = new URLSearchParams()
     if (q) qs.set("q", q)
     if (categoryFilter) qs.set("category", categoryFilter)
+    if (statusFilter) qs.set("status", statusFilter)
+    if (hasStockFilter) qs.set("hasStock", hasStockFilter)
+    if (marcaFilter) qs.set("marca", marcaFilter)
     if (p > 1) qs.set("page", String(p))
     const s = qs.toString()
     return `/admin/productos${s ? `?${s}` : ""}`
@@ -82,13 +95,43 @@ export default async function ProductosPage({ searchParams }: Props) {
             </option>
           ))}
         </select>
+        <select
+          name="status"
+          defaultValue={statusFilter}
+          className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-[#1C1C1C] bg-white focus:outline-none focus:ring-2 focus:ring-[#E31C23]"
+        >
+          <option value="">Todos los estados</option>
+          <option value="active">Activos</option>
+          <option value="inactive">Inactivos</option>
+        </select>
+        <select
+          name="hasStock"
+          defaultValue={hasStockFilter}
+          className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-[#1C1C1C] bg-white focus:outline-none focus:ring-2 focus:ring-[#E31C23]"
+        >
+          <option value="">Todo el inventario</option>
+          <option value="yes">Con stock</option>
+          <option value="no">Agotados</option>
+        </select>
+        <select
+          name="marca"
+          defaultValue={marcaFilter}
+          className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-[#1C1C1C] bg-white focus:outline-none focus:ring-2 focus:ring-[#E31C23]"
+        >
+          <option value="">Todas las marcas</option>
+          {brands.map((b) => (
+            <option key={b} value={b}>
+              {b}
+            </option>
+          ))}
+        </select>
         <button
           type="submit"
           className="bg-[#1C1C1C] text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-[#4A4A4A] transition-colors"
         >
           Filtrar
         </button>
-        {(q || categoryFilter) && (
+        {(q || categoryFilter || statusFilter || hasStockFilter || marcaFilter) && (
           <Link
             href="/admin/productos"
             className="text-sm text-[#4A4A4A] px-3 py-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50"
@@ -101,7 +144,7 @@ export default async function ProductosPage({ searchParams }: Props) {
       {products.length === 0 ? (
         <div className="bg-white rounded-xl border border-gray-200 p-16 text-center">
           <p className="text-[#4A4A4A] text-lg mb-4">
-            {q || categoryFilter
+            {q || categoryFilter || statusFilter || hasStockFilter || marcaFilter
               ? "No se encontraron productos con esos filtros."
               : "Aún no hay productos."}
           </p>

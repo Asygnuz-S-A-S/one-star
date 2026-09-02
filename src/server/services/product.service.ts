@@ -11,6 +11,7 @@ import {
   deleteProductRecord,
   searchProductsByName,
   updateProductWithAdminRelations,
+  updateProductsPublishStatus as repoUpdateProductsPublishStatus,
 } from "../repositories/product.repository"
 import type { Prisma, Gender } from "@prisma/client"
 import { buildVisibleProductPage } from "@/server/domain/product-color-family.plan"
@@ -130,6 +131,8 @@ export interface AppProductFilter {
   categorySlug?: string
   isOnSaleOnly?: boolean
   extraGenders?: string[]
+  status?: "active" | "inactive" | ""
+  hasStock?: "yes" | "no" | ""
 }
 
 /**
@@ -276,15 +279,12 @@ function mapVariant(v: RawVariant): VariantDTO {
     stock: inv.stock
   }))
   
-  // Web stock is where storeLocationId is null or isWebWarehouse
-  const webStock = inventory.find(i => i.storeLocationId === null)?.stock ?? v.stock
-
   return {
     id: v.id,
     sku: v.sku,
     size: v.size,
     color: v.color,
-    stock: webStock,
+    stock: v.stock,
     inventory,
     sizeUS: v.sizeUS ?? null,
     sizeCM: v.sizeCM ?? null,
@@ -354,6 +354,17 @@ function buildPrismaWhere(
 
   if (filter.isOnSaleOnly) where.isOnSale = true
   if (filter.categorySlug) where.category = { slug: filter.categorySlug }
+  if (filter.status === "active") where.isPublished = true
+  if (filter.status === "inactive") where.isPublished = false
+
+  if (filter.hasStock === "yes") {
+    where.variants = { ...where.variants, some: { ...where.variants?.some, stock: { gt: 0 } } }
+  } else if (filter.hasStock === "no") {
+    where.AND = [
+      ...(Array.isArray(where.AND) ? where.AND : (where.AND ? [where.AND] : [])),
+      { NOT: { variants: { some: { stock: { gt: 0 } } } } }
+    ] as any
+  }
 
   if (filter.extraGenders && filter.extraGenders.length > 0) {
     where.gender = { in: filter.extraGenders as Gender[] }
@@ -517,6 +528,14 @@ export async function getProductByIdForAdmin(id: string): Promise<AdminProductDe
 
 export async function deleteProduct(id: string): Promise<void> {
   await deleteProductRecord(id)
+}
+
+export async function updateProductsPublishStatus(
+  ids: string[],
+  isPublished: boolean
+): Promise<number> {
+  const result = await repoUpdateProductsPublishStatus(ids, isPublished)
+  return result.count
 }
 
 export async function getRelatedProducts(

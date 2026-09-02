@@ -6,6 +6,7 @@ import {
   updateProduct as updateProductService,
   deleteProduct as deleteProductService,
   searchProducts as searchProductsService,
+  updateProductsPublishStatus as updateProductsPublishStatusService,
 } from "@/server/services/product.service"
 import { productFormSchema } from "@/server/validators/product.validator"
 import { slugify } from "@/lib/utils"
@@ -169,4 +170,19 @@ export async function searchProducts(
 }>> {
   await requireAdmin()
   return searchProductsService(q, excludeId)
+}
+
+export async function bulkToggleProductsPublishStatus(
+  ids: string[],
+  isPublished: boolean
+): Promise<ActionResult> {
+  try {
+    await requireAdmin()
+    await updateProductsPublishStatusService(ids, isPublished)
+    revalidatePath("/admin/productos")
+    revalidatePath("/productos") // Revalidate frontend catalog
+    return { success: true }
+  } catch (error: unknown) {
+    return { success: false, error: getErrorMessage(error) }
+  }
 }
