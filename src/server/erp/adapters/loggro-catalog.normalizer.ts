@@ -3,6 +3,7 @@ import "server-only"
 import type {
   ERPCatalogProductGroup,
   ERPCatalogSnapshot,
+  ERPVariantLocationStock,
 } from "../erp.types"
 import { parseSku } from "@/lib/sku"
 import type { LoggroCatalogItem } from "./loggro.client"
@@ -12,8 +13,18 @@ import { detectLoggroCategory } from "./loggro-category"
 import { detectLoggroBrand } from "./loggro-brand"
 import { detectLoggroOnlineExclusion } from "./loggro-online-availability"
 
+export interface LoggroStockLocation {
+  /** UUID del establecimiento en Loggro. */
+  erpId: string
+  name: string
+}
+
 export interface LoggroStockSnapshot {
   stockByCodigo: Map<string, number>
+  /** Sedes consultadas; ausente cuando la lectura falló antes de resolverlas. */
+  locations?: LoggroStockLocation[]
+  /** codigo → (uuid de establecimiento → cantidad). */
+  stockByCodigoAndLocation?: Map<string, Map<string, number>>
   complete: boolean
   requestedCount: number
   resolvedCount: number
@@ -27,6 +38,24 @@ function priceOf(item: LoggroCatalogItem): number | undefined {
   if (rawPrice === undefined) return undefined
   const price = Number(rawPrice)
   return Number.isFinite(price) ? price : undefined
+}
+
+/**
+ * Desglose por sede de una variante. Una sede sin fila en la respuesta de
+ * disponibilidad cuenta como cero, para que cada variante cubra todas las sedes.
+ */
+function stockByLocationOf(
+  sku: string,
+  totalStock: number | null,
+  stock: LoggroStockSnapshot
+): ERPVariantLocationStock[] | undefined {
+  const locations = stock.locations ?? []
+  if (totalStock === null || locations.length === 0) return undefined
+  const perLocation = stock.stockByCodigoAndLocation?.get(sku)
+  return locations.map((location) => ({
+    locationErpId: location.erpId,
+    stock: perLocation?.get(location.erpId) ?? 0,
+  }))
 }
 
 function unitOfMeasureOf(item: LoggroCatalogItem): string | undefined {
@@ -90,13 +119,15 @@ export function normalizeLoggroCatalog(
       groupsWithDefinedPrice.add(groupId)
     }
 
+    const variantStock = stock.stockByCodigo.get(sku) ?? null
     group.variants.push({
       erpId: String(item.uuid ?? item.codigo ?? ""),
       sku,
       name: item.descripcion || group.name,
       detailedName: item.descripcionDetallada || undefined,
       basePrice: itemPrice ?? group.basePrice,
-      stock: stock.stockByCodigo.get(sku) ?? null,
+      stock: variantStock,
+      stockByLocation: stockByLocationOf(sku, variantStock, stock),
       unitOfMeasure: unitOfMeasureOf(item),
     })
   }
@@ -150,6 +181,10 @@ export function normalizeLoggroCatalog(
 
   return {
     groups: normalizedGroups,
+    locations: (stock.locations ?? []).map((location) => ({
+      erpId: location.erpId,
+      name: location.name,
+    })),
     diagnostics: {
       sourceItemCount: items.length,
       definitionCount: definitions.length,

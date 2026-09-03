@@ -14,9 +14,13 @@ vi.mock("@/server/repositories/erp-sync-log.repository", () => ({
   createErpSyncLog: vi.fn().mockResolvedValue(undefined),
   findRecentErpSyncLogs: vi.fn().mockResolvedValue([]),
 }))
+vi.mock("@/server/repositories/store.repository", () => ({
+  ensureErpStoreLocations: vi.fn().mockResolvedValue(new Map()),
+}))
 vi.mock("@/server/repositories/erp-catalog.repository", () => ({
   createCatalogProduct: vi.fn(),
-  createCatalogVariant: vi.fn(),
+  createCatalogVariant: vi.fn().mockResolvedValue({ id: "variant-created" }),
+  replaceErpInventoryLevels: vi.fn().mockResolvedValue(0),
   createDefaultImportCategory: vi.fn(),
   ensureCatalogBrand: vi.fn(),
   ensureCatalogCategory: vi.fn(),
@@ -42,6 +46,7 @@ import { findRecentErpSyncLogs } from "@/server/repositories/erp-sync-log.reposi
 import { findDefaultImportCategory } from "@/server/repositories/erp-catalog.repository"
 import { applyErpColorFamilyKeyUpdates } from "@/server/repositories/erp-color-family.repository"
 import { getErpSyncSchedule } from "@/server/services/erp-sync-scheduler.service"
+import { ensureErpStoreLocations } from "@/server/repositories/store.repository"
 import { getErpSyncStatus, runErpEndpointDiagnostics, syncCatalogFromERP } from "../erp-sync.service"
 
 const mockGetERPAdapter = vi.mocked(getERPAdapter)
@@ -405,6 +410,95 @@ describe("syncCatalogFromERP", () => {
     expect(result.success).toBe(false)
     expect(result.error).toContain("escrituras del catálogo están pausadas")
     expect(mockFindDefaultImportCategory).not.toHaveBeenCalled()
+  })
+
+  it("guarda el desglose de stock por sede solo para las tiendas vinculadas al ERP", async () => {
+    process.env.ERP_CATALOG_WRITES_ENABLED = "true"
+    mockFindDefaultImportCategory.mockResolvedValue({ id: "category" } as never)
+    const repository = await import("@/server/repositories/erp-catalog.repository")
+    vi.mocked(repository.findCatalogProductBySlug).mockResolvedValue({
+      id: "product-a",
+      variants: [{ id: "variant-a", sku: "180361GRN_8", size: "8", color: "Verde" }],
+    } as never)
+    vi.mocked(ensureErpStoreLocations).mockResolvedValue(
+      new Map([
+        ["est-fundadores", "store-fundadores"],
+        ["est-centro", "store-centro"],
+      ])
+    )
+    vi.mocked(repository.replaceErpInventoryLevels).mockResolvedValue(4)
+    mockGetERPAdapter.mockReturnValue({
+      fetchCatalog: vi.fn().mockResolvedValue({
+        groups: [
+          {
+            erpId: "erp-a",
+            sku: "180361GRN",
+            name: "SKECHERS VERDE",
+            basePrice: 100_000,
+            variants: [
+              {
+                erpId: "variant-erp-a",
+                sku: "180361GRN_8",
+                name: "SKECHERS VERDE",
+                basePrice: 100_000,
+                stock: 3,
+                stockByLocation: [
+                  { locationErpId: "est-fundadores", stock: 2 },
+                  { locationErpId: "est-centro", stock: 1 },
+                  { locationErpId: "est-desconocida", stock: 9 },
+                ],
+              },
+              {
+                erpId: "variant-erp-b",
+                sku: "180361GRN_9",
+                name: "SKECHERS VERDE",
+                basePrice: 100_000,
+                stock: 0,
+                stockByLocation: [
+                  { locationErpId: "est-fundadores", stock: 0 },
+                  { locationErpId: "est-centro", stock: 0 },
+                ],
+              },
+            ],
+          },
+        ],
+        locations: [
+          { erpId: "est-fundadores", name: "One Star Fundadores" },
+          { erpId: "est-centro", name: "One Star Centro" },
+        ],
+        diagnostics: { sourceItemCount: 3, definitionCount: 1, variantCount: 2, groupCount: 1 },
+        stock: {
+          status: "complete",
+          complete: true,
+          requestedCount: 2,
+          resolvedCount: 2,
+          totalStock: 3,
+          missingCodes: [],
+          errors: [],
+        },
+      }),
+      ping: vi.fn(),
+    } as never)
+
+    const result = await syncCatalogFromERP("MANUAL")
+
+    expect(ensureErpStoreLocations).toHaveBeenCalledWith([
+      { erpId: "est-fundadores", name: "One Star Fundadores" },
+      { erpId: "est-centro", name: "One Star Centro" },
+    ])
+    expect(repository.replaceErpInventoryLevels).toHaveBeenCalledWith(
+      ["store-fundadores", "store-centro"],
+      [
+        { variantId: "variant-a", storeLocationId: "store-fundadores", stock: 2 },
+        { variantId: "variant-a", storeLocationId: "store-centro", stock: 1 },
+        { variantId: "variant-created", storeLocationId: "store-fundadores", stock: 0 },
+        { variantId: "variant-created", storeLocationId: "store-centro", stock: 0 },
+      ]
+    )
+    expect(result).toMatchObject({
+      success: true,
+      storeStock: { locations: 2, inventoryLevels: 4 },
+    })
   })
 
   it("reconcilia las claves opacas después de sincronizar productos y variantes", async () => {

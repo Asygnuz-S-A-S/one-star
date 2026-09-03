@@ -13,6 +13,7 @@ import { useCart } from "@/store"
 import { useToast } from "@/hooks/useToast"
 import ToastContainer from "@/components/ui/ToastContainer"
 import { buildProductFamilyCardColorSummary } from "@/lib/product-card-colors"
+import { getVariantStoreStock } from "@/lib/store-location"
 
 interface ProductInfoProps {
   product: ProductWithRelations
@@ -171,6 +172,13 @@ export default function ProductInfo({
   }, [selectedSize, triggerShake, buildCartItem, addItem, router])
 
   const canAct = Boolean(selectedSize)
+
+  // Existencias por sede de la talla elegida. Solo informativo: la web no
+  // aparta unidades de tienda; quien las quiera debe comprarlas allí.
+  const selectedVariant = selectedSize
+    ? product.variants.find((v) => v.color === selectedColor && v.size === selectedSize)
+    : undefined
+  const storeStock = selectedVariant ? getVariantStoreStock(selectedVariant.inventory) : []
 
   return (
     <MotionConfig reducedMotion="user">
@@ -389,6 +397,42 @@ export default function ProductInfo({
               </motion.p>
             )}
           </AnimatePresence>
+
+          {selectedVariant && (
+            <div
+              className="rounded-lg border border-[#E0E0E0] dark:border-white/10 bg-[#F5F5F5] dark:bg-white/5 px-3 py-2"
+              aria-live="polite"
+              data-testid="store-stock"
+            >
+              <p className="font-[var(--font-montserrat)] text-xs font-semibold text-[#1C1C1C] dark:text-white">
+                Talla {selectedSize}: {selectedVariant.stock > 0
+                  ? `${selectedVariant.stock} disponible${selectedVariant.stock !== 1 ? "s" : ""} en total`
+                  : "sin unidades disponibles"}
+              </p>
+              {storeStock.length > 0 ? (
+                <>
+                  <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
+                    {storeStock.map((store) => (
+                      <li
+                        key={store.id}
+                        className="font-[var(--font-montserrat)] text-xs text-[#4A4A4A] dark:text-gray-300"
+                      >
+                        <span className="font-semibold text-[#1C1C1C] dark:text-white">{store.name}</span>
+                        {store.city ? ` (${store.city})` : ""}: {store.stock}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-1 font-[var(--font-montserrat)] text-[11px] text-[#4A4A4A] dark:text-gray-400">
+                    El stock de tienda es para compra presencial: la web no lo aparta ni lo reserva.
+                  </p>
+                </>
+              ) : (
+                <p className="mt-1 font-[var(--font-montserrat)] text-[11px] text-[#4A4A4A] dark:text-gray-400">
+                  Sin existencias en tiendas físicas para esta talla.
+                </p>
+              )}
+            </div>
+          )}
         </motion.div>
 
         {/* Action buttons */}

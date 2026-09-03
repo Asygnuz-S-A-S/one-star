@@ -507,14 +507,18 @@ export default function ProductForm({
     formData.set("availableInStores", String(availableInStores))
     formData.set("isPublished", String(isPublished))
     
-    // Ensure all variants map their 'inventory' objects correctly with numbers
+    // Ensure all variants map their 'inventory' objects correctly with numbers.
+    // Las sedes vinculadas al ERP no se envían: su stock lo escribe la sincronización.
+    const erpStoreIds = new Set(stores.filter((store) => store.erpId).map((store) => store.id))
     const cleanVariants = variants.map(v => ({
       ...v,
       stock: Number(v.stock) || 0,
-      inventory: v.inventory.map(inv => ({
-        storeLocationId: inv.storeLocationId,
-        stock: Number(inv.stock) || 0
-      }))
+      inventory: v.inventory
+        .filter((inv) => inv.storeLocationId === null || !erpStoreIds.has(inv.storeLocationId))
+        .map(inv => ({
+          storeLocationId: inv.storeLocationId,
+          stock: Number(inv.stock) || 0
+        }))
     }))
     
     formData.set("variants", JSON.stringify(cleanVariants))
@@ -791,7 +795,8 @@ export default function ProductForm({
           <p>
             <strong>Inventario:</strong> El Stock Web, SKU y talla vienen de Loggro (solo lectura). El color se
             detecta automáticamente cuando el código y la descripción son confiables; puedes corregir cada
-            variante individualmente como respaldo. También puedes editar el <strong>Stock en Tiendas Físicas</strong>.
+            variante individualmente como respaldo. El stock de las sedes vinculadas a Loggro (marcadas con ⟳)
+            también es de solo lectura; solo puedes editar el de tiendas sin vínculo.
           </p>
         </div>
         <div className="overflow-x-auto">
@@ -803,8 +808,12 @@ export default function ProductForm({
                 <th className="text-left py-2 pr-2 text-[#4A4A4A] font-semibold min-w-[70px]">Talla</th>
                 <th className="text-left py-2 pr-2 text-[#4A4A4A] font-semibold min-w-[60px]">Stock Web</th>
                 {stores.map(store => (
-                  <th key={store.id} className="text-left py-2 pr-2 text-[#4A4A4A] font-semibold min-w-[70px] truncate max-w-[100px]" title={store.name}>
-                    {store.name}
+                  <th
+                    key={store.id}
+                    className="text-left py-2 pr-2 text-[#4A4A4A] font-semibold min-w-[70px] truncate max-w-[100px]"
+                    title={store.erpId ? `${store.name} — sincronizada desde Loggro` : store.name}
+                  >
+                    {store.erpId ? "⟳ " : ""}{store.name}
                   </th>
                 ))}
                 <th className="text-left py-2 pr-2 text-[#4A4A4A] font-semibold min-w-[60px]">US</th>
@@ -872,6 +881,7 @@ export default function ProductForm({
                     </td>
                     {stores.map(store => {
                       const storeInv = v.inventory.find(i => i.storeLocationId === store.id)
+                      const syncedFromErp = Boolean(store.erpId)
                       return (
                         <td key={store.id} className="py-1 pr-2">
                           <input 
@@ -879,8 +889,11 @@ export default function ProductForm({
                             value={storeInv?.stock || "0"} 
                             onChange={(e) => updateVariantInventory(idx, store.id, e.target.value)} 
                             min="0" 
-                            className={`${inputClass} text-xs`} 
-                            title={`Stock ${store.name}`}
+                            disabled={syncedFromErp}
+                            className={`${inputClass} text-xs ${
+                              syncedFromErp ? "border-blue-200 bg-blue-50/50 text-gray-500 cursor-not-allowed" : ""
+                            }`} 
+                            title={syncedFromErp ? `Stock ${store.name} (sincronizado desde Loggro)` : `Stock ${store.name}`}
                           />
                         </td>
                       )

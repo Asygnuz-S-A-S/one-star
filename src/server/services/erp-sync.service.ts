@@ -26,9 +26,12 @@ import {
   findCatalogProductBySlug,
   findDefaultImportCategory,
   fillMissingCatalogProductGenders,
+  replaceErpInventoryLevels,
   updateCatalogProduct,
   updateCatalogVariant,
+  type ErpInventoryLevelRow,
 } from "@/server/repositories/erp-catalog.repository"
+import { ensureErpStoreLocations } from "@/server/repositories/store.repository"
 import { applyErpColorFamilyKeyUpdates } from "@/server/repositories/erp-color-family.repository"
 import { getErpSyncSchedule } from "@/server/services/erp-sync-scheduler.service"
 import type { ErpSyncInterval } from "@/lib/erp-sync-schedule"
@@ -230,6 +233,12 @@ async function runCatalogSync(options: CatalogSyncOptions): Promise<ERPCatalogSy
     // Paleta activa: permite deducir el color de cada variante desde el texto
     // que envía el ERP. Se lee una sola vez por sincronización.
     const paletteNames = (await findManyProductColors(true)).map((c) => c.name)
+
+    // Sedes del ERP → tiendas físicas de la web. Se crean ocultas si no existen,
+    // para que el desglose por sede quede guardado desde la primera sincronización.
+    const erpLocations = snapshot.locations ?? []
+    const storeIdByErpId = await ensureErpStoreLocations(erpLocations)
+    const inventoryRows: ErpInventoryLevelRow[] = []
     const suggestedBrandIds = new Map<string, string>()
     const suggestedCategoryIds = new Map<string, string>()
     const colorFamilyKeyUpdates: Array<{ productId: string; key: string | null }> = []
@@ -316,6 +325,7 @@ async function runCatalogSync(options: CatalogSyncOptions): Promise<ERPCatalogSy
           detectColorFromText(variantItem.name, paletteNames) ??
           ""
 
+        let variantId: string
         if (existingVariant) {
           await updateCatalogVariant(existingVariant.id, {
             erpId: variantItem.erpId,
@@ -326,8 +336,9 @@ async function runCatalogSync(options: CatalogSyncOptions): Promise<ERPCatalogSy
               ? {}
               : { color: detectedColor }),
           })
+          variantId = existingVariant.id
         } else {
-          await createCatalogVariant({
+          const created = await createCatalogVariant({
             productId: existingProduct.id,
             sku: variantItem.sku,
             erpId: variantItem.erpId,
@@ -335,6 +346,15 @@ async function runCatalogSync(options: CatalogSyncOptions): Promise<ERPCatalogSy
             color: detectedColor,
             stock: variantItem.stock,
           })
+          variantId = created.id
+        }
+
+        // Desglose por sede: solo informativo para el cliente (no reserva ni
+        // recogida en tienda). El total vendible sigue siendo `stock`.
+        for (const level of variantItem.stockByLocation ?? []) {
+          const storeLocationId = storeIdByErpId.get(level.locationErpId)
+          if (!storeLocationId) continue
+          inventoryRows.push({ variantId, storeLocationId, stock: level.stock })
         }
       }
 
@@ -347,6 +367,10 @@ async function runCatalogSync(options: CatalogSyncOptions): Promise<ERPCatalogSy
     await fillMissingCatalogProductGenders(genderCandidates)
     const colorFamilyResult = await applyErpColorFamilyKeyUpdates(colorFamilyKeyUpdates)
     const colorFamilyActions = colorFamilyResult.reconciliation.plan.actions
+    const inventoryLevelCount = await replaceErpInventoryLevels(
+      [...storeIdByErpId.values()],
+      inventoryRows
+    )
 
     if (unpublishedByStock > 0) {
       warnings.push(
@@ -362,6 +386,10 @@ async function runCatalogSync(options: CatalogSyncOptions): Promise<ERPCatalogSy
       definitionCount,
       dryRun: false,
       warnings: warnings.length > 0 ? warnings : undefined,
+      storeStock: {
+        locations: storeIdByErpId.size,
+        inventoryLevels: inventoryLevelCount,
+      },
       colorFamilies: {
         created: colorFamilyActions.filter((action) => action.mode === "create").length,
         updated: colorFamilyActions.filter((action) => action.mode === "add").length,
