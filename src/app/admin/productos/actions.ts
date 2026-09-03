@@ -8,7 +8,10 @@ import {
   searchProducts as searchProductsService,
   updateProductsPublishStatus as updateProductsPublishStatusService,
 } from "@/server/services/product.service"
-import { productFormSchema } from "@/server/validators/product.validator"
+import {
+  bulkProductPublishStatusSchema,
+  productFormSchema,
+} from "@/server/validators/product.validator"
 import { slugify } from "@/lib/utils"
 import { requireAdmin } from "@/server/auth/require-admin"
 import type { ActionResult } from "@/types/admin"
@@ -178,7 +181,15 @@ export async function bulkToggleProductsPublishStatus(
 ): Promise<ActionResult> {
   try {
     await requireAdmin()
-    await updateProductsPublishStatusService(ids, isPublished)
+    const parsed = bulkProductPublishStatusSchema.safeParse({ ids, isPublished })
+    if (!parsed.success) {
+      return {
+        success: false,
+        error: parsed.error.issues[0]?.message ?? "Datos inválidos.",
+      }
+    }
+
+    await updateProductsPublishStatusService(parsed.data.ids, parsed.data.isPublished)
     revalidatePath("/admin/productos")
     revalidatePath("/productos") // Revalidate frontend catalog
     return { success: true }
