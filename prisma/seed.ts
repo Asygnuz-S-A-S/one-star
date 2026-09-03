@@ -1,4 +1,5 @@
 import { PrismaClient, Prisma } from "@prisma/client";
+import { seedGiftCardProducts } from "./seed-gift-card";
 
 const prisma = new PrismaClient();
 
@@ -155,6 +156,10 @@ async function main() {
   });
 
   console.log("✓ GiftCard lista");
+
+  // ── Tarjetas de regalo comprables ───────────────────────────────────────────
+  const giftCardCount = await seedGiftCardProducts(prisma);
+  console.log(`✓ ${giftCardCount} tarjetas de regalo publicadas en el catálogo`);
 
   // ── Grilla de Inicio ────────────────────────────────────────────────────────
   const gridCount = await prisma.homeGridBlock.count();

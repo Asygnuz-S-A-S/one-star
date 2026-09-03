@@ -1,13 +1,16 @@
 import React from "react"
 import Image from "next/image"
 import GiftCardPurchase from "@/components/gift-card/GiftCardPurchase"
+import { getGiftCardOptions } from "@/server/services/gift-card.service"
 
 export const metadata = {
   title: "Tarjeta de Regalo | One Star",
   description: "Regala el estilo perfecto con la tarjeta de regalo One Star.",
 }
 
-export default function TarjetaRegaloPage() {
+export default async function TarjetaRegaloPage() {
+  const options = await getGiftCardOptions()
+
   return (
     <div className="min-h-screen bg-[#F5F5F5] dark:bg-[#0f0f0f] pt-24 pb-16 px-4 transition-colors">
       <div className="max-w-4xl mx-auto bg-white dark:bg-[#151515] shadow-xl overflow-hidden rounded-lg transition-colors">
@@ -46,7 +49,7 @@ export default function TarjetaRegaloPage() {
             </p>
             
             <div className="space-y-6">
-              <GiftCardPurchase />
+              <GiftCardPurchase options={options} />
               
               <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-4">
                 La tarjeta de regalo digital se enviará por correo electrónico inmediatamente después de la compra. Válida por 12 meses.
