@@ -7,8 +7,16 @@ describe("storeLocationSchema", () => {
 
   it("convierte el vínculo ERP vacío en null y conserva uno válido", () => {
     expect(storeLocationSchema.parse({ ...base, erpId: "" }).erpId).toBeNull()
+    expect(storeLocationSchema.parse({ ...base, erpId: null }).erpId).toBeNull()
     expect(storeLocationSchema.parse({ ...base, erpId: "  est-1 " }).erpId).toBe("est-1")
-    expect(storeLocationSchema.parse(base).erpId).toBeNull()
+  })
+
+  it("deja fuera los campos que el formulario no envía, para no borrarlos al guardar", () => {
+    const parsed = storeLocationSchema.parse(base)
+
+    expect(parsed.googleMapsUrl).toBeUndefined()
+    expect(parsed.erpId).toBeUndefined()
+    expect("googleMapsUrl" in parsed).toBe(false)
   })
 
   it("rechaza sedes sin ciudad", () => {

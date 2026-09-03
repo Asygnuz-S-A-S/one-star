@@ -1,5 +1,11 @@
 import { z } from "zod"
 
+/**
+ * Texto opcional con tres estados distintos, porque Prisma los trata distinto:
+ * ausente (`undefined`) conserva el valor guardado, mientras que `null` o cadena
+ * vacía lo borran. Colapsar el primero en `null` hacía que guardar el formulario
+ * de sucursales vaciara los campos que no envía (p. ej. `googleMapsUrl`).
+ */
 const optionalText = (max: number) =>
   z
     .string()
@@ -7,7 +13,7 @@ const optionalText = (max: number) =>
     .max(max)
     .optional()
     .nullable()
-    .transform((value) => (value ? value : null))
+    .transform((value) => (value === undefined ? undefined : value || null))
 
 export const storeLocationSchema = z.object({
   name: z.string().trim().min(1, "El nombre es obligatorio.").max(120),
