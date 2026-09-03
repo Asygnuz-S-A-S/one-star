@@ -1,0 +1,155 @@
+"use client"
+
+import { useState, useCallback } from "react"
+import Image from "next/image"
+import { motion } from "motion/react"
+import type { ProductImage } from "@/types/shop"
+import { PLACEHOLDER_IMAGE_URL } from "@/lib/product-image"
+
+interface ProductGalleryProps {
+  images: ProductImage[]
+  videoUrl?: string | null
+}
+
+export default function ProductGallery({ images, videoUrl }: ProductGalleryProps) {
+  const [activeIndex, setActiveIndex] = useState(0)
+  const [showVideo, setShowVideo] = useState(false)
+  const [hoverFrame, setHoverFrame] = useState<number | null>(null)
+
+  const hasVideo = Boolean(videoUrl)
+  const allImages = images.map(img => img.url)
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (showVideo || allImages.length <= 1) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const x = Math.max(0, Math.min(0.9999, (e.clientX - rect.left) / rect.width))
+    setHoverFrame(Math.floor(x * allImages.length))
+  }, [showVideo, allImages.length])
+
+  const handleMouseLeave = useCallback(() => {
+    setHoverFrame(null)
+  }, [])
+
+  // Producto sin fotos cargadas: imagen predeterminada de la tienda.
+  if (images.length === 0 && !hasVideo) {
+    return (
+      <div className="relative aspect-square bg-[#F0F0F0] dark:bg-white/5 overflow-hidden rounded-2xl">
+        <Image
+          src={PLACEHOLDER_IMAGE_URL}
+          alt="Producto sin imagen disponible"
+          fill
+          priority
+          className="object-contain object-center"
+          sizes="(max-width: 768px) 100vw, 55vw"
+        />
+      </div>
+    )
+  }
+
+  const activeImage = images[activeIndex]
+
+  return (
+    <div className="flex flex-col-reverse md:flex-row gap-3 md:gap-4">
+
+      {/* Thumbnails verticales (derecha en mobile = abajo; izquierda en desktop) */}
+      <div className="flex flex-row md:flex-col gap-2 overflow-x-auto md:overflow-y-auto md:max-h-[580px] pb-1 scrollbar-hide md:w-20 shrink-0">
+        {images.map((img, idx) => {
+          const active = !showVideo && activeIndex === idx
+          return (
+            <motion.button
+              key={img.id}
+              onClick={() => { setActiveIndex(idx); setShowVideo(false) }}
+              whileHover={{ scale: 1.08, y: -2 }}
+              whileTap={{ scale: 0.92 }}
+              animate={{ scale: active ? 1.05 : 1 }}
+              transition={{ type: "spring", stiffness: 420, damping: 15 }}
+              className={`relative shrink-0 w-16 h-16 md:w-20 md:h-20 bg-[#F0F0F0] dark:bg-white/5 overflow-hidden rounded-xl border-2 ${
+                active
+                  ? "border-[#1C1C1C] dark:border-white shadow-md"
+                  : "border-transparent hover:border-[#4A4A4A]/50"
+              }`}
+              aria-label={img.alt || `Imagen ${idx + 1}`}
+            >
+              <Image
+                src={img.url}
+                alt={img.alt || `Miniatura ${idx + 1}`}
+                fill
+                className="object-cover object-center"
+                sizes="80px"
+              />
+            </motion.button>
+          )
+        })}
+
+        {hasVideo && (
+          <motion.button
+            onClick={() => setShowVideo(true)}
+            whileHover={{ scale: 1.08, y: -2 }}
+            whileTap={{ scale: 0.92 }}
+            animate={{ scale: showVideo ? 1.05 : 1 }}
+            transition={{ type: "spring", stiffness: 420, damping: 15 }}
+            className={`relative shrink-0 w-16 h-16 md:w-20 md:h-20 bg-[#1C1C1C] dark:bg-white/10 overflow-hidden rounded-xl border-2 flex items-center justify-center ${
+              showVideo ? "border-[#1C1C1C] dark:border-white" : "border-transparent hover:border-[#4A4A4A]/50"
+            }`}
+            aria-label="Ver video del producto"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" className="w-7 h-7">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+          </motion.button>
+        )}
+      </div>
+
+      {/* Imagen principal: rotación 3D al mover el mouse + zoom lúdico al hover */}
+      <div
+        className="relative flex-1 aspect-square bg-[#F0F0F0] dark:bg-white/5 overflow-hidden rounded-2xl cursor-crosshair group"
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+      >
+        {showVideo && videoUrl ? (
+          <video
+            src={videoUrl}
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="w-full h-full object-cover"
+          />
+        ) : activeImage ? (
+          <>
+            {/* Capa con zoom al hover: al pasar el mouse la imagen crece un poco */}
+            <div className="absolute inset-0 transition-transform duration-500 ease-out group-hover:scale-110">
+              {allImages.map((url, idx) => (
+                <Image
+                  key={`main-${idx}`}
+                  src={url}
+                  alt={images[idx]?.alt || `Vista ${idx + 1}`}
+                  fill
+                  priority={idx === 0}
+                  className={`object-contain object-center transition-opacity duration-100 ease-in-out ${
+                    idx === (hoverFrame ?? activeIndex) ? "opacity-100" : "opacity-0"
+                  }`}
+                  sizes="(max-width: 768px) 100vw, 55vw"
+                />
+              ))}
+            </div>
+
+            {/* Hint sutil de interacción (solo si hay más de 1 imagen) */}
+            {allImages.length > 1 && (
+              <motion.div
+                className="absolute bottom-4 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+                animate={{ x: [-4, 4, -4] }}
+                transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+              >
+                <span className="text-[10px] font-[var(--font-montserrat)] tracking-widest text-[#4A4A4A] dark:text-white/50 uppercase">
+                  ← Mover para rotar →
+                </span>
+              </motion.div>
+            )}
+          </>
+        ) : null}
+      </div>
+
+    </div>
+  )
+}

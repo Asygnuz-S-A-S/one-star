@@ -1,0 +1,135 @@
+---
+title: 'Configurar la sincronización automática del ERP'
+type: 'feature'
+created: '2026-08-06'
+status: 'done'
+baseline_commit: '458070bfddb2acc6584cbdf61622b5724ac3a6e2'
+context:
+  - '{project-root}/docs/architecture.md'
+  - '{project-root}/docs/integrations/loggro-erp.md'
+---
+
+<frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">
+
+## Intent
+
+**Problem:** La sincronización automática del ERP está siempre activa y fijada a 30 minutos en el código. El administrador no puede pausarla ni elegir una frecuencia desde `/admin/integraciones`, y el estado mostrado no representa una configuración persistente.
+
+**Approach:** Añadir una configuración persistente administrable con interruptor, intervalos seguros y próxima ejecución. Un coordinador común decidirá y reclamará atómicamente cada ejecución automática, tanto para el cron interno como para el endpoint externo, sin afectar la sincronización manual.
+
+## Boundaries & Constraints
+
+**Always:** Mantener el flujo `Client → Action → Service → Repository → Prisma`; exigir sesión administrativa y validar con Zod; conservar `IERPAdapter` agnóstico sin tocar clientes Loggro; ofrecer 15, 30, 60, 120, 360, 720 y 1440 minutos; programar la siguiente ejecución desde el momento de guardar; reclamar vencimientos atómicamente antes de llamar al ERP; mantener “Sincronizar ahora” disponible aunque el automático esté apagado; mostrar estado, intervalo y próxima ejecución; documentar la limitación del disparador externo/serverless.
+
+**Ask First:** Cambiar el proveedor ERP, habilitar escrituras hoy bloqueadas por `ERP_CATALOG_WRITES_ENABLED`, cancelar una sincronización ya iniciada o cambiar el plan/topología de Vercel.
+
+**Never:** Aceptar expresiones cron arbitrarias; usar variables de entorno como configuración editable; dejar una transacción abierta mientras se consulta Loggro; desactivar sincronizaciones manuales; ejecutar en paralelo el mismo vencimiento; importar un adaptador concreto fuera de `src/server/erp/`.
+
+## I/O & Edge-Case Matrix
+
+| Scenario | Input / State | Expected Output / Behavior | Error Handling |
+|----------|--------------|---------------------------|----------------|
+| Desactivar | `enabled=false` | Se guarda, se elimina la próxima ejecución y los disparadores automáticos se omiten | La UI conserva el valor anterior si guardar falla |
+| Activar/cambiar intervalo | Intervalo permitido | Se guarda y `nextRunAt` queda en ahora + intervalo | Zod rechaza valores manipulados |
+| Ejecución vencida | Activa y `nextRunAt <= ahora` | Un solo proceso reclama, adelanta `nextRunAt` y sincroniza con trigger `AUTO` | El fallo ERP queda en historial; no libera el mismo vencimiento |
+| Ejecución no vencida | Inactiva o futura | Cron interno/externo responde como omitido sin tocar el ERP | No se registra como error |
+| Sincronización manual | Automático inactivo | El admin puede sincronizar normalmente con trigger `MANUAL` | Conserva protecciones y mensajes actuales |
+| Serverless poco frecuente | Scheduler externo diario | La UI/configuración se guarda, pero la ejecución ocurre como máximo cuando invoque el scheduler externo | Se muestra/documenta la limitación operativa |
+
+</frozen-after-approval>
+
+## Code Map
+
+- `prisma/schema.prisma` y nueva migración -- singleton `ErpSyncConfig` con activación, intervalo y próximo vencimiento.
+- `src/server/validators/erp-sync-config.validator.ts` -- contrato Zod y lista única de intervalos permitidos.
+- `src/server/repositories/erp-sync-config.repository.ts` -- defaults, upsert y reclamación atómica PostgreSQL.
+- `src/server/services/erp-sync-scheduler.service.ts` -- lectura/actualización de configuración y coordinación de ejecuciones vencidas.
+- `src/server/actions/erp.actions.ts` -- mutación autenticada para guardar desde admin.
+- `src/instrumentation-node.ts` y `src/app/api/cron/sync-erp/route.ts` -- despertador por minuto y coordinador compartido.
+- `src/server/services/erp-sync.service.ts` -- incorpora configuración real al DTO del panel.
+- `src/components/admin/SyncPanel.tsx` -- interruptor, selector, guardado, mensajes y próxima ejecución.
+- `docs/architecture.md` -- persistencia, cadencia y diferencia entre proceso vivo y serverless.
+
+## Tasks & Acceptance
+
+**Execution:**
+- [x] Pruebas de validador/repositorio/servicio/action -- cubrir matriz, permisos y reclamación concurrente antes de producción.
+- [x] Prisma + repositorio -- persistir un único registro y reclamar vencimientos sin mantener locks durante HTTP.
+- [x] Validador + servicio -- aplicar defaults, intervalos permitidos y cálculo estable de `nextRunAt`.
+- [x] Action + cron interno/externo -- autorizar cambios y respetar apagado/vencimiento en ambos disparadores.
+- [x] Estado + `SyncPanel` -- guardar accesiblemente, reflejar éxito/error y conservar el control manual.
+- [x] Arquitectura + verificación UI -- explicar limitaciones y comprobar el flujo completo en Docker.
+
+**Acceptance Criteria:**
+- Given un administrador, when desactiva la sincronización y guarda, then el estado queda “Inactiva” y los siguientes disparadores no llaman al ERP.
+- Given un intervalo permitido, when lo guarda, then persiste tras recargar y la UI muestra la próxima ejecución correspondiente.
+- Given dos disparadores simultáneos para un vencimiento, when intentan reclamarlo, then solo uno ejecuta la sincronización.
+- Given el automático desactivado, when el admin pulsa “Sincronizar catálogo”, then la ejecución manual sigue operativa.
+- Given un despliegue serverless, when se muestra la configuración, then se advierte que la frecuencia efectiva depende del scheduler externo.
+
+## Spec Change Log
+
+## Design Notes
+
+`node-cron` despertará cada minuto, pero no decidirá la frecuencia. El repositorio hará un `UPDATE ... WHERE enabled AND nextRunAt <= now RETURNING` que adelanta `nextRunAt` antes de la llamada HTTP; así dos procesos no consumen el mismo vencimiento y una falla no produce reintentos inmediatos. Al guardar o reactivar, la primera ejecución queda programada para `ahora + intervalo`.
+
+## Verification
+
+**Commands:**
+- `pnpm test -- <pruebas focalizadas>` -- matriz y autorización en verde.
+- `pnpm test:coverage` -- cobertura del código nuevo ≥ 80%.
+- `pnpm exec tsc --noEmit && pnpm lint && pnpm build` -- tipos, lint y build correctos.
+- `docker compose up -d --build app` -- contenedor actualizado.
+
+**Manual checks (if no CLI):**
+- En `/admin/integraciones`, guardar otro intervalo, recargar y confirmar persistencia; desactivar y comprobar estado; ejecutar manualmente y verificar que sigue disponible.
+
+**Resultado (2026-08-06):**
+- 323 pruebas unitarias en verde y una prueba de integración PostgreSQL concurrente; cobertura focalizada de los módulos nuevos: 100% líneas, funciones y ramas.
+- Prisma validate, TypeScript, ESLint focalizado, build local y build Docker en verde; migración aplicada correctamente.
+- UI autenticada verificada: cambio de intervalo persistente, pausa persistente, ejecución manual habilitada y restauración final a activa cada 30 minutos.
+- La cobertura global permanece en 50,79% por deuda histórica fuera de esta especificación; el código nuevo cumple el umbral solicitado.
+- El lint global continúa incluyendo errores históricos y artefactos `.next` de worktrees ajenos; los 12 archivos TypeScript modificados pasan ESLint focalizado.
+
+## Suggested Review Order
+
+**Coordinación y exclusión**
+
+- Punto de entrada central: reclama antes de ejecutar y omite ciclos no vencidos.
+  [`erp-sync-scheduler.service.ts:58`](../../src/server/services/erp-sync-scheduler.service.ts#L58)
+
+- El `UPDATE … RETURNING` garantiza un único consumidor por vencimiento.
+  [`erp-sync-config.repository.ts:57`](../../src/server/repositories/erp-sync-config.repository.ts#L57)
+
+- El modelo singleton conserva activación, intervalo y próximo vencimiento.
+  [`schema.prisma:540`](../../prisma/schema.prisma#L540)
+
+**Entradas automáticas y administración**
+
+- El despertador interno delega cada minuto sin fijar frecuencia de negocio.
+  [`instrumentation-node.ts:43`](../../src/instrumentation-node.ts#L43)
+
+- El endpoint externo reutiliza el coordinador y mantiene seguridad fail-closed.
+  [`route.ts:29`](../../src/app/api/cron/sync-erp/route.ts#L29)
+
+- La acción autentica al administrador antes de validar y persistir.
+  [`erp.actions.ts:51`](../../src/server/actions/erp.actions.ts#L51)
+
+**Experiencia del panel**
+
+- El guardado separa borrador y snapshot confirmado, restaurando ante fallos.
+  [`SyncPanel.tsx:216`](../../src/components/admin/SyncPanel.tsx#L216)
+
+- Los controles muestran activación, frecuencia, próxima ejecución y cambios pendientes.
+  [`SyncPanel.tsx:349`](../../src/components/admin/SyncPanel.tsx#L349)
+
+- La clave persistida adopta cambios reales del servidor tras un refresh.
+  [`page.tsx:20`](../../src/app/admin/integraciones/page.tsx#L20)
+
+**Cobertura de límites**
+
+- Dos conexiones PostgreSQL demuestran que solo una reclama el vencimiento.
+  [`erp-sync-config.concurrent.test.ts:46`](../../integration-tests/erp-sync-config.concurrent.test.ts#L46)
+
+- La ruta prueba explícitamente el cierre seguro sin secreto en producción.
+  [`route.test.ts:45`](../../src/app/api/cron/sync-erp/route.test.ts#L45)

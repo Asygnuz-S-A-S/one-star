@@ -1,0 +1,37 @@
+- generic [ref=e6]:
+  - banner [ref=e7]:
+    - generic [ref=e9]:
+      - generic [active]:
+        - link "Jump to Content":
+          - /url: "#content"
+      - link "api-loggro" [ref=e11] [cursor=pointer]:
+        - /url: https://loggro.com/
+        - img "api-loggro" [ref=e12]
+      - text:    
+      - generic [ref=e13]:
+        - link "Ir a Loggro" [ref=e15] [cursor=pointer]:
+          - /url: https://loggro.com/
+        - text: 
+        - button "Toggle color scheme" [ref=e17] [cursor=pointer]:
+          - img "Toggle color scheme" [ref=e18]
+          - img "Toggle color scheme" [ref=e22]
+          - img "Toggle color scheme" [ref=e25]
+    - generic [ref=e32]:
+      - navigation "Primary navigation" [ref=e33]:
+        - link " Home" [ref=e34] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e35]: 
+          - generic [ref=e36]: Home
+        - link " Guía de uso" [ref=e37] [cursor=pointer]:
+          - /url: /docs
+          - generic [ref=e38]: 
+          - generic [ref=e39]: Guía de uso
+        - link " Documentación" [ref=e40] [cursor=pointer]:
+          - /url: /reference
+          - generic [ref=e41]: 
+          - generic [ref=e42]: Documentación
+      - button "Search ⌘k" [ref=e45] [cursor=pointer]:
+        - generic [ref=e46]: 
+        - generic [ref=e47]: Search
+        - generic [ref=e48]: ⌘K
+  - heading "Page Not Found" [level=2] [ref=e50]

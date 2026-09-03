@@ -12,6 +12,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Generated reports and disposable agent workspaces.
+    "coverage/**",
+    "test-results/**",
+    ".claude/worktrees/**",
+    "_bmad-output/**",
   ]),
 ]);
 

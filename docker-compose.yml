@@ -1,0 +1,99 @@
+services:
+
+  # ── Base de datos ────────────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: onestar
+      POSTGRES_PASSWORD: onestar_pass
+      POSTGRES_DB: onestar
+    volumes:
+      - onestar_pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U onestar -d onestar"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # ── Migraciones + Seed ───────────────────────────────────────────────────────
+  # Usa el stage "builder" que tiene el CLI de Prisma (devDep) y tsx para el seed.
+  # Se ejecuta UNA sola vez y termina. El servicio "app" espera su éxito.
+  migrate:
+    build:
+      context: .
+      target: builder
+      args:
+        AUTH_SECRET: ${AUTH_SECRET}
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+        NEXT_PUBLIC_EPAYCO_PUBLIC_KEY: ${NEXT_PUBLIC_EPAYCO_PUBLIC_KEY:-}
+        NEXT_PUBLIC_EPAYCO_TEST: ${NEXT_PUBLIC_EPAYCO_TEST:-true}
+        NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
+    command: >
+      sh -c "npx prisma migrate deploy && npx prisma db seed"
+    environment:
+      DATABASE_URL: "postgresql://onestar:onestar_pass@db:5432/onestar?schema=public"
+      DIRECT_URL: "postgresql://onestar:onestar_pass@db:5432/onestar?schema=public"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # ── Aplicación Next.js ───────────────────────────────────────────────────────
+  app:
+    build:
+      context: .
+      target: runner
+      args:
+        AUTH_SECRET: ${AUTH_SECRET}
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+        NEXT_PUBLIC_EPAYCO_PUBLIC_KEY: ${NEXT_PUBLIC_EPAYCO_PUBLIC_KEY:-}
+        NEXT_PUBLIC_EPAYCO_TEST: ${NEXT_PUBLIC_EPAYCO_TEST:-true}
+        NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: "postgresql://onestar:onestar_pass@db:5432/onestar?schema=public"
+      DIRECT_URL: "postgresql://onestar:onestar_pass@db:5432/onestar?schema=public"
+      NODE_ENV: production
+      AUTH_SECRET: ${AUTH_SECRET}
+      BETTER_AUTH_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      NEXT_PUBLIC_EPAYCO_PUBLIC_KEY: ${NEXT_PUBLIC_EPAYCO_PUBLIC_KEY:-}
+      NEXT_PUBLIC_EPAYCO_TEST: ${NEXT_PUBLIC_EPAYCO_TEST:-true}
+      EPAYCO_PRIVATE_KEY: ${EPAYCO_PRIVATE_KEY:-}
+      EPAYCO_CUSTOMER_ID: ${EPAYCO_CUSTOMER_ID:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
+      # ── Integración ERP (Loggro) — interpolado desde el .env del host ──
+      ERP_PROVIDER: ${ERP_PROVIDER:-null}
+      LOGGRO_API_TOKEN: ${LOGGRO_API_TOKEN:-}
+      LOGGRO_BASE_URL: ${LOGGRO_BASE_URL:-https://api.loggro.com}
+      LOGGRO_ESTABLECIMIENTO_UUID: ${LOGGRO_ESTABLECIMIENTO_UUID:-}
+      LOGGRO_BODEGA_UUID: ${LOGGRO_BODEGA_UUID:-}
+      LOGGRO_STOCK_SCOPE: ${LOGGRO_STOCK_SCOPE:-all}
+      ERP_CATALOG_WRITES_ENABLED: ${ERP_CATALOG_WRITES_ENABLED:-false}
+      CRON_SECRET: ${CRON_SECRET:-}
+      # ── Correos transaccionales (Resend) ──
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-One Star <onboarding@resend.dev>}
+      # ── Almacenamiento de imágenes (Cloudinary) ──
+      # Sin estas tres, /api/upload responde 503 y el admin no deja subir fotos.
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  # ── Adminer (inspector visual de BD) ────────────────────────────────────────
+  adminer:
+    image: adminer
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+
+volumes:
+  onestar_pgdata:

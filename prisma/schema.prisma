@@ -1,0 +1,567 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  // Conexión de runtime. En serverless (Vercel) debe apuntar al pooler de
+  // Supabase (puerto 6543, modo transaction) con ?pgbouncer=true, porque cada
+  // invocación abre su propia conexión y agotaría los slots de Postgres.
+  url       = env("DATABASE_URL")
+  // Conexión directa (puerto 5432). Prisma la usa para migraciones y para
+  // introspección, operaciones que no funcionan a través de un pooler en modo
+  // transaction. En local basta con apuntarla al mismo valor que DATABASE_URL.
+  directUrl = env("DIRECT_URL")
+}
+
+// ─────────────────────────────────────────────
+// CATÁLOGO
+// ─────────────────────────────────────────────
+
+enum Gender {
+  UNISEX
+  HOMBRE
+  MUJER
+  NINO
+  NINA
+  INFANTIL
+  BEBE
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  description String?
+  imageUrl    String?
+  products    Product[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now()) @updatedAt
+}
+
+model Brand {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  slug        String    @unique
+  erpId       String?   @unique
+  logoUrl     String?
+  isActive    Boolean   @default(true)
+  products    Product[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Product {
+  id                  String         @id @default(cuid())
+  slug                String         @unique
+  name                String
+  basePrice           Decimal        @db.Decimal(10, 2)
+  isOnSale            Boolean        @default(false)
+  salePrice           Decimal?       @db.Decimal(10, 2)
+  description         String?
+  brandId             String?
+  brand               Brand?         @relation(fields: [brandId], references: [id])
+  gender              Gender?
+  metaTitle           String?
+  metaDescription     String?
+  extendedDescription String?
+  videoUrl            String?
+  categoryId          String
+  category            Category       @relation(fields: [categoryId], references: [id])
+  erpId               String?        @unique
+  erpColorFamilyKey   String?
+  unitOfMeasure       String?
+  colorFamilyId       String?
+  colorFamily         ProductColorFamily? @relation(fields: [colorFamilyId], references: [id], onDelete: SetNull)
+  availableOnline     Boolean        @default(true)
+  availableInStores   Boolean        @default(true)
+  isPublished         Boolean        @default(true)
+  images              ProductImage[]
+  variants            Variant[]
+  cartItems           CartItem[]
+  orderItems          OrderItem[]
+  crossSells          Product[]      @relation("CrossSell")
+  crossSoldBy         Product[]      @relation("CrossSell")
+  reviews             ProductReview[]
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  @@index([colorFamilyId])
+  @@index([erpColorFamilyKey])
+}
+
+// Agrupación local: cada color sigue siendo un Product independiente del ERP.
+model ProductColorFamily {
+  id                String    @id @default(cuid())
+  // Solo las familias creadas automáticamente llevan clave. null = administración manual.
+  erpColorFamilyKey String?   @unique
+  products          Product[]
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+model ProductReview {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId    String?
+  userName  String
+  rating    Int      // 1-5
+  title     String?
+  body      String
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model ProductImage {
+  id        String  @id @default(cuid())
+  url       String
+  alt       String
+  position  Int     @default(0)
+  // Color de variante al que pertenece la foto (coincide con Variant.color).
+  // null = imagen general del producto, se muestra con cualquier color seleccionado.
+  color     String?
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, color])
+}
+
+// Una Variant = combinación única talla × color con su propio stock y SKU
+model Variant {
+  id        String     @id @default(cuid())
+  sku       String     @unique
+  erpId     String?    @unique
+  size      String
+  color     String
+  stock     Int        @default(0)
+  sizeUS    String?
+  sizeCM    String?
+  sizeEUR   String?
+  productId String
+  product   Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  cartItems CartItem[]
+  orderItems OrderItem[]
+  inventory InventoryLevel[]
+}
+
+// Nueva tabla para manejar el stock por bodega/tienda
+model InventoryLevel {
+  id              String         @id @default(cuid())
+  variantId       String
+  storeLocationId String?        // Si es null, representa la Bodega Web principal
+  stock           Int            @default(0)
+  
+  variant         Variant        @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  storeLocation   StoreLocation? @relation(fields: [storeLocationId], references: [id], onDelete: Cascade)
+
+  @@unique([variantId, storeLocationId])
+}
+
+// ─────────────────────────────────────────────
+// USUARIOS
+// ─────────────────────────────────────────────
+
+enum AdminRole {
+  SUPER_ADMIN
+  INVENTORY_OPERATOR
+}
+
+model AdminUser {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  role         AdminRole @default(SUPER_ADMIN)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+enum Role {
+  CUSTOMER
+  ADMIN
+}
+
+model User {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  passwordHash   String
+  role           Role      @default(CUSTOMER)
+  name           String?
+  lastName       String?
+  phone          String?
+  cedula         String?
+  birthDate      DateTime?
+  preferredBrand String?
+  gender         String?   // "hombre" | "mujer"
+  cart           Cart?
+  orders         Order[]
+  createdAt      DateTime  @default(now())
+}
+
+// ─────────────────────────────────────────────
+// CARRITO
+// ─────────────────────────────────────────────
+
+model Cart {
+  id        String     @id @default(cuid())
+  userId    String     @unique
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     CartItem[]
+  updatedAt DateTime   @updatedAt
+}
+
+model CartItem {
+  id        String  @id @default(cuid())
+  quantity  Int     @default(1)
+  cartId    String
+  cart      Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  variantId String
+  variant   Variant @relation(fields: [variantId], references: [id])
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  @@unique([cartId, variantId])
+}
+
+// ─────────────────────────────────────────────
+// PEDIDOS
+// ─────────────────────────────────────────────
+
+enum OrderStatus {
+  PENDING
+  PAID
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+model Order {
+  id               String      @id @default(cuid())
+  status           OrderStatus @default(PENDING)
+  total            Decimal     @db.Decimal(10, 2)
+  paymentMethod    String?
+  trackingNumber   String?
+  paymentReference String?     // Referencia de la pasarela (ej. ref_payco de ePayco)
+  customerEmail    String?
+  customerName     String?
+  shippingAddress  Json?
+  userId           String?
+  user             User?       @relation(fields: [userId], references: [id])
+  items            OrderItem[]
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+}
+
+// unitPrice se congela al momento de la compra (no varía si el producto cambia de precio)
+model OrderItem {
+  id        String   @id @default(cuid())
+  quantity  Int
+  unitPrice Decimal  @db.Decimal(10, 2)
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  // variantId registra la talla×color exacta comprada. Nullable por pedidos previos a la migración.
+  variantId String?
+  variant   Variant? @relation(fields: [variantId], references: [id])
+}
+
+// ─────────────────────────────────────────────
+// TARJETAS REGALO
+// ─────────────────────────────────────────────
+
+model GiftCard {
+  id       String  @id @default(cuid())
+  code     String  @unique
+  balance  Decimal @db.Decimal(10, 2)
+  isActive Boolean @default(true)
+}
+
+// ─────────────────────────────────────────────
+// MARKETING
+// ─────────────────────────────────────────────
+
+model Banner {
+  id        String    @id @default(cuid())
+  title     String
+  imageUrl  String
+  mediaType String    @default("image") // "image" | "video"
+  linkUrl   String?
+  position  Int       @default(0)
+  isActive  Boolean   @default(true)
+  startDate DateTime?
+  endDate   DateTime?
+  createdAt DateTime  @default(now())
+}
+
+model HomeGridBlock {
+  id        String    @id @default(cuid())
+  label     String
+  href      String
+  bgColor   String    @default("bg-[#3A3A3A]")
+  emoji     String?
+  darkText  Boolean   @default(false)
+  position  Int       @default(0)
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model NavigationItem {
+  id        String   @id @default(cuid())
+  label     String
+  href      String
+  isSale    Boolean  @default(false)
+  position  Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum LandingSectionType {
+  HERO
+  CATEGORY_GRID
+  FEATURED_PRODUCTS
+  BRAND_STRIP
+  NEW_ARRIVALS
+  NEWSLETTER
+  CUSTOM_HTML
+  PRODUCT_CAROUSEL
+  MEDIA_CAROUSEL
+}
+
+model LandingSection {
+  id        String             @id @default(cuid())
+  type      LandingSectionType
+  position  Int                @default(0)
+  isActive  Boolean            @default(true)
+  config    Json?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+model Coupon {
+  id             String       @id @default(cuid())
+  code           String       @unique
+  discountType   DiscountType
+  discountValue  Decimal      @db.Decimal(10, 2)
+  minOrderAmount Decimal?     @db.Decimal(10, 2)
+  maxUses        Int?
+  usedCount      Int          @default(0)
+  categoryId     String?
+  validFrom      DateTime
+  validUntil     DateTime
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+}
+
+model AbandonedCart {
+  id          String    @id @default(cuid())
+  email       String
+  cartData    Json
+  userId      String?
+  recoveredAt DateTime?
+  createdAt   DateTime  @default(now())
+}
+
+// ─────────────────────────────────────────────
+// BETTER-AUTH — modelos de sesión
+// Prefijados con Auth* para no colisionar con el modelo User de negocio.
+// Se mapean a tablas ba_* en la base de datos.
+// ─────────────────────────────────────────────
+
+model AuthUser {
+  id            String       @id
+  name          String
+  email         String       @unique
+  emailVerified Boolean      @default(false)
+  image         String?
+  userType      String       @default("customer")
+  createdAt     DateTime
+  updatedAt     DateTime
+  sessions      AuthSession[]
+  accounts      AuthAccount[]
+
+  @@map("ba_users")
+}
+
+model AuthSession {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime
+  updatedAt DateTime
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("ba_sessions")
+}
+
+model AuthAccount {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime
+  updatedAt             DateTime
+  user                  AuthUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("ba_accounts")
+}
+
+model AuthVerification {
+  id         String    @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime?
+  updatedAt  DateTime?
+
+  @@map("ba_verifications")
+}
+
+model StoreLocation {
+  id            String   @id @default(cuid())
+  name          String
+  address       String
+  city          String
+  phone         String?
+  schedule      String?
+  googleMapsUrl String?
+  latitude      Float?
+  longitude     Float?
+  isWebWarehouse Boolean @default(false)
+
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  inventory     InventoryLevel[]
+}
+
+// ─────────────────────────────────────────────
+// CONFIGURACIÓN GLOBAL
+// ─────────────────────────────────────────────
+
+model TopBanner {
+  id        String   @id @default(cuid())
+  text      String
+  btnText   String?
+  btnUrl    String?
+  messages  Json?
+  bgColor   String   @default("#1C1C1C")
+  textColor String   @default("#FFFFFF")
+  isActive  Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+}
+
+
+model StoreLogo {
+  id        String   @id @default(cuid())
+  url       String
+  fileName  String?
+  type      String   // "desktop", "mobile", "large", "favicon"
+  theme     String   @default("light") // "light", "dark", "any"
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model HeaderConfig {
+  id              String   @id @default(cuid())
+  layout          String   @default("logo-left-nav-center") // Opciones: "logo-left-nav-center", "logo-center-nav-left"
+  navAlignment    String   @default("left") // Opciones: "left", "center", "right"
+  showSearch      Boolean  @default(true)
+  showCart        Boolean  @default(true)
+  showUser        Boolean  @default(true)
+  bgColor         String   @default("#FFFFFF")
+  textColor       String   @default("#1C1C1C")
+  hasBorderBottom Boolean  @default(true)
+  bgOpacity       Int      @default(100)
+  useBlur         Boolean  @default(false)
+  margin          String   @default("0px")
+  padding         String   @default("0px")
+  borderRadius    String   @default("0px")
+  updatedAt       DateTime @updatedAt
+}
+
+// Paleta de colores de producto, administrable desde /admin/colores.
+// `name` es el valor que se guarda en Variant.color y el que se usa como
+// filtro en la tienda; `hex` es el tono con que se dibuja el swatch.
+// Los colores combinados se expresan como "Rojo/Negro" y se derivan de estos.
+model ProductColor {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  hex       String
+  position  Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────
+// INTEGRACIONES (ERP)
+// ─────────────────────────────────────────────
+
+enum ErpSyncTrigger {
+  MANUAL // Disparada por un admin desde el panel
+  AUTO   // Disparada por el cron interno o un cron externo
+}
+
+// Registro de cada ejecución de sincronización de catálogo con el ERP.
+// Alimenta el panel de estado y el historial en /admin/integraciones.
+model ErpSyncLog {
+  id             String         @id @default(cuid())
+  provider       String // "loggro" | "alegra" | "null" | ...
+  trigger        ErpSyncTrigger @default(AUTO)
+  success        Boolean
+  processedCount Int            @default(0)
+  error          String?
+  durationMs     Int?
+  createdAt      DateTime       @default(now())
+
+  @@index([createdAt])
+}
+
+// Configuración singleton del coordinador de sincronizaciones automáticas.
+model ErpSyncConfig {
+  id              String   @id @default("default")
+  enabled         Boolean  @default(true)
+  intervalMinutes Int      @default(30)
+  nextRunAt       DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// Registro centralizado de archivos multimedia (imágenes y videos)
+// utilizados en productos, marcas, carruseles y banners.
+model MediaAsset {
+  id        String   @id @default(cuid())
+  url       String   @unique
+  publicId  String?
+  fileName  String
+  fileType  String   // "image" | "video"
+  mimeType  String?
+  fileSize  Int?     // bytes
+  folder    String?  @default("general")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([fileType])
+  @@index([createdAt])
+}

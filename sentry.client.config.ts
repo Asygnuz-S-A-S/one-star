@@ -1,0 +1,17 @@
+import * as Sentry from "@sentry/nextjs"
+
+Sentry.init({
+  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+  environment: process.env.NODE_ENV,
+  tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
+  // Captura replays de sesión solo cuando hay un error
+  replaysOnErrorSampleRate: 1.0,
+  replaysSessionSampleRate: 0,
+  integrations: [
+    Sentry.replayIntegration({
+      maskAllText: true,
+      blockAllMedia: false,
+    }),
+  ],
+  enabled: Boolean(process.env.NEXT_PUBLIC_SENTRY_DSN),
+})

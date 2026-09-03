@@ -1,0 +1,83 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+    volumes:
+      - onestar_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - backend
+
+  app:
+    build:
+      context: .
+      target: runner
+      args:
+        AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET is required}
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:?NEXT_PUBLIC_APP_URL is required}
+        NEXT_PUBLIC_EPAYCO_PUBLIC_KEY: ${NEXT_PUBLIC_EPAYCO_PUBLIC_KEY:?NEXT_PUBLIC_EPAYCO_PUBLIC_KEY is required}
+        NEXT_PUBLIC_EPAYCO_TEST: ${NEXT_PUBLIC_EPAYCO_TEST:?NEXT_PUBLIC_EPAYCO_TEST is required}
+        NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:?NEXT_PUBLIC_SENTRY_DSN is required}
+    restart: unless-stopped
+    init: true
+    expose:
+      - "3000"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      DIRECT_URL: ${DIRECT_URL:?DIRECT_URL is required}
+      DATABASE_STARTUP_MAX_ATTEMPTS: ${DATABASE_STARTUP_MAX_ATTEMPTS:-12}
+      DATABASE_STARTUP_RETRY_SECONDS: ${DATABASE_STARTUP_RETRY_SECONDS:-5}
+      DATABASE_STARTUP_PROBE_TIMEOUT_SECONDS: ${DATABASE_STARTUP_PROBE_TIMEOUT_SECONDS:-5}
+      AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET is required}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?BETTER_AUTH_SECRET is required}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:?BETTER_AUTH_URL is required}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:?NEXT_PUBLIC_APP_URL is required}
+      NEXT_PUBLIC_EPAYCO_PUBLIC_KEY: ${NEXT_PUBLIC_EPAYCO_PUBLIC_KEY:?NEXT_PUBLIC_EPAYCO_PUBLIC_KEY is required}
+      NEXT_PUBLIC_EPAYCO_TEST: ${NEXT_PUBLIC_EPAYCO_TEST:?NEXT_PUBLIC_EPAYCO_TEST is required}
+      EPAYCO_PRIVATE_KEY: ${EPAYCO_PRIVATE_KEY:?EPAYCO_PRIVATE_KEY is required}
+      EPAYCO_CUSTOMER_ID: ${EPAYCO_CUSTOMER_ID:?EPAYCO_CUSTOMER_ID is required}
+      SENTRY_DSN: ${SENTRY_DSN:?SENTRY_DSN is required}
+      NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:?NEXT_PUBLIC_SENTRY_DSN is required}
+      STORAGE_PROVIDER: ${STORAGE_PROVIDER:-cloudinary}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:?CLOUDINARY_CLOUD_NAME is required}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:?CLOUDINARY_API_KEY is required}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:?CLOUDINARY_API_SECRET is required}
+      RESEND_API_KEY: ${RESEND_API_KEY:?RESEND_API_KEY is required}
+      EMAIL_FROM: ${EMAIL_FROM:?EMAIL_FROM is required}
+      ERP_PROVIDER: ${ERP_PROVIDER:-null}
+      ALEGRA_EMAIL: ${ALEGRA_EMAIL:-}
+      ALEGRA_API_KEY: ${ALEGRA_API_KEY:-}
+      LOGGRO_API_TOKEN: ${LOGGRO_API_TOKEN:-}
+      LOGGRO_BASE_URL: ${LOGGRO_BASE_URL:-https://api.loggro.com}
+      LOGGRO_ESTABLECIMIENTO_UUID: ${LOGGRO_ESTABLECIMIENTO_UUID:-}
+      LOGGRO_BODEGA_UUID: ${LOGGRO_BODEGA_UUID:-}
+      LOGGRO_STOCK_SCOPE: ${LOGGRO_STOCK_SCOPE:-all}
+      ERP_CATALOG_WRITES_ENABLED: ${ERP_CATALOG_WRITES_ENABLED:-false}
+      CRON_SECRET: ${CRON_SECRET:?CRON_SECRET is required}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - backend
+      - frontend
+
+volumes:
+  onestar_pgdata:
+    name: onestar_pgdata
+
+networks:
+  backend:
+    name: onestar_backend
+    internal: true
+  frontend:
+    name: onestar_frontend
