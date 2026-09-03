@@ -162,10 +162,10 @@ async function main() {
     await prisma.homeGridBlock.createMany({
       data: [
         { label: "Lanzamientos", href: "/lanzamientos", bgColor: "bg-[#1C1C1C]", emoji: "🚀", darkText: false, position: 0 },
-        { label: "Hombre", href: "/hombre", bgColor: "bg-[#2C2C2C]", emoji: "👟", darkText: false, position: 1 },
-        { label: "Mujer", href: "/mujer", bgColor: "bg-[#3A3A3A]", emoji: "✨", darkText: false, position: 2 },
-        { label: "Niños", href: "/ninos", bgColor: "bg-[#4A4A4A]", emoji: "⭐", darkText: false, position: 3 },
-        { label: "Accesorios", href: "/accesorios", bgColor: "bg-[#E0E0E0]", emoji: "🎒", darkText: true, position: 4 },
+        { label: "Hombre", href: "/c/hombre", bgColor: "bg-[#2C2C2C]", emoji: "👟", darkText: false, position: 1 },
+        { label: "Mujer", href: "/c/mujer", bgColor: "bg-[#3A3A3A]", emoji: "✨", darkText: false, position: 2 },
+        { label: "Niños", href: "/c/ninos", bgColor: "bg-[#4A4A4A]", emoji: "⭐", darkText: false, position: 3 },
+        { label: "Accesorios", href: "/c/accesorios", bgColor: "bg-[#E0E0E0]", emoji: "🎒", darkText: true, position: 4 },
         { label: "SALE", href: "/sale", bgColor: "bg-[#E31C23]", emoji: "%", darkText: false, position: 5 },
         { label: "Tarjeta\nRegalo", href: "/tarjeta-regalo", bgColor: "bg-[#1C1C1C]", emoji: "🎁", darkText: false, position: 6 },
       ],
