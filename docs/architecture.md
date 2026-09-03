@@ -270,6 +270,31 @@ Se usan para endpoints que necesitan acceso desde el cliente sin full-page navig
 ### Validación
 Zod valida en la capa de `validators/` antes de llamar servicios. Los errores se devuelven tipados.
 
+## Stock por sede (informativo)
+
+El ERP entrega las existencias por establecimiento y la web las publica en dos niveles:
+
+| Dato | Dónde vive | Quién lo escribe | Para qué sirve |
+|---|---|---|---|
+| Total vendible por variante | `Variant.stock` | Sincronización ERP; se descuenta al pagar | Catálogo, filtros, selector de tallas, validación del checkout |
+| Desglose por sede | `InventoryLevel` (`variantId` × `storeLocationId`) | Sincronización ERP para sedes con `StoreLocation.erpId`; el admin para sedes sin vínculo | Ficha de producto ("Fundadores: 2 · Centro: 1") y formulario administrativo |
+
+Reglas:
+
+- `StoreLocation.erpId` (único) vincula una tienda física con el establecimiento del ERP. La
+  sincronización garantiza una sede por establecimiento: reutiliza la vinculada, enlaza por nombre
+  una sede sin vínculo (`normalizeStoreName`) o la crea **oculta** con dirección/ciudad `Por definir`
+  para que el administrador la complete en `/admin/tiendas` antes de publicarla.
+- El desglose es **solo informativo**: la web no reserva ni aparta unidades de tienda y no ofrece
+  recogida en sede. El cliente ve dónde hay existencias para comprarlas presencialmente.
+- Al pagar un pedido se descuenta `Variant.stock` y, en la misma transacción, el desglose de las
+  sedes con más existencias; la siguiente sincronización vuelve a alinear ambos con el ERP.
+- El formulario de producto solo permite editar el stock de sedes sin vínculo ERP y solo reemplaza
+  las filas de las sedes que envía, para no borrar el desglose sincronizado.
+- La capa ERP expone el desglose de forma agnóstica: `ERPCatalogSnapshot.locations`,
+  `ERPCatalogVariant.stockByLocation` y `IERPAdapter.listStockLocations?()`. Un ERP que no
+  distinga sedes simplemente no los informa y la tienda sigue funcionando con el total.
+
 ## Variables de Entorno Requeridas
 
 > Inventario completo y comentado: **`.env.example`** (versionado).

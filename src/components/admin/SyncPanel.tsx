@@ -38,6 +38,7 @@ interface SyncResult {
   processedCount?: number
   productCount?: number
   variantCount?: number
+  storeStock?: { locations: number; inventoryLevels: number }
   error?: string
 }
 
@@ -538,6 +539,12 @@ export default function SyncPanel({ initialStatus }: SyncPanelProps) {
                   productCount: result.productCount,
                   variantCount: result.variantCount,
                 })}.{" "}
+                {result.storeStock && result.storeStock.locations > 0 && (
+                  <>
+                    Stock por sede actualizado en {result.storeStock.locations} tienda
+                    {result.storeStock.locations !== 1 ? "s" : ""}.{" "}
+                  </>
+                )}
                 <Link href="/admin/productos" className="font-medium underline underline-offset-2">
                   Ver productos
                 </Link>

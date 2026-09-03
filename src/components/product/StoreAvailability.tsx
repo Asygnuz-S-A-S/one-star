@@ -89,9 +89,14 @@ export default function StoreAvailability({
                 Tiendas físicas
               </p>
               {availableInStores && physicalStores.length > 0 ? (
-                <p className="font-[var(--font-montserrat)] text-xs text-blue-600 dark:text-blue-400 font-semibold">
-                  ● Disponible en {physicalStores.length} tienda{physicalStores.length !== 1 ? "s" : ""}
-                </p>
+                <>
+                  <p className="font-[var(--font-montserrat)] text-xs text-blue-600 dark:text-blue-400 font-semibold">
+                    ● Disponible en {physicalStores.length} tienda{physicalStores.length !== 1 ? "s" : ""}
+                  </p>
+                  <p className="font-[var(--font-montserrat)] text-xs text-[#4A4A4A] dark:text-gray-400 mt-1">
+                    Compra presencial. La web no aparta ni reserva unidades de tienda.
+                  </p>
+                </>
               ) : (
                 <p className="font-[var(--font-montserrat)] text-xs text-[#4A4A4A] dark:text-gray-400">
                   No disponible en tiendas físicas
@@ -124,8 +129,11 @@ export default function StoreAvailability({
                           {store.city}
                         </p>
                       </div>
-                      <span className="text-[10px] font-bold bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 px-2 py-1 rounded-full uppercase tracking-wider">
-                        {store.stock} unid.
+                      <span
+                        className="text-[10px] font-bold bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 px-2 py-1 rounded-full uppercase tracking-wider"
+                        title="Existencias en tienda según el ERP. Sin reserva por la web."
+                      >
+                        {store.stock} en tienda
                       </span>
                     </div>
 

@@ -96,6 +96,33 @@ export async function getVariantsStock(variantIds: string[]) {
 }
 
 /**
+ * Refleja la venta en el desglose por sede: descuenta de las tiendas con más
+ * existencias hasta cubrir la cantidad. `Variant.stock` sigue siendo la fuente
+ * transaccional; el ERP vuelve a alinear el desglose en la próxima sincronización.
+ */
+async function decrementStoreInventory(
+  tx: Prisma.TransactionClient,
+  variantId: string,
+  quantity: number
+): Promise<void> {
+  const levels = await tx.inventoryLevel.findMany({
+    where: { variantId, storeLocationId: { not: null }, stock: { gt: 0 } },
+    orderBy: { stock: "desc" },
+    select: { id: true, stock: true },
+  })
+  let remaining = quantity
+  for (const level of levels) {
+    if (remaining <= 0) break
+    const taken = Math.min(level.stock, remaining)
+    await tx.inventoryLevel.update({
+      where: { id: level.id },
+      data: { stock: { decrement: taken } },
+    })
+    remaining -= taken
+  }
+}
+
+/**
  * Marca un pedido como PAID y descuenta el stock de cada variante dentro de
  * una transacción. Re-valida el stock para evitar sobreventa por condiciones
  * de carrera. Idempotente: si el pedido ya está PAID no descuenta de nuevo.
@@ -131,6 +158,7 @@ export async function markOrderPaidWithStock(id: string, trackingNumber?: string
         where: { id: variant.id },
         data: { stock: { decrement: item.quantity } },
       })
+      await decrementStoreInventory(tx, variant.id, item.quantity)
     }
 
     return tx.order.update({

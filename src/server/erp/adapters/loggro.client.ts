@@ -25,7 +25,7 @@ import type {
   ERPOrderItem,
   ERPStockItem,
 } from "../erp.types"
-import type { LoggroStockSnapshot } from "./loggro-catalog.normalizer"
+import type { LoggroStockLocation, LoggroStockSnapshot } from "./loggro-catalog.normalizer"
 import { sanitizeErpError } from "../erp-error"
 
 // Base URL oficial para el API Pymes de Loggro
@@ -144,6 +144,21 @@ interface InventoryLocation {
   /** Nombre del establecimiento (requerido por el endpoint de salidas). */
   establecimientoNombre: string
   bodegaUuid: string
+}
+
+/** Proyección pública de las ubicaciones: una entrada por establecimiento. */
+function toStockLocations(locations: InventoryLocation[]): LoggroStockLocation[] {
+  const seen = new Set<string>()
+  const result: LoggroStockLocation[] = []
+  for (const location of locations) {
+    if (seen.has(location.establecimientoUuid)) continue
+    seen.add(location.establecimientoUuid)
+    result.push({
+      erpId: location.establecimientoUuid,
+      name: location.establecimientoNombre || location.establecimientoUuid,
+    })
+  }
+  return result
 }
 
 /** Página del listado de ítems (formato Spring Data). */
@@ -789,6 +804,14 @@ export class LoggroClient {
     return operation
   }
 
+  /**
+   * Sedes cuyo inventario se publica en la web (mismas que suma `getDisponibilidad`).
+   * Sirve para vincular cada establecimiento con una tienda física administrable.
+   */
+  async listStockLocations(): Promise<LoggroStockLocation[]> {
+    return toStockLocations(await this.resolveStockLocations())
+  }
+
   // ── Contactos (clientes) ─────────────────────────────────────────────────────
   // NOTA: los endpoints de clientes/facturas de abajo pertenecen al flujo de
   // ventas (Web → Loggro) y aún NO están mapeados a rutas reales de Loggro.
@@ -915,6 +938,8 @@ export class LoggroClient {
     if (unique.length === 0) {
       return {
         stockByCodigo: stock,
+        locations: [],
+        stockByCodigoAndLocation: new Map(),
         complete: true,
         requestedCount: 0,
         resolvedCount: 0,
@@ -942,6 +967,8 @@ export class LoggroClient {
     if (locations.length === 0) {
       return {
         stockByCodigo: stock,
+        locations: [],
+        stockByCodigoAndLocation: new Map(),
         complete: false,
         requestedCount: unique.length,
         resolvedCount: 0,
@@ -972,27 +999,38 @@ export class LoggroClient {
           chunkStock,
           deadline
         )
-        return { ...result, stockByCodigo: chunkStock }
+        return { ...result, stockByCodigo: chunkStock, location }
       }
     )
 
     const incompleteCodes = new Set<string>()
     const errors: string[] = []
+    const stockByCodigoAndLocation = new Map<string, Map<string, number>>()
 
     // El stock de cada tienda se ACUMULA sobre el mismo mapa: un SKU disponible
     // en varias sedes suma sus existencias. Cada tarea usa su propio mapa para
     // que la concurrencia no comparta estado mutable durante las peticiones.
+    // El desglose por sede se conserva aparte para publicarlo en la tienda.
     for (const result of chunkResults) {
       result.missingCodes.forEach((codigo) => incompleteCodes.add(codigo))
       errors.push(...result.errors)
+      const locationKey = result.location.establecimientoUuid
       for (const [codigo, cantidad] of result.stockByCodigo) {
         stock.set(codigo, (stock.get(codigo) ?? 0) + cantidad)
+        let perLocation = stockByCodigoAndLocation.get(codigo)
+        if (!perLocation) {
+          perLocation = new Map()
+          stockByCodigoAndLocation.set(codigo, perLocation)
+        }
+        perLocation.set(locationKey, (perLocation.get(locationKey) ?? 0) + cantidad)
       }
     }
 
     const missingCodes = [...incompleteCodes]
     return {
       stockByCodigo: stock,
+      locations: toStockLocations(locations),
+      stockByCodigoAndLocation,
       complete: missingCodes.length === 0 && errors.length === 0,
       requestedCount: unique.length,
       resolvedCount: unique.length - missingCodes.length,

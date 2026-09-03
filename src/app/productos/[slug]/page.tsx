@@ -76,14 +76,14 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
     },
   }
 
-  // Compute store availability from variants inventory
+  // Disponibilidad online = stock vendible por variante (lo mismo que valida el
+  // checkout). El desglose por sede es solo informativo: la web no lo reserva.
   const storeMap = new Map<string, { store: InventoryStoreDTO; stock: number }>()
-  let webStock = 0
+  const webStock = product.variants.reduce((total, variant) => total + variant.stock, 0)
   for (const variant of product.variants) {
     for (const inv of variant.inventory ?? []) {
-      if (!inv.storeLocation || inv.storeLocation.isWebWarehouse) {
-        webStock += inv.stock
-      } else if (inv.storeLocation.isActive) {
+      if (!inv.storeLocation || inv.storeLocation.isWebWarehouse) continue
+      if (inv.storeLocation.isActive) {
         const existing = storeMap.get(inv.storeLocation.id)
         if (existing) {
           existing.stock += inv.stock

@@ -43,6 +43,14 @@ Notas de comportamiento:
 - La descarga completa tiene un presupuesto total de 60 segundos y cada lote permite como máximo
   10 descartes de códigos inválidos. Al superar cualquiera de los límites, el snapshot queda
   parcial y no puede escribir inventario.
+- Además del total consolidado, el cliente conserva la cantidad de **cada establecimiento**
+  (`stockByCodigoAndLocation`) y la lista de sedes consultadas (`locations`). El adaptador las
+  publica como `ERPCatalogVariant.stockByLocation` / `ERPCatalogSnapshot.locations` y la
+  sincronización las escribe en `InventoryLevel` por cada `StoreLocation` vinculada mediante
+  `erpId` (UUID del establecimiento). Una sede sin fila en la respuesta cuenta como cero. El dato
+  es informativo para el cliente (compra presencial, sin reserva); ver
+  `docs/architecture.md` → "Stock por sede".
+- `listStockLocations()` expone las mismas sedes para vincularlas desde `/admin/tiendas`.
 - La consulta es **estricta**: si un `codigoItem` no es un ítem inventariable (p. ej. un producto base sin talla), Loggro responde `400 "Producto no encontrado: X"` para **todo** el lote. El cliente descarta el código faltante y reintenta con el resto.
 - Una respuesta completa con todos los SKU en cero se clasifica como `all_zero` y bloquea las
   escrituras. No se interpreta como inventario válido hasta contrastar un SKU positivo conocido.

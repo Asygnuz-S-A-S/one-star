@@ -329,8 +329,26 @@ export async function updateProductWithAdminRelations(
           sizeEUR: variant.sizeEUR ?? null,
         },
       })
-      await tx.inventoryLevel.deleteMany({ where: { variantId: variant.id } })
+      // Solo se reemplazan las sedes que envió el formulario: el desglose que
+      // escribe la sincronización ERP para otras sedes no se pierde al guardar.
+      const submittedStoreIds = variant.inventory.flatMap((inventory) =>
+        inventory.storeLocationId ? [inventory.storeLocationId] : []
+      )
+      const includesWebWarehouse = variant.inventory.some(
+        (inventory) => inventory.storeLocationId === null
+      )
       if (variant.inventory.length > 0) {
+        await tx.inventoryLevel.deleteMany({
+          where: {
+            variantId: variant.id,
+            OR: [
+              ...(submittedStoreIds.length > 0
+                ? [{ storeLocationId: { in: submittedStoreIds } }]
+                : []),
+              ...(includesWebWarehouse ? [{ storeLocationId: null }] : []),
+            ],
+          },
+        })
         await tx.inventoryLevel.createMany({
           data: variant.inventory.map((inventory) => ({
             variantId: variant.id,
