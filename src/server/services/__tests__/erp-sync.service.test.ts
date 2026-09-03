@@ -52,6 +52,39 @@ const mockFindDefaultImportCategory = vi.mocked(findDefaultImportCategory)
 const mockApplyColorFamilyKeys = vi.mocked(applyErpColorFamilyKeyUpdates)
 const mockGetErpSyncSchedule = vi.mocked(getErpSyncSchedule)
 
+/** Catálogo mínimo de un producto con una variante, parametrizado por stock. */
+function catalogSnapshot({ stock }: { stock: number }) {
+  return {
+    groups: [
+      {
+        erpId: "parent-1",
+        sku: "MODEL-BLK",
+        name: "TENIS MODELO NEGRO",
+        basePrice: 100_000,
+        variants: [
+          {
+            erpId: "variant-1",
+            sku: "MODEL-BLK_9",
+            name: "TENIS MODELO NEGRO",
+            basePrice: 100_000,
+            stock,
+          },
+        ],
+      },
+    ],
+    diagnostics: { sourceItemCount: 2, definitionCount: 1, variantCount: 1, groupCount: 1 },
+    stock: {
+      status: stock === 0 ? "all_zero" : "complete",
+      complete: true,
+      requestedCount: 1,
+      resolvedCount: 1,
+      totalStock: stock,
+      missingCodes: [],
+      errors: [],
+    },
+  }
+}
+
 describe("syncCatalogFromERP", () => {
   afterEach(() => vi.useRealTimers())
 
@@ -94,7 +127,15 @@ describe("syncCatalogFromERP", () => {
     expect(status.catalogSyncAvailable).toBe(false)
   })
 
-  it("bloquea escrituras cuando Loggro responde stock completo pero todo en cero", async () => {
+  it("importa el catálogo despublicado cuando el ERP reporta todo el stock en cero", async () => {
+    process.env.ERP_CATALOG_WRITES_ENABLED = "true"
+    mockFindDefaultImportCategory.mockResolvedValue({ id: "category" } as never)
+    const repository = await import("@/server/repositories/erp-catalog.repository")
+    vi.mocked(repository.findCatalogProductBySlug).mockResolvedValue(null as never)
+    vi.mocked(repository.createCatalogProduct).mockResolvedValue({
+      id: "created",
+      variants: [],
+    } as never)
     mockGetERPAdapter.mockReturnValue({
       fetchCatalog: vi.fn().mockResolvedValue({
         groups: [
@@ -135,13 +176,61 @@ describe("syncCatalogFromERP", () => {
 
     const result = await syncCatalogFromERP("MANUAL", { dryRun: false })
 
-    expect(result).toMatchObject({
-      success: false,
-      processedCount: 0,
-      productCount: 1,
-      variantCount: 1,
-    })
-    expect(result.error).toContain("stock total en cero")
+    expect(result).toMatchObject({ success: true, productCount: 1, variantCount: 1 })
+    expect(repository.createCatalogProduct).toHaveBeenCalledWith(
+      expect.objectContaining({ isPublished: false })
+    )
+    expect(result.warnings?.join(" ")).toContain("stock cero para todo el catálogo")
+  })
+
+  it("despublica un producto ERP existente que se quedó sin stock", async () => {
+    process.env.ERP_CATALOG_WRITES_ENABLED = "true"
+    mockFindDefaultImportCategory.mockResolvedValue({ id: "category" } as never)
+    const repository = await import("@/server/repositories/erp-catalog.repository")
+    vi.mocked(repository.findCatalogProductBySlug).mockResolvedValue({
+      id: "existing-product",
+      isPublished: true,
+      variants: [{ id: "v1", sku: "MODEL-BLK_9", color: "" }],
+    } as never)
+    mockGetERPAdapter.mockReturnValue({
+      fetchCatalog: vi.fn().mockResolvedValue(catalogSnapshot({ stock: 0 })),
+      ping: vi.fn(),
+    } as never)
+
+    const result = await syncCatalogFromERP("MANUAL")
+
+    expect(repository.updateCatalogProduct).toHaveBeenCalledWith(
+      "existing-product",
+      expect.objectContaining({ isPublished: false })
+    )
+    expect(repository.updateCatalogVariant).toHaveBeenCalledWith(
+      "v1",
+      expect.objectContaining({ stock: 0 })
+    )
+    expect(result.warnings?.join(" ")).toContain("despublicados")
+  })
+
+  it("vuelve a publicar un producto ERP existente en cuanto el stock regresa", async () => {
+    process.env.ERP_CATALOG_WRITES_ENABLED = "true"
+    mockFindDefaultImportCategory.mockResolvedValue({ id: "category" } as never)
+    const repository = await import("@/server/repositories/erp-catalog.repository")
+    vi.mocked(repository.findCatalogProductBySlug).mockResolvedValue({
+      id: "existing-product",
+      isPublished: false,
+      variants: [{ id: "v1", sku: "MODEL-BLK_9", color: "" }],
+    } as never)
+    mockGetERPAdapter.mockReturnValue({
+      fetchCatalog: vi.fn().mockResolvedValue(catalogSnapshot({ stock: 4 })),
+      ping: vi.fn(),
+    } as never)
+
+    const result = await syncCatalogFromERP("MANUAL")
+
+    expect(repository.updateCatalogProduct).toHaveBeenCalledWith(
+      "existing-product",
+      expect.objectContaining({ isPublished: true })
+    )
+    expect(result.warnings).toBeUndefined()
   })
 
   it("dry-run valida y cuenta el catálogo sin escribir ni siquiera el historial", async () => {

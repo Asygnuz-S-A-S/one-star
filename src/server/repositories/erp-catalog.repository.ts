@@ -122,6 +122,7 @@ export async function updateCatalogProduct(
     basePrice: number
     unitOfMeasure?: string
     brandId?: string | null
+    isPublished?: boolean
   }
 ) {
   return prisma.product.update({ where: { id }, data })

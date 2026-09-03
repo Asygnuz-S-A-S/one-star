@@ -39,6 +39,7 @@ interface SyncResult {
   productCount?: number
   variantCount?: number
   error?: string
+  warnings?: string[]
 }
 
 type EndpointDiagnosticsState = ERPEndpointDiagnostics & { accessDenied?: boolean }
@@ -544,6 +545,13 @@ export default function SyncPanel({ initialStatus }: SyncPanelProps) {
               </p>
             ) : (
               <ErrorExplanation error={result.error ?? null} />
+            )}
+            {result.warnings && result.warnings.length > 0 && (
+              <ul className="mt-3 space-y-1 border-t border-current/20 pt-3 text-xs">
+                {result.warnings.map((warning) => (
+                  <li key={warning}>{warning}</li>
+                ))}
+              </ul>
             )}
           </div>
         )}
