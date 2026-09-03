@@ -143,31 +143,41 @@ export async function markOrderPaidWithStock(id: string, trackingNumber?: string
       return order
     }
 
-    for (const item of order.items) {
-      if (!item.variantId) continue
-      const variant = await tx.variant.findUnique({
-        where: { id: item.variantId },
-        select: { id: true, stock: true }
-      })
-      if (!variant || variant.stock < item.quantity) {
-        throw new Error(
-          `Stock insuficiente para completar el pedido (variante ${item.variantId}).`
-        )
-      }
-      await tx.variant.update({
-        where: { id: variant.id },
-        data: { stock: { decrement: item.quantity } },
-      })
-      await decrementStoreInventory(tx, variant.id, item.quantity)
-    }
-
-    return tx.order.update({
-      where: { id },
+    // Reclama la transición → PAID de forma atómica ANTES de tocar el stock.
+    // La lectura de arriba no basta: la transacción corre en READ COMMITTED, así
+    // que dos reintentos concurrentes del webhook de ePayco pueden leer ambos el
+    // estado previo. El UPDATE condicional bloquea la fila y reevalúa el WHERE,
+    // de modo que solo una transacción afecta una fila y descuenta existencias.
+    const claimed = await tx.order.updateMany({
+      where: { id, status: { not: "PAID" } },
       data: {
         status: "PAID",
         ...(trackingNumber !== undefined ? { trackingNumber } : {}),
       },
     })
+    if (claimed.count === 0) {
+      // Otra entrega ganó la carrera y ya descontó el stock.
+      return tx.order.findUniqueOrThrow({ where: { id } })
+    }
+
+    for (const item of order.items) {
+      if (!item.variantId) continue
+      // Decremento condicional: el propio UPDATE revalida las existencias sobre
+      // la fila bloqueada, así dos ventas simultáneas no dejan el stock negativo.
+      const decremented = await tx.variant.updateMany({
+        where: { id: item.variantId, stock: { gte: item.quantity } },
+        data: { stock: { decrement: item.quantity } },
+      })
+      if (decremented.count === 0) {
+        // Revierte la reclamación de PAID junto con el resto de la transacción.
+        throw new Error(
+          `Stock insuficiente para completar el pedido (variante ${item.variantId}).`
+        )
+      }
+      await decrementStoreInventory(tx, item.variantId, item.quantity)
+    }
+
+    return tx.order.findUniqueOrThrow({ where: { id } })
   })
 }
 

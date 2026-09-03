@@ -15,8 +15,12 @@ export interface EpaycoWebhookPayload {
 }
 
 /**
- * Verifica la firma MD5 del webhook de ePayco.
- * Fórmula: MD5(customerId^privateKey^ref_payco^transaction_id^amount^currency)
+ * Verifica la firma del webhook de ePayco.
+ * Fórmula: SHA256(customerId^privateKey^ref_payco^transaction_id^amount^currency)
+ *
+ * El algoritmo es SHA256, no MD5: ePayco envía `x_signature` como 64 caracteres
+ * hexadecimales. Con MD5 el digest mide 32 y la comparación falla siempre, lo
+ * que rechaza TODAS las confirmaciones legítimas y deja los pedidos en PENDING.
  */
 export function verifyEpaycoSignature(payload: EpaycoWebhookPayload): boolean {
   const customerId = process.env.EPAYCO_CUSTOMER_ID
@@ -24,7 +28,7 @@ export function verifyEpaycoSignature(payload: EpaycoWebhookPayload): boolean {
   if (!customerId || !privateKey || !payload.x_signature) return false
 
   const expected = crypto
-    .createHash("md5")
+    .createHash("sha256")
     .update(
       `${customerId}^${privateKey}^${payload.x_ref_payco}^${payload.x_transaction_id}^${payload.x_amount}^${payload.x_currency_code}`
     )
