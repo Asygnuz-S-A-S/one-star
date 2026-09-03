@@ -52,8 +52,12 @@ Notas de comportamiento:
   `docs/architecture.md` → "Stock por sede".
 - `listStockLocations()` expone las mismas sedes para vincularlas desde `/admin/tiendas`.
 - La consulta es **estricta**: si un `codigoItem` no es un ítem inventariable (p. ej. un producto base sin talla), Loggro responde `400 "Producto no encontrado: X"` para **todo** el lote. El cliente descarta el código faltante y reintenta con el resto.
-- Una respuesta completa con todos los SKU en cero se clasifica como `all_zero` y bloquea las
-  escrituras. No se interpreta como inventario válido hasta contrastar un SKU positivo conocido.
+- Una respuesta completa con todos los SKU en cero se clasifica como `all_zero`. Ya no bloquea las
+  escrituras: el catálogo se importa y cada producto sin existencias queda despublicado
+  (`Product.isPublished = false`), de modo que la tienda nunca ofrece algo que no se pueda vender.
+  La sincronización devuelve una advertencia visible en el panel.
+- Una respuesta **parcial** sí sigue bloqueando: ahí el ERP no informó cuánto hay, y escribir ceros
+  borraría inventario real.
 
 ## 2. Arquitectura de Mapeo de Catálogo (Flat vs Jerárquico)
 El desafío principal de la integración es la diferencia en los modelos de datos:

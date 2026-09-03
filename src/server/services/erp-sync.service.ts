@@ -171,18 +171,17 @@ async function runCatalogSync(options: CatalogSyncOptions): Promise<ERPCatalogSy
       }
     }
 
+    // Un catálogo entero en cero ya no detiene la importación. La regla de
+    // publicación de abajo despublica todo lo que llegue sin existencias, así
+    // que la tienda nunca ofrece algo que no se pueda vender. La respuesta
+    // PARCIAL sí sigue bloqueando: ahí el ERP no dijo cuánto hay, y escribir
+    // ceros borraría inventario real.
+    const warnings: string[] = []
     if (snapshot.stock.status === "all_zero") {
-      return {
-        success: false,
-        processedCount: 0,
-        productCount,
-        variantCount,
-        definitionCount,
-        dryRun: options.dryRun ?? false,
-        error:
-          "Loggro respondió con stock total en cero para todo el catálogo. " +
-          "La sincronización se bloqueó para conservar el inventario existente.",
-      }
+      warnings.push(
+        "El ERP reportó stock cero para todo el catálogo. " +
+          "Los productos se importaron, pero quedaron despublicados."
+      )
     }
 
     const writableGroups = getWritableGroups(snapshot.groups)
@@ -206,6 +205,7 @@ async function runCatalogSync(options: CatalogSyncOptions): Promise<ERPCatalogSy
         variantCount,
         definitionCount,
         dryRun: true,
+        warnings: warnings.length > 0 ? warnings : undefined,
       }
     }
 
@@ -249,9 +249,19 @@ async function runCatalogSync(options: CatalogSyncOptions): Promise<ERPCatalogSy
 
     // El adaptador ya normalizó el catálogo plano del ERP en productos padre
     // con variantes vendibles. El servicio no conoce campos propios de Loggro.
+    let unpublishedByStock = 0
+
     for (const group of writableGroups) {
       const baseSku = group.sku
       const variantsList = group.variants
+
+      // Regla de publicación: un producto solo se ofrece si el ERP reporta
+      // existencias. Cuando el propio ERP ya lo marcó como no vendible en
+      // línea (obsequios, ítems internos, precio no positivo) la decisión del
+      // administrador se conserva intacta y el stock no la reabre.
+      const erpStock = variantsList.reduce((total, variant) => total + variant.stock, 0)
+      const publishedByErp = group.onlineCatalogExclusionReason ? undefined : erpStock > 0
+      if (publishedByErp === false) unpublishedByStock++
 
       // Buscar si el producto principal ya existe
       let existingProduct = await findCatalogProductBySlug(baseSku)
@@ -280,6 +290,7 @@ async function runCatalogSync(options: CatalogSyncOptions): Promise<ERPCatalogSy
         await updateCatalogProduct(existingProduct.id, {
           basePrice: group.basePrice,
           unitOfMeasure: group.unitOfMeasure,
+          ...(publishedByErp === undefined ? {} : { isPublished: publishedByErp }),
         })
         if (existingProduct.gender == null && group.gender) {
           genderCandidates.push({ erpId: group.erpId, gender: group.gender })
@@ -294,7 +305,7 @@ async function runCatalogSync(options: CatalogSyncOptions): Promise<ERPCatalogSy
           categoryId: suggestedCategoryId ?? defaultCategory.id,
           brandId: suggestedBrandId,
           gender: group.gender,
-          isPublished: group.onlineCatalogExclusionReason ? false : true,
+          isPublished: publishedByErp ?? false,
           erpId: group.erpId,
         })
       }
@@ -361,6 +372,12 @@ async function runCatalogSync(options: CatalogSyncOptions): Promise<ERPCatalogSy
       inventoryRows
     )
 
+    if (unpublishedByStock > 0) {
+      warnings.push(
+        `${unpublishedByStock} producto(s) quedaron despublicados porque el ERP los reportó sin stock.`
+      )
+    }
+
     return {
       success: true,
       processedCount: productCount,
@@ -368,6 +385,7 @@ async function runCatalogSync(options: CatalogSyncOptions): Promise<ERPCatalogSy
       variantCount,
       definitionCount,
       dryRun: false,
+      warnings: warnings.length > 0 ? warnings : undefined,
       storeStock: {
         locations: storeIdByErpId.size,
         inventoryLevels: inventoryLevelCount,
