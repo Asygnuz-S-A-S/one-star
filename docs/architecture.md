@@ -238,7 +238,7 @@ JavaScript inline.
 
 La política permite conexiones únicamente a ePayco, los endpoints de ingestión
 de Sentry y Nominatim. Los frames y formularios externos se restringen a
-ePayco. Imágenes y medios admiten HTTPS para Cloudinary, CARTO y los recursos
+ePayco. Imágenes y medios admiten HTTPS para Cloudinary, los tiles de OpenStreetMap y los recursos
 administrables. `object-src 'none'`, `base-uri 'self'` y
 `frame-ancestors 'none'` permanecen cerrados; solo `/?preview=true` admite
 `frame-ancestors 'self'` para el iframe interno del panel.

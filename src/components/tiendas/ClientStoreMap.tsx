@@ -4,6 +4,7 @@ import React from "react"
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet"
 import "leaflet/dist/leaflet.css"
 import L from "leaflet"
+import { MAP_TILE_ATTRIBUTION, MAP_TILE_MAX_ZOOM, MAP_TILE_URL } from "@/lib/map-tiles"
 
 const customIcon = L.divIcon({
   html: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#E60000" stroke="#FFFFFF" stroke-width="1.5" width="36" height="36" style="filter: drop-shadow(0px 2px 3px rgba(0,0,0,0.3));">
@@ -31,8 +32,9 @@ export default function ClientStoreMap({ position, name, address }: ClientStoreM
         style={{ height: "100%", width: "100%", zIndex: 0 }}
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+          attribution={MAP_TILE_ATTRIBUTION}
+          url={MAP_TILE_URL}
+          maxZoom={MAP_TILE_MAX_ZOOM}
         />
         <Marker position={position} icon={customIcon}>
           <Popup>
