@@ -10,6 +10,7 @@ import SizeGuideModal from "./SizeGuideModal"
 import { formatCOP } from "@/lib/shop-utils"
 import { filterImagesByColor, getPrimaryImageUrl } from "@/lib/product-image"
 import { useCart } from "@/store"
+import { META_CURRENCY, trackMetaEvent } from "@/lib/tracking/meta-pixel"
 import { useToast } from "@/hooks/useToast"
 import ToastContainer from "@/components/ui/ToastContainer"
 import { buildProductFamilyCardColorSummary } from "@/lib/product-card-colors"
@@ -154,6 +155,14 @@ export default function ProductInfo({
     const cartItem = buildCartItem()
     if (!cartItem) return
     addItem(cartItem)
+    trackMetaEvent("AddToCart", {
+      content_type: "product",
+      content_ids: [cartItem.productId],
+      content_name: cartItem.name,
+      contents: [{ id: cartItem.productId, quantity: 1, item_price: cartItem.price }],
+      value: cartItem.price,
+      currency: META_CURRENCY,
+    })
     openCart()
     showToast("¡Agregado al carrito!", "success")
     setJustAdded(true)
@@ -168,6 +177,14 @@ export default function ProductInfo({
     const cartItem = buildCartItem()
     if (!cartItem) return
     addItem(cartItem)
+    trackMetaEvent("AddToCart", {
+      content_type: "product",
+      content_ids: [cartItem.productId],
+      content_name: cartItem.name,
+      contents: [{ id: cartItem.productId, quantity: 1, item_price: cartItem.price }],
+      value: cartItem.price,
+      currency: META_CURRENCY,
+    })
     router.push("/checkout")
   }, [selectedSize, triggerShake, buildCartItem, addItem, router])
 

@@ -15,7 +15,7 @@ describe("buildContentSecurityPolicy", () => {
       .find((directive) => directive.startsWith("script-src "))
 
     expect(scriptDirective).toBe(
-      "script-src 'self' 'nonce-request-nonce' 'strict-dynamic' https://*.epayco.co",
+      "script-src 'self' 'nonce-request-nonce' 'strict-dynamic' https://*.epayco.co https://connect.facebook.net",
     )
     expect(scriptDirective).not.toContain("'unsafe-inline'")
     expect(scriptDirective).not.toContain("'unsafe-eval'")
@@ -44,6 +44,7 @@ describe("buildContentSecurityPolicy", () => {
       .find((directive) => directive.startsWith("script-src "))
 
     expect(scriptDirective).toContain("https://*.epayco.co")
+    expect(scriptDirective).toContain("https://connect.facebook.net")
   })
 
   it("allows same-origin framing only for the preview response", () => {
@@ -71,7 +72,7 @@ describe("buildContentSecurityPolicy", () => {
     })
 
     expect(policy).toContain(
-      "connect-src 'self' https://*.epayco.co https://*.epayco.io https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://nominatim.openstreetmap.org",
+      "connect-src 'self' https://*.epayco.co https://*.epayco.io https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://nominatim.openstreetmap.org https://connect.facebook.net https://www.facebook.com",
     )
     expect(policy).toContain("frame-src 'self' https://*.epayco.co")
     expect(policy).toContain("form-action 'self' https://*.epayco.co")
