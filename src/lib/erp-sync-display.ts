@@ -82,3 +82,125 @@ export function formatErpSyncCount(value: ErpSyncCountLike): string {
   }
   return `${value.processedCount} registros ERP`
 }
+
+// ─────────────────────────────────────────────
+// Indicadores de estado del panel de integraciones
+// ─────────────────────────────────────────────
+
+export type ErpIndicatorTone = "ok" | "warn" | "error" | "off"
+
+export interface ErpIndicator {
+  tone: ErpIndicatorTone
+  label: string
+  detail: string
+}
+
+export interface ErpIndicatorInputs {
+  /** ERP_PROVIDER normalizado ("null" = sin ERP). */
+  provider: string
+  /** Resultado del healthcheck del adaptador. */
+  connected: boolean
+  catalogSyncAvailable: boolean
+  /** Programación confirmada (la que realmente está guardada). */
+  autoSyncEnabled: boolean
+  /** Texto legible del intervalo, ej. "Cada 30 minutos". */
+  intervalLabel: string
+  /** Historial reciente, más nuevo primero. */
+  history: Array<{ success: boolean }>
+}
+
+export interface ErpIndicators {
+  api: ErpIndicator
+  autoSync: ErpIndicator
+  /** null cuando no hay ninguna corrida registrada. */
+  lastSync: ErpIndicator | null
+  /** Fallos consecutivos contando desde la corrida más reciente. */
+  consecutiveFailures: number
+}
+
+export const NULL_ERP_PROVIDER = "null"
+
+export function isErpConfigured(provider: string): boolean {
+  return provider.trim().toLowerCase() !== NULL_ERP_PROVIDER
+}
+
+/** Cuenta fallos seguidos desde la corrida más reciente (historial ordenado desc). */
+export function countConsecutiveFailures(history: Array<{ success: boolean }>): number {
+  let failures = 0
+  for (const run of history) {
+    if (run.success) break
+    failures += 1
+  }
+  return failures
+}
+
+function pluralizeRuns(count: number): string {
+  return count === 1 ? "1 corrida fallida" : `${count} fallos seguidos`
+}
+
+/**
+ * Deriva los tres indicadores del panel a partir del estado real. La regla
+ * es no mostrar verde cuando algo no funciona: sin ERP configurado el
+ * healthcheck del adaptador nulo siempre "responde", y una programación
+ * activa cuyas corridas fallan no es una integración sana.
+ */
+export function getErpIndicators(inputs: ErpIndicatorInputs): ErpIndicators {
+  const configured = isErpConfigured(inputs.provider)
+  const consecutiveFailures = countConsecutiveFailures(inputs.history)
+  const last = inputs.history[0] ?? null
+
+  const api: ErpIndicator = !configured
+    ? {
+        tone: "off",
+        label: "No configurado",
+        detail:
+          "No hay ERP conectado (ERP_PROVIDER). El adaptador nulo siempre responde: no indica conexión real.",
+      }
+    : inputs.connected
+      ? {
+          tone: "ok",
+          label: "Responde",
+          detail: "Healthcheck del ERP correcto; no valida catálogo ni stock.",
+        }
+      : {
+          tone: "error",
+          label: "Sin respuesta",
+          detail: "El ERP no respondió al healthcheck. Revisa credenciales y conectividad.",
+        }
+
+  const autoSync: ErpIndicator = !configured
+    ? { tone: "off", label: "No disponible", detail: "Conecta un ERP para programar sincronizaciones." }
+    : !inputs.catalogSyncAvailable
+      ? { tone: "off", label: "No disponible", detail: "El ERP no admite descarga de catálogo." }
+      : !inputs.autoSyncEnabled
+        ? { tone: "off", label: "Inactiva", detail: "Las sincronizaciones automáticas están apagadas." }
+        : consecutiveFailures > 0
+          ? {
+              tone: "error",
+              label: "Activa con errores",
+              detail: `${inputs.intervalLabel}, pero acumula ${pluralizeRuns(consecutiveFailures)}.`,
+            }
+          : last === null
+            ? {
+                tone: "warn",
+                label: "Activa, sin corridas",
+                detail: `${inputs.intervalLabel}; todavía no se ha ejecutado ninguna.`,
+              }
+            : { tone: "ok", label: "Activa", detail: inputs.intervalLabel }
+
+  const lastSync: ErpIndicator | null =
+    last === null
+      ? null
+      : last.success
+        ? { tone: "ok", label: "Correcta", detail: "La última corrida terminó sin errores." }
+        : {
+            tone: "error",
+            label: "Con error",
+            detail:
+              consecutiveFailures > 1
+                ? `${pluralizeRuns(consecutiveFailures)}; revisa el último error más abajo.`
+                : "La última corrida falló; revisa el detalle más abajo.",
+          }
+
+  return { api, autoSync, lastSync, consecutiveFailures }
+}
