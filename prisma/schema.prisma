@@ -502,6 +502,22 @@ model HeaderConfig {
   updatedAt       DateTime @updatedAt
 }
 
+// Configuración global de la tienda: registro único (id = "default").
+// Datos de contacto que salen en emails/footer y credenciales de marketing.
+// `metaAccessToken` (API de Conversiones) NUNCA se expone al cliente: solo lo
+// lee el servidor. El píxel solo se inyecta si `metaPixelEnabled` y hay ID.
+model StoreSettings {
+  id                String   @id @default("default")
+  storeName         String   @default("One Star")
+  contactEmail      String?
+  whatsapp          String?
+  metaPixelId       String?
+  metaAccessToken   String?
+  metaTestEventCode String?
+  metaPixelEnabled  Boolean  @default(false)
+  updatedAt         DateTime @updatedAt
+}
+
 // Paleta de colores de producto, administrable desde /admin/colores.
 // `name` es el valor que se guarda en Variant.color y el que se usa como
 // filtro en la tienda; `hex` es el tono con que se dibuja el swatch.

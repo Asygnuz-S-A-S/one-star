@@ -1,10 +1,11 @@
 "use client"
 
-import { Suspense, useEffect, useState } from "react"
+import { Suspense, useEffect, useRef, useState } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { useCart } from "@/store"
 import { formatCOP } from "@/lib/shop-utils"
+import { buildMetaCommerceParams, trackMetaEvent } from "@/lib/tracking/meta-pixel"
 
 interface SavedItem {
   name: string
@@ -34,6 +35,7 @@ function CheckoutSuccessContent() {
   const [savedItems, setSavedItems] = useState<SavedItem[]>([])
   const [savedSubtotal, setSavedSubtotal] = useState(0)
   const [mounted, setMounted] = useState(false)
+  const hasTrackedPurchase = useRef(false)
   useEffect(() => {
     if (!orderId) {
       router.replace("/")
@@ -54,6 +56,13 @@ function CheckoutSuccessContent() {
     )
     setSavedSubtotal(subtotal)
     setMounted(true)
+
+    // Purchase del navegador. Comparte event_id (= id del pedido) con el que
+    // envía el webhook de pago por la API de Conversiones; Meta deduplica.
+    if (items.length > 0 && !hasTrackedPurchase.current) {
+      hasTrackedPurchase.current = true
+      trackMetaEvent("Purchase", buildMetaCommerceParams(items), { eventId: orderId })
+    }
 
     // Clear cart after a short delay so state is captured first
     const timer = setTimeout(() => {

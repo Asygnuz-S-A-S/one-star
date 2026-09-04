@@ -204,6 +204,9 @@ esas condiciones para no sobrescribir una edición administrativa concurrente.
 - Desactivar el automático pone `nextRunAt=null`; la sincronización manual permanece independiente.
 - La programación solo puede activarse cuando el `IERPAdapter` efectivo implementa `fetchCatalog`. Si una configuración heredada permanece activa con un adaptador incompatible —incluido el fallback nulo por credenciales ausentes— el scheduler la reconcilia a `enabled=false` y `nextRunAt=null` antes de reclamar el vencimiento. La operación compara el `updatedAt` observado y modifica únicamente esos dos campos: preserva el intervalo y no pisa una edición concurrente posterior; también limpia vencimientos residuales de configuraciones ya inactivas. Esos ticks se omiten con `catalog_sync_unavailable`, sin consultar el ERP ni generar fallos repetitivos.
 
+### Configuración global
+- **StoreSettings** → registro único (`id = "default"`): nombre, email y WhatsApp de contacto (Configuración); `metaPixelId`, `metaPixelEnabled`, `metaTestEventCode` y `metaAccessToken` (solo servidor) para Meta Pixel + API de Conversiones (Integraciones → Marketing)
+
 ## Decisiones Arquitectónicas Tomadas
 
 | # | Decisión | Justificación |
@@ -361,8 +364,16 @@ CLOUDINARY_API_SECRET=...        # API Secret (solo servidor)
 Variables pendientes de definir:
 - `MERCADOPAGO_ACCESS_TOKEN`
 - `RESEND_API_KEY` (o equivalente de email)
-- `META_PIXEL_ID` / `META_ACCESS_TOKEN`
 - `GA4_MEASUREMENT_ID`
+
+Meta Pixel y API de Conversiones **no usan variables de entorno**: el ID del
+píxel, el token de la API de Conversiones y el código de evento de prueba se
+administran desde `/admin/integraciones` (sección Marketing) y viven en la
+tabla `StoreSettings`. El token nunca se envía al navegador; solo lo lee
+`src/server/services/meta-conversions.service.ts`, que dispara el `Purchase`
+server-side desde el webhook de ePayco con `event_id` = id del pedido para que
+Meta lo deduplique contra el `Purchase` del píxel. `BETTER_AUTH_URL` se reutiliza
+como base de `event_source_url`.
 
 ## Despliegue
 
