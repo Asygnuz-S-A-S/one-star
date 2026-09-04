@@ -38,7 +38,9 @@ interface SyncResult {
   processedCount?: number
   productCount?: number
   variantCount?: number
+  storeStock?: { locations: number; inventoryLevels: number }
   error?: string
+  warnings?: string[]
 }
 
 type EndpointDiagnosticsState = ERPEndpointDiagnostics & { accessDenied?: boolean }
@@ -538,12 +540,25 @@ export default function SyncPanel({ initialStatus }: SyncPanelProps) {
                   productCount: result.productCount,
                   variantCount: result.variantCount,
                 })}.{" "}
+                {result.storeStock && result.storeStock.locations > 0 && (
+                  <>
+                    Stock por sede actualizado en {result.storeStock.locations} tienda
+                    {result.storeStock.locations !== 1 ? "s" : ""}.{" "}
+                  </>
+                )}
                 <Link href="/admin/productos" className="font-medium underline underline-offset-2">
                   Ver productos
                 </Link>
               </p>
             ) : (
               <ErrorExplanation error={result.error ?? null} />
+            )}
+            {result.warnings && result.warnings.length > 0 && (
+              <ul className="mt-3 space-y-1 border-t border-current/20 pt-3 text-xs">
+                {result.warnings.map((warning) => (
+                  <li key={warning}>{warning}</li>
+                ))}
+              </ul>
             )}
           </div>
         )}

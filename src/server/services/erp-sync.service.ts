@@ -26,9 +26,12 @@ import {
   findCatalogProductBySlug,
   findDefaultImportCategory,
   fillMissingCatalogProductGenders,
+  replaceErpInventoryLevels,
   updateCatalogProduct,
   updateCatalogVariant,
+  type ErpInventoryLevelRow,
 } from "@/server/repositories/erp-catalog.repository"
+import { ensureErpStoreLocations } from "@/server/repositories/store.repository"
 import { applyErpColorFamilyKeyUpdates } from "@/server/repositories/erp-color-family.repository"
 import { getErpSyncSchedule } from "@/server/services/erp-sync-scheduler.service"
 import type { ErpSyncInterval } from "@/lib/erp-sync-schedule"
@@ -168,18 +171,17 @@ async function runCatalogSync(options: CatalogSyncOptions): Promise<ERPCatalogSy
       }
     }
 
+    // Un catálogo entero en cero ya no detiene la importación. La regla de
+    // publicación de abajo despublica todo lo que llegue sin existencias, así
+    // que la tienda nunca ofrece algo que no se pueda vender. La respuesta
+    // PARCIAL sí sigue bloqueando: ahí el ERP no dijo cuánto hay, y escribir
+    // ceros borraría inventario real.
+    const warnings: string[] = []
     if (snapshot.stock.status === "all_zero") {
-      return {
-        success: false,
-        processedCount: 0,
-        productCount,
-        variantCount,
-        definitionCount,
-        dryRun: options.dryRun ?? false,
-        error:
-          "Loggro respondió con stock total en cero para todo el catálogo. " +
-          "La sincronización se bloqueó para conservar el inventario existente.",
-      }
+      warnings.push(
+        "El ERP reportó stock cero para todo el catálogo. " +
+          "Los productos se importaron, pero quedaron despublicados."
+      )
     }
 
     const writableGroups = getWritableGroups(snapshot.groups)
@@ -203,6 +205,7 @@ async function runCatalogSync(options: CatalogSyncOptions): Promise<ERPCatalogSy
         variantCount,
         definitionCount,
         dryRun: true,
+        warnings: warnings.length > 0 ? warnings : undefined,
       }
     }
 
@@ -230,6 +233,12 @@ async function runCatalogSync(options: CatalogSyncOptions): Promise<ERPCatalogSy
     // Paleta activa: permite deducir el color de cada variante desde el texto
     // que envía el ERP. Se lee una sola vez por sincronización.
     const paletteNames = (await findManyProductColors(true)).map((c) => c.name)
+
+    // Sedes del ERP → tiendas físicas de la web. Se crean ocultas si no existen,
+    // para que el desglose por sede quede guardado desde la primera sincronización.
+    const erpLocations = snapshot.locations ?? []
+    const storeIdByErpId = await ensureErpStoreLocations(erpLocations)
+    const inventoryRows: ErpInventoryLevelRow[] = []
     const suggestedBrandIds = new Map<string, string>()
     const suggestedCategoryIds = new Map<string, string>()
     const colorFamilyKeyUpdates: Array<{ productId: string; key: string | null }> = []
@@ -240,9 +249,19 @@ async function runCatalogSync(options: CatalogSyncOptions): Promise<ERPCatalogSy
 
     // El adaptador ya normalizó el catálogo plano del ERP en productos padre
     // con variantes vendibles. El servicio no conoce campos propios de Loggro.
+    let unpublishedByStock = 0
+
     for (const group of writableGroups) {
       const baseSku = group.sku
       const variantsList = group.variants
+
+      // Regla de publicación: un producto solo se ofrece si el ERP reporta
+      // existencias. Cuando el propio ERP ya lo marcó como no vendible en
+      // línea (obsequios, ítems internos, precio no positivo) la decisión del
+      // administrador se conserva intacta y el stock no la reabre.
+      const erpStock = variantsList.reduce((total, variant) => total + variant.stock, 0)
+      const publishedByErp = group.onlineCatalogExclusionReason ? undefined : erpStock > 0
+      if (publishedByErp === false) unpublishedByStock++
 
       // Buscar si el producto principal ya existe
       let existingProduct = await findCatalogProductBySlug(baseSku)
@@ -271,6 +290,7 @@ async function runCatalogSync(options: CatalogSyncOptions): Promise<ERPCatalogSy
         await updateCatalogProduct(existingProduct.id, {
           basePrice: group.basePrice,
           unitOfMeasure: group.unitOfMeasure,
+          ...(publishedByErp === undefined ? {} : { isPublished: publishedByErp }),
         })
         if (existingProduct.gender == null && group.gender) {
           genderCandidates.push({ erpId: group.erpId, gender: group.gender })
@@ -285,7 +305,7 @@ async function runCatalogSync(options: CatalogSyncOptions): Promise<ERPCatalogSy
           categoryId: suggestedCategoryId ?? defaultCategory.id,
           brandId: suggestedBrandId,
           gender: group.gender,
-          isPublished: group.onlineCatalogExclusionReason ? false : true,
+          isPublished: publishedByErp ?? false,
           erpId: group.erpId,
         })
       }
@@ -305,6 +325,7 @@ async function runCatalogSync(options: CatalogSyncOptions): Promise<ERPCatalogSy
           detectColorFromText(variantItem.name, paletteNames) ??
           ""
 
+        let variantId: string
         if (existingVariant) {
           await updateCatalogVariant(existingVariant.id, {
             erpId: variantItem.erpId,
@@ -315,8 +336,9 @@ async function runCatalogSync(options: CatalogSyncOptions): Promise<ERPCatalogSy
               ? {}
               : { color: detectedColor }),
           })
+          variantId = existingVariant.id
         } else {
-          await createCatalogVariant({
+          const created = await createCatalogVariant({
             productId: existingProduct.id,
             sku: variantItem.sku,
             erpId: variantItem.erpId,
@@ -324,6 +346,15 @@ async function runCatalogSync(options: CatalogSyncOptions): Promise<ERPCatalogSy
             color: detectedColor,
             stock: variantItem.stock,
           })
+          variantId = created.id
+        }
+
+        // Desglose por sede: solo informativo para el cliente (no reserva ni
+        // recogida en tienda). El total vendible sigue siendo `stock`.
+        for (const level of variantItem.stockByLocation ?? []) {
+          const storeLocationId = storeIdByErpId.get(level.locationErpId)
+          if (!storeLocationId) continue
+          inventoryRows.push({ variantId, storeLocationId, stock: level.stock })
         }
       }
 
@@ -336,6 +367,16 @@ async function runCatalogSync(options: CatalogSyncOptions): Promise<ERPCatalogSy
     await fillMissingCatalogProductGenders(genderCandidates)
     const colorFamilyResult = await applyErpColorFamilyKeyUpdates(colorFamilyKeyUpdates)
     const colorFamilyActions = colorFamilyResult.reconciliation.plan.actions
+    const inventoryLevelCount = await replaceErpInventoryLevels(
+      [...storeIdByErpId.values()],
+      inventoryRows
+    )
+
+    if (unpublishedByStock > 0) {
+      warnings.push(
+        `${unpublishedByStock} producto(s) quedaron despublicados porque el ERP los reportó sin stock.`
+      )
+    }
 
     return {
       success: true,
@@ -344,6 +385,11 @@ async function runCatalogSync(options: CatalogSyncOptions): Promise<ERPCatalogSy
       variantCount,
       definitionCount,
       dryRun: false,
+      warnings: warnings.length > 0 ? warnings : undefined,
+      storeStock: {
+        locations: storeIdByErpId.size,
+        inventoryLevels: inventoryLevelCount,
+      },
       colorFamilies: {
         created: colorFamilyActions.filter((action) => action.mode === "create").length,
         updated: colorFamilyActions.filter((action) => action.mode === "add").length,

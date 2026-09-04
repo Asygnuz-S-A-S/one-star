@@ -17,6 +17,14 @@ export interface Variant {
     id: string
     storeLocationId: string | null
     storeName: string | null
+    /** Sede física dueña del nivel; null para la bodega web. */
+    storeLocation?: {
+      id: string
+      name: string
+      city: string
+      isActive: boolean
+      isWebWarehouse: boolean
+    } | null
     stock: number
   }[]
   sizeUS: string | null

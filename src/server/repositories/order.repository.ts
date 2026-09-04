@@ -96,6 +96,33 @@ export async function getVariantsStock(variantIds: string[]) {
 }
 
 /**
+ * Refleja la venta en el desglose por sede: descuenta de las tiendas con más
+ * existencias hasta cubrir la cantidad. `Variant.stock` sigue siendo la fuente
+ * transaccional; el ERP vuelve a alinear el desglose en la próxima sincronización.
+ */
+async function decrementStoreInventory(
+  tx: Prisma.TransactionClient,
+  variantId: string,
+  quantity: number
+): Promise<void> {
+  const levels = await tx.inventoryLevel.findMany({
+    where: { variantId, storeLocationId: { not: null }, stock: { gt: 0 } },
+    orderBy: { stock: "desc" },
+    select: { id: true, stock: true },
+  })
+  let remaining = quantity
+  for (const level of levels) {
+    if (remaining <= 0) break
+    const taken = Math.min(level.stock, remaining)
+    await tx.inventoryLevel.update({
+      where: { id: level.id },
+      data: { stock: { decrement: taken } },
+    })
+    remaining -= taken
+  }
+}
+
+/**
  * Marca un pedido como PAID y descuenta el stock de cada variante dentro de
  * una transacción. Re-valida el stock para evitar sobreventa por condiciones
  * de carrera. Idempotente: si el pedido ya está PAID no descuenta de nuevo.
@@ -116,30 +143,41 @@ export async function markOrderPaidWithStock(id: string, trackingNumber?: string
       return order
     }
 
-    for (const item of order.items) {
-      if (!item.variantId) continue
-      const variant = await tx.variant.findUnique({
-        where: { id: item.variantId },
-        select: { id: true, stock: true }
-      })
-      if (!variant || variant.stock < item.quantity) {
-        throw new Error(
-          `Stock insuficiente para completar el pedido (variante ${item.variantId}).`
-        )
-      }
-      await tx.variant.update({
-        where: { id: variant.id },
-        data: { stock: { decrement: item.quantity } },
-      })
-    }
-
-    return tx.order.update({
-      where: { id },
+    // Reclama la transición → PAID de forma atómica ANTES de tocar el stock.
+    // La lectura de arriba no basta: la transacción corre en READ COMMITTED, así
+    // que dos reintentos concurrentes del webhook de ePayco pueden leer ambos el
+    // estado previo. El UPDATE condicional bloquea la fila y reevalúa el WHERE,
+    // de modo que solo una transacción afecta una fila y descuenta existencias.
+    const claimed = await tx.order.updateMany({
+      where: { id, status: { not: "PAID" } },
       data: {
         status: "PAID",
         ...(trackingNumber !== undefined ? { trackingNumber } : {}),
       },
     })
+    if (claimed.count === 0) {
+      // Otra entrega ganó la carrera y ya descontó el stock.
+      return tx.order.findUniqueOrThrow({ where: { id } })
+    }
+
+    for (const item of order.items) {
+      if (!item.variantId) continue
+      // Decremento condicional: el propio UPDATE revalida las existencias sobre
+      // la fila bloqueada, así dos ventas simultáneas no dejan el stock negativo.
+      const decremented = await tx.variant.updateMany({
+        where: { id: item.variantId, stock: { gte: item.quantity } },
+        data: { stock: { decrement: item.quantity } },
+      })
+      if (decremented.count === 0) {
+        // Revierte la reclamación de PAID junto con el resto de la transacción.
+        throw new Error(
+          `Stock insuficiente para completar el pedido (variante ${item.variantId}).`
+        )
+      }
+      await decrementStoreInventory(tx, item.variantId, item.quantity)
+    }
+
+    return tx.order.findUniqueOrThrow({ where: { id } })
   })
 }
 

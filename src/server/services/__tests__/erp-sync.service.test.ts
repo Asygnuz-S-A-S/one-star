@@ -14,9 +14,13 @@ vi.mock("@/server/repositories/erp-sync-log.repository", () => ({
   createErpSyncLog: vi.fn().mockResolvedValue(undefined),
   findRecentErpSyncLogs: vi.fn().mockResolvedValue([]),
 }))
+vi.mock("@/server/repositories/store.repository", () => ({
+  ensureErpStoreLocations: vi.fn().mockResolvedValue(new Map()),
+}))
 vi.mock("@/server/repositories/erp-catalog.repository", () => ({
   createCatalogProduct: vi.fn(),
-  createCatalogVariant: vi.fn(),
+  createCatalogVariant: vi.fn().mockResolvedValue({ id: "variant-created" }),
+  replaceErpInventoryLevels: vi.fn().mockResolvedValue(0),
   createDefaultImportCategory: vi.fn(),
   ensureCatalogBrand: vi.fn(),
   ensureCatalogCategory: vi.fn(),
@@ -42,6 +46,7 @@ import { findRecentErpSyncLogs } from "@/server/repositories/erp-sync-log.reposi
 import { findDefaultImportCategory } from "@/server/repositories/erp-catalog.repository"
 import { applyErpColorFamilyKeyUpdates } from "@/server/repositories/erp-color-family.repository"
 import { getErpSyncSchedule } from "@/server/services/erp-sync-scheduler.service"
+import { ensureErpStoreLocations } from "@/server/repositories/store.repository"
 import { getErpSyncStatus, runErpEndpointDiagnostics, syncCatalogFromERP } from "../erp-sync.service"
 
 const mockGetERPAdapter = vi.mocked(getERPAdapter)
@@ -51,6 +56,39 @@ const mockFindRecentErpSyncLogs = vi.mocked(findRecentErpSyncLogs)
 const mockFindDefaultImportCategory = vi.mocked(findDefaultImportCategory)
 const mockApplyColorFamilyKeys = vi.mocked(applyErpColorFamilyKeyUpdates)
 const mockGetErpSyncSchedule = vi.mocked(getErpSyncSchedule)
+
+/** Catálogo mínimo de un producto con una variante, parametrizado por stock. */
+function catalogSnapshot({ stock }: { stock: number }) {
+  return {
+    groups: [
+      {
+        erpId: "parent-1",
+        sku: "MODEL-BLK",
+        name: "TENIS MODELO NEGRO",
+        basePrice: 100_000,
+        variants: [
+          {
+            erpId: "variant-1",
+            sku: "MODEL-BLK_9",
+            name: "TENIS MODELO NEGRO",
+            basePrice: 100_000,
+            stock,
+          },
+        ],
+      },
+    ],
+    diagnostics: { sourceItemCount: 2, definitionCount: 1, variantCount: 1, groupCount: 1 },
+    stock: {
+      status: stock === 0 ? "all_zero" : "complete",
+      complete: true,
+      requestedCount: 1,
+      resolvedCount: 1,
+      totalStock: stock,
+      missingCodes: [],
+      errors: [],
+    },
+  }
+}
 
 describe("syncCatalogFromERP", () => {
   afterEach(() => vi.useRealTimers())
@@ -94,7 +132,15 @@ describe("syncCatalogFromERP", () => {
     expect(status.catalogSyncAvailable).toBe(false)
   })
 
-  it("bloquea escrituras cuando Loggro responde stock completo pero todo en cero", async () => {
+  it("importa el catálogo despublicado cuando el ERP reporta todo el stock en cero", async () => {
+    process.env.ERP_CATALOG_WRITES_ENABLED = "true"
+    mockFindDefaultImportCategory.mockResolvedValue({ id: "category" } as never)
+    const repository = await import("@/server/repositories/erp-catalog.repository")
+    vi.mocked(repository.findCatalogProductBySlug).mockResolvedValue(null as never)
+    vi.mocked(repository.createCatalogProduct).mockResolvedValue({
+      id: "created",
+      variants: [],
+    } as never)
     mockGetERPAdapter.mockReturnValue({
       fetchCatalog: vi.fn().mockResolvedValue({
         groups: [
@@ -135,13 +181,61 @@ describe("syncCatalogFromERP", () => {
 
     const result = await syncCatalogFromERP("MANUAL", { dryRun: false })
 
-    expect(result).toMatchObject({
-      success: false,
-      processedCount: 0,
-      productCount: 1,
-      variantCount: 1,
-    })
-    expect(result.error).toContain("stock total en cero")
+    expect(result).toMatchObject({ success: true, productCount: 1, variantCount: 1 })
+    expect(repository.createCatalogProduct).toHaveBeenCalledWith(
+      expect.objectContaining({ isPublished: false })
+    )
+    expect(result.warnings?.join(" ")).toContain("stock cero para todo el catálogo")
+  })
+
+  it("despublica un producto ERP existente que se quedó sin stock", async () => {
+    process.env.ERP_CATALOG_WRITES_ENABLED = "true"
+    mockFindDefaultImportCategory.mockResolvedValue({ id: "category" } as never)
+    const repository = await import("@/server/repositories/erp-catalog.repository")
+    vi.mocked(repository.findCatalogProductBySlug).mockResolvedValue({
+      id: "existing-product",
+      isPublished: true,
+      variants: [{ id: "v1", sku: "MODEL-BLK_9", color: "" }],
+    } as never)
+    mockGetERPAdapter.mockReturnValue({
+      fetchCatalog: vi.fn().mockResolvedValue(catalogSnapshot({ stock: 0 })),
+      ping: vi.fn(),
+    } as never)
+
+    const result = await syncCatalogFromERP("MANUAL")
+
+    expect(repository.updateCatalogProduct).toHaveBeenCalledWith(
+      "existing-product",
+      expect.objectContaining({ isPublished: false })
+    )
+    expect(repository.updateCatalogVariant).toHaveBeenCalledWith(
+      "v1",
+      expect.objectContaining({ stock: 0 })
+    )
+    expect(result.warnings?.join(" ")).toContain("despublicados")
+  })
+
+  it("vuelve a publicar un producto ERP existente en cuanto el stock regresa", async () => {
+    process.env.ERP_CATALOG_WRITES_ENABLED = "true"
+    mockFindDefaultImportCategory.mockResolvedValue({ id: "category" } as never)
+    const repository = await import("@/server/repositories/erp-catalog.repository")
+    vi.mocked(repository.findCatalogProductBySlug).mockResolvedValue({
+      id: "existing-product",
+      isPublished: false,
+      variants: [{ id: "v1", sku: "MODEL-BLK_9", color: "" }],
+    } as never)
+    mockGetERPAdapter.mockReturnValue({
+      fetchCatalog: vi.fn().mockResolvedValue(catalogSnapshot({ stock: 4 })),
+      ping: vi.fn(),
+    } as never)
+
+    const result = await syncCatalogFromERP("MANUAL")
+
+    expect(repository.updateCatalogProduct).toHaveBeenCalledWith(
+      "existing-product",
+      expect.objectContaining({ isPublished: true })
+    )
+    expect(result.warnings).toBeUndefined()
   })
 
   it("dry-run valida y cuenta el catálogo sin escribir ni siquiera el historial", async () => {
@@ -316,6 +410,95 @@ describe("syncCatalogFromERP", () => {
     expect(result.success).toBe(false)
     expect(result.error).toContain("escrituras del catálogo están pausadas")
     expect(mockFindDefaultImportCategory).not.toHaveBeenCalled()
+  })
+
+  it("guarda el desglose de stock por sede solo para las tiendas vinculadas al ERP", async () => {
+    process.env.ERP_CATALOG_WRITES_ENABLED = "true"
+    mockFindDefaultImportCategory.mockResolvedValue({ id: "category" } as never)
+    const repository = await import("@/server/repositories/erp-catalog.repository")
+    vi.mocked(repository.findCatalogProductBySlug).mockResolvedValue({
+      id: "product-a",
+      variants: [{ id: "variant-a", sku: "180361GRN_8", size: "8", color: "Verde" }],
+    } as never)
+    vi.mocked(ensureErpStoreLocations).mockResolvedValue(
+      new Map([
+        ["est-fundadores", "store-fundadores"],
+        ["est-centro", "store-centro"],
+      ])
+    )
+    vi.mocked(repository.replaceErpInventoryLevels).mockResolvedValue(4)
+    mockGetERPAdapter.mockReturnValue({
+      fetchCatalog: vi.fn().mockResolvedValue({
+        groups: [
+          {
+            erpId: "erp-a",
+            sku: "180361GRN",
+            name: "SKECHERS VERDE",
+            basePrice: 100_000,
+            variants: [
+              {
+                erpId: "variant-erp-a",
+                sku: "180361GRN_8",
+                name: "SKECHERS VERDE",
+                basePrice: 100_000,
+                stock: 3,
+                stockByLocation: [
+                  { locationErpId: "est-fundadores", stock: 2 },
+                  { locationErpId: "est-centro", stock: 1 },
+                  { locationErpId: "est-desconocida", stock: 9 },
+                ],
+              },
+              {
+                erpId: "variant-erp-b",
+                sku: "180361GRN_9",
+                name: "SKECHERS VERDE",
+                basePrice: 100_000,
+                stock: 0,
+                stockByLocation: [
+                  { locationErpId: "est-fundadores", stock: 0 },
+                  { locationErpId: "est-centro", stock: 0 },
+                ],
+              },
+            ],
+          },
+        ],
+        locations: [
+          { erpId: "est-fundadores", name: "One Star Fundadores" },
+          { erpId: "est-centro", name: "One Star Centro" },
+        ],
+        diagnostics: { sourceItemCount: 3, definitionCount: 1, variantCount: 2, groupCount: 1 },
+        stock: {
+          status: "complete",
+          complete: true,
+          requestedCount: 2,
+          resolvedCount: 2,
+          totalStock: 3,
+          missingCodes: [],
+          errors: [],
+        },
+      }),
+      ping: vi.fn(),
+    } as never)
+
+    const result = await syncCatalogFromERP("MANUAL")
+
+    expect(ensureErpStoreLocations).toHaveBeenCalledWith([
+      { erpId: "est-fundadores", name: "One Star Fundadores" },
+      { erpId: "est-centro", name: "One Star Centro" },
+    ])
+    expect(repository.replaceErpInventoryLevels).toHaveBeenCalledWith(
+      ["store-fundadores", "store-centro"],
+      [
+        { variantId: "variant-a", storeLocationId: "store-fundadores", stock: 2 },
+        { variantId: "variant-a", storeLocationId: "store-centro", stock: 1 },
+        { variantId: "variant-created", storeLocationId: "store-fundadores", stock: 0 },
+        { variantId: "variant-created", storeLocationId: "store-centro", stock: 0 },
+      ]
+    )
+    expect(result).toMatchObject({
+      success: true,
+      storeStock: { locations: 2, inventoryLevels: 4 },
+    })
   })
 
   it("reconcilia las claves opacas después de sincronizar productos y variantes", async () => {

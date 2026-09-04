@@ -8,6 +8,7 @@ import type {
   ERPInvoice,
   ERPSyncResult,
   ERPStockItem,
+  ERPStockLocation,
 } from "../erp.types"
 import { LoggroClient } from "./loggro.client"
 import { normalizeLoggroCatalog } from "./loggro-catalog.normalizer"
@@ -110,6 +111,10 @@ export class LoggroERPAdapter implements IERPAdapter {
 
   async diagnoseEndpoints(): Promise<ERPEndpointDiagnostic[]> {
     return this.client.diagnoseEndpoints()
+  }
+
+  async listStockLocations(): Promise<ERPStockLocation[]> {
+    return this.client.listStockLocations()
   }
 
   async fetchCatalog(): Promise<ERPCatalogSnapshot> {

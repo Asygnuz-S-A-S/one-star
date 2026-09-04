@@ -20,6 +20,8 @@ export type {
   ERPOrderItem,
   ERPSyncResult,
   ERPStockItem,
+  ERPStockLocation,
+  ERPVariantLocationStock,
   ERPEndpointDiagnostic,
   ERPEndpointDiagnostics,
   ERPEndpointName,

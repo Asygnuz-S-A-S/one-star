@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation"
-import { headers } from "next/headers"
 import Link from "next/link"
 import Image from "next/image"
 import type { Metadata } from "next"
@@ -38,7 +37,6 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function ProductPage({ params, searchParams }: PageProps) {
-  const nonce = (await headers()).get("x-nonce") ?? undefined
   const { slug } = await params
   const { color: initialColor } = (await searchParams) ?? {}
   const product = await getProductBySlug(slug)
@@ -76,14 +74,14 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
     },
   }
 
-  // Compute store availability from variants inventory
+  // Disponibilidad online = stock vendible por variante (lo mismo que valida el
+  // checkout). El desglose por sede es solo informativo: la web no lo reserva.
   const storeMap = new Map<string, { store: InventoryStoreDTO; stock: number }>()
-  let webStock = 0
+  const webStock = product.variants.reduce((total, variant) => total + variant.stock, 0)
   for (const variant of product.variants) {
     for (const inv of variant.inventory ?? []) {
-      if (!inv.storeLocation || inv.storeLocation.isWebWarehouse) {
-        webStock += inv.stock
-      } else if (inv.storeLocation.isActive) {
+      if (!inv.storeLocation || inv.storeLocation.isWebWarehouse) continue
+      if (inv.storeLocation.isActive) {
         const existing = storeMap.get(inv.storeLocation.id)
         if (existing) {
           existing.stock += inv.stock
@@ -108,9 +106,14 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
 
   return (
     <>
-      {/* JSON-LD for SEO */}
+      {/*
+        JSON-LD for SEO. Sin `nonce`: el navegador vacía ese atributo tras
+        parsear el HTML, así que React veía "" en el DOM contra el valor del
+        payload y reportaba un error de hidratación. Un bloque de datos
+        `application/ld+json` no se ejecuta, por lo que `script-src` de la CSP
+        no lo bloquea y el nonce era innecesario.
+      */}
       <script
-        nonce={nonce}
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />

@@ -447,6 +447,8 @@ model StoreLocation {
   latitude      Float?
   longitude     Float?
   isWebWarehouse Boolean @default(false)
+  // Establecimiento del ERP cuyo inventario alimenta esta sede. Null = solo manual.
+  erpId         String?  @unique
 
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())

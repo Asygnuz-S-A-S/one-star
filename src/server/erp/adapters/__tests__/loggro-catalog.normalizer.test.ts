@@ -507,3 +507,82 @@ describe("normalizeLoggroCatalog", () => {
     expect(snapshot.groups[0].sku).toBe("LEGACY-BLK")
   })
 })
+
+describe("normalizeLoggroCatalog — stock por sede", () => {
+  const items: LoggroCatalogItem[] = [
+    {
+      uuid: "variant-8",
+      codigo: "MODEL-BLK_8",
+      descripcion: "TENIS HOKA NEGRO",
+      definicion: false,
+      precioDefecto: 100_000,
+    },
+    {
+      uuid: "variant-9",
+      codigo: "MODEL-BLK_9",
+      descripcion: "TENIS HOKA NEGRO",
+      definicion: false,
+      precioDefecto: 100_000,
+    },
+  ]
+
+  it("expone el desglose por sede cubriendo todas las sedes, con cero para las ausentes", () => {
+    const snapshot = normalizeLoggroCatalog(items, {
+      stockByCodigo: new Map([["MODEL-BLK_8", 3], ["MODEL-BLK_9", 0]]),
+      locations: [
+        { erpId: "est-fundadores", name: "One Star Fundadores" },
+        { erpId: "est-centro", name: "One Star Centro" },
+      ],
+      stockByCodigoAndLocation: new Map([
+        ["MODEL-BLK_8", new Map([["est-fundadores", 2], ["est-centro", 1]])],
+      ]),
+      complete: true,
+      requestedCount: 2,
+      resolvedCount: 2,
+      missingCodes: [],
+      errors: [],
+    })
+
+    expect(snapshot.locations).toEqual([
+      { erpId: "est-fundadores", name: "One Star Fundadores" },
+      { erpId: "est-centro", name: "One Star Centro" },
+    ])
+    const [variant8, variant9] = snapshot.groups[0].variants
+    expect(variant8.stockByLocation).toEqual([
+      { locationErpId: "est-fundadores", stock: 2 },
+      { locationErpId: "est-centro", stock: 1 },
+    ])
+    expect(variant9.stockByLocation).toEqual([
+      { locationErpId: "est-fundadores", stock: 0 },
+      { locationErpId: "est-centro", stock: 0 },
+    ])
+  })
+
+  it("omite el desglose cuando el stock total es desconocido o no hay sedes", () => {
+    const snapshot = normalizeLoggroCatalog(items, {
+      stockByCodigo: new Map([["MODEL-BLK_8", 3]]),
+      locations: [{ erpId: "est-centro", name: "Centro" }],
+      stockByCodigoAndLocation: new Map([["MODEL-BLK_8", new Map([["est-centro", 3]])]]),
+      complete: false,
+      requestedCount: 2,
+      resolvedCount: 1,
+      missingCodes: ["MODEL-BLK_9"],
+      errors: [],
+    })
+    const [variant8, variant9] = snapshot.groups[0].variants
+    expect(variant8.stockByLocation).toEqual([{ locationErpId: "est-centro", stock: 3 }])
+    expect(variant9.stock).toBeNull()
+    expect(variant9.stockByLocation).toBeUndefined()
+
+    const legacy = normalizeLoggroCatalog(items, {
+      stockByCodigo: new Map([["MODEL-BLK_8", 3], ["MODEL-BLK_9", 1]]),
+      complete: true,
+      requestedCount: 2,
+      resolvedCount: 2,
+      missingCodes: [],
+      errors: [],
+    })
+    expect(legacy.locations).toEqual([])
+    expect(legacy.groups[0].variants[0].stockByLocation).toBeUndefined()
+  })
+})
