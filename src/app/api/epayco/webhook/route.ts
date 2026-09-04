@@ -6,6 +6,7 @@ import {
 } from "@/server/services/epayco.service"
 import { changeOrderStatus, getOrderById } from "@/server/services/order.service"
 import { updateOrderPaymentReference } from "@/server/repositories/order.repository"
+import { sendMetaPurchaseForOrder } from "@/server/services/meta-conversions.service"
 
 /** Tolerancia para comparar montos (centavos por redondeo de la pasarela) */
 const AMOUNT_TOLERANCE = 0.01
@@ -84,6 +85,11 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ received: true, amountMismatch: true })
         }
         await changeOrderStatus(orderId, "PAID")
+        // Purchase server-side a Meta. Fire-and-forget: un fallo de marketing
+        // nunca debe hacer que ePayco reintente ni afectar el pedido.
+        sendMetaPurchaseForOrder(order).catch((error: unknown) => {
+          console.error(`[epayco/webhook] Meta CAPI falló para pedido ${orderId}:`, error)
+        })
         break
       }
       case EpaycoStatus.REJECTED:

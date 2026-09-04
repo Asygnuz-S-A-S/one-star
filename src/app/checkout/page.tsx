@@ -5,6 +5,7 @@ import Link from "next/link"
 import { motion } from "motion/react"
 import { useCart, useCartStore } from "@/store"
 import { formatCOP } from "@/lib/shop-utils"
+import { buildMetaCommerceParams, trackMetaEvent } from "@/lib/tracking/meta-pixel"
 import { COLOMBIA_DEPARTMENTS } from "@/lib/colombia-departments"
 import {
   clearCheckoutDraft,
@@ -174,6 +175,14 @@ function CheckoutForm({
 }: CheckoutFormProps) {
   const { items, subtotal } = useCart()
   const hasEditedForm = useRef(false)
+
+  // InitiateCheckout una sola vez por visita al checkout, con el carrito inicial.
+  const hasTrackedCheckout = useRef(false)
+  useEffect(() => {
+    if (hasTrackedCheckout.current || items.length === 0) return
+    hasTrackedCheckout.current = true
+    trackMetaEvent("InitiateCheckout", buildMetaCommerceParams(items))
+  }, [items])
 
   const [errors, setErrors] = useState<FormErrors>({})
   const [submitting, setSubmitting] = useState(false)

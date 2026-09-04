@@ -5,6 +5,7 @@ import type { Metadata } from "next"
 import { getProductBySlug, type InventoryStoreDTO } from "@/server/services/product.service"
 import { getProductReviews, getProductReviewStats } from "@/server/services/review.service"
 import ProductDetail from "@/components/product/ProductDetail"
+import MetaViewContent from "@/components/tracking/MetaViewContent"
 import CrossSelling from "@/components/product/CrossSelling"
 import RelatedProducts from "@/components/product/RelatedProducts"
 import ProductReviews from "@/components/product/ProductReviews"
@@ -140,6 +141,12 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
         </nav>
 
         {/* ── Main product grid ── */}
+        <MetaViewContent
+          productId={product.id}
+          name={product.name}
+          category={product.category?.name ?? ""}
+          price={displayPrice}
+        />
         <ProductDetail
           product={product}
           reviewStats={productReviewStats}
