@@ -1,4 +1,4 @@
-import "server-only"
+"use server"
 
 import { revalidatePath } from "next/cache"
 import { requireAdmin } from "@/server/auth/require-admin"
@@ -30,7 +30,6 @@ const checkbox = (formData: FormData, key: string) => formData.get(key) === "on"
 export async function updateStoreInfoAction(
   formData: FormData,
 ): Promise<StoreSettingsActionResult> {
-  "use server"
   try {
     await requireAdmin()
     const input = StoreInfoInputSchema.parse({
@@ -51,7 +50,6 @@ export async function updateStoreInfoAction(
 export async function updateMetaPixelAction(
   formData: FormData,
 ): Promise<StoreSettingsActionResult> {
-  "use server"
   try {
     await requireAdmin()
     const input = MetaPixelInputSchema.parse({
