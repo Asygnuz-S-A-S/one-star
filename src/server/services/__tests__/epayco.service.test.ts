@@ -3,7 +3,11 @@ import * as crypto from "crypto"
 
 vi.mock("server-only", () => ({}))
 
-import { verifyEpaycoSignature, type EpaycoWebhookPayload } from "../epayco.service"
+import {
+  EpaycoStatus,
+  verifyEpaycoSignature,
+  type EpaycoWebhookPayload,
+} from "../epayco.service"
 
 const CUSTOMER_ID = "123456"
 const PRIVATE_KEY = "clave-privada-de-prueba"
@@ -91,5 +95,44 @@ describe("verifyEpaycoSignature", () => {
     const payload = { ...basePayload, x_signature: signLikeEpayco(basePayload) }
 
     expect(verifyEpaycoSignature(payload)).toBe(false)
+  })
+
+  it("rechaza una firma emitida con la llave privada de otro comercio", () => {
+    const signature = crypto
+      .createHash("sha256")
+      .update(
+        `${CUSTOMER_ID}^llave-de-otro-comercio^${basePayload.x_ref_payco}^${basePayload.x_transaction_id}^${basePayload.x_amount}^${basePayload.x_currency_code}`
+      )
+      .digest("hex")
+
+    expect(verifyEpaycoSignature({ ...basePayload, x_signature: signature })).toBe(false)
+  })
+
+  it("rechaza una firma de longitud distinta sin reventar la comparación", () => {
+    // timingSafeEqual lanza si los buffers no miden lo mismo: la guarda de
+    // longitud debe atajarlo antes de llamarlo.
+    expect(() =>
+      verifyEpaycoSignature({ ...basePayload, x_signature: "abc" })
+    ).not.toThrow()
+    expect(verifyEpaycoSignature({ ...basePayload, x_signature: "abc" })).toBe(false)
+  })
+
+  it("rechaza cuando falta el identificador de comercio", () => {
+    delete process.env.EPAYCO_CUSTOMER_ID
+
+    expect(
+      verifyEpaycoSignature({ ...basePayload, x_signature: signLikeEpayco(basePayload) })
+    ).toBe(false)
+  })
+})
+
+describe("EpaycoStatus", () => {
+  it("mantiene los códigos de respuesta que documenta ePayco", () => {
+    expect(EpaycoStatus).toEqual({
+      ACCEPTED: "1",
+      REJECTED: "2",
+      PENDING: "3",
+      FAILED: "4",
+    })
   })
 })

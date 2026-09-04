@@ -5,6 +5,7 @@ import {
   findProductsByIds,
   findProductBySlug,
   findProductByIdForAdmin,
+  findPublishedProductSitemapEntries,
   countProducts,
   fetchBrands,
   createProductRecord,
@@ -585,4 +586,14 @@ export async function searchProducts(
     imageUrl: row.images[0]?.url ?? null,
     color: row.variants.find((variant) => variant.color.trim().length > 0)?.color ?? null,
   }))
+}
+
+export interface ProductSitemapEntry {
+  slug: string
+  updatedAt: Date
+}
+
+/** Entradas de producto para `src/app/sitemap.ts`. */
+export async function getProductSitemapEntries(): Promise<ProductSitemapEntry[]> {
+  return findPublishedProductSitemapEntries()
 }

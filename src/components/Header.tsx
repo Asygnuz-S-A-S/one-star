@@ -269,12 +269,13 @@ export default function Header({
           {/* Acciones rápidas */}
           <div className="flex items-center gap-2 shrink-0 order-3 ml-auto text-[#1C1C1C] dark:text-[#f5f5f7]">
             {config?.showSearch !== false && (
-              <button
+              <Link
+                href="/buscar"
                 aria-label="Buscar"
                 className="p-2 rounded-sm hover:text-[#E31C23] transition-colors focus-visible:outline-2 focus-visible:outline-[#E31C23]"
               >
                 <IconSearch />
-              </button>
+              </Link>
             )}
             {config?.showCart !== false && (
               <button

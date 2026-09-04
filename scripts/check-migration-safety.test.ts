@@ -80,7 +80,16 @@ function commitContractManifest(
 
 afterEach(() => {
   for (const cwd of temporaryRepositories.splice(0)) {
-    rmSync(cwd, { force: true, recursive: true })
+    // El runner de CI falló con `ENOTEMPTY: rmdir '.../.git/info'`: git todavía
+    // estaba escribiendo dentro del repositorio temporal cuando corrió el
+    // borrado. Se reintenta, y si aun así no se puede borrar se avisa sin
+    // tumbar la suite: es un directorio de /tmp que el sistema recoge igual y
+    // no forma parte de lo que estas pruebas verifican.
+    try {
+      rmSync(cwd, { force: true, recursive: true, maxRetries: 5, retryDelay: 100 })
+    } catch (error) {
+      console.warn(`No se pudo borrar el repositorio temporal ${cwd}:`, error)
+    }
   }
 })
 
