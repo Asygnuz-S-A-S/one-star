@@ -1,9 +1,19 @@
 import "server-only"
 import { prisma } from "../db/prisma"
 
+/** Ventana de comparación de los KPI: últimos N días contra los N anteriores. */
+export const DASHBOARD_PERIOD_DAYS = 30
+
+function daysAgo(days: number): Date {
+  const date = new Date()
+  date.setDate(date.getDate() - days)
+  return date
+}
+
 export async function getDashboardData() {
-  const thirtyDaysAgo = new Date()
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+  const thirtyDaysAgo = daysAgo(DASHBOARD_PERIOD_DAYS)
+  const sixtyDaysAgo = daysAgo(DASHBOARD_PERIOD_DAYS * 2)
+  const notCancelled = { status: { not: "CANCELLED" as const } }
 
   const [
     gmvResult,
@@ -14,6 +24,10 @@ export async function getDashboardData() {
     lowStockRaw,
     revenueByDayRaw,
     ordersByStatusRaw,
+    currentPeriodOrders,
+    previousPeriodOrders,
+    currentPeriodCustomers,
+    previousPeriodCustomers,
   ] = await Promise.all([
     prisma.order.aggregate({
       _sum: { total: true },
@@ -46,6 +60,19 @@ export async function getDashboardData() {
       by: ["status"],
       _count: { id: true },
     }),
+    // Tendencias reales: mismo agregado que el GMV, acotado a cada ventana.
+    prisma.order.aggregate({
+      _sum: { total: true },
+      _count: { id: true },
+      where: { ...notCancelled, createdAt: { gte: thirtyDaysAgo } },
+    }),
+    prisma.order.aggregate({
+      _sum: { total: true },
+      _count: { id: true },
+      where: { ...notCancelled, createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } },
+    }),
+    prisma.user.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
+    prisma.user.count({ where: { createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } } }),
   ])
 
   let products: Array<{ id: string; name: string; brand: string | null }> = []
@@ -68,5 +95,9 @@ export async function getDashboardData() {
     topProductsData: products,
     revenueByDayRaw,
     ordersByStatusRaw,
+    currentPeriodOrders,
+    previousPeriodOrders,
+    currentPeriodCustomers,
+    previousPeriodCustomers,
   }
 }
