@@ -70,6 +70,14 @@ Se añadió una migración del carrito persistido (`cart.store` v1) que descarta
 tarjetas guardadas con el formato antiguo, para los compradores que ya tenían el
 ítem impagable en su `localStorage`.
 
+Los cinco productos viajan en la migración
+`20260904150000_gift_card_catalog_products`, no solo en el seed. El despliegue
+únicamente ejecuta `prisma migrate deploy` (ver `docker-entrypoint.sh`) y nunca
+corre el seed, que además insertaría el catálogo de demostración: sin la
+migración la página quedaría mostrando «no están disponibles en este momento» en
+producción. El SQL es idempotente y respeta lo que ya exista en la base, así que
+convive con `prisma/seed-gift-card.ts`, que sigue sirviendo para desarrollo.
+
 ### Punto 6a — Dependencias (`a96ac8e`)
 
 De 54 vulnerabilidades (25 altas) a **cero de cualquier severidad**. El detalle de
