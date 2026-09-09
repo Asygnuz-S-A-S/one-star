@@ -1,15 +1,12 @@
 -- Estado del pago separado del estado logístico del pedido.
--- Escrita idempotente (como 20260729180000_sync_schema_drift) para poder
--- aplicarse en bases que ya tengan parte de los objetos.
+-- Las columnas usan IF NOT EXISTS para poder aplicarse sobre una base que
+-- ya las tenga (como 20260729180000_sync_schema_drift).
 
 -- CreateEnum
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'PaymentStatus') THEN
-    CREATE TYPE "PaymentStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED', 'FAILED', 'EXPIRED');
-  END IF;
-END
-$$;
+-- Sin bloque DO: el gate de seguridad (scripts/check-migration-safety.ts)
+-- rechaza SQL procedural top-level. El tipo es nuevo, así que CREATE TYPE
+-- directo es seguro en cualquier base que reciba esta migración.
+CREATE TYPE "PaymentStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED', 'FAILED', 'EXPIRED');
 
 -- AlterTable
 ALTER TABLE "Order"
