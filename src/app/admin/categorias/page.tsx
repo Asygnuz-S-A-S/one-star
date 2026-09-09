@@ -13,11 +13,16 @@ export default async function CategoriesPage() {
     <div className="max-w-5xl mx-auto py-8 px-4">
       <div className="mb-8">
         <h1 className="text-3xl font-bold font-[var(--font-barlow)] text-[#1C1C1C]">
-          Gestor de Categorías (Slugs)
+          Gestor de Categorías web (Slugs)
         </h1>
         <p className="text-gray-500 mt-2 font-[var(--font-montserrat)]">
           Crea nuevas categorías y genera automáticamente sus rutas en la tienda.
           Las rutas dinámicas se crean bajo <code>/c/[slug]</code>.
+        </p>
+        <p className="text-gray-500 mt-2 font-[var(--font-montserrat)]">
+          <strong>Ojo:</strong> estas categorías son el tipo de producto en la tienda
+          (tenis, chanclas, accesorios…). No son la «Categoría» de Loggro: en Loggro ese
+          campo corresponde a la <strong>Marca</strong> (Converse, Nike, Vans…).
         </p>
       </div>
 

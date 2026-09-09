@@ -70,7 +70,7 @@ const navGroups = [
         ),
       },
       {
-        label: "Categorías",
+        label: "Categorías web",
         href: "/admin/categorias",
         icon: (
           <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
