@@ -27,7 +27,10 @@ import type {
 import {
   formatErpSyncCount,
   getErpErrorPresentation,
+  getErpIndicators,
+  isErpConfigured,
 } from "@/lib/erp-sync-display"
+import type { ErpIndicatorTone } from "@/lib/erp-sync-display"
 
 interface SyncPanelProps {
   initialStatus: ErpSyncStatus
@@ -69,6 +72,24 @@ function formatDuration(ms: number | null): string {
   if (ms == null) return "—"
   if (ms < 1000) return `${ms} ms`
   return `${(ms / 1000).toFixed(1)} s`
+}
+
+const INDICATOR_DOT: Record<ErpIndicatorTone, string> = {
+  ok: "bg-emerald-500",
+  warn: "bg-amber-500",
+  error: "bg-red-500",
+  off: "bg-gray-400",
+}
+
+const INDICATOR_TEXT: Record<ErpIndicatorTone, string> = {
+  ok: "text-[#1C1C1C]",
+  warn: "text-amber-800",
+  error: "text-red-700",
+  off: "text-gray-500",
+}
+
+function IndicatorDot({ tone }: { tone: ErpIndicatorTone }) {
+  return <span className={`inline-block h-2.5 w-2.5 rounded-full ${INDICATOR_DOT[tone]}`} aria-hidden />
 }
 
 function providerLabel(provider: string): string {
@@ -167,6 +188,15 @@ export default function SyncPanel({ initialStatus }: SyncPanelProps) {
 
   const status = initialStatus
   const { last } = status
+  const erpConfigured = isErpConfigured(status.provider)
+  const indicators = getErpIndicators({
+    provider: status.provider,
+    connected: status.connected,
+    catalogSyncAvailable: status.catalogSyncAvailable,
+    autoSyncEnabled: confirmedSchedule.enabled,
+    intervalLabel: INTERVAL_LABELS[confirmedSchedule.intervalMinutes],
+    history: status.history,
+  })
   const scheduleDirty =
     scheduleEnabled !== confirmedSchedule.enabled ||
     scheduleInterval !== confirmedSchedule.intervalMinutes
@@ -269,19 +299,12 @@ export default function SyncPanel({ initialStatus }: SyncPanelProps) {
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
           <p className="text-xs font-medium uppercase tracking-wide text-gray-400">API ERP</p>
           <div className="mt-2 flex items-center gap-2">
-            <span
-              className={`inline-block h-2.5 w-2.5 rounded-full ${
-                status.connected ? "bg-emerald-500" : "bg-red-500"
-              }`}
-              aria-hidden
-            />
-            <span className="text-lg font-semibold text-[#1C1C1C]">
-              {status.connected ? "Responde" : "Sin respuesta"}
+            <IndicatorDot tone={indicators.api.tone} />
+            <span className={`text-lg font-semibold ${INDICATOR_TEXT[indicators.api.tone]}`}>
+              {indicators.api.label}
             </span>
           </div>
-          <p className="mt-1 text-sm text-gray-500">
-            Healthcheck de {providerLabel(status.provider)}; no valida catálogo ni stock.
-          </p>
+          <p className="mt-1 text-sm text-gray-500">{indicators.api.detail}</p>
         </div>
 
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
@@ -289,44 +312,28 @@ export default function SyncPanel({ initialStatus }: SyncPanelProps) {
             Sincronización automática
           </p>
           <div className="mt-2 flex items-center gap-2">
-            <span
-              className={`inline-block h-2.5 w-2.5 rounded-full ${
-                confirmedSchedule.enabled ? "bg-emerald-500" : "bg-gray-400"
-              }`}
-              aria-hidden
-            />
-            <span className="text-lg font-semibold text-[#1C1C1C]">
-              {confirmedSchedule.enabled ? "Activa" : "Inactiva"}
+            <IndicatorDot tone={indicators.autoSync.tone} />
+            <span className={`text-lg font-semibold ${INDICATOR_TEXT[indicators.autoSync.tone]}`}>
+              {indicators.autoSync.label}
             </span>
           </div>
-          <p className="mt-1 text-sm text-gray-500">
-            {!status.catalogSyncAvailable
-              ? "El ERP no admite catálogo"
-              : confirmedSchedule.enabled
-              ? INTERVAL_LABELS[confirmedSchedule.intervalMinutes]
-              : "Inactiva"}
-          </p>
+          <p className="mt-1 text-sm text-gray-500">{indicators.autoSync.detail}</p>
         </div>
 
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
           <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
             Última sincronización
           </p>
-          {last ? (
+          {last && indicators.lastSync ? (
             <>
               <div className="mt-2 flex items-center gap-2">
-                <span
-                  className={`inline-block h-2.5 w-2.5 rounded-full ${
-                    last.success ? "bg-emerald-500" : "bg-red-500"
-                  }`}
-                  aria-hidden
-                />
-                <span className="text-lg font-semibold text-[#1C1C1C]">
+                <IndicatorDot tone={indicators.lastSync.tone} />
+                <span className={`text-lg font-semibold ${INDICATOR_TEXT[indicators.lastSync.tone]}`}>
                   {formatAbsolute(last.createdAt)}
                 </span>
               </div>
               <p className="mt-1 text-sm text-gray-500">
-                {last.success ? formatErpSyncCount(last) : "Sincronización con error"}
+                {last.success ? formatErpSyncCount(last) : indicators.lastSync.detail}
               </p>
             </>
           ) : (
@@ -345,12 +352,35 @@ export default function SyncPanel({ initialStatus }: SyncPanelProps) {
         >
           <h2 id="last-erp-error" className="text-lg font-semibold">
             Último error de sincronización
+            {indicators.consecutiveFailures > 1 && (
+              <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold">
+                {indicators.consecutiveFailures} fallos seguidos
+              </span>
+            )}
           </h2>
           <ErrorExplanation error={last.error} compact />
         </section>
       )}
 
-      {!status.catalogSyncAvailable && (
+      {!erpConfigured && (
+        <section
+          className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-950"
+          aria-labelledby="catalog-sync-unavailable"
+        >
+          <h2 id="catalog-sync-unavailable" className="text-lg font-semibold">
+            No hay ERP configurado
+          </h2>
+          <p className="mt-2 max-w-3xl">
+            La variable <code className="rounded bg-white/70 px-1">ERP_PROVIDER</code> no apunta a
+            ningún ERP, así que la tienda no puede traer catálogo ni stock. Configúrala en el
+            entorno de despliegue (por ejemplo <code className="rounded bg-white/70 px-1">loggro</code>{" "}
+            con sus credenciales) y vuelve a desplegar. Mientras tanto ningún indicador de esta
+            página debe leerse como “conectado”.
+          </p>
+        </section>
+      )}
+
+      {erpConfigured && !status.catalogSyncAvailable && (
         <section
           className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-950"
           aria-labelledby="catalog-sync-unavailable"
