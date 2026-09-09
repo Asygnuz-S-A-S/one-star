@@ -5,24 +5,12 @@ import { type ColumnDef } from "@tanstack/react-table"
 import { DataTable } from "./DataTable"
 import type { OrderDTO } from "@/server/services/order.service"
 import { formatDate, formatCurrency } from "@/lib/dates"
-
-const STATUS_LABELS: Record<string, string> = {
-  PENDING: "Nuevo",
-  PAID: "Procesando",
-  PACKED: "Empacado",
-  SHIPPED: "Enviado",
-  DELIVERED: "Entregado",
-  CANCELLED: "Cancelado",
-}
-
-const STATUS_BADGE: Record<string, string> = {
-  PENDING: "bg-yellow-100 text-yellow-700",
-  PAID: "bg-blue-100 text-blue-700",
-  PACKED: "bg-orange-100 text-orange-700",
-  SHIPPED: "bg-purple-100 text-purple-700",
-  DELIVERED: "bg-green-100 text-green-700",
-  CANCELLED: "bg-red-100 text-[#E31C23]",
-}
+import {
+  orderStatusBadge,
+  orderStatusLabel,
+  paymentStatusBadge,
+  paymentStatusLabel,
+} from "@/lib/order-status"
 
 const columns: ColumnDef<OrderDTO, unknown>[] = [
   {
@@ -80,25 +68,29 @@ const columns: ColumnDef<OrderDTO, unknown>[] = [
     ),
   },
   {
-    id: "paymentMethod",
+    id: "paymentStatus",
     header: "Pago",
-    accessorKey: "paymentMethod",
+    accessorKey: "paymentStatus",
     cell: ({ row }) => (
-      <span className="text-[#4A4A4A]">{row.original.paymentMethod ?? "—"}</span>
+      <span
+        className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${paymentStatusBadge(row.original.paymentStatus)}`}
+        title={row.original.paymentReference ? `Ref. ePayco ${row.original.paymentReference}` : undefined}
+      >
+        {paymentStatusLabel(row.original.paymentStatus)}
+      </span>
     ),
   },
   {
     id: "status",
     header: "Estado",
     accessorKey: "status",
-    cell: ({ row }) => {
-      const badge = STATUS_BADGE[row.original.status] ?? "bg-gray-100 text-gray-600"
-      return (
-        <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${badge}`}>
-          {STATUS_LABELS[row.original.status] ?? row.original.status}
-        </span>
-      )
-    },
+    cell: ({ row }) => (
+      <span
+        className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${orderStatusBadge(row.original.status)}`}
+      >
+        {orderStatusLabel(row.original.status)}
+      </span>
+    ),
   },
   {
     id: "acciones",

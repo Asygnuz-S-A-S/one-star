@@ -7,6 +7,11 @@ export const GIFT_CARD_MAX_AMOUNT = 2_000_000
 /** Prefijo de SKU con el que se identifican las variantes de tarjeta de regalo. */
 export const GIFT_CARD_SKU_PREFIX = "GIFT-CARD-"
 
+/** Las tarjetas son productos digitales: no viajan al ERP ni pagan envío. */
+export function isGiftCardSku(sku: string): boolean {
+  return sku.startsWith(GIFT_CARD_SKU_PREFIX)
+}
+
 /** Slug de la categoría que agrupa las tarjetas de regalo del catálogo. */
 export const GIFT_CARD_CATEGORY_SLUG = "tarjetas-regalo"
 

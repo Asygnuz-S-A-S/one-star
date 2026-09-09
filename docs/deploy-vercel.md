@@ -51,6 +51,7 @@ para las dos conexiones, cambiando solo el puerto. El paso 2 lo explica.
 |---|---|---|
 | Postgres | contenedor `db` | Supabase (2 URLs: pooler 6543 + pooler 5432) |
 | Sincronización ERP | `node-cron` en el proceso Node | Vercel Cron → `GET /api/cron/sync-erp` |
+| Vencimiento de pedidos sin pago | llamar `GET /api/cron/expire-orders` desde un cron externo | Vercel Cron → `GET /api/cron/expire-orders` (`30 7 * * *`, mismo `CRON_SECRET`) |
 | Imágenes | Cloudinary | Cloudinary (sin cambios) |
 | Build | `Dockerfile` multi-stage | build nativo de Vercel |
 
@@ -355,7 +356,18 @@ https://<tu-proyecto>.vercel.app/api/epayco/webhook
 ```
 
 Sin esto los pedidos quedan pendientes para siempre: ePayco procesa el pago pero
-nadie le avisa a la tienda que se aprobó.
+nadie le avisa a la tienda que se aprobó. ePayco envía el id del pedido en el
+campo `x_id_invoice` (no `x_invoice`); el webhook lo lee de ahí.
+
+Como respaldo, la **página de respuesta** (`/checkout/success`) recibe el
+`ref_payco` de ePayco y consulta `secure.epayco.co/validation/v1/reference/`
+para aplicar el mismo resultado aunque la confirmación aún no haya llegado.
+
+Los pedidos que quedan PENDING sin ninguna notificación (el cliente abrió el
+checkout y no pagó) **no cuentan como ventas**: en `/admin/pedidos` viven en la
+pestaña "Sin pagar" y el cron `/api/cron/expire-orders` los vence cuando llevan
+más de 24 h; como el cron corre una vez al día, en la práctica un pedido
+abandonado se cierra entre 24 y 48 h después de creado.
 
 ## Paso 8 — Verificar
 

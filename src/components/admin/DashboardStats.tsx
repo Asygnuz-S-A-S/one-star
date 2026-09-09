@@ -177,10 +177,10 @@ export default function DashboardStats({
         }
       />
       <KpiCard
-        label="Pedidos Pendientes"
+        label="Por despachar"
         value={String(pendingOrders)}
         accent={pendingOrders > 0}
-        note={pendingOrders > 0 ? "Requieren atención" : undefined}
+        note={pendingOrders > 0 ? "Pagados, pendientes de envío" : undefined}
         icon={
           <svg
             className="w-5 h-5"

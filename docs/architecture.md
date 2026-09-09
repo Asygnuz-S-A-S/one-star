@@ -190,7 +190,7 @@ esas condiciones para no sobrescribir una edición administrativa concurrente.
 ### Carrito y Pedidos
 - **Cart** → 1:1 con User, items con Variant y Product
 - **CartItem** → quantity, variant, product
-- **Order** → estado (enum OrderStatus), total, shipping, items, couponId
+- **Order** → estado logístico (enum `OrderStatus`: PENDING → PAID → SHIPPED → DELIVERED / CANCELLED), estado del pago (enum `PaymentStatus`: PENDING, APPROVED, REJECTED, FAILED, EXPIRED), `paidAt`, `paymentReference` (ref_payco), total, shipping (Json con dirección, método, costo y cupón), items. **Solo cuenta como venta cuando `paymentStatus = APPROVED`**: el pedido se crea PENDING al entrar al checkout de ePayco y pasa a PAID únicamente cuando la pasarela confirma (webhook `x_id_invoice` o consulta por `ref_payco` desde la página de respuesta). Los que nunca reciben notificación vencen pasadas 24 h vía `/api/cron/expire-orders` (`EXPIRED`; el cron es diario, así que en la práctica cierran entre 24 y 48 h); el correo de confirmación y el `Purchase` de Meta se disparan solo al aprobar el pago.
 - **OrderItem** → snapshot de precio, quantity, variante
 - **AbandonedCart** → email, cartData (Json), userId opcional, recoveredAt
 
