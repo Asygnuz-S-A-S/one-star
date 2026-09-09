@@ -237,6 +237,16 @@ enum OrderStatus {
   CANCELLED
 }
 
+// Resultado del pago en la pasarela, independiente del estado logístico.
+// Un pedido solo cuenta como venta real cuando paymentStatus = APPROVED.
+enum PaymentStatus {
+  PENDING   // Creado, sin confirmación de la pasarela
+  APPROVED  // Pago confirmado (webhook, consulta a ePayco o marcado manual)
+  REJECTED  // La pasarela rechazó el pago
+  FAILED    // La transacción falló en la pasarela
+  EXPIRED   // Nunca llegó confirmación y el pedido venció
+}
+
 model Order {
   id               String      @id @default(cuid())
   status           OrderStatus @default(PENDING)
@@ -244,6 +254,8 @@ model Order {
   paymentMethod    String?
   trackingNumber   String?
   paymentReference String?     // Referencia de la pasarela (ej. ref_payco de ePayco)
+  paymentStatus    PaymentStatus @default(PENDING)
+  paidAt           DateTime?   // Momento en que se confirmó el pago
   customerEmail    String?
   customerName     String?
   shippingAddress  Json?

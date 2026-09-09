@@ -5,6 +5,7 @@ import {
   createCouponRecord,
   updateCouponRecord,
   incrementCouponUsage,
+  decrementCouponUsage,
 } from "../repositories/coupon.repository"
 import type { DiscountType } from "@prisma/client"
 
@@ -153,4 +154,14 @@ export async function registerCouponUsage(id: string): Promise<boolean> {
 /** Libera un uso reservado (p. ej. si la creación del pedido falló después de reservar). */
 export async function releaseCouponUsage(id: string): Promise<void> {
   await updateCouponRecord(id, { usedCount: { decrement: 1 } })
+}
+
+/**
+ * Libera el uso reservado por un pedido que finalmente no se pagó (rechazo,
+ * vencimiento o cancelación). Silencioso si el código ya no existe.
+ */
+export async function releaseCouponUsageByCode(code: string): Promise<void> {
+  const coupon = await findCouponByCode(code)
+  if (!coupon) return
+  await decrementCouponUsage(coupon.id)
 }

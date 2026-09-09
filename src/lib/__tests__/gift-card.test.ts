@@ -60,3 +60,13 @@ describe("gift card", () => {
     expect(isLegacyGiftCardCartItemId("var_abc123")).toBe(false)
   })
 })
+
+import { isGiftCardSku } from "@/lib/gift-card"
+
+describe("isGiftCardSku", () => {
+  it("reconoce los SKU de tarjeta y descarta el resto", () => {
+    expect(isGiftCardSku("GIFT-CARD-50000")).toBe(true)
+    expect(isGiftCardSku("NK-001")).toBe(false)
+    expect(isGiftCardSku("")).toBe(false)
+  })
+})

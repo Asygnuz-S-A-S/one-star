@@ -49,11 +49,13 @@ beforeEach(() => {
 })
 
 describe("getDashboardData", () => {
-  it("excluye los pedidos cancelados del GMV", async () => {
+  it("solo suma al GMV ventas con pago aprobado y no canceladas", async () => {
     await getDashboardData()
 
     expect(m.orderAggregate).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { status: { not: "CANCELLED" } } })
+      expect.objectContaining({
+        where: { paymentStatus: "APPROVED", status: { not: "CANCELLED" } },
+      })
     )
   })
 

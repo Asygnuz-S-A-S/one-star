@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { updateProfile } from "./actions"
 import { formatDateLong, formatCurrency } from "@/lib/dates"
+import { orderStatusBadge, orderStatusLabel } from "@/lib/order-status"
 import { PLACEHOLDER_IMAGE_URL } from "@/lib/product-image"
 
 type Tab = "perfil" | "pedidos" | "direcciones" | "salir"
@@ -28,22 +29,12 @@ interface Order {
   }[]
 }
 
-const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  PENDING: { label: "Pendiente", color: "bg-yellow-100 text-yellow-800" },
-  PAID: { label: "Pagado", color: "bg-blue-100 text-blue-800" },
-  SHIPPED: { label: "Enviado", color: "bg-indigo-100 text-indigo-800" },
-  DELIVERED: { label: "Entregado", color: "bg-green-100 text-green-800" },
-  CANCELLED: { label: "Cancelado", color: "bg-red-100 text-red-800" },
-}
-
 function OrderStatusBadge({ status }: { status: string }) {
-  const { label, color } = STATUS_LABELS[status] ?? {
-    label: status,
-    color: "bg-gray-100 text-gray-800",
-  }
   return (
-    <span className={`px-2.5 py-0.5 rounded-full font-montserrat text-xs font-medium ${color}`}>
-      {label}
+    <span
+      className={`px-2.5 py-0.5 rounded-full font-montserrat text-xs font-medium ${orderStatusBadge(status)}`}
+    >
+      {orderStatusLabel(status)}
     </span>
   )
 }

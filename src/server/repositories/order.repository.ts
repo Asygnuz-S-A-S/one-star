@@ -1,6 +1,6 @@
 import "server-only"
 import { prisma } from "../db/prisma"
-import type { Prisma, OrderStatus } from "@prisma/client"
+import type { Prisma, OrderStatus, PaymentStatus } from "@prisma/client"
 
 export async function createOrder(data: Prisma.OrderCreateInput) {
   return prisma.order.create({
@@ -80,6 +80,50 @@ export async function updateOrderStatusAndTracking(
 }
 
 /**
+ * Registra el desenlace de un pago que NO fue aprobado (rechazo, fallo,
+ * vencimiento o cancelación manual de un pedido sin pagar). Solo afecta
+ * pedidos cuyo pago sigue sin confirmar: un pedido ya APPROVED nunca se
+ * degrada por esta vía. Devuelve `true` si la fila cambió.
+ */
+export async function closeUnpaidOrder(
+  id: string,
+  paymentStatus: Exclude<PaymentStatus, "APPROVED">
+): Promise<boolean> {
+  const result = await prisma.order.updateMany({
+    where: { id, paymentStatus: { not: "APPROVED" }, status: { not: "CANCELLED" } },
+    data: { status: "CANCELLED", paymentStatus },
+  })
+  return result.count > 0
+}
+
+/**
+ * Pedidos PENDING creados antes de `before` que nunca recibieron ninguna
+ * notificación de la pasarela (sin `paymentReference`): el cliente abrió el
+ * checkout de ePayco pero no completó el pago.
+ */
+export async function findAbandonedPendingOrders(before: Date) {
+  return prisma.order.findMany({
+    where: {
+      status: "PENDING",
+      paymentStatus: "PENDING",
+      paymentReference: null,
+      createdAt: { lt: before },
+    },
+    select: { id: true, shippingAddress: true },
+  })
+}
+
+export interface OrderCustomerDataUpdate {
+  customerName: string
+  customerEmail: string
+  shippingAddress: Prisma.InputJsonValue
+}
+
+export async function updateOrderCustomerData(id: string, data: OrderCustomerDataUpdate) {
+  return prisma.order.update({ where: { id }, data })
+}
+
+/**
  * Devuelve el stock actual de las variantes solicitadas.
  * Usado para validar disponibilidad antes de crear un pedido.
  */
@@ -123,9 +167,10 @@ async function decrementStoreInventory(
 }
 
 /**
- * Marca un pedido como PAID y descuenta el stock de cada variante dentro de
- * una transacción. Re-valida el stock para evitar sobreventa por condiciones
- * de carrera. Idempotente: si el pedido ya está PAID no descuenta de nuevo.
+ * Marca un pedido como PAID (pago APPROVED con `paidAt`) y descuenta el stock
+ * de cada variante dentro de una transacción. Re-valida el stock para evitar
+ * sobreventa por condiciones de carrera. Idempotente: si el pedido ya está
+ * PAID no descuenta de nuevo.
  */
 export async function markOrderPaidWithStock(id: string, trackingNumber?: string) {
   return prisma.$transaction(async (tx) => {
@@ -152,6 +197,8 @@ export async function markOrderPaidWithStock(id: string, trackingNumber?: string
       where: { id, status: { not: "PAID" } },
       data: {
         status: "PAID",
+        paymentStatus: "APPROVED",
+        paidAt: new Date(),
         ...(trackingNumber !== undefined ? { trackingNumber } : {}),
       },
     })
@@ -181,15 +228,19 @@ export async function markOrderPaidWithStock(id: string, trackingNumber?: string
   })
 }
 
+/**
+ * Métricas del dashboard. Solo cuentan como pedidos los que tienen el pago
+ * confirmado; los "pendientes" son ventas pagadas que aún no se despachan.
+ */
 export async function getOrderStats() {
   const [total, pending] = await Promise.all([
-    prisma.order.count(),
-    prisma.order.count({ where: { status: "PENDING" } }),
+    prisma.order.count({ where: { paymentStatus: "APPROVED" } }),
+    prisma.order.count({ where: { status: "PAID" } }),
   ])
 
   const revenueResult = await prisma.order.aggregate({
     _sum: { total: true },
-    where: { status: "PAID" },
+    where: { paymentStatus: "APPROVED", status: { not: "CANCELLED" } },
   })
 
   return {

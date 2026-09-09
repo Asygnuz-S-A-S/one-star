@@ -37,3 +37,11 @@ export async function incrementCouponUsage(id: string): Promise<boolean> {
   })
   return result.count > 0
 }
+
+/** Libera un uso sin dejar el contador negativo si ya estaba en cero. */
+export async function decrementCouponUsage(id: string): Promise<void> {
+  await prisma.coupon.updateMany({
+    where: { id, usedCount: { gt: 0 } },
+    data: { usedCount: { decrement: 1 } },
+  })
+}

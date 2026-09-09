@@ -118,6 +118,9 @@ describe("purchaseInputFromOrder", () => {
   const order: OrderDTO = {
     id: "order-9",
     status: "PAID",
+    paymentStatus: "APPROVED",
+    paymentReference: "ref-9",
+    paidAt: "2024-01-01T00:00:00.000Z",
     total: 120000,
     paymentMethod: "epayco",
     trackingNumber: null,

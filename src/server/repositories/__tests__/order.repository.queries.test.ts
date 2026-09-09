@@ -147,7 +147,7 @@ describe("getVariantsStock", () => {
 })
 
 describe("getOrderStats", () => {
-  it("suma solo los pedidos pagados y cuenta los pendientes", async () => {
+  it("suma solo las ventas con pago aprobado y cuenta las pendientes de despacho", async () => {
     m.order.count.mockResolvedValueOnce(10).mockResolvedValueOnce(3)
     m.order.aggregate.mockResolvedValue({ _sum: { total: new Prisma.Decimal(1500) } })
 
@@ -156,9 +156,11 @@ describe("getOrderStats", () => {
       pendingCount: 3,
       revenue: 1500,
     })
+    expect(m.order.count).toHaveBeenNthCalledWith(1, { where: { paymentStatus: "APPROVED" } })
+    expect(m.order.count).toHaveBeenNthCalledWith(2, { where: { status: "PAID" } })
     expect(m.order.aggregate).toHaveBeenCalledWith({
       _sum: { total: true },
-      where: { status: "PAID" },
+      where: { paymentStatus: "APPROVED", status: { not: "CANCELLED" } },
     })
   })
 

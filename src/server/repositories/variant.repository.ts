@@ -49,6 +49,9 @@ export async function findVariantsForPricing(variantIds: string[]) {
     select: {
       id: true,
       sku: true,
+      // null = producto gestionado solo en la web (tarjetas de regalo, carga
+      // manual): no existe en el ERP y no debe validarse contra él.
+      erpId: true,
       stock: true,
       productId: true,
       product: {

@@ -62,7 +62,7 @@ describe("markOrderPaidWithStock", () => {
 
     expect(orderUpdateMany).toHaveBeenCalledWith({
       where: { id: "order-1", status: { not: "PAID" } },
-      data: { status: "PAID" },
+      data: { status: "PAID", paymentStatus: "APPROVED", paidAt: expect.any(Date) },
     })
   })
 
@@ -143,5 +143,30 @@ describe("markOrderPaidWithStock", () => {
     orderFindUnique.mockResolvedValue(null)
 
     await expect(markOrderPaidWithStock("order-x")).rejects.toThrow(/Pedido no encontrado/)
+  })
+})
+
+describe("markOrderPaidWithStock — estado del pago", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    transaction.mockImplementation((fn: (client: typeof tx) => unknown) => fn(tx))
+    orderFindUnique.mockResolvedValue(pendingOrder)
+    orderFindUniqueOrThrow.mockResolvedValue({ id: "order-1", status: "PAID" })
+    orderUpdateMany.mockResolvedValue({ count: 1 })
+    variantUpdateMany.mockResolvedValue({ count: 1 })
+    levelFindMany.mockResolvedValue([])
+  })
+
+  it("registra el pago como APPROVED con la fecha al reclamar PAID", async () => {
+    await markOrderPaidWithStock("order-1")
+
+    expect(orderUpdateMany).toHaveBeenCalledWith({
+      where: { id: "order-1", status: { not: "PAID" } },
+      data: expect.objectContaining({
+        status: "PAID",
+        paymentStatus: "APPROVED",
+        paidAt: expect.any(Date),
+      }),
+    })
   })
 })

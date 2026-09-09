@@ -136,3 +136,127 @@ describe("EpaycoStatus", () => {
     })
   })
 })
+
+import { fetchEpaycoTransaction, parseEpaycoWebhookPayload } from "../epayco.service"
+
+describe("parseEpaycoWebhookPayload", () => {
+  function form(fields: Record<string, string>): FormData {
+    const data = new FormData()
+    for (const [key, value] of Object.entries(fields)) data.set(key, value)
+    return data
+  }
+
+  it("lee la factura desde x_id_invoice, que es lo que envía ePayco", () => {
+    // ePayco nunca envía `x_invoice`; leerlo dejaba el webhook en 400 para
+    // todas las confirmaciones y ningún pedido llegaba a PAID.
+    const payload = parseEpaycoWebhookPayload(
+      form({ x_id_invoice: "order-abc", x_ref_payco: "123", x_cod_response: "1" })
+    )
+
+    expect(payload.x_invoice).toBe("order-abc")
+    expect(payload.x_ref_payco).toBe("123")
+    expect(payload.x_cod_response).toBe("1")
+  })
+
+  it("acepta x_id_factura y x_invoice como alternativas", () => {
+    expect(parseEpaycoWebhookPayload(form({ x_id_factura: "f-1" })).x_invoice).toBe("f-1")
+    expect(parseEpaycoWebhookPayload(form({ x_invoice: "i-1" })).x_invoice).toBe("i-1")
+  })
+
+  it("prefiere x_id_invoice cuando llegan varios", () => {
+    const payload = parseEpaycoWebhookPayload(
+      form({ x_id_invoice: "oficial", x_id_factura: "vieja", x_invoice: "propia" })
+    )
+
+    expect(payload.x_invoice).toBe("oficial")
+  })
+
+  it("devuelve cadenas vacías para los campos ausentes", () => {
+    const payload = parseEpaycoWebhookPayload(form({}))
+
+    expect(payload).toEqual({
+      x_ref_payco: "",
+      x_transaction_id: "",
+      x_amount: "",
+      x_currency_code: "",
+      x_cod_response: "",
+      x_transaction_state: "",
+      x_invoice: "",
+      x_signature: "",
+    })
+  })
+})
+
+describe("fetchEpaycoTransaction", () => {
+  const fetchMock = vi.fn()
+
+  beforeEach(() => {
+    fetchMock.mockReset()
+    vi.stubGlobal("fetch", fetchMock)
+    vi.spyOn(console, "error").mockImplementation(() => {})
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+  })
+
+  const okResponse = (body: unknown) => ({ ok: true, status: 200, json: async () => body })
+
+  it("consulta el endpoint público de validación y normaliza la respuesta", async () => {
+    fetchMock.mockResolvedValue(
+      okResponse({
+        success: true,
+        data: {
+          x_ref_payco: 987654321,
+          x_transaction_id: "tx-1",
+          x_id_invoice: "order-abc",
+          x_amount: 150000,
+          x_currency_code: "COP",
+          x_cod_response: 1,
+          x_transaction_state: "Aceptada",
+        },
+      })
+    )
+
+    const tx = await fetchEpaycoTransaction("987654321")
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://secure.epayco.co/validation/v1/reference/987654321",
+      expect.objectContaining({ cache: "no-store" })
+    )
+    expect(tx).toEqual({
+      refPayco: "987654321",
+      transactionId: "tx-1",
+      invoice: "order-abc",
+      amount: "150000",
+      currencyCode: "COP",
+      codResponse: "1",
+      transactionState: "Aceptada",
+    })
+  })
+
+  it("devuelve null cuando ePayco responde success=false", async () => {
+    fetchMock.mockResolvedValue(okResponse({ success: false }))
+
+    expect(await fetchEpaycoTransaction("987654321")).toBeNull()
+  })
+
+  it("devuelve null ante un HTTP no exitoso", async () => {
+    fetchMock.mockResolvedValue({ ok: false, status: 500, json: async () => ({}) })
+
+    expect(await fetchEpaycoTransaction("987654321")).toBeNull()
+  })
+
+  it("devuelve null si la red falla, sin lanzar", async () => {
+    fetchMock.mockRejectedValue(new Error("timeout"))
+
+    await expect(fetchEpaycoTransaction("987654321")).resolves.toBeNull()
+  })
+
+  it("no consulta referencias con formato inválido", async () => {
+    expect(await fetchEpaycoTransaction("../otra-cosa")).toBeNull()
+    expect(await fetchEpaycoTransaction("")).toBeNull()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
