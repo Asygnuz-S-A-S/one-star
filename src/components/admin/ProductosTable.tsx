@@ -83,7 +83,7 @@ const columns: ColumnDef<ProductDTO, unknown>[] = [
   },
   {
     id: "categoria",
-    header: "Categoría",
+    header: "Categoría web",
     accessorFn: (row) => row.category.name,
     cell: ({ row }) => (
       <span className="text-[#4A4A4A]">{row.original.category.name}</span>

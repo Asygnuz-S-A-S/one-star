@@ -599,7 +599,10 @@ export default function ProductForm({
               className={inputClass}
             />
           </Field>
-          <Field label="Marca">
+          <Field
+            label="Marca"
+            hint="Es la «Categoría» de Loggro (Converse, Nike, Vans…). Al sincronizar se asigna sola a partir del código del ERP."
+          >
             <select
               value={brandId}
               onChange={(e) => setBrandId(e.target.value)}
@@ -623,7 +626,11 @@ export default function ProductForm({
               <option value="BEBE">Bebé</option>
             </select>
           </Field>
-          <Field label="Categoría" required>
+          <Field
+            label="Categoría web"
+            required
+            hint="Tipo de producto en la tienda (tenis, chanclas, accesorios…). No es la «Categoría» de Loggro: esa corresponde al campo Marca."
+          >
             <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className={inputClass}>
               <option value="">Seleccionar categoría…</option>
               {categories.map((cat) => (
