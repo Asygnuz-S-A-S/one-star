@@ -258,7 +258,7 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
                     alt=""
                     fill
                     sizes="40px"
-                    className="object-cover"
+                    className="object-contain"
                   />
                 </Link>
               )

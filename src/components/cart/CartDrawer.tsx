@@ -180,7 +180,7 @@ export default function CartDrawer() {
                             src={item.imageUrl || PLACEHOLDER_IMAGE_URL}
                             alt={item.name}
                             fill
-                            className={item.imageUrl ? "object-cover" : "object-contain"}
+                            className="object-contain"
                             sizes="80px"
                           />
                         </div>

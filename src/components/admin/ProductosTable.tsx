@@ -55,7 +55,7 @@ const columns: ColumnDef<ProductDTO, unknown>[] = [
             alt={img?.alt ?? `${row.original.name} — sin foto`}
             width={48}
             height={48}
-            className={`w-full h-full ${img ? "object-cover" : "object-contain"}`}
+            className={`w-full h-full object-contain`}
           />
         </div>
       )

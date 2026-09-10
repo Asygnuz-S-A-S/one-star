@@ -93,7 +93,7 @@ export default function OrderSummary({ shippingCost, appliedCoupon, onCouponChan
                       alt={item.name}
                       width={56}
                       height={56}
-                      className={`w-full h-full ${item.imageUrl ? "object-cover" : "object-contain"}`}
+                      className={`w-full h-full object-contain`}
                     />
                   </div>
                   <span className="absolute -top-2 -right-2 w-5 h-5 bg-[#4A4A4A] text-white text-xs rounded-full flex items-center justify-center font-montserrat font-medium">

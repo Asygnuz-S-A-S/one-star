@@ -185,7 +185,7 @@ export default async function ClienteProfilePage({ params }: Props) {
                       <img
                         src={img?.url ?? PLACEHOLDER_IMAGE_URL}
                         alt={img?.alt ?? `${item.product.name} — sin foto`}
-                        className={`w-full h-full ${img ? "object-cover" : "object-contain"}`}
+                        className={`w-full h-full object-contain`}
                       />
                     </div>
                     <div className="flex-1 min-w-0">

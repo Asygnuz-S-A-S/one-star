@@ -130,7 +130,7 @@ export default async function PedidoDetailPage({ params }: Props) {
                       <img
                         src={imgUrl ?? PLACEHOLDER_IMAGE_URL}
                         alt={imgUrl ? item.productName : `${item.productName} — sin foto`}
-                        className={`w-full h-full ${imgUrl ? "object-cover" : "object-contain"}`}
+                        className={`w-full h-full object-contain`}
                       />
                     </div>
                     <div className="flex-1 min-w-0">
