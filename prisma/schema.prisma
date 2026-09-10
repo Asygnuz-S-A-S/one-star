@@ -5,7 +5,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  // Conexión de runtime. En serverless (Vercel) debe apuntar al pooler de
+  // Conexión de runtime. Con un pooler externo debe apuntar al pooler de
   // Supabase (puerto 6543, modo transaction) con ?pgbouncer=true, porque cada
   // invocación abre su propia conexión y agotaría los slots de Postgres.
   url       = env("DATABASE_URL")
