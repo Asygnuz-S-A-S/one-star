@@ -1,4 +1,5 @@
 import "server-only"
+import { serializeDecimals, type WithPlainDecimals } from "@/lib/serialize-decimals"
 import {
   findManyProducts,
   findProductCatalogCandidates,
@@ -476,10 +477,12 @@ export async function updateProduct(
   return mapToDTO(raw)
 }
 
-export type AdminProductDetail = Awaited<ReturnType<typeof findProductByIdForAdmin>>
+/** Detalle para el admin con los Decimal ya convertidos a number (cruza a Client Components). */
+export type AdminProductDetail = WithPlainDecimals<Awaited<ReturnType<typeof findProductByIdForAdmin>>>
 
 export async function getProductByIdForAdmin(id: string): Promise<AdminProductDetail> {
-  return findProductByIdForAdmin(id)
+  const product = await findProductByIdForAdmin(id)
+  return serializeDecimals(product)
 }
 
 export async function deleteProduct(id: string): Promise<void> {
