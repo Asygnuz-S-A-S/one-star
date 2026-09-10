@@ -183,3 +183,32 @@ test.describe("Búsqueda en el menú superior (HU-10)", () => {
     await expect(page.locator("#header-search-q")).toHaveCount(0)
   })
 })
+
+test.describe("Encabezado unificado (HU-11)", () => {
+  test("la barra de navegación va pegada al anuncio, sin margen ni bordes redondeados", async ({ page }) => {
+    await page.goto("/")
+    await page.evaluate(() => window.scrollTo(0, 600))
+    await page.waitForTimeout(500)
+
+    const medidas = await page.evaluate(() => {
+      const header = document.querySelector("header")!
+      const anuncio = header.children[0].getBoundingClientRect()
+      const barra = header.children[1]
+      const rect = barra.getBoundingClientRect()
+      const cs = getComputedStyle(barra)
+      return {
+        headerTop: header.getBoundingClientRect().top,
+        hueco: rect.top - anuncio.bottom,
+        margin: cs.margin,
+        radius: cs.borderRadius,
+        anchoCompleto: Math.round(rect.width) === window.innerWidth,
+      }
+    })
+
+    expect(medidas.headerTop).toBe(0)
+    expect(Math.abs(medidas.hueco)).toBeLessThan(1)
+    expect(medidas.margin).toBe("0px")
+    expect(medidas.radius).toBe("0px")
+    expect(medidas.anchoCompleto).toBe(true)
+  })
+})
