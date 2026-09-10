@@ -15,6 +15,9 @@ import { useToast } from "@/hooks/useToast"
 import ToastContainer from "@/components/ui/ToastContainer"
 import { buildProductFamilyCardColorSummary } from "@/lib/product-card-colors"
 import { getVariantStoreStock } from "@/lib/store-location"
+import { getConversionSignals } from "@/lib/conversion-signals"
+import { GIFT_CARD_CATEGORY_SLUG } from "@/lib/gift-card"
+import ConversionSignals from "./ConversionSignals"
 
 interface ProductInfoProps {
   product: ProductWithRelations
@@ -196,6 +199,17 @@ export default function ProductInfo({
     ? product.variants.find((v) => v.color === selectedColor && v.size === selectedSize)
     : undefined
   const storeStock = selectedVariant ? getVariantStoreStock(selectedVariant.inventory) : []
+
+  // Mensajes de confianza y urgencia (HU-12), calculados con datos reales.
+  const conversionSignals = getConversionSignals({
+    price: salePrice ?? basePrice,
+    selectedVariantStock: selectedVariant ? selectedVariant.stock : null,
+    selectedSize,
+    totalStock: product.variants
+      .filter((v) => v.color === selectedColor)
+      .reduce((sum, v) => sum + Math.max(0, v.stock), 0),
+    isDigital: product.category?.slug === GIFT_CARD_CATEGORY_SLUG,
+  })
 
   return (
     <MotionConfig reducedMotion="user">
@@ -521,6 +535,7 @@ export default function ProductInfo({
               >
                 Comprar Ahora
               </motion.button>
+              <ConversionSignals signals={conversionSignals} />
             </>
           )}
         </motion.div>
