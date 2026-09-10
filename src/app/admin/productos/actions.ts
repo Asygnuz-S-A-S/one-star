@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache"
 import {
-  createProduct as createProductService,
   updateProduct as updateProductService,
   deleteProduct as deleteProductService,
   searchProducts as searchProductsService,
@@ -57,47 +56,6 @@ function extractFormData(formData: FormData) {
       (formData.get("colorFamilyBaselineProductIds") as string) || "[]"
     ),
     crossSellIds: JSON.parse((formData.get("crossSellIds") as string) || "[]"),
-  }
-}
-
-export async function createProduct(formData: FormData): Promise<ActionResult> {
-  const raw = extractFormData(formData)
-  const parsed = productFormSchema.safeParse(raw)
-  if (!parsed.success) {
-    return { success: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos." }
-  }
-
-  const data = parsed.data
-  const slug = data.slug || slugify(data.name)
-
-  try {
-    await requireAdmin()
-    const product = await createProductService({
-      ...data,
-      slug,
-      variants: data.variants.map((v) => ({
-        sku: v.sku,
-        size: v.size,
-        color: v.color,
-        stock: v.stock,
-        inventory: v.inventory || [],
-        sizeUS: v.sizeUS ?? null,
-        sizeCM: v.sizeCM ?? null,
-        sizeEUR: v.sizeEUR ?? null,
-      })),
-      images: data.images.map((img, idx) => ({
-        url: img.url,
-        alt: img.alt ?? data.name,
-        position: img.position ?? idx,
-        color: img.color ?? null,
-      })),
-    })
-
-    revalidatePath("/admin/productos")
-    revalidatePath("/productos")
-    return { success: true, id: product.id }
-  } catch (error: unknown) {
-    return { success: false, error: getErrorMessage(error) }
   }
 }
 

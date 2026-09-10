@@ -29,7 +29,6 @@ test.describe("Admin — auditoría E2E integral", () => {
       { path: "/admin/clientes/abandonados", heading: /^Carritos abandonados/ },
       { path: "/admin/cupones", heading: /^Cupones/ },
       { path: "/admin/productos", heading: /^Productos/ },
-      { path: "/admin/productos/nuevo", heading: /^Nuevo producto$/ },
       { path: "/admin/categorias", heading: /^Gestor de Categorías/ },
       { path: "/admin/marcas", heading: /^Catálogo de Marcas$/ },
       { path: "/admin/colores", heading: /^Colores de producto$/ },
@@ -128,11 +127,6 @@ test.describe("Admin — auditoría E2E integral", () => {
     await page.goto("/admin/colores")
     await expect(page.getByRole("heading", { name: "Agregar color", exact: true })).toBeVisible()
     await expect(page.getByPlaceholder("Ej. Verde Militar", { exact: true })).toBeVisible()
-    await page.waitForTimeout(2_500)
-
-    await page.goto("/admin/productos/nuevo")
-    await expect(page.getByPlaceholder("Ej. Air Max 90", { exact: true })).toBeVisible()
-    await expect(page.getByRole("button", { name: "Crear producto", exact: true })).toBeVisible()
     await page.waitForTimeout(2_500)
 
     await page.goto("/admin/tiendas")

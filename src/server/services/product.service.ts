@@ -1,4 +1,5 @@
 import "server-only"
+import { serializeDecimals, type WithPlainDecimals } from "@/lib/serialize-decimals"
 import {
   findManyProducts,
   findProductCatalogCandidates,
@@ -8,7 +9,6 @@ import {
   findPublishedProductSitemapEntries,
   countProducts,
   fetchBrands,
-  createProductRecord,
   deleteProductRecord,
   searchProductsByName,
   updateProductWithAdminRelations,
@@ -469,56 +469,6 @@ export async function getUniqueBrands(): Promise<string[]> {
   return fetchBrands()
 }
 
-export async function createProduct(input: ProductInput): Promise<ProductDTO> {
-  const raw = await createProductRecord({
-    name: input.name,
-    slug: input.slug,
-    ...(input.brandId ? { brand: { connect: { id: input.brandId } } } : {}),
-    gender: (input.gender as Gender) ?? null,
-    category: { connect: { id: input.categoryId } },
-    description: input.description ?? null,
-    extendedDescription: input.extendedDescription ?? null,
-    videoUrl: input.videoUrl ?? null,
-    basePrice: input.basePrice,
-    isOnSale: input.isOnSale,
-    salePrice: input.salePrice ?? null,
-    metaTitle: input.metaTitle ?? null,
-    metaDescription: input.metaDescription ?? null,
-    availableOnline: input.availableOnline,
-    availableInStores: input.availableInStores,
-    isPublished: input.isPublished,
-    variants: {
-      create: input.variants.map((v) => ({
-        sku: v.sku,
-        size: v.size,
-        color: v.color,
-        stock: v.stock,
-        inventory: {
-          create: v.inventory.map((inv) => ({
-            storeLocationId: inv.storeLocationId,
-            stock: inv.stock,
-          })),
-        },
-        sizeUS: v.sizeUS ?? null,
-        sizeCM: v.sizeCM ?? null,
-        sizeEUR: v.sizeEUR ?? null,
-      })),
-    },
-    images: {
-      create: input.images.map((img, idx) => ({
-        url: img.url,
-        alt: img.alt ?? input.name,
-        position: img.position ?? idx,
-        color: img.color ?? null,
-      })),
-    },
-    ...(input.crossSellIds?.length
-      ? { crossSells: { connect: input.crossSellIds.map((id) => ({ id })) } }
-      : {}),
-  })
-  return mapToDTO(raw)
-}
-
 export async function updateProduct(
   id: string,
   input: ProductInput
@@ -527,10 +477,12 @@ export async function updateProduct(
   return mapToDTO(raw)
 }
 
-export type AdminProductDetail = Awaited<ReturnType<typeof findProductByIdForAdmin>>
+/** Detalle para el admin con los Decimal ya convertidos a number (cruza a Client Components). */
+export type AdminProductDetail = WithPlainDecimals<Awaited<ReturnType<typeof findProductByIdForAdmin>>>
 
 export async function getProductByIdForAdmin(id: string): Promise<AdminProductDetail> {
-  return findProductByIdForAdmin(id)
+  const product = await findProductByIdForAdmin(id)
+  return serializeDecimals(product)
 }
 
 export async function deleteProduct(id: string): Promise<void> {
