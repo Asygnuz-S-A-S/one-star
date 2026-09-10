@@ -16,6 +16,7 @@ import {
   type ColorPalette,
 } from "@/lib/colors"
 import ProductImagesByColor from "./images/ProductImagesByColor"
+import ProductVideoField from "./ProductVideoField"
 import {
   isColorPanelDropData,
   isImageDragData,
@@ -616,15 +617,7 @@ export default function ProductForm({
               ))}
             </select>
           </Field>
-          <Field label="URL de video" hint="Opcional — YouTube, Vimeo…">
-            <input
-              type="text"
-              value={videoUrl}
-              onChange={(e) => setVideoUrl(e.target.value)}
-              placeholder="https://youtube.com/watch?v=…"
-              className={inputClass}
-            />
-          </Field>
+          <ProductVideoField value={videoUrl} onChange={setVideoUrl} />
         </div>
         <Field label="Descripción breve">
           <textarea
