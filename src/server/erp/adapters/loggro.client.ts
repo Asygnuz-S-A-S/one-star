@@ -99,6 +99,8 @@ export interface LoggroCatalogItem {
   precioDefecto?: number | string
   precioBase?: number | string
   precioVta?: number | string
+  /** IVA de venta del ítem como porcentaje (ej. "19.00", "5.00", "0"). */
+  ivaVenta?: string | number
   cantidadDisponible?: number
   cantDisp?: number
   codigoUnidad?: string | number

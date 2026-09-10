@@ -334,7 +334,7 @@ LOGGRO_BASE_URL=""                # Base URL para Loggro Pymes (default: https:/
 LOGGRO_ESTABLECIMIENTO_UUID=""    # (opcional) UUID del establecimiento para consultar existencias
 LOGGRO_BODEGA_UUID=""             # (opcional) UUID de la bodega; si se omiten, se auto-detectan
 LOGGRO_STOCK_SCOPE="all"          # "all" suma el stock de todas las tiendas | "primary" solo la sede principal
-LOGGRO_IVA_RATE="0.19"            # Loggro entrega precios SIN IVA; la web lo suma (0 desactiva)
+LOGGRO_IVA_RATE="0.19"            # Tasa de IVA de RESPALDO: solo aplica a ítems sin `ivaVenta` válido (ver nota abajo)
 ERP_CATALOG_WRITES_ENABLED="false" # Fail-closed: habilitar solo tras validar dry-run y reparar duplicados
 CRON_SECRET=""                    # (opcional) Protege /api/cron/sync-erp para disparadores externos
 
@@ -361,6 +361,25 @@ CLOUDINARY_CLOUD_NAME=...        # Nombre del cloud (Dashboard > Settings)
 CLOUDINARY_API_KEY=...           # API Key
 CLOUDINARY_API_SECRET=...        # API Secret (solo servidor)
 ```
+
+**Nota sobre el IVA de Loggro (`LOGGRO_IVA_RATE`).** Loggro entrega el precio
+de venta SIN IVA y el contrato del core (`basePrice`) es el precio final que
+paga el cliente, así que el adaptador suma el IVA al normalizar el catálogo
+(`src/server/erp/adapters/loggro-pricing.ts` y `loggro-catalog.normalizer.ts`).
+La tasa se resuelve por ítem, en este orden:
+
+1. `ivaVenta` del ítem vendible (porcentaje, ej. `"19.00"`, `"5.00"`, `"0"`).
+2. `ivaVenta` de la definición padre (`definicion: true`) a la que pertenece.
+3. `LOGGRO_IVA_RATE` (default `0.19`), solo cuando ninguno de los anteriores
+   viene o es válido.
+
+Reglas de validez: se acepta string o número, con punto o coma decimal; los
+valores `>= 1` se leen como porcentaje y los menores como fracción; negativos,
+no numéricos o `>= 100 %` se descartan y se cae al siguiente nivel. `"0"` es
+válido e identifica un ítem exento: se publica a precio neto aunque la tasa
+global sea 19 %. En consecuencia, `LOGGRO_IVA_RATE=0` ya NO desactiva el IVA
+para ítems que traen `ivaVenta`; solo afecta a los que no lo traen. El precio
+siempre se redondea al peso más cercano.
 
 Variables pendientes de definir:
 - `MERCADOPAGO_ACCESS_TOKEN`
