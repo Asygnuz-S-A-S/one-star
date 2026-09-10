@@ -9,6 +9,7 @@ import {
 import { getUniqueSizes, getUniqueColors } from "@/server/services/variant.service"
 import { getColorPalette } from "@/server/services/product-color.service"
 import { getCategoryBySlug } from "@/server/services/category.service"
+import type { ProductSortValue } from "@/lib/product-sort"
 
 interface CategoryPageProps {
   params: Promise<{
@@ -21,7 +22,7 @@ interface CategoryPageProps {
     color?: string
     precio_min?: string
     precio_max?: string
-    orden?: "precio_asc" | "precio_desc" | "reciente" | "antiguo"
+    orden?: ProductSortValue
     page?: string
   }>
 }

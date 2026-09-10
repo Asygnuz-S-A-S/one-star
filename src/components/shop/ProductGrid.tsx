@@ -4,6 +4,7 @@ import { getProducts } from "@/server/services/product.service"
 import { AnimatedProductGrid } from "@/components/shop/AnimatedProductGrid"
 import type { ColorPalette } from "@/lib/colors"
 import { getGenderFilterLabel } from "@/lib/gender-filter"
+import type { ProductSortValue } from "@/lib/product-sort"
 
 const PAGE_SIZE = 24
 
@@ -14,7 +15,7 @@ type SearchParams = {
   color?: string
   precio_min?: string
   precio_max?: string
-  orden?: "precio_asc" | "precio_desc" | "reciente" | "antiguo"
+  orden?: ProductSortValue
   page?: string
   genero?: string
   categoria?: string

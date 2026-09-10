@@ -2,6 +2,7 @@
 
 import { useRouter, usePathname } from "next/navigation"
 import { GENDER_FILTER_OPTIONS } from "@/lib/gender-filter"
+import { DEFAULT_PRODUCT_SORT, PRODUCT_SORT_OPTIONS } from "@/lib/product-sort"
 import { useState } from "react"
 import { PRODUCT_COLORS, getColorSwatchStyle, isRealColor, type ColorPalette } from "@/lib/colors"
 
@@ -78,7 +79,7 @@ export default function FilterSidebar({
     router.push(pathname)
   }
 
-  const currentOrden = currentParams.get("orden") ?? "reciente"
+  const currentOrden = currentParams.get("orden") ?? DEFAULT_PRODUCT_SORT
   const currentMarca = currentParams.get("marca") ?? ""
   const currentGenero = currentParams.get("genero") ?? ""
   const currentTalla = currentParams.get("talla") ?? ""
@@ -101,12 +102,7 @@ export default function FilterSidebar({
           <span className={chevron}>▾</span>
         </summary>
         <div className="pt-3 flex flex-col gap-2">
-          {[
-            { label: "Más reciente", value: "reciente" },
-            { label: "Precio: menor a mayor", value: "precio_asc" },
-            { label: "Precio: mayor a menor", value: "precio_desc" },
-            { label: "Más antiguo", value: "antiguo" },
-          ].map(({ label, value }) => (
+          {PRODUCT_SORT_OPTIONS.map(({ label, value }) => (
             <label key={value} className="flex items-center gap-2 cursor-pointer">
               <input
                 type="radio"
