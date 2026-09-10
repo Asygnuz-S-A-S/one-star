@@ -113,3 +113,14 @@ test.describe("Navegación por marca (HU-5)", () => {
     expect(response?.status()).toBe(404)
   })
 })
+
+test.describe("Filtro de género (HU-8)", () => {
+  test("el catálogo filtra por género desde el lateral y muestra el chip activo", async ({ page }) => {
+    await page.goto("/productos")
+
+    await page.getByRole("radio", { name: /^mujer$/i }).check()
+
+    await expect(page).toHaveURL(/genero=mujer/)
+    await expect(page.getByRole("link", { name: /Género: Mujer/ })).toBeVisible()
+  })
+})

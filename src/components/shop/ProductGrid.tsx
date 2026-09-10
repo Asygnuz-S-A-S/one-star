@@ -3,6 +3,7 @@ import SortBar from "@/components/shop/SortBar"
 import { getProducts } from "@/server/services/product.service"
 import { AnimatedProductGrid } from "@/components/shop/AnimatedProductGrid"
 import type { ColorPalette } from "@/lib/colors"
+import { getGenderFilterLabel } from "@/lib/gender-filter"
 
 const PAGE_SIZE = 24
 
@@ -53,6 +54,8 @@ function getActiveFilters(searchParams: SearchParams): ActiveFilter[] {
   const filters: ActiveFilter[] = []
   if (searchParams.q) filters.push({ key: "q", label: `Búsqueda: "${searchParams.q}"`, value: searchParams.q })
   if (searchParams.marca) filters.push({ key: "marca", label: `Marca: ${searchParams.marca}`, value: searchParams.marca })
+  const generoLabel = getGenderFilterLabel(searchParams.genero)
+  if (searchParams.genero && generoLabel) filters.push({ key: "genero", label: `Género: ${generoLabel}`, value: searchParams.genero })
   if (searchParams.talla) filters.push({ key: "talla", label: `Talla: ${searchParams.talla}`, value: searchParams.talla })
   if (searchParams.color) filters.push({ key: "color", label: `Color: ${searchParams.color}`, value: searchParams.color })
   if (searchParams.precio_min || searchParams.precio_max) {
