@@ -5,6 +5,11 @@ import "server-only"
  * El contrato `ERPCatalogSnapshot.basePrice` es el precio final que paga el
  * cliente, así que este adaptador le suma el IVA antes de entregarlo al core.
  *
+ * La tasa sale, en este orden, de:
+ *   1. `ivaVenta` del ítem de Loggro (porcentaje por ítem, ej. "19.00").
+ *   2. `ivaVenta` de la definición padre del ítem.
+ *   3. `LOGGRO_IVA_RATE` (tasa global de respaldo, default 19 %).
+ *
  * Los bonos de regalo no pasan por aquí: no viven en Loggro, se siembran en la
  * web con su valor nominal y no llevan IVA en la compra.
  */
@@ -13,19 +18,44 @@ import "server-only"
 export const DEFAULT_LOGGRO_IVA_RATE = 0.19
 
 const MAX_IVA_RATE = 1
+const PERCENT_DIVISOR = 100
 
 /**
- * Lee la tasa de IVA desde el entorno. Acepta "0.19" o "19" (porcentaje).
+ * Convierte un valor crudo ("19.00", "0,05", 19, 0.19) en una tasa (0.19).
+ * Los valores >= 1 se leen como porcentaje; los menores, como fracción.
+ * Devuelve `undefined` cuando el valor falta, no es numérico o está fuera
+ * del rango [0, 100 %).
+ */
+function parseIvaRate(raw: string | number | null | undefined): number | undefined {
+  if (raw === undefined || raw === null) return undefined
+  const text = String(raw).trim()
+  if (text === "") return undefined
+  const parsed = Number(text.replace(",", "."))
+  if (!Number.isFinite(parsed) || parsed < 0) return undefined
+  const rate = parsed >= MAX_IVA_RATE ? parsed / PERCENT_DIVISOR : parsed
+  if (!Number.isFinite(rate) || rate < 0 || rate >= MAX_IVA_RATE) return undefined
+  return rate
+}
+
+/**
+ * Lee la tasa de IVA global desde el entorno. Acepta "0.19" o "19" (porcentaje).
  * Un valor ausente usa el 19 %; un valor inválido o fuera de rango también,
  * para no publicar precios netos por un error de configuración.
  */
 export function resolveLoggroIvaRate(raw: string | undefined = process.env.LOGGRO_IVA_RATE): number {
-  if (raw === undefined || raw.trim() === "") return DEFAULT_LOGGRO_IVA_RATE
-  const parsed = Number(raw.trim().replace(",", "."))
-  if (!Number.isFinite(parsed) || parsed < 0) return DEFAULT_LOGGRO_IVA_RATE
-  const rate = parsed >= MAX_IVA_RATE ? parsed / 100 : parsed
-  if (!Number.isFinite(rate) || rate < 0 || rate >= MAX_IVA_RATE) return DEFAULT_LOGGRO_IVA_RATE
-  return rate
+  return parseIvaRate(raw) ?? DEFAULT_LOGGRO_IVA_RATE
+}
+
+/**
+ * Lee la tasa de IVA propia de un ítem de Loggro a partir de su campo
+ * `ivaVenta` (porcentaje, ej. "19.00", "5.00", "0"). Devuelve `undefined`
+ * cuando falta o es inválido, para que el normalizador caiga a la tasa global.
+ * "0" es válido: identifica un ítem exento.
+ */
+export function parseLoggroItemIvaRate(
+  ivaVenta: string | number | null | undefined
+): number | undefined {
+  return parseIvaRate(ivaVenta)
 }
 
 /**

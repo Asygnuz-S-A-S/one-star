@@ -11,7 +11,7 @@ import { deriveLoggroColorFamilyKey } from "./loggro-color-family-key"
 import { detectLoggroGender, hasLoggroGenderSignal } from "./loggro-gender"
 import { detectLoggroCategory } from "./loggro-category"
 import { detectLoggroBrand } from "./loggro-brand"
-import { applyIva } from "./loggro-pricing"
+import { applyIva, parseLoggroItemIvaRate } from "./loggro-pricing"
 import { detectLoggroOnlineExclusion } from "./loggro-online-availability"
 
 export interface LoggroStockLocation {
@@ -35,11 +35,28 @@ export interface LoggroStockSnapshot {
 
 export interface NormalizeLoggroCatalogOptions {
   /**
-   * Tasa de IVA que se suma al precio neto de Loggro (0.19 = 19 %).
+   * Tasa de IVA de respaldo que se suma al precio neto de Loggro (0.19 = 19 %).
    * Loggro entrega el precio sin IVA; el contrato del core espera el precio final.
-   * Con 0 (default) el precio se entrega tal cual llega.
+   * Solo aplica a los ítems cuyo `ivaVenta` (propio o de la definición padre)
+   * falte o sea inválido. Con 0 (default) esos ítems se entregan tal cual llegan.
    */
   ivaRate?: number
+}
+
+/**
+ * Tasa de IVA de una variante: manda el `ivaVenta` del ítem, luego el de la
+ * definición padre y, si ninguno es válido, la tasa global de respaldo.
+ */
+function ivaRateOf(
+  item: LoggroCatalogItem,
+  parent: LoggroCatalogItem | undefined,
+  fallbackRate: number
+): number {
+  return (
+    parseLoggroItemIvaRate(item.ivaVenta) ??
+    parseLoggroItemIvaRate(parent?.ivaVenta) ??
+    fallbackRate
+  )
 }
 
 function priceOf(item: LoggroCatalogItem, ivaRate: number): number | undefined {
@@ -101,12 +118,13 @@ export function normalizeLoggroCatalog(
       parent?.uuid ?? item.definidoEn_uuid ?? `sku:${fallbackBaseSku}`
     )
     const groupSku = String(parent?.codigo ?? fallbackBaseSku).trim()
-    const itemPrice = priceOf(item, ivaRate)
+    const itemIvaRate = ivaRateOf(item, parent, ivaRate)
+    const itemPrice = priceOf(item, itemIvaRate)
 
     let group = groupsById.get(groupId)
     if (!group) {
       const source = parent ?? item
-      const sourcePrice = priceOf(source, ivaRate)
+      const sourcePrice = priceOf(source, itemIvaRate)
       group = {
         erpId: groupId,
         sku: groupSku,
