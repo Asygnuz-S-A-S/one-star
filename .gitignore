@@ -36,8 +36,6 @@ yarn-error.log*
 # qué variables necesita el proyecto. El patrón .env* de arriba lo excluía.
 !.env.example
 
-# vercel
-.vercel
 
 # typescript
 *.tsbuildinfo

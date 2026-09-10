@@ -4,7 +4,7 @@ import { runDueErpSync } from "@/server/services/erp-sync-scheduler.service"
 
 /**
  * Endpoint para Sincronización Automática (Cron Job).
- * Puedes configurar un servicio como Vercel Cron, AWS EventBridge, 
+ * Puedes configurar un disparador externo (crontab, AWS EventBridge, 
  * o un cron tab estándar para llamar a esta ruta GET.
  * 
  * Es importante proteger esta ruta con un CRON_SECRET en el .env 

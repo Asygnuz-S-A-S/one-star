@@ -301,7 +301,7 @@ Reglas:
 ## Variables de Entorno Requeridas
 
 > Inventario completo y comentado: **`.env.example`** (versionado).
-> Procedimiento de despliegue: **`docs/deploy-vercel.md`**.
+> Procedimiento de despliegue: **`docs/deploy-docker.md`**.
 
 ```bash
 # Base de datos
@@ -313,11 +313,11 @@ DIRECT_URL=postgresql://...       # Conexión directa para migraciones de Prisma
 DATABASE_STARTUP_MAX_ATTEMPTS=12  # Intentos de conexión del entrypoint Docker antes de abortar
 DATABASE_STARTUP_RETRY_SECONDS=5  # Segundos entre sondeos de conexión del entrypoint
 DATABASE_STARTUP_PROBE_TIMEOUT_SECONDS=5 # Timeout de cada sondeo; rango permitido 1..60
-# En local ambas apuntan al mismo Postgres. En serverless NO son intercambiables:
-# DATABASE_URL debe ir al pooler (modo transaction) con ?pgbouncer=true, porque
-# cada invocación abre su propia conexión; DIRECT_URL debe ser la conexión
-# directa, porque `prisma migrate` necesita una sesión persistente para los
-# advisory locks y el DDL transaccional.
+# En el despliegue Docker ambas apuntan al mismo Postgres. Si algún día se usa un
+# pooler externo NO son intercambiables: DATABASE_URL debe ir al pooler (modo
+# transaction) con ?pgbouncer=true, y DIRECT_URL a la conexión directa, porque
+# `prisma migrate` necesita una sesión persistente para los advisory locks y el
+# DDL transaccional.
 
 # Autenticación (better-auth)
 AUTH_SECRET=...                   # Secret para firmar sesiones
@@ -336,6 +336,7 @@ LOGGRO_BODEGA_UUID=""             # (opcional) UUID de la bodega; si se omiten, 
 LOGGRO_STOCK_SCOPE="all"          # "all" suma el stock de todas las tiendas | "primary" solo la sede principal
 LOGGRO_IVA_RATE="0.19"            # Loggro entrega precios SIN IVA; la web lo suma (0 desactiva)
 ERP_CATALOG_WRITES_ENABLED="false" # Fail-closed: habilitar solo tras validar dry-run y reparar duplicados
+DISABLE_INTERNAL_CRON=""          # "1" apaga los cron internos; usar solo con disparador externo
 CRON_SECRET=""                    # (opcional) Protege /api/cron/sync-erp para disparadores externos
 
 # Correos transaccionales (Resend — ver src/server/email/)
@@ -378,38 +379,36 @@ como base de `event_source_url`.
 
 ## Despliegue
 
-El proyecto soporta dos topologías. El código es el mismo; la diferencia se
-detecta en tiempo de ejecución con `process.env.VERCEL`.
+El despliegue es un contenedor Docker construido con `output: "standalone"`,
+junto a un PostgreSQL propio. El proceso Node queda vivo entre peticiones, así
+que las tareas programadas viven dentro de la aplicación.
 
-| | Con proceso persistente | Serverless |
-|---|---|---|
-| Dónde | local, Docker, VPS, Lightsail | Vercel |
-| Postgres | contenedor `db` | Supabase (pooler 6543 en runtime + pooler 5432 para migraciones) |
-| Sync ERP | `node-cron` despierta cada minuto; PostgreSQL decide el vencimiento | disparador externo → `GET /api/cron/sync-erp`; PostgreSQL decide el vencimiento |
+| | Configuración actual |
+|---|---|
+| Dónde | contenedor Docker (local, VPS, Lightsail) |
+| Postgres | contenedor `db` |
+| Sync ERP | `node-cron` despierta cada minuto; PostgreSQL decide el vencimiento |
+| Vencimiento de pedidos | `node-cron` a las 07:30 |
 
 **Programación del cron.** `node-cron` requiere un proceso vivo entre
-ejecuciones, algo que no existe en serverless: allí cada request crea y destruye
-su propia instancia, así que el `schedule` nunca dispara. Por eso
-`instrumentation-node.ts` se salta la inicialización cuando `VERCEL === "1"`, y
-el despertador pasa a `vercel.json`, que llama al endpoint con
-`Authorization: Bearer $CRON_SECRET`.
+ejecuciones, y el contenedor lo tiene. `instrumentation-node.ts` programa las
+dos tareas al arrancar.
 
-Consecuencia a tener presente: **el plan Hobby de Vercel solo permite una
-ejecución diaria**. El administrador puede guardar intervalos de 15 minutos a
-24 horas, pero la frecuencia efectiva nunca será mayor que la cadencia del
-scheduler externo: un vencimiento de 15 minutos invocado una vez al día se
-ejecutará, como máximo, una vez al día. Si la frecuencia configurada es un
-requisito estricto del negocio, se necesita un scheduler externo con esa misma
-cadencia o un proceso Node persistente.
+Los endpoints `GET /api/cron/sync-erp` y `GET /api/cron/expire-orders` siguen
+existiendo para un disparador externo (crontab, EventBridge) con
+`Authorization: Bearer $CRON_SECRET`. Si se usa uno, hay que apagar el cron
+interno con `DISABLE_INTERNAL_CRON=1` para no ejecutar la tarea dos veces; con
+un disparador externo, la frecuencia efectiva nunca supera su propia cadencia,
+por más que el administrador configure un intervalo menor.
 
-En ambas topologías, `erp-sync-scheduler.service.ts` usa `ErpSyncConfig` como
-fuente de verdad. `instrumentation-node.ts` y `/api/cron/sync-erp` solo despiertan
-el coordinador; no contienen una frecuencia de negocio fija.
+`erp-sync-scheduler.service.ts` usa `ErpSyncConfig` como fuente de verdad.
+`instrumentation-node.ts` y `/api/cron/sync-erp` solo despiertan el coordinador;
+no contienen una frecuencia de negocio fija.
 
 `CRON_SECRET` es *fail-closed*: en producción, sin ella el endpoint responde
 `503` en vez de ejecutar la sincronización sin autenticar.
 
-Procedimiento paso a paso: **`docs/deploy-vercel.md`**.
+Procedimiento paso a paso: **`docs/deploy-docker.md`**.
 
 En servidor propio, el entrypoint del `runner` sondea PostgreSQL con reintentos
 acotados y ejecuta `prisma migrate deploy` antes de `node server.js`; nunca
