@@ -334,6 +334,7 @@ LOGGRO_BASE_URL=""                # Base URL para Loggro Pymes (default: https:/
 LOGGRO_ESTABLECIMIENTO_UUID=""    # (opcional) UUID del establecimiento para consultar existencias
 LOGGRO_BODEGA_UUID=""             # (opcional) UUID de la bodega; si se omiten, se auto-detectan
 LOGGRO_STOCK_SCOPE="all"          # "all" suma el stock de todas las tiendas | "primary" solo la sede principal
+LOGGRO_IVA_RATE="0.19"            # Loggro entrega precios SIN IVA; la web lo suma (0 desactiva)
 ERP_CATALOG_WRITES_ENABLED="false" # Fail-closed: habilitar solo tras validar dry-run y reparar duplicados
 CRON_SECRET=""                    # (opcional) Protege /api/cron/sync-erp para disparadores externos
 

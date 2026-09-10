@@ -43,6 +43,37 @@ describe("LoggroERPAdapter.fetchCatalog", () => {
     expect(snapshot.groups[0].variants).toHaveLength(1)
   })
 
+  it("entrega el precio final con IVA a partir del neto de Loggro", async () => {
+    const items: LoggroCatalogItem[] = [
+      {
+        uuid: "variant-1",
+        codigo: "MODEL-BLK_9",
+        descripcion: "TENIS MODELO NEGRO",
+        definicion: false,
+        precioDefecto: "100000",
+      },
+    ]
+    const client = {
+      getProducts: vi.fn().mockResolvedValue(items),
+      getDisponibilidadSnapshot: vi.fn().mockResolvedValue({
+        stockByCodigo: new Map([["MODEL-BLK_9", 1]]),
+        locations: [],
+        stockByCodigoAndLocation: new Map(),
+        complete: true,
+        requestedCount: 1,
+        resolvedCount: 1,
+        missingCodes: [],
+        errors: [],
+      }),
+    } as unknown as LoggroClient
+
+    const conIva = await new LoggroERPAdapter("token", client, { ivaRate: 0.19 }).fetchCatalog()
+    const sinIva = await new LoggroERPAdapter("token", client, { ivaRate: 0 }).fetchCatalog()
+
+    expect(conIva.groups[0].basePrice).toBe(119_000)
+    expect(sinIva.groups[0].basePrice).toBe(100_000)
+  })
+
   it("expone los probes de solo lectura del cliente mediante el contrato genérico", async () => {
     const probes = [
       {

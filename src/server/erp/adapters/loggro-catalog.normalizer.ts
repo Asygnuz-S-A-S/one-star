@@ -11,6 +11,7 @@ import { deriveLoggroColorFamilyKey } from "./loggro-color-family-key"
 import { detectLoggroGender, hasLoggroGenderSignal } from "./loggro-gender"
 import { detectLoggroCategory } from "./loggro-category"
 import { detectLoggroBrand } from "./loggro-brand"
+import { applyIva } from "./loggro-pricing"
 import { detectLoggroOnlineExclusion } from "./loggro-online-availability"
 
 export interface LoggroStockLocation {
@@ -32,12 +33,21 @@ export interface LoggroStockSnapshot {
   errors: string[]
 }
 
-function priceOf(item: LoggroCatalogItem): number | undefined {
+export interface NormalizeLoggroCatalogOptions {
+  /**
+   * Tasa de IVA que se suma al precio neto de Loggro (0.19 = 19 %).
+   * Loggro entrega el precio sin IVA; el contrato del core espera el precio final.
+   * Con 0 (default) el precio se entrega tal cual llega.
+   */
+  ivaRate?: number
+}
+
+function priceOf(item: LoggroCatalogItem, ivaRate: number): number | undefined {
   const rawPrice = [item.precioDefecto, item.precioBase, item.precioVta]
     .find((value) => value !== undefined && value !== null && value !== "")
   if (rawPrice === undefined) return undefined
   const price = Number(rawPrice)
-  return Number.isFinite(price) ? price : undefined
+  return Number.isFinite(price) ? applyIva(price, ivaRate) : undefined
 }
 
 /**
@@ -65,8 +75,10 @@ function unitOfMeasureOf(item: LoggroCatalogItem): string | undefined {
 
 export function normalizeLoggroCatalog(
   items: LoggroCatalogItem[],
-  stock: LoggroStockSnapshot
+  stock: LoggroStockSnapshot,
+  options: NormalizeLoggroCatalogOptions = {}
 ): ERPCatalogSnapshot {
+  const ivaRate = options.ivaRate ?? 0
   const definitions = items.filter((item) => item.definicion === true)
   const variants = items.filter((item) => item.definicion !== true)
   const definitionsById = new Map(
@@ -89,12 +101,12 @@ export function normalizeLoggroCatalog(
       parent?.uuid ?? item.definidoEn_uuid ?? `sku:${fallbackBaseSku}`
     )
     const groupSku = String(parent?.codigo ?? fallbackBaseSku).trim()
-    const itemPrice = priceOf(item)
+    const itemPrice = priceOf(item, ivaRate)
 
     let group = groupsById.get(groupId)
     if (!group) {
       const source = parent ?? item
-      const sourcePrice = priceOf(source)
+      const sourcePrice = priceOf(source, ivaRate)
       group = {
         erpId: groupId,
         sku: groupSku,

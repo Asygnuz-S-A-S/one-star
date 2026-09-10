@@ -6,6 +6,43 @@ import { normalizeLoggroCatalog } from "../loggro-catalog.normalizer"
 import type { LoggroCatalogItem } from "../loggro.client"
 
 describe("normalizeLoggroCatalog", () => {
+  it("suma el IVA al precio neto de Loggro cuando se indica la tasa", () => {
+    const items: LoggroCatalogItem[] = [
+      {
+        uuid: "parent-iva",
+        codigo: "MODEL-BLK",
+        descripcion: "TENIS MODELO NEGRO",
+        definicion: true,
+        precioDefecto: "293277",
+      },
+      {
+        uuid: "variant-iva",
+        codigo: "MODEL-BLK_9",
+        descripcion: "TENIS MODELO NEGRO",
+        definicion: false,
+        definidoEn_uuid: "parent-iva",
+        precioDefecto: "293277",
+      },
+    ]
+    const stock = {
+      stockByCodigo: new Map([["MODEL-BLK_9", 1]]),
+      locations: [],
+      stockByCodigoAndLocation: new Map(),
+      complete: true,
+      requestedCount: 1,
+      resolvedCount: 1,
+      missingCodes: [],
+      errors: [],
+    }
+
+    const conIva = normalizeLoggroCatalog(items, stock, { ivaRate: 0.19 })
+    const sinIva = normalizeLoggroCatalog(items, stock)
+
+    expect(conIva.groups[0].basePrice).toBe(349_000)
+    expect(conIva.groups[0].variants[0].basePrice).toBe(349_000)
+    expect(sinIva.groups[0].basePrice).toBe(293_277)
+  })
+
   it("expone una razón normalizada para excluir artículos internos del catálogo online", () => {
     const snapshot = normalizeLoggroCatalog(
       [
