@@ -115,7 +115,7 @@ export default function NewArrivalsLayout({ title, subtitle, total, products, th
                   src={hero.imageUrl}
                   alt={hero.name}
                   fill
-                  className="object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                  className="object-contain object-center"
                   sizes="(max-width: 1280px) 66vw, 800px"
                 />
               ) : (
@@ -159,7 +159,7 @@ export default function NewArrivalsLayout({ title, subtitle, total, products, th
                         className="relative h-10 w-10 shrink-0 overflow-hidden rounded-sm ring-1 ring-[#D4D4D4]"
                         aria-label={`Ver ${option.productName ?? hero.name} en color ${option.name}`}
                       >
-                        <Image src={option.imageUrl} alt="" fill sizes="40px" className="object-cover" />
+                        <Image src={option.imageUrl} alt="" fill sizes="40px" className="object-contain" />
                       </Link>
                     ))}
                   </div>

@@ -866,14 +866,14 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
                 <div key={banner.id} className="flex items-center gap-3 rounded border border-gray-200 bg-white p-3">
                   <div className="relative h-12 w-20 flex-shrink-0 overflow-hidden rounded bg-gray-100">
                     {banner.mediaType === "video" ? (
-                      <video src={safePublicUrl(banner.imageUrl, "")} className="h-full w-full object-cover" muted />
+                      <video src={safePublicUrl(banner.imageUrl, "")} className="h-full w-full object-contain" muted />
                     ) : (
                       <Image
                         src={safePublicUrl(banner.imageUrl, "/placeholder-product.svg")}
                         alt={banner.title || "Banner"}
                         fill
                         unoptimized
-                        className="object-cover"
+                        className="object-contain"
                       />
                     )}
                   </div>
@@ -1926,7 +1926,7 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
                           }}
                         >
                           {product.imageUrl && (
-                            <Image src={product.imageUrl} alt={product.name} width={40} height={40} unoptimized className="w-10 h-10 object-cover rounded" />
+                            <Image src={product.imageUrl} alt={product.name} width={40} height={40} unoptimized className="w-10 h-10 object-contain rounded" />
                           )}
                           <div>
                             <p className="text-sm font-bold text-gray-900">{product.name}</p>

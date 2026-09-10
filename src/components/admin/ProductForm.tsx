@@ -950,7 +950,7 @@ export default function ProductForm({
                   >
                     <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md bg-gray-100">
                       {item.imageUrl ? (
-                        <Image src={item.imageUrl} alt="" fill sizes="48px" className="object-cover" />
+                        <Image src={item.imageUrl} alt="" fill sizes="48px" className="object-contain" />
                       ) : (
                         <span className="flex h-full items-center justify-center text-[9px] text-gray-400">Sin foto</span>
                       )}
@@ -975,7 +975,7 @@ export default function ProductForm({
               <div key={item.id} className="flex items-center gap-3 rounded-lg border border-gray-200 p-2">
                 <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-md bg-gray-100">
                   {item.imageUrl ? (
-                    <Image src={item.imageUrl} alt="" fill sizes="56px" className="object-cover" />
+                    <Image src={item.imageUrl} alt="" fill sizes="56px" className="object-contain" />
                   ) : (
                     <span className="flex h-full items-center justify-center text-[9px] text-gray-400">Sin foto</span>
                   )}

@@ -405,9 +405,7 @@ export default function CuentaPage() {
                   <img
                     src={item.product.images[0]?.url ?? PLACEHOLDER_IMAGE_URL}
                     alt={item.product.images[0]?.alt ?? `${item.product.name} — sin foto`}
-                    className={`w-14 h-14 rounded-lg bg-[#F5F5F5] ${
-                      item.product.images[0] ? "object-cover" : "object-contain"
-                    }`}
+                    className="w-14 h-14 rounded-lg bg-[#F5F5F5] object-contain"
                   />
                   <div className="flex-1">
                     <p className="font-montserrat text-sm text-[#1C1C1C]">{item.product.name}</p>

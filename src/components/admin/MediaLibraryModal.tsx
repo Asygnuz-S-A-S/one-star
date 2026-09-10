@@ -338,7 +338,7 @@ export default function MediaLibraryModal({
                                 src={asset.url}
                                 muted
                                 preload="metadata"
-                                className="w-full h-full object-cover opacity-80"
+                                className="w-full h-full object-contain opacity-80"
                               />
                               <div className="absolute inset-0 flex items-center justify-center">
                                 <span className="w-10 h-10 rounded-full bg-black/60 flex items-center justify-center text-white backdrop-blur-sm">

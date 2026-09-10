@@ -82,7 +82,7 @@ export default function DraggableImageCard({
         src={image.url}
         alt={image.alt}
         draggable={false}
-        className={`w-20 h-20 object-cover rounded-lg border transition-all ${
+        className={`w-20 h-20 object-contain rounded-lg border transition-all ${
           isDragTarget ? "border-[#E31C23] shadow-md" : "border-gray-200"
         }`}
         onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder-product.svg" }}

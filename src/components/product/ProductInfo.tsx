@@ -313,7 +313,7 @@ export default function ProductInfo({
                     : "ring-1 ring-[#E0E0E0] hover:ring-[#4A4A4A]"
                 }`
                 const content = option.imageUrl ? (
-                  <Image src={option.imageUrl} alt="" fill sizes="48px" className="object-cover" />
+                  <Image src={option.imageUrl} alt="" fill sizes="48px" className="object-contain" />
                 ) : (
                   <span
                     className="block h-full w-full rounded-md"
