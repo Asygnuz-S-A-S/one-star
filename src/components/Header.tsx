@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useSession } from "@/lib/auth-client";
 import { useCart } from "@/store";
 import { usePathname } from "next/navigation";
+import HeaderSearchPanel from "@/components/HeaderSearchPanel";
 import CartDrawer from "@/components/cart/CartDrawer";
 import TopBannerTicker from "@/components/TopBannerTicker";
 import { NavigationItem, TopBanner, StoreLogo } from "@prisma/client";
@@ -117,6 +118,7 @@ export default function Header({
   config?: { layout: string, showSearch: boolean, showCart: boolean, showUser: boolean, bgColor: string, textColor: string, hasBorderBottom: boolean, bgOpacity: number, useBlur: boolean, margin: string, padding: string, borderRadius: string, navAlignment?: string } | null
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   
   const { data: session } = useSession();
@@ -170,7 +172,10 @@ export default function Header({
         <div className="flex items-center justify-between h-14 px-3 md:hidden">
           {/* Menú hamburguesa */}
           <button
-            onClick={() => setMenuOpen(!menuOpen)}
+            onClick={() => {
+              setSearchOpen(false);
+              setMenuOpen(!menuOpen);
+            }}
             aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"}
             aria-expanded={menuOpen}
             className="p-2 -ml-1 rounded-sm focus-visible:outline-2 focus-visible:outline-[#E31C23]"
@@ -197,6 +202,23 @@ export default function Header({
 
           {/* Acciones rápidas */}
           <div className="flex items-center gap-1 text-[#1C1C1C] dark:text-[#f5f5f7]">
+            {config?.showSearch !== false && (
+              <Link
+                href="/buscar"
+                onClick={(e) => {
+                  // Sin JavaScript el enlace navega a /buscar; con él, abre la barra.
+                  e.preventDefault();
+                  setMenuOpen(false);
+                  setSearchOpen((v) => !v);
+                }}
+                aria-label="Buscar"
+                aria-expanded={searchOpen}
+                aria-controls="header-search"
+                className="p-2 rounded-sm hover:text-[#E31C23] transition-colors focus-visible:outline-2 focus-visible:outline-[#E31C23]"
+              >
+                <IconSearch />
+              </Link>
+            )}
             <button
               onClick={toggleCart}
               aria-label="Carrito de compras"
@@ -271,7 +293,13 @@ export default function Header({
             {config?.showSearch !== false && (
               <Link
                 href="/buscar"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setSearchOpen((v) => !v);
+                }}
                 aria-label="Buscar"
+                aria-expanded={searchOpen}
+                aria-controls="header-search"
                 className="p-2 rounded-sm hover:text-[#E31C23] transition-colors focus-visible:outline-2 focus-visible:outline-[#E31C23]"
               >
                 <IconSearch />
@@ -303,6 +331,8 @@ export default function Header({
           </div>
         </div>
       </div>
+
+      <HeaderSearchPanel open={searchOpen} onClose={() => setSearchOpen(false)} />
 
       {/* ── Menú desplegable móvil ───────────────────────────────────── */}
       {menuOpen && (
