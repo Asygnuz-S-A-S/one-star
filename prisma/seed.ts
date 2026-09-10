@@ -191,8 +191,9 @@ async function main() {
         { label: "Niños", href: "/c/ninos", isSale: false, position: 4 },
         { label: "SALE", href: "/sale", isSale: true, position: 5 },
         { label: "Accesorios", href: "/c/accesorios", isSale: false, position: 6 },
-        { label: "Tarjeta regalo", href: "/tarjeta-regalo", isSale: false, position: 7 },
-        { label: "Tiendas", href: "/tiendas", isSale: false, position: 8 },
+        { label: "Marcas", href: "/marcas", isSale: false, position: 7 },
+        { label: "Tarjeta regalo", href: "/tarjeta-regalo", isSale: false, position: 8 },
+        { label: "Tiendas", href: "/tiendas", isSale: false, position: 9 },
       ],
     });
     console.log("✓ 8 ítems de navegación creados");

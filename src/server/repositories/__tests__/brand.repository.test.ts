@@ -25,6 +25,7 @@ vi.mock("@/server/db/prisma", () => ({
 import {
   createBrandRecord,
   deleteBrandRecord,
+  findActiveBrandsWithPublishedProducts,
   findBrandById,
   findBrandBySlug,
   findManyBrands,
@@ -67,5 +68,19 @@ describe("brand.repository", () => {
     expect(m.create).toHaveBeenCalledWith({ data: { name: "Veja", slug: "veja" } })
     expect(m.update).toHaveBeenCalledWith({ where: { id: "brand_1" }, data: { isActive: false } })
     expect(m.del).toHaveBeenCalledWith({ where: { id: "brand_1" } })
+  })
+})
+
+describe("findActiveBrandsWithPublishedProducts", () => {
+  it("filtra marcas activas con productos publicados y cuenta solo los publicados", async () => {
+    m.findMany.mockResolvedValue([])
+
+    await findActiveBrandsWithPublishedProducts()
+
+    expect(m.findMany).toHaveBeenCalledWith({
+      where: { isActive: true, products: { some: { isPublished: true } } },
+      include: { _count: { select: { products: { where: { isPublished: true } } } } },
+      orderBy: { name: "asc" },
+    })
   })
 })

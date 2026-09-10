@@ -1355,6 +1355,7 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
               <option value="/sale">Ofertas</option>
               <option value="/tiendas">Tiendas</option>
               <option value="/productos">Catálogo</option>
+              <option value="/marcas">Marcas</option>
               <option value="/login">Login</option>
               <option value="/carrito">Carrito</option>
               {categories?.map(c => (

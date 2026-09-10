@@ -91,3 +91,25 @@ test.describe("Acceso a la búsqueda desde el header", () => {
     await expect(page).toHaveURL(/\/buscar$/)
   })
 })
+
+test.describe("Navegación por marca (HU-5)", () => {
+  test("/marcas lista las marcas y lleva al catálogo filtrado sin usar el filtro lateral", async ({ page }) => {
+    const response = await page.goto("/marcas")
+
+    expect(response?.status()).toBe(200)
+    await expect(page.getByRole("heading", { level: 1, name: /^marcas$/i })).toBeVisible()
+
+    const primeraMarca = page.getByRole("link", { name: /producto/ }).first()
+    const nombre = (await primeraMarca.textContent()) ?? ""
+    await primeraMarca.click()
+
+    await expect(page).toHaveURL(/\/marcas\/[a-z0-9-]+$/)
+    await expect(page.getByRole("heading", { level: 1 })).toContainText(nombre.split("·")[0].trim().slice(0, 4), { ignoreCase: true })
+  })
+
+  test("una marca inexistente responde 404", async ({ page }) => {
+    const response = await page.goto("/marcas/marca-que-no-existe")
+
+    expect(response?.status()).toBe(404)
+  })
+})
