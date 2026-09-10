@@ -22,6 +22,8 @@ type SearchParams = {
 interface ProductGridProps {
   searchParams: SearchParams
   categorySlug?: string
+  /** Filtra por id de marca (rutas /marcas/[slug]); tiene prioridad sobre ?marca=. */
+  brandId?: string
   genderFilter?: string
   extraGenders?: string[] // para ninos: NINO, NINA, INFANTIL, BEBE
   title: string
@@ -66,6 +68,7 @@ function getActiveFilters(searchParams: SearchParams): ActiveFilter[] {
 export default async function ProductGrid({
   searchParams,
   categorySlug,
+  brandId,
   genderFilter,
   extraGenders,
   title,
@@ -81,6 +84,7 @@ export default async function ProductGrid({
     // La prop categorySlug (rutas /hombre, etc.) tiene prioridad; si no,
     // se admite el query param ?categoria= usado por el breadcrumb de la ficha.
     categorySlug: categorySlug ?? searchParams.categoria,
+    brandId,
     genderFilter,
     extraGenders,
     isOnSaleOnly,

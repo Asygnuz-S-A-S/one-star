@@ -2,6 +2,8 @@ import "server-only"
 import {
   findManyBrands,
   findBrandById,
+  findBrandBySlug,
+  findActiveBrandsWithPublishedProducts,
   createBrandRecord,
   updateBrandRecord,
   deleteBrandRecord,
@@ -37,6 +39,22 @@ export async function getAllBrands(activeOnly = false): Promise<BrandDTO[]> {
 export async function getBrandById(id: string): Promise<BrandDTO | null> {
   const brand = await findBrandById(id)
   return brand ? mapToDTO(brand) : null
+}
+
+export async function getBrandBySlug(slug: string): Promise<BrandDTO | null> {
+  const brand = await findBrandBySlug(slug)
+  return brand ? mapToDTO(brand) : null
+}
+
+export interface StorefrontBrandDTO extends BrandDTO {
+  /** Productos publicados de la marca. */
+  productCount: number
+}
+
+/** Marcas para el directorio público: activas y con productos publicados. */
+export async function getStorefrontBrands(): Promise<StorefrontBrandDTO[]> {
+  const brands = await findActiveBrandsWithPublishedProducts()
+  return brands.map((brand) => ({ ...mapToDTO(brand), productCount: brand._count.products }))
 }
 
 export async function createBrand(input: {

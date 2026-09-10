@@ -5,6 +5,8 @@ vi.mock("server-only", () => ({}))
 vi.mock("@/server/repositories/brand.repository", () => ({
   findManyBrands: vi.fn(),
   findBrandById: vi.fn(),
+  findBrandBySlug: vi.fn(),
+  findActiveBrandsWithPublishedProducts: vi.fn(),
   createBrandRecord: vi.fn(),
   updateBrandRecord: vi.fn(),
   deleteBrandRecord: vi.fn(),
@@ -15,12 +17,16 @@ import {
   deleteBrand,
   getAllBrands,
   getBrandById,
+  getBrandBySlug,
+  getStorefrontBrands,
   updateBrand,
 } from "../brand.service"
 import {
   createBrandRecord,
   deleteBrandRecord,
+  findActiveBrandsWithPublishedProducts,
   findBrandById,
+  findBrandBySlug,
   findManyBrands,
   updateBrandRecord,
 } from "@/server/repositories/brand.repository"
@@ -154,5 +160,38 @@ describe("deleteBrand", () => {
     await deleteBrand("brand_1")
 
     expect(remove).toHaveBeenCalledWith("brand_1")
+  })
+})
+
+describe("getBrandBySlug", () => {
+  it("devuelve la marca mapeada cuando existe", async () => {
+    vi.mocked(findBrandBySlug).mockResolvedValue(marca() as never)
+
+    const result = await getBrandBySlug("new-balance")
+
+    expect(findBrandBySlug).toHaveBeenCalledWith("new-balance")
+    expect(result).toMatchObject({ id: "brand_1", slug: "new-balance", name: "New Balance" })
+  })
+
+  it("devuelve null cuando no existe", async () => {
+    vi.mocked(findBrandBySlug).mockResolvedValue(null)
+
+    await expect(getBrandBySlug("no-existe")).resolves.toBeNull()
+  })
+})
+
+describe("getStorefrontBrands", () => {
+  it("expone las marcas con su conteo de productos publicados", async () => {
+    vi.mocked(findActiveBrandsWithPublishedProducts).mockResolvedValue([
+      { ...marca(), _count: { products: 12 } },
+      { ...marca({ id: "brand_2", name: "Vans", slug: "vans" }), _count: { products: 1 } },
+    ] as never)
+
+    const result = await getStorefrontBrands()
+
+    expect(result).toEqual([
+      expect.objectContaining({ slug: "new-balance", productCount: 12 }),
+      expect.objectContaining({ slug: "vans", productCount: 1 }),
+    ])
   })
 })

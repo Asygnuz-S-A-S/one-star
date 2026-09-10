@@ -13,6 +13,18 @@ export async function findBrandById(id: string) {
   return prisma.brand.findUnique({ where: { id } })
 }
 
+/**
+ * Marcas activas con al menos un producto publicado, con su conteo.
+ * Alimenta el directorio público /marcas.
+ */
+export async function findActiveBrandsWithPublishedProducts() {
+  return prisma.brand.findMany({
+    where: { isActive: true, products: { some: { isPublished: true } } },
+    include: { _count: { select: { products: { where: { isPublished: true } } } } },
+    orderBy: { name: "asc" },
+  })
+}
+
 export async function findBrandBySlug(slug: string) {
   return prisma.brand.findUnique({ where: { slug } })
 }
