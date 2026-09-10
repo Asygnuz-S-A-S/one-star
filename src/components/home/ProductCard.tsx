@@ -177,8 +177,10 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
                 alt={hasRealImages ? `${name} vista ${index + 1}` : `${name} — sin imagen disponible`}
                 fill
                 priority={priority && index === 0}
-                className={`object-center transition-opacity duration-150 ease-in-out ${
-                  src === PLACEHOLDER_IMAGE_URL ? "object-contain" : "object-cover"
+                // object-contain: la foto completa dentro del marco 3:4, sin recortar el
+                // producto (HU-6). El padding deja aire alrededor como en la ficha.
+                className={`object-contain object-center transition-opacity duration-150 ease-in-out ${
+                  src === PLACEHOLDER_IMAGE_URL ? "" : "p-2"
                 } ${index === visibleFrame ? "opacity-100" : "opacity-0"}`}
                 sizes="(max-width: 768px) 50vw, 25vw"
               />
