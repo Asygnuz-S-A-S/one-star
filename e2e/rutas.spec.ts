@@ -124,3 +124,28 @@ test.describe("Filtro de género (HU-8)", () => {
     await expect(page.getByRole("link", { name: /Género: Mujer/ })).toBeVisible()
   })
 })
+
+test.describe("Filtros y orden en móvil (HU-9)", () => {
+  test.use({ viewport: { width: 375, height: 812 } })
+
+  test("el catálogo ofrece filtros y orden desde el celular", async ({ page }) => {
+    await page.goto("/productos")
+
+    // El orden vive en la barra superior, sin abrir nada.
+    const orden = page.getByLabel("Ordenar productos")
+    await expect(orden).toBeVisible()
+    await orden.selectOption("az")
+    await expect(page).toHaveURL(/orden=az/)
+
+    // Los filtros llegan por el panel desplegable.
+    const abrir = page.getByRole("button", { name: "Filtros", exact: true })
+    await expect(abrir).toBeVisible()
+    await abrir.click()
+
+    const panel = page.getByRole("heading", { name: "Filtros", exact: true })
+    await expect(panel).toBeVisible()
+    await page.locator("aside").getByRole("radio", { name: "Mujer", exact: true }).check()
+    await expect(page).toHaveURL(/genero=mujer/)
+    await expect(page).toHaveURL(/orden=az/)
+  })
+})

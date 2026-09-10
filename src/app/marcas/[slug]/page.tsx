@@ -5,6 +5,7 @@ import ShopLayout from "@/components/shop/ShopLayout"
 import { getBrandBySlug } from "@/server/services/brand.service"
 import { getUniqueSizes, getUniqueColors } from "@/server/services/variant.service"
 import { getColorPalette } from "@/server/services/product-color.service"
+import type { ProductSortValue } from "@/lib/product-sort"
 
 interface BrandPageProps {
   params: Promise<{ slug: string }>
@@ -14,7 +15,7 @@ interface BrandPageProps {
     color?: string
     precio_min?: string
     precio_max?: string
-    orden?: "precio_asc" | "precio_desc" | "reciente" | "antiguo"
+    orden?: ProductSortValue
     page?: string
     genero?: string
     categoria?: string

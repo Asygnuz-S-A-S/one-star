@@ -16,6 +16,7 @@ import {
 } from "../repositories/product.repository"
 import type { Prisma, Gender } from "@prisma/client"
 import { resolveGenderFilter } from "@/lib/gender-filter"
+import { resolveProductSort, type ProductSortValue } from "@/lib/product-sort"
 import { buildVisibleProductPage } from "@/server/domain/product-color-family.plan"
 
 export interface CategoryDTO {
@@ -127,7 +128,7 @@ export interface AppProductFilter {
   color?: string
   precio_min?: string
   precio_max?: string
-  orden?: "precio_asc" | "precio_desc" | "reciente" | "antiguo"
+  orden?: ProductSortValue
   page?: string
   genero?: string
   categorySlug?: string
@@ -417,10 +418,21 @@ function buildPrismaWhere(
 function buildPrismaOrderBy(
   orden?: string
 ): Prisma.ProductOrderByWithRelationInput[] {
-  if (orden === "precio_asc") return [{ basePrice: "asc" }, { id: "asc" }]
-  if (orden === "precio_desc") return [{ basePrice: "desc" }, { id: "asc" }]
-  if (orden === "antiguo") return [{ createdAt: "asc" }, { id: "asc" }]
-  return [{ createdAt: "desc" }, { id: "asc" }]
+  // Un criterio desconocido cae al orden por defecto en vez de romper la consulta.
+  switch (resolveProductSort(orden)) {
+    case "precio_asc":
+      return [{ basePrice: "asc" }, { id: "asc" }]
+    case "precio_desc":
+      return [{ basePrice: "desc" }, { id: "asc" }]
+    case "az":
+      return [{ name: "asc" }, { id: "asc" }]
+    case "za":
+      return [{ name: "desc" }, { id: "asc" }]
+    case "antiguo":
+      return [{ createdAt: "asc" }, { id: "asc" }]
+    default:
+      return [{ createdAt: "desc" }, { id: "asc" }]
+  }
 }
 
 export async function getProducts(
