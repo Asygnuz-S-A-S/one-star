@@ -1178,36 +1178,8 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
                     Efecto Difuminado (Blur)
                   </label>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-[10px] text-gray-500 mb-1">Margen (ej. 10px)</label>
-                      <input
-                        type="text"
-                        value={headerConfig.margin}
-                        onChange={(e) => setHeaderConfig({ ...headerConfig, margin: e.target.value })}
-                        className="text-xs border-gray-300 rounded p-2 w-full"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] text-gray-500 mb-1">Padding Interno</label>
-                      <input
-                        type="text"
-                        value={headerConfig.padding}
-                        onChange={(e) => setHeaderConfig({ ...headerConfig, padding: e.target.value })}
-                        className="text-xs border-gray-300 rounded p-2 w-full"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] text-gray-500 mb-1">Bordes Redondeados (ej. 12px, 0px)</label>
-                    <input
-                      type="text"
-                      value={headerConfig.borderRadius}
-                      onChange={(e) => setHeaderConfig({ ...headerConfig, borderRadius: e.target.value })}
-                      className="text-xs border-gray-300 rounded p-2 w-full"
-                    />
-                  </div>
+                  {/* Margen, relleno y bordes redondeados se retiraron (HU-11): el
+                      encabezado es siempre una sola barra fija pegada al anuncio. */}
                 </div>
               </div>
 

@@ -161,11 +161,12 @@ export default function Header({
       {/* ── Barra de navegación ──────────────────────────────────────── */}
       <div 
         className={`transition-all duration-300 backdrop-blur-xl ${isScrolled || menuOpen ? "bg-white/95 dark:bg-black/80 shadow-sm" : "bg-white/92 dark:bg-black/78"}`}
+        // Margen, relleno y radio de la configuración se ignoran a propósito (HU-11):
+        // despegaban la barra del anuncio y la hacían más alta que el espacio que
+        // reserva PublicSiteFrame, tapando el contenido. El encabezado es una sola
+        // barra de altura fija.
         style={{
           borderBottom: config?.hasBorderBottom !== false ? "1px solid rgba(150, 150, 150, 0.2)" : "none",
-          margin: config?.margin || "0px",
-          padding: config?.padding || "0px",
-          borderRadius: config?.borderRadius || "0px",
         }}
       >
         {/* ── MÓVIL ── */}
