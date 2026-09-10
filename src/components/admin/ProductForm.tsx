@@ -17,7 +17,6 @@ import {
 } from "@/lib/colors"
 import ProductImagesByColor from "./images/ProductImagesByColor"
 import {
-  MIN_PRODUCT_IMAGES,
   isColorPanelDropData,
   isImageDragData,
   type ImageRow,
@@ -125,9 +124,11 @@ export default function ProductForm({
   const [isPublished, setIsPublished] = useState(product?.isPublished ?? true)
 
   // Pricing
-  const [basePrice] = useState(product?.basePrice ? String(Number(product.basePrice)) : "")
+  // El precio llega de Loggro y es de solo lectura: un producto a $0 (p. ej. bolsas
+  // de obsequio) debe poder guardarse igual, así que el cero no se trata como vacío.
+  const [basePrice] = useState(product?.basePrice != null ? String(Number(product.basePrice)) : "")
   const [isOnSale] = useState(product?.isOnSale ?? false)
-  const [salePrice] = useState(product?.salePrice ? String(Number(product.salePrice)) : "")
+  const [salePrice] = useState(product?.salePrice != null ? String(Number(product.salePrice)) : "")
 
   // SEO
   const [metaTitle, setMetaTitle] = useState(product?.metaTitle ?? "")
@@ -461,10 +462,6 @@ export default function ProductForm({
     if (!basePrice || isNaN(parseFloat(basePrice))) { setError("El precio base es requerido."); return }
     if (isOnSale && (!salePrice || isNaN(parseFloat(salePrice)))) { setError("Ingresa el precio de oferta."); return }
     if (hasDuplicateSkus()) { setError("Hay SKUs duplicados en las variantes."); return }
-    if (images.length < MIN_PRODUCT_IMAGES) {
-      setError(`Sube al menos ${MIN_PRODUCT_IMAGES} imágenes del producto.`)
-      return
-    }
     // Las fotos se publican por color: una sin asignar no se vería en la ficha.
     const unassignedImages = images.filter((img) => !img.color).length
     if (unassignedImages > 0) {
