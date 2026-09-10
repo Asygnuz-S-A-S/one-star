@@ -15,6 +15,7 @@ import {
   updateProductsPublishStatus as repoUpdateProductsPublishStatus,
 } from "../repositories/product.repository"
 import type { Prisma, Gender } from "@prisma/client"
+import { resolveGenderFilter } from "@/lib/gender-filter"
 import { buildVisibleProductPage } from "@/server/domain/product-color-family.plan"
 
 export interface CategoryDTO {
@@ -362,10 +363,16 @@ function buildPrismaWhere(
   if (filter.status === "active") where.isPublished = true
   if (filter.status === "inactive") where.isPublished = false
 
-  if (filter.extraGenders && filter.extraGenders.length > 0) {
-    where.gender = { in: filter.extraGenders as Gender[] }
-  } else if (filter.genero) {
-    where.gender = filter.genero as Gender
+  // La sección (/c/hombre, /c/mujer, /c/ninos) fija extraGenders; el visitante puede
+  // acotar más con ?genero=. Dentro de una sección, el filtro solo puede restringir.
+  const sectionGenders = filter.extraGenders && filter.extraGenders.length > 0 ? filter.extraGenders : null
+  const requestedGenders = resolveGenderFilter(filter.genero)
+  const genders =
+    sectionGenders && requestedGenders
+      ? requestedGenders.filter((g) => sectionGenders.includes(g))
+      : (requestedGenders ?? sectionGenders)
+  if (genders) {
+    where.gender = { in: genders as Gender[] }
   }
 
   if (filter.q) where.name = { contains: filter.q, mode: "insensitive" }

@@ -130,6 +130,33 @@ describe("getProducts", () => {
     )
   })
 
+  it("traduce ?genero=mujer a los géneros MUJER y UNISEX", async () => {
+    await getProducts({ genero: "mujer" })
+
+    expect(mockFindCatalogCandidates).toHaveBeenCalledWith(
+      { isPublished: true, gender: { in: ["MUJER", "UNISEX"] } },
+      [{ createdAt: "desc" }, { id: "asc" }]
+    )
+  })
+
+  it("dentro de una sección, ?genero= solo puede restringir", async () => {
+    await getProducts({ extraGenders: ["MUJER", "UNISEX"], genero: "unisex" })
+
+    expect(mockFindCatalogCandidates).toHaveBeenCalledWith(
+      { isPublished: true, gender: { in: ["UNISEX"] } },
+      [{ createdAt: "desc" }, { id: "asc" }]
+    )
+  })
+
+  it("ignora un ?genero= desconocido y conserva la sección", async () => {
+    await getProducts({ extraGenders: ["HOMBRE", "UNISEX"], genero: "robots" })
+
+    expect(mockFindCatalogCandidates).toHaveBeenCalledWith(
+      { isPublished: true, gender: { in: ["HOMBRE", "UNISEX"] } },
+      [{ createdAt: "desc" }, { id: "asc" }]
+    )
+  })
+
   it("colapsa los productos de una familia antes de paginar", async () => {
     mockFindCatalogCandidates.mockResolvedValue([
       { id: "prod-1", colorFamilyId: "family-1" },
