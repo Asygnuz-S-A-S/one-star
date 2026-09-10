@@ -149,3 +149,37 @@ test.describe("Filtros y orden en móvil (HU-9)", () => {
     await expect(page).toHaveURL(/orden=az/)
   })
 })
+
+test.describe("Búsqueda en el menú superior (HU-10)", () => {
+  for (const [nombre, viewport] of [
+    ["escritorio", { width: 1280, height: 900 }],
+    ["móvil", { width: 375, height: 812 }],
+  ] as const) {
+    test(`la lupa del menú abre la barra y busca en ${nombre}`, async ({ page }) => {
+      await page.setViewportSize(viewport)
+      await page.goto("/")
+
+      const lupa = page.getByLabel("Buscar", { exact: true })
+      await expect(lupa).toBeVisible()
+      await lupa.click()
+
+      const campo = page.locator("#header-search-q")
+      await expect(campo).toBeFocused()
+      await campo.fill("converse")
+      await campo.press("Enter")
+
+      await expect(page).toHaveURL(/\/buscar\?.*q=converse/)
+      await expect(page.getByRole("heading", { level: 1 })).toContainText(/converse/i)
+    })
+  }
+
+  test("la barra se cierra con Escape", async ({ page }) => {
+    await page.goto("/")
+
+    await page.getByLabel("Buscar", { exact: true }).click()
+    await expect(page.locator("#header-search-q")).toBeVisible()
+
+    await page.keyboard.press("Escape")
+    await expect(page.locator("#header-search-q")).toHaveCount(0)
+  })
+})
