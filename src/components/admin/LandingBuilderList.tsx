@@ -7,6 +7,7 @@ import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea
 import { motion, AnimatePresence } from "motion/react"
 import dynamic from "next/dynamic"
 import Image from "next/image"
+import Link from "next/link"
 import BannerForm from "@/components/admin/BannerForm"
 import HomeGridClient from "@/components/admin/HomeGridClient"
 import LogoManager from "@/components/admin/LogoManager"
@@ -66,7 +67,7 @@ interface DeleteConfirm {
 
 const SECTION_LABELS: Record<string, string> = {
   HERO: "Hero Banner (Principal)",
-  CATEGORY_GRID: "Grilla de Categorías",
+  CATEGORY_GRID: "Grilla de Categorías web",
   FEATURED_PRODUCTS: "Productos Destacados",
   BRAND_STRIP: "Carrusel de Marcas",
   NEW_ARRIVALS: "Nuevos Lanzamientos",
@@ -1576,6 +1577,23 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
 
           {editingSection.type === "CATEGORY_GRID" && (
             <>
+              <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-lg text-xs text-blue-900 flex items-start gap-2">
+                <svg className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <p className="font-semibold">Gestionar Categorías web</p>
+                  <p className="mt-0.5 text-blue-700">
+                    Esta grilla muestra las categorías web de la tienda (tipo de producto: tenis, chanclas,
+                    accesorios…). Puedes crearlas o editarlas en el módulo{" "}
+                    <Link href="/admin/categorias" target="_blank" className="font-bold underline hover:text-blue-900">
+                      Administrar Categorías web
+                    </Link>.
+                    No son las «Categorías» de Loggro: esas corresponden a las Marcas.
+                  </p>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wider">Subtítulo</label>
                 <input

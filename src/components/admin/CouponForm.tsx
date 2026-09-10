@@ -145,7 +145,7 @@ export default function CouponForm({ categories, onClose }: Props) {
       <div>
         <label className={labelClass}>Categoría aplicable (vacío = todas)</label>
         <select name="categoryId" className={inputClass}>
-          <option value="">Todas las categorías</option>
+          <option value="">Todas las categorías web</option>
           {categories.map((cat) => (
             <option key={cat.id} value={cat.id}>
               {cat.name}
