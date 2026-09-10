@@ -12,8 +12,11 @@ export interface ImageRow {
 /** Valor del selector que representa "imagen general, sin color asignado". */
 export const NO_COLOR = "__general__"
 
-/** Mínimo de fotos que exige el formulario antes de permitir guardar. */
-export const MIN_PRODUCT_IMAGES = 5
+/**
+ * Cantidad de fotos recomendada por producto. Es una guía para el operador,
+ * no un bloqueo: se puede guardar y publicar con menos (HU-3).
+ */
+export const RECOMMENDED_PRODUCT_IMAGES = 5
 
 export interface ImageDragData {
   type: "image-card"
