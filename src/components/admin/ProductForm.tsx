@@ -5,7 +5,7 @@ import Image from "next/image"
 import { useState, useTransition, useCallback, useMemo, useEffect, useRef } from "react"
 import type { StoreLocation } from "@prisma/client"
 import type { ProductWithRelations } from "@/types/admin"
-import { createProduct, updateProduct, deleteProduct, searchProducts } from "@/app/admin/productos/actions"
+import { updateProduct, deleteProduct, searchProducts } from "@/app/admin/productos/actions"
 import { monitorForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
 import {
   PRODUCT_COLORS,
@@ -55,8 +55,7 @@ interface ColorFamilyItem {
 }
 
 interface Props {
-  mode: "create" | "edit"
-  product?: ProductWithRelations
+  product: ProductWithRelations
   categories: { id: string; name: string }[]
   brands?: { id: string; name: string }[]
   stores?: StoreLocation[]
@@ -65,16 +64,6 @@ interface Props {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function slugify(text: string): string {
-  return text
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-z0-9\s-]/g, "")
-    .trim()
-    .replace(/\s+/g, "-")
-}
 
 // ─── Section Wrapper ───────────────────────────────────────────────────────────
 
@@ -108,7 +97,6 @@ const inputClass =
 // ─── Main Component ────────────────────────────────────────────────────────────
 
 export default function ProductForm({
-  mode,
   product,
   categories,
   brands = [],
@@ -288,9 +276,6 @@ export default function ProductForm({
 
   function handleNameChange(val: string) {
     setName(val)
-    if (mode === "create") {
-      setSlug(slugify(val))
-    }
   }
 
   function updateVariant(idx: number, field: keyof VariantRow, value: string) {
@@ -535,16 +520,10 @@ export default function ProductForm({
     formData.set("crossSellIds", JSON.stringify(crossSells.map((cs) => cs.id)))
 
     startTransition(async () => {
-      const result =
-        mode === "create"
-          ? await createProduct(formData)
-          : await updateProduct(product!.id, formData)
+      const result = await updateProduct(product.id, formData)
 
       if (result.success) {
         setSuccess(true)
-        if (mode === "create") {
-          router.push(`/admin/productos/${result.id}`)
-        }
       } else {
         setError(result.error ?? "Error desconocido.")
       }
@@ -553,7 +532,7 @@ export default function ProductForm({
 
   function handleDelete() {
     startDelete(async () => {
-      const result = await deleteProduct(product!.id)
+      const result = await deleteProduct(product.id)
       if (result.success) {
         router.push("/admin/productos")
       } else {
@@ -572,7 +551,7 @@ export default function ProductForm({
           {error}
         </div>
       )}
-      {success && mode === "edit" && (
+      {success && (
         <div className="mb-4 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg px-4 py-3">
           Producto guardado correctamente.
         </div>
@@ -946,92 +925,91 @@ export default function ProductForm({
       </Section>
 
       {/* F. Colores del mismo modelo */}
-      {mode === "edit" && (
-        <Section title="Colores del mismo modelo">
-          <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
-            Los formatos de código Loggro reconocidos se agrupan automáticamente. Usa esta sección
-            solo para excepciones: cada producto conservará sus propias tallas, SKU, precio, stock y fotos.
-          </div>
-          <div className="relative mb-3">
-            <input
-              type="text"
-              value={colorFamilySearch}
-              onChange={(event) => void handleColorFamilySearch(event.target.value)}
-              placeholder="Buscar otro color de este modelo…"
-              className={inputClass}
-            />
-            {isSearchingColorFamily && (
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#4A4A4A]">
-                Buscando…
-              </span>
-            )}
-            {colorFamilyResults.length > 0 && (
-              <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-64 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
-                {colorFamilyResults.map((item) => {
-                  const belongsToAnotherFamily = Boolean(
-                    item.colorFamilyId && item.colorFamilyId !== (product?.colorFamily?.id ?? null)
-                  )
-                  const hasRealProductColor = Boolean(item.color && isRealColor(item.color))
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      disabled={belongsToAnotherFamily || !hasRealProductColor}
-                      onClick={() => addColorFamilyProduct(item)}
-                      className="flex w-full items-center gap-3 border-b border-gray-50 px-3 py-2 text-left last:border-0 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md bg-gray-100">
-                        {item.imageUrl ? (
-                          <Image src={item.imageUrl} alt="" fill sizes="48px" className="object-cover" />
-                        ) : (
-                          <span className="flex h-full items-center justify-center text-[9px] text-gray-400">Sin foto</span>
-                        )}
-                      </div>
-                      <span className="min-w-0">
-                        <span className="block truncate text-sm font-medium text-[#1C1C1C]">{item.name}</span>
-                        <span className="block text-xs text-[#4A4A4A]">
-                          {[item.brandName, item.color].filter(Boolean).join(" · ") || "Color sin asignar"}
-                          {belongsToAnotherFamily ? " · Ya pertenece a otra familia" : ""}
-                          {!hasRealProductColor ? " · Debes asignarle un color primero" : ""}
-                        </span>
-                      </span>
-                    </button>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-          {colorFamilyProducts.length > 0 ? (
-            <div className="grid gap-2 sm:grid-cols-2">
-              {colorFamilyProducts.map((item) => (
-                <div key={item.id} className="flex items-center gap-3 rounded-lg border border-gray-200 p-2">
-                  <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-md bg-gray-100">
-                    {item.imageUrl ? (
-                      <Image src={item.imageUrl} alt="" fill sizes="56px" className="object-cover" />
-                    ) : (
-                      <span className="flex h-full items-center justify-center text-[9px] text-gray-400">Sin foto</span>
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-[#1C1C1C]">{item.name}</p>
-                    <p className="text-xs text-[#4A4A4A]">{item.color ?? "Color sin asignar"}</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => removeColorFamilyProduct(item.id)}
-                    className="px-2 text-xl text-gray-400 transition-colors hover:text-[#E31C23]"
-                    aria-label={`Retirar ${item.name} de la familia`}
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-gray-400">Este producto todavía no tiene otros colores relacionados.</p>
+            <Section title="Colores del mismo modelo">
+        <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+          Los formatos de código Loggro reconocidos se agrupan automáticamente. Usa esta sección
+          solo para excepciones: cada producto conservará sus propias tallas, SKU, precio, stock y fotos.
+        </div>
+        <div className="relative mb-3">
+          <input
+            type="text"
+            value={colorFamilySearch}
+            onChange={(event) => void handleColorFamilySearch(event.target.value)}
+            placeholder="Buscar otro color de este modelo…"
+            className={inputClass}
+          />
+          {isSearchingColorFamily && (
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#4A4A4A]">
+              Buscando…
+            </span>
           )}
-        </Section>
-      )}
+          {colorFamilyResults.length > 0 && (
+            <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-64 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
+              {colorFamilyResults.map((item) => {
+                const belongsToAnotherFamily = Boolean(
+                  item.colorFamilyId && item.colorFamilyId !== (product?.colorFamily?.id ?? null)
+                )
+                const hasRealProductColor = Boolean(item.color && isRealColor(item.color))
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    disabled={belongsToAnotherFamily || !hasRealProductColor}
+                    onClick={() => addColorFamilyProduct(item)}
+                    className="flex w-full items-center gap-3 border-b border-gray-50 px-3 py-2 text-left last:border-0 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md bg-gray-100">
+                      {item.imageUrl ? (
+                        <Image src={item.imageUrl} alt="" fill sizes="48px" className="object-cover" />
+                      ) : (
+                        <span className="flex h-full items-center justify-center text-[9px] text-gray-400">Sin foto</span>
+                      )}
+                    </div>
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium text-[#1C1C1C]">{item.name}</span>
+                      <span className="block text-xs text-[#4A4A4A]">
+                        {[item.brandName, item.color].filter(Boolean).join(" · ") || "Color sin asignar"}
+                        {belongsToAnotherFamily ? " · Ya pertenece a otra familia" : ""}
+                        {!hasRealProductColor ? " · Debes asignarle un color primero" : ""}
+                      </span>
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+        {colorFamilyProducts.length > 0 ? (
+          <div className="grid gap-2 sm:grid-cols-2">
+            {colorFamilyProducts.map((item) => (
+              <div key={item.id} className="flex items-center gap-3 rounded-lg border border-gray-200 p-2">
+                <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-md bg-gray-100">
+                  {item.imageUrl ? (
+                    <Image src={item.imageUrl} alt="" fill sizes="56px" className="object-cover" />
+                  ) : (
+                    <span className="flex h-full items-center justify-center text-[9px] text-gray-400">Sin foto</span>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-[#1C1C1C]">{item.name}</p>
+                  <p className="text-xs text-[#4A4A4A]">{item.color ?? "Color sin asignar"}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeColorFamilyProduct(item.id)}
+                  className="px-2 text-xl text-gray-400 transition-colors hover:text-[#E31C23]"
+                  aria-label={`Retirar ${item.name} de la familia`}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-gray-400">Este producto todavía no tiene otros colores relacionados.</p>
+        )}
+      </Section>
+    
 
       {/* G. Cross-selling */}
       <Section title="Cross-selling (productos relacionados)">
@@ -1095,7 +1073,7 @@ export default function ProductForm({
             disabled={isPending}
             className="bg-[#E31C23] text-white font-semibold px-6 py-2.5 rounded-lg hover:bg-red-700 disabled:opacity-60 transition-colors"
           >
-            {isPending ? "Guardando…" : mode === "create" ? "Crear producto" : "Guardar cambios"}
+            {isPending ? "Guardando…" : "Guardar cambios"}
           </button>
           <button
             type="button"
@@ -1105,15 +1083,14 @@ export default function ProductForm({
             Cancelar
           </button>
         </div>
-        {mode === "edit" && (
-          <button
-            type="button"
-            onClick={() => setShowDeleteDialog(true)}
-            className="text-sm text-gray-400 hover:text-[#E31C23] transition-colors"
-          >
-            Eliminar producto
-          </button>
-        )}
+                <button
+          type="button"
+          onClick={() => setShowDeleteDialog(true)}
+          className="text-sm text-gray-400 hover:text-[#E31C23] transition-colors"
+        >
+          Eliminar producto
+        </button>
+      
       </div>
 
       {/* Delete confirmation dialog */}

@@ -8,7 +8,6 @@ import {
   findPublishedProductSitemapEntries,
   countProducts,
   fetchBrands,
-  createProductRecord,
   deleteProductRecord,
   searchProductsByName,
   updateProductWithAdminRelations,
@@ -467,56 +466,6 @@ export async function getTotalProductsCount(): Promise<number> {
 
 export async function getUniqueBrands(): Promise<string[]> {
   return fetchBrands()
-}
-
-export async function createProduct(input: ProductInput): Promise<ProductDTO> {
-  const raw = await createProductRecord({
-    name: input.name,
-    slug: input.slug,
-    ...(input.brandId ? { brand: { connect: { id: input.brandId } } } : {}),
-    gender: (input.gender as Gender) ?? null,
-    category: { connect: { id: input.categoryId } },
-    description: input.description ?? null,
-    extendedDescription: input.extendedDescription ?? null,
-    videoUrl: input.videoUrl ?? null,
-    basePrice: input.basePrice,
-    isOnSale: input.isOnSale,
-    salePrice: input.salePrice ?? null,
-    metaTitle: input.metaTitle ?? null,
-    metaDescription: input.metaDescription ?? null,
-    availableOnline: input.availableOnline,
-    availableInStores: input.availableInStores,
-    isPublished: input.isPublished,
-    variants: {
-      create: input.variants.map((v) => ({
-        sku: v.sku,
-        size: v.size,
-        color: v.color,
-        stock: v.stock,
-        inventory: {
-          create: v.inventory.map((inv) => ({
-            storeLocationId: inv.storeLocationId,
-            stock: inv.stock,
-          })),
-        },
-        sizeUS: v.sizeUS ?? null,
-        sizeCM: v.sizeCM ?? null,
-        sizeEUR: v.sizeEUR ?? null,
-      })),
-    },
-    images: {
-      create: input.images.map((img, idx) => ({
-        url: img.url,
-        alt: img.alt ?? input.name,
-        position: img.position ?? idx,
-        color: img.color ?? null,
-      })),
-    },
-    ...(input.crossSellIds?.length
-      ? { crossSells: { connect: input.crossSellIds.map((id) => ({ id })) } }
-      : {}),
-  })
-  return mapToDTO(raw)
 }
 
 export async function updateProduct(
