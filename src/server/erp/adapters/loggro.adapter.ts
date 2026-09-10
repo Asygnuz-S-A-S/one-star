@@ -23,10 +23,14 @@ import { resolveLoggroIvaRate } from "./loggro-pricing"
  *
  * Configuración requerida en .env:
  *   LOGGRO_API_TOKEN=xxxxxxxxxxxxxxxx
- *   LOGGRO_IVA_RATE=0.19   (opcional) Loggro entrega precios sin IVA; se suma aquí
+ *   LOGGRO_IVA_RATE=0.19   (opcional) Loggro entrega precios sin IVA; se suma aquí usando
+ *                          el `ivaVenta` de cada ítem y esta tasa como respaldo
  */
 export interface LoggroERPAdapterOptions {
-  /** Tasa de IVA a sumar al precio neto de Loggro. Default: LOGGRO_IVA_RATE o 19 %. */
+  /**
+   * Tasa de IVA de respaldo para ítems sin `ivaVenta` válido.
+   * Default: LOGGRO_IVA_RATE o 19 %.
+   */
   ivaRate?: number
 }
 
