@@ -18,10 +18,19 @@ import { getVariantStoreStock } from "@/lib/store-location"
 import { getConversionSignals } from "@/lib/conversion-signals"
 import { GIFT_CARD_CATEGORY_SLUG } from "@/lib/gift-card"
 import ConversionSignals from "./ConversionSignals"
+import ProductTrust from "./ProductTrust"
+import { splitHighlight } from "@/lib/product-faq"
+import StickyBuyBar from "./StickyBuyBar"
+import { RETURN_WINDOW_DAYS, type StorePromise } from "@/lib/store-promises"
+import { STANDARD_SHIPPING_THRESHOLD } from "@/lib/shipping"
+import { DELIVERY_BUSINESS_DAYS } from "@/lib/conversion-signals"
 
 interface ProductInfoProps {
   product: ProductWithRelations
   reviewStats?: { avg: number; count: number; distribution: number[] }
+  /** Garantías reales de la tienda (envío, entrega, cambios, pago) que se muestran junto al botón. */
+  promises?: StorePromise[]
+  whatsappUrl?: string | null
   /** Color controlado desde el padre para sincronizar la galería. */
   selectedColor?: string
   onColorChange?: (color: string) => void
@@ -84,6 +93,8 @@ function colorToCSS(color: string): string {
 export default function ProductInfo({
   product,
   reviewStats,
+  promises = [],
+  whatsappUrl = null,
   selectedColor: controlledColor,
   onColorChange,
 }: ProductInfoProps) {
@@ -191,6 +202,11 @@ export default function ProductInfo({
     router.push("/checkout")
   }, [selectedSize, triggerShake, buildCartItem, addItem, router])
 
+  const focusSizeSelector = useCallback(() => {
+    document.getElementById("selector-talla")?.scrollIntoView({ behavior: "smooth", block: "center" })
+    triggerShake()
+  }, [triggerShake])
+
   const canAct = Boolean(selectedSize)
 
   // Existencias por sede de la talla elegida. Solo informativo: la web no
@@ -237,22 +253,14 @@ export default function ProductInfo({
             {product.name}
           </h1>
           {product.isOnSale && (
-            <motion.span
-              className="flex-shrink-0 mt-1 bg-[#E31C23] text-white font-[var(--font-barlow)] font-bold text-[10px] uppercase tracking-widest px-2 py-1 rounded-sm"
-              animate={{ y: [0, -5, 0], rotate: [-3, 3, -2, 0] }}
-              transition={{ duration: 0.7, repeat: Infinity, repeatDelay: 2.4, ease: "easeInOut" }}
-            >
+            <span className="flex-shrink-0 mt-1 bg-[#E31C23] text-white font-[var(--font-barlow)] font-bold text-[10px] uppercase tracking-widest px-2 py-1 rounded-sm">
               SALE
-            </motion.span>
+            </span>
           )}
-          {!product.isOnSale && (
-            <motion.span
-              className="flex-shrink-0 mt-1 bg-[#1C1C1C] dark:bg-white text-white dark:text-black font-[var(--font-barlow)] font-bold text-[10px] uppercase tracking-widest px-2 py-1 rounded-sm"
-              animate={{ y: [0, -5, 0] }}
-              transition={{ duration: 0.7, repeat: Infinity, repeatDelay: 2.8, ease: "easeInOut" }}
-            >
+          {!product.isOnSale && product.isNew && (
+            <span className="flex-shrink-0 mt-1 bg-[#1C1C1C] dark:bg-white text-white dark:text-black font-[var(--font-barlow)] font-bold text-[10px] uppercase tracking-widest px-2 py-1 rounded-sm">
               NUEVO
-            </motion.span>
+            </span>
           )}
           {product.availableOnline === false && (
             <span className="flex-shrink-0 mt-1 bg-[#F5C518] text-[#1C1C1C] font-[var(--font-barlow)] font-bold text-[10px] uppercase tracking-widest px-2 py-1 rounded-sm">
@@ -281,9 +289,12 @@ export default function ProductInfo({
             <span className="font-[var(--font-montserrat)] text-sm font-semibold text-[#1C1C1C] dark:text-white">
               {reviewStats.avg.toFixed(1)}
             </span>
-            <span className="font-[var(--font-montserrat)] text-xs text-[#4A4A4A] dark:text-gray-400">
-              ({reviewStats.count} reseña{reviewStats.count !== 1 ? "s" : ""})
-            </span>
+            <a
+              href="#resenas"
+              className="font-[var(--font-montserrat)] text-xs text-[#4A4A4A] underline underline-offset-2 hover:text-[#1C1C1C] dark:text-gray-400 dark:hover:text-white"
+            >
+              Ver {reviewStats.count} reseña{reviewStats.count !== 1 ? "s" : ""}
+            </a>
           </motion.div>
         )}
 
@@ -309,6 +320,20 @@ export default function ProductInfo({
             </p>
           )}
         </motion.div>
+
+        {/* Beneficios clave: lo que el cliente gana, a la vista antes de decidir */}
+        {product.highlights.length > 0 && (
+          <motion.ul variants={itemVariants} className="flex flex-col gap-2" aria-label="Beneficios principales">
+            {product.highlights.slice(0, 4).map(splitHighlight).map(({ title: text }) => (
+              <li key={text} className="flex items-start gap-2 font-[var(--font-montserrat)] text-sm text-[#1C1C1C] dark:text-gray-200">
+                <svg viewBox="0 0 24 24" className="mt-0.5 h-4 w-4 shrink-0 text-[#E31C23]" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
+                <span>{text}</span>
+              </li>
+            ))}
+          </motion.ul>
+        )}
 
         {/* Color selector */}
         {familyColorSummary.total > 0 && (
@@ -369,7 +394,7 @@ export default function ProductInfo({
         )}
 
         {/* Size selector */}
-        <motion.div variants={itemVariants} className="flex flex-col gap-2">
+        <motion.div id="selector-talla" variants={itemVariants} className="flex flex-col gap-2 scroll-mt-24">
           <div className="flex items-center justify-between">
             <p className="font-[var(--font-montserrat)] text-sm font-medium text-[#1C1C1C] dark:text-white">
               Talla
@@ -467,7 +492,7 @@ export default function ProductInfo({
         </motion.div>
 
         {/* Action buttons */}
-        <motion.div variants={itemVariants} className="flex flex-col gap-3">
+        <motion.div id="comprar" variants={itemVariants} className="flex flex-col gap-3 scroll-mt-24">
           {product.availableOnline === false ? (
             <div className="w-full py-4 text-center border-2 border-[#1C1C1C] text-[#1C1C1C] font-[var(--font-barlow)] font-bold uppercase tracking-widest text-sm bg-[#F5F5F5] dark:border-white dark:text-white dark:bg-white/5">
               Producto exclusivo de tiendas físicas
@@ -476,7 +501,7 @@ export default function ProductInfo({
             <>
               <motion.button
                 onClick={handleAddToCart}
-                disabled={!canAct}
+                aria-disabled={!canAct}
                 whileHover={canAct ? { scale: 1.03 } : undefined}
                 whileTap={canAct ? { scale: 0.95 } : undefined}
                 animate={justAdded ? { scale: [1, 1.08, 0.96, 1] } : { scale: 1 }}
@@ -486,7 +511,7 @@ export default function ProductInfo({
                     ? "bg-green-600 text-white"
                     : canAct
                       ? "bg-[#1C1C1C] text-white hover:bg-[#333] dark:bg-white dark:text-black dark:hover:bg-gray-200"
-                      : "bg-[#1C1C1C] text-white opacity-50 cursor-not-allowed dark:bg-white dark:text-black"
+                      : "bg-[#1C1C1C] text-white dark:bg-white dark:text-black"
                 }`}
               >
                 <AnimatePresence mode="wait" initial={false}>
@@ -523,19 +548,20 @@ export default function ProductInfo({
               </motion.button>
               <motion.button
                 onClick={handleBuyNow}
-                disabled={!canAct}
+                aria-disabled={!canAct}
                 whileHover={canAct ? { scale: 1.03 } : undefined}
                 whileTap={canAct ? { scale: 0.95 } : undefined}
                 transition={springy}
                 className={`w-full py-4 font-[var(--font-barlow)] font-bold uppercase tracking-widest text-sm ${
                   canAct
                     ? "bg-[#E31C23] text-white hover:bg-[#C01920]"
-                    : "bg-[#E31C23] text-white opacity-50 cursor-not-allowed"
+                    : "bg-[#E31C23] text-white"
                 }`}
               >
                 Comprar Ahora
               </motion.button>
               <ConversionSignals signals={conversionSignals} />
+              <ProductTrust promises={promises} whatsappUrl={whatsappUrl} />
             </>
           )}
         </motion.div>
@@ -560,13 +586,25 @@ export default function ProductInfo({
 
           <AccordionItem title="Envío y devoluciones">
             <p className="font-[var(--font-montserrat)] text-sm text-[#4A4A4A] dark:text-gray-300 leading-relaxed">
-              Envío gratis en compras mayores a $200.000. Entregas en todo Colombia de 3 a 5 días hábiles.
-              Devoluciones gratuitas dentro de los 30 días siguientes a la compra, siempre que el producto
-              esté en su estado original y sin uso.
+              Envío gratis en compras desde {formatCOP(STANDARD_SHIPPING_THRESHOLD)}. Entregas en todo Colombia de{" "}
+              {DELIVERY_BUSINESS_DAYS.min} a {DELIVERY_BUSINESS_DAYS.max} días hábiles. Devoluciones gratuitas dentro de los{" "}
+              {RETURN_WINDOW_DAYS} días siguientes a la compra, siempre que el producto esté en su estado original y sin uso.
             </p>
           </AccordionItem>
         </motion.div>
       </motion.div>
+
+      {product.availableOnline !== false && (
+        <StickyBuyBar
+          targetId="comprar"
+          name={product.name}
+          price={salePrice ?? basePrice}
+          originalPrice={salePrice ? basePrice : null}
+          needsSize={!selectedSize}
+          onAdd={handleAddToCart}
+          onNeedSize={focusSizeSelector}
+        />
+      )}
 
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 

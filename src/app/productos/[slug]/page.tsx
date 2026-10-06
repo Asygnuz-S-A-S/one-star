@@ -1,8 +1,10 @@
+import { cache } from "react"
 import { notFound } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
 import type { Metadata } from "next"
 import { getProductBySlug, type InventoryStoreDTO } from "@/server/services/product.service"
+import { getPublicStoreInfo } from "@/server/services/store-settings.service"
 import { getProductReviews, getProductReviewStats } from "@/server/services/review.service"
 import ProductDetail from "@/components/product/ProductDetail"
 import MetaViewContent from "@/components/tracking/MetaViewContent"
@@ -10,6 +12,13 @@ import CrossSelling from "@/components/product/CrossSelling"
 import RelatedProducts from "@/components/product/RelatedProducts"
 import ProductReviews from "@/components/product/ProductReviews"
 import StoreAvailability from "@/components/product/StoreAvailability"
+import WhyBuy from "@/components/product/WhyBuy"
+import ProductFaqSection from "@/components/product/ProductFaqSection"
+import ClosingCta from "@/components/product/ClosingCta"
+import { buildProductJsonLd, buildProductMetadata, getDisplayPrice, serializeJsonLd } from "@/lib/seo/product-seo"
+import { getStorePromises } from "@/lib/store-promises"
+import { buildWhatsappUrl } from "@/lib/whatsapp"
+import { getSiteUrl } from "@/lib/site-url"
 import Reveal from "@/components/ui/Reveal"
 
 interface PageProps {
@@ -18,62 +27,52 @@ interface PageProps {
   searchParams?: Promise<{ color?: string }>
 }
 
+/** Una sola consulta por petición: la comparten `generateMetadata` y la página. */
+const loadProduct = cache(getProductBySlug)
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params
-  const product = await getProductBySlug(slug)
+  const product = await loadProduct(slug)
 
   if (!product) {
-    return { title: "Producto no encontrado | One Star" }
+    return { title: "Producto no encontrado | One Star", robots: { index: false, follow: false } }
   }
 
-  return {
-    title: product.metaTitle ?? `${product.name} | One Star`,
-    description: product.metaDescription ?? product.description ?? undefined,
-    openGraph: {
-      title: product.metaTitle ?? `${product.name} | One Star`,
-      description: product.metaDescription ?? product.description ?? undefined,
-      images: product.images[0]?.url ? [{ url: product.images[0].url }] : [],
-    },
-  }
+  const settings = await getPublicStoreInfo().catch(() => null)
+  return buildProductMetadata(product, {
+    siteUrl: getSiteUrl(),
+    storeName: settings?.storeName ?? "One Star",
+    reviews: [],
+    reviewStats: { avg: 0, count: 0 },
+  })
 }
 
 export default async function ProductPage({ params, searchParams }: PageProps) {
   const { slug } = await params
   const { color: initialColor } = (await searchParams) ?? {}
-  const product = await getProductBySlug(slug)
+  const product = await loadProduct(slug)
 
   if (!product) notFound()
 
-  const [productReviews, productReviewStats] = await Promise.all([
+  const [productReviews, productReviewStats, settings] = await Promise.all([
     getProductReviews(product.id),
     getProductReviewStats(product.id),
+    getPublicStoreInfo().catch(() => null),
   ])
 
+  const displayPrice = getDisplayPrice(product)
+  const promises = getStorePromises({ hasWhatsapp: Boolean(settings?.whatsapp) })
+  const whatsappUrl = buildWhatsappUrl(
+    settings?.whatsapp,
+    `Hola, quiero comprar ${product.name} (${getSiteUrl()}/productos/${product.slug}) y tengo una duda.`
+  )
 
-  const displayPrice = product.isOnSale && product.salePrice
-    ? Number(product.salePrice)
-    : Number(product.basePrice)
-
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Product",
-    name: product.name,
-    description: product.description ?? undefined,
-    image: product.images.map((img) => img.url),
-    brand: { "@type": "Brand", name: product.brand ?? "One Star" },
-    aggregateRating: productReviewStats.count > 0 ? {
-      "@type": "AggregateRating",
-      ratingValue: productReviewStats.avg.toFixed(1),
-      reviewCount: productReviewStats.count,
-    } : undefined,
-    offers: {
-      "@type": "Offer",
-      price: displayPrice.toFixed(0),
-      priceCurrency: "COP",
-      availability: "https://schema.org/InStock",
-      url: `https://onestar.com.co/productos/${product.slug}`,
-    },
-  }
+  const jsonLd = buildProductJsonLd(product, {
+    siteUrl: getSiteUrl(),
+    storeName: settings?.storeName ?? "One Star",
+    reviews: productReviews,
+    reviewStats: productReviewStats,
+  })
 
   // Disponibilidad online = stock vendible por variante (lo mismo que valida el
   // checkout). El desglose por sede es solo informativo: la web no lo reserva.
@@ -116,7 +115,7 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
       */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -150,8 +149,13 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
         <ProductDetail
           product={product}
           reviewStats={productReviewStats}
+          promises={promises}
+          whatsappUrl={whatsappUrl}
           initialColor={initialColor}
         />
+
+        {/* ── Por qué comprarlo ── */}
+        <WhyBuy productName={product.name} highlights={product.highlights} promises={promises} />
 
         {/* ── Extended description hero (Nike-style) ── */}
         {(product.extendedDescription || product.description) && (
@@ -192,6 +196,14 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
         initialReviews={productReviews}
         stats={productReviewStats}
       />
+
+      {/* ── FAQ + cierre ── */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12">
+        <ProductFaqSection faqs={product.faqs} />
+        {product.availableOnline !== false && (
+          <ClosingCta name={product.name} price={displayPrice} targetId="comprar" />
+        )}
+      </div>
 
       {/* ── Store Availability ── */}
       <StoreAvailability

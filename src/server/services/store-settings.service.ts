@@ -2,6 +2,7 @@ import "server-only"
 
 import {
   findStoreSettings,
+  findStoreSettingsReadOnly,
   updateStoreSettingsRecord,
 } from "@/server/repositories/store-settings.repository"
 import type { MetaPixelInput, StoreInfoInput } from "@/server/validators/store-settings.validator"
@@ -54,6 +55,12 @@ function toDTO(raw: {
       ? raw.metaAccessToken.slice(-TOKEN_HINT_LENGTH)
       : null,
   }
+}
+
+/** Datos públicos de la tienda para SEO y botones de contacto. No escribe en la base de datos. */
+export async function getPublicStoreInfo(): Promise<{ storeName: string; whatsapp: string | null }> {
+  const settings = await findStoreSettingsReadOnly()
+  return { storeName: settings?.storeName ?? "One Star", whatsapp: settings?.whatsapp ?? null }
 }
 
 export async function getStoreSettings(): Promise<StoreSettingsDTO> {

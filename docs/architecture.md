@@ -207,6 +207,15 @@ esas condiciones para no sobrescribir una edición administrativa concurrente.
 ### Configuración global
 - **StoreSettings** → registro único (`id = "default"`): nombre, email y WhatsApp de contacto (Configuración); `metaPixelId`, `metaPixelEnabled`, `metaTestEventCode` y `metaAccessToken` (solo servidor) para Meta Pixel + API de Conversiones (Integraciones → Marketing)
 
+### Ficha de producto: conversión y SEO
+
+- **Datos propios del producto** (`Product`): `highlights` (beneficios, formato "Título: detalle") y `faqs` (JSON `[{ q, a }]`, validado por `parseProductFaqs`). Se editan en el admin (Productos → "Ficha que vende").
+- **Reseñas con moderación** (`ProductReview.isApproved`): las de clientes entran pendientes; solo las aprobadas se muestran y puntúan en el SEO. El admin las aprueba, oculta, elimina o carga testimonios propios en `/admin/resenas`.
+- **SEO** vive en `src/lib/seo/product-seo.ts` (funciones puras con pruebas): título/descripcion, canonical limpio (ignora `?color=`), Open Graph/Twitter y JSON-LD `@graph` con `Product` (oferta, disponibilidad, envío, devoluciones, `aggregateRating` y `review`), `BreadcrumbList` y `FAQPage`. El JSON-LD se serializa con `serializeJsonLd` (escapa `<`). El sitemap incluye la foto principal de cada producto.
+- **Promesas de la tienda** salen de constantes reales (`src/lib/store-promises.ts`, `shipping.ts`, `conversion-signals.ts`): lo que se muestra en pantalla y lo que declara el JSON-LD no puede divergir.
+- **Móvil**: `StickyBuyBar` fija precio y botón cuando el botón principal no está a la vista; si falta la talla, la pide en lugar de fallar en silencio.
+- **E2E**: `e2e/product-page.spec.ts`, `e2e/admin-resenas.spec.ts` y `e2e/admin-ficha-conversion.spec.ts` (los de admin requieren `TEST_ADMIN_EMAIL`/`TEST_ADMIN_PASSWORD`).
+
 ## Decisiones Arquitectónicas Tomadas
 
 | # | Decisión | Justificación |

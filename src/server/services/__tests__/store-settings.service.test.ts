@@ -4,17 +4,20 @@ vi.mock("server-only", () => ({}))
 
 vi.mock("@/server/repositories/store-settings.repository", () => ({
   findStoreSettings: vi.fn(),
+  findStoreSettingsReadOnly: vi.fn(),
   updateStoreSettingsRecord: vi.fn(),
 }))
 
 import {
   getMetaConversionsCredentials,
   getMetaPixelPublicConfig,
+  getPublicStoreInfo,
   getStoreSettings,
   updateMetaPixelSettings,
 } from "../store-settings.service"
 import {
   findStoreSettings,
+  findStoreSettingsReadOnly,
   updateStoreSettingsRecord,
 } from "@/server/repositories/store-settings.repository"
 
@@ -128,5 +131,20 @@ describe("getMetaConversionsCredentials", () => {
     mockFind.mockResolvedValue({ ...rawSettings, metaPixelEnabled: false })
 
     await expect(getMetaConversionsCredentials()).resolves.toBeNull()
+  })
+})
+
+describe("getPublicStoreInfo", () => {
+  it("lee sin escribir y devuelve nombre y WhatsApp", async () => {
+    vi.mocked(findStoreSettingsReadOnly).mockResolvedValue(rawSettings as never)
+
+    expect(await getPublicStoreInfo()).toEqual({ storeName: "One Star", whatsapp: "+573001234567" })
+    expect(mockUpdate).not.toHaveBeenCalled()
+  })
+
+  it("usa valores por defecto si la configuración aún no existe", async () => {
+    vi.mocked(findStoreSettingsReadOnly).mockResolvedValue(null)
+
+    expect(await getPublicStoreInfo()).toEqual({ storeName: "One Star", whatsapp: null })
   })
 })

@@ -211,14 +211,18 @@ describe("deleteProductRecord", () => {
 describe("findPublishedProductSitemapEntries", () => {
   it("solo devuelve productos publicados, con su fecha de actualización", async () => {
     m.product.findMany.mockResolvedValue([
-      { slug: "air-force-1", updatedAt: new Date("2026-08-01T00:00:00Z") },
+      { slug: "air-force-1", updatedAt: new Date("2026-08-01T00:00:00Z"), images: [{ url: "https://cdn.test/a.jpg" }] },
     ])
 
     const entries = await findPublishedProductSitemapEntries()
 
     expect(m.product.findMany).toHaveBeenCalledWith({
       where: { isPublished: true },
-      select: { slug: true, updatedAt: true },
+      select: {
+        slug: true,
+        updatedAt: true,
+        images: { select: { url: true }, orderBy: { position: "asc" }, take: 1 },
+      },
       orderBy: { updatedAt: "desc" },
     })
     expect(entries[0].slug).toBe("air-force-1")

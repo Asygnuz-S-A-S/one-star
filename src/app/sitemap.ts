@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next"
 import { getCategories } from "@/server/services/category.service"
 import { getProductSitemapEntries } from "@/server/services/product.service"
 import { getSiteUrl } from "@/lib/site-url"
+import { absoluteUrl } from "@/lib/seo/product-seo"
 
 /** El sitemap se regenera cada hora; no necesita ser dinámico por petición. */
 export const revalidate = 3600
@@ -58,6 +59,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: product.updatedAt,
       changeFrequency: "weekly" as const,
       priority: 0.6,
+      ...(product.imageUrl ? { images: [absoluteUrl(product.imageUrl, siteUrl)] } : {}),
     })),
   ]
 }

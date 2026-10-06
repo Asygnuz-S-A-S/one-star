@@ -55,6 +55,15 @@ const navGroups = [
           </svg>
         ),
       },
+      {
+        label: "Reseñas",
+        href: "/admin/resenas",
+        icon: (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z" />
+          </svg>
+        ),
+      },
     ]
   },
   {

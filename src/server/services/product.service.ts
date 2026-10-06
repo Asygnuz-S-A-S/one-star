@@ -15,6 +15,7 @@ import {
   updateProductsPublishStatus as repoUpdateProductsPublishStatus,
 } from "../repositories/product.repository"
 import type { Prisma, Gender } from "@prisma/client"
+import { parseProductFaqs, type ProductFaq } from "@/lib/product-faq"
 import { resolveGenderFilter } from "@/lib/gender-filter"
 import { resolveProductSort, type ProductSortValue } from "@/lib/product-sort"
 import { buildVisibleProductPage } from "@/server/domain/product-color-family.plan"
@@ -105,6 +106,8 @@ export interface ProductDTO {
   videoUrl: string | null
   metaTitle: string | null
   metaDescription: string | null
+  highlights: string[]
+  faqs: ProductFaq[]
   gender: string | null
   categoryId: string
   category: CategoryDTO
@@ -194,6 +197,8 @@ export interface ProductInput {
   availableOnline: boolean
   availableInStores: boolean
   isPublished: boolean
+  highlights?: string[]
+  faqs?: ProductFaq[]
   variants: VariantInput[]
   images: ImageInput[]
   colorFamilyProductIds?: string[]
@@ -251,6 +256,8 @@ type RawProduct = {
   videoUrl?: string | null
   metaTitle?: string | null
   metaDescription?: string | null
+  highlights?: string[]
+  faqs?: unknown
   gender?: string | null
   categoryId: string
   category: { id: string; name: string; slug: string }
@@ -329,6 +336,8 @@ function mapToDTO(raw: RawProduct): ProductDTO {
     videoUrl: raw.videoUrl ?? null,
     metaTitle: raw.metaTitle ?? null,
     metaDescription: raw.metaDescription ?? null,
+    highlights: raw.highlights ?? [],
+    faqs: parseProductFaqs(raw.faqs),
     gender: raw.gender ?? null,
     categoryId: raw.categoryId,
     category: {
@@ -562,9 +571,12 @@ export async function searchProducts(
 export interface ProductSitemapEntry {
   slug: string
   updatedAt: Date
+  /** Foto principal: Google la indexa desde el sitemap de imágenes. */
+  imageUrl: string | null
 }
 
 /** Entradas de producto para `src/app/sitemap.ts`. */
 export async function getProductSitemapEntries(): Promise<ProductSitemapEntry[]> {
-  return findPublishedProductSitemapEntries()
+  const rows = await findPublishedProductSitemapEntries()
+  return rows.map((row) => ({ slug: row.slug, updatedAt: row.updatedAt, imageUrl: row.images[0]?.url ?? null }))
 }
