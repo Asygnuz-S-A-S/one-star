@@ -6,17 +6,23 @@ vi.mock("@/server/services/category.service", () => ({
 vi.mock("@/server/services/product.service", () => ({
   getProductSitemapEntries: vi.fn(),
 }))
+vi.mock("@/server/services/brand.service", () => ({
+  getStorefrontBrands: vi.fn(),
+}))
 
 import sitemap from "@/app/sitemap"
 import { getCategories } from "@/server/services/category.service"
 import { getProductSitemapEntries } from "@/server/services/product.service"
+import { getStorefrontBrands } from "@/server/services/brand.service"
 
 const getCategoriesMock = vi.mocked(getCategories)
 const getProductSitemapEntriesMock = vi.mocked(getProductSitemapEntries)
+const getStorefrontBrandsMock = vi.mocked(getStorefrontBrands)
 
 beforeEach(() => {
   vi.clearAllMocks()
   process.env.NEXT_PUBLIC_APP_URL = "https://onestar.com.co"
+  getStorefrontBrandsMock.mockResolvedValue([])
 })
 
 describe("sitemap", () => {

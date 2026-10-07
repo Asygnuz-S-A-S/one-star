@@ -38,6 +38,7 @@ export interface SeoContext {
   storeName: string
   reviews: SeoReview[]
   reviewStats: { avg: number; count: number }
+  returnWindowDays?: number
   /** Para fijar `priceValidUntil` de forma determinista en pruebas. */
   now?: Date
 }
@@ -68,14 +69,14 @@ export function buildProductTitle(product: SeoProduct, storeName: string): strin
   return `${truncateAtWord(product.name, TITLE_MAX - suffix.length)}${suffix}`
 }
 
-export function buildProductDescription(product: SeoProduct, storeName: string): string {
+export function buildProductDescription(product: SeoProduct, storeName: string, returnWindowDays = RETURN_WINDOW_DAYS): string {
   if (product.metaDescription?.trim()) return truncateAtWord(product.metaDescription, DESCRIPTION_MAX)
   const base = product.description?.trim()
   if (base && base.length >= 70) return truncateAtWord(base, DESCRIPTION_MAX)
   const brandPart = product.brand ? ` ${product.brand}` : ""
   const generated =
     `Compra ${product.name}${brandPart} en ${storeName} desde ${formatCOP(getDisplayPrice(product))}. ` +
-    `Envío a todo Colombia y ${RETURN_WINDOW_DAYS} días para cambios.`
+    `Envío a todo Colombia y ${returnWindowDays} días para cambios.`
   return truncateAtWord(base ? `${base} ${generated}` : generated, DESCRIPTION_MAX)
 }
 
@@ -89,8 +90,9 @@ export function buildProductUrl(slug: string, siteUrl: string): string {
 }
 
 export function buildProductMetadata(product: SeoProduct, ctx: SeoContext): Metadata {
+  const returnDays = ctx.returnWindowDays ?? RETURN_WINDOW_DAYS
   const title = buildProductTitle(product, ctx.storeName)
-  const description = buildProductDescription(product, ctx.storeName)
+  const description = buildProductDescription(product, ctx.storeName, returnDays)
   const url = buildProductUrl(product.slug, ctx.siteUrl)
   const images = product.images.slice(0, 4).map((image) => ({
     url: absoluteUrl(image.url, ctx.siteUrl),
@@ -121,6 +123,7 @@ function priceValidUntil(now: Date): string {
 }
 
 export function buildProductJsonLd(product: SeoProduct, ctx: SeoContext): Record<string, unknown> {
+  const returnDays = ctx.returnWindowDays ?? RETURN_WINDOW_DAYS
   const url = buildProductUrl(product.slug, ctx.siteUrl)
   const price = getDisplayPrice(product)
   const inStock = product.variants.some((v) => v.stock > 0)
@@ -159,7 +162,7 @@ export function buildProductJsonLd(product: SeoProduct, ctx: SeoContext): Record
       "@type": "MerchantReturnPolicy",
       applicableCountry: "CO",
       returnPolicyCategory: "https://schema.org/MerchantReturnFiniteReturnWindow",
-      merchantReturnDays: RETURN_WINDOW_DAYS,
+      merchantReturnDays: returnDays,
       returnMethod: "https://schema.org/ReturnByMail",
       returnFees: "https://schema.org/FreeReturn",
     },
@@ -174,7 +177,7 @@ export function buildProductJsonLd(product: SeoProduct, ctx: SeoContext): Record
     category: product.category.name,
     offers: offer,
   }
-  const description = buildProductDescription(product, ctx.storeName)
+  const description = buildProductDescription(product, ctx.storeName, returnDays)
   if (description) productNode.description = description
   if (product.variants[0]?.sku) productNode.sku = product.variants[0].sku
   if (product.brand) productNode.brand = { "@type": "Brand", name: product.brand }

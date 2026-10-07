@@ -1,92 +1,173 @@
 "use client"
 
 import React, { useState, useTransition } from "react"
-import type { BrandDTO } from "@/server/services/brand.service"
+import type { BrandDetailDTO, BrandDTO } from "@/server/services/brand.service"
 import { createBrandAction, updateBrandAction, deleteBrandAction } from "@/app/admin/marcas/actions"
+import { faqsToText } from "@/lib/product-faq"
 import MediaLibraryModal from "./MediaLibraryModal"
 
 function slugify(text: string) {
-  return text.toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim()
-    .replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, "-")
+  return text
+    .toString()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9 ]/g, "")
+    .replace(/\s+/g, "-")
 }
 
-export default function BrandManager({ brands: initialBrands }: { brands: BrandDTO[] }) {
+export default function BrandManager({ brands: initialBrands }: { brands: (BrandDTO | BrandDetailDTO)[] }) {
   const [brands, setBrands] = useState(initialBrands)
   const [isEditing, setIsEditing] = useState<string | null>(null)
   const [isAdding, setIsAdding] = useState(false)
 
+  // Fields
   const [name, setName] = useState("")
   const [logoUrl, setLogoUrl] = useState("")
+  const [bannerUrl, setBannerUrl] = useState("")
+  const [description, setDescription] = useState("")
+  const [story, setStory] = useState("")
+  const [metaTitle, setMetaTitle] = useState("")
+  const [metaDescription, setMetaDescription] = useState("")
+  const [highlightsText, setHighlightsText] = useState("")
+  const [faqsText, setFaqsText] = useState("")
   const [isActive, setIsActive] = useState(true)
+
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState("")
   const [uploadingLogo, setUploadingLogo] = useState(false)
-  const [showMediaModal, setShowMediaModal] = useState(false)
+  const [uploadingBanner, setUploadingBanner] = useState(false)
+  const [mediaTarget, setMediaTarget] = useState<"logo" | "banner" | null>(null)
 
   const resetForm = () => {
-    setName(""); setLogoUrl(""); setIsActive(true); setError("")
-    setIsEditing(null); setIsAdding(false)
+    setName("")
+    setLogoUrl("")
+    setBannerUrl("")
+    setDescription("")
+    setStory("")
+    setMetaTitle("")
+    setMetaDescription("")
+    setHighlightsText("")
+    setFaqsText("")
+    setIsActive(true)
+    setError("")
+    setIsEditing(null)
+    setIsAdding(false)
   }
 
   const startAdd = () => {
-    resetForm(); setIsAdding(true)
+    resetForm()
+    setIsAdding(true)
   }
 
-  const startEdit = (brand: BrandDTO) => {
+  const startEdit = (brand: BrandDTO | BrandDetailDTO) => {
+    const detail = brand as BrandDetailDTO
     setIsEditing(brand.id)
     setName(brand.name)
     setLogoUrl(brand.logoUrl ?? "")
+    setBannerUrl(detail.bannerUrl ?? "")
+    setDescription(detail.description ?? "")
+    setStory(detail.story ?? "")
+    setMetaTitle(detail.metaTitle ?? "")
+    setMetaDescription(detail.metaDescription ?? "")
+    setHighlightsText((detail.highlights ?? []).join("\n"))
+    setFaqsText(detail.faqs ? faqsToText(detail.faqs) : "")
     setIsActive(brand.isActive)
     setIsAdding(false)
     setError("")
   }
 
-  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setUploadingLogo(true)
+  async function handleFileUpload(file: File, target: "logo" | "banner") {
+    if (target === "logo") setUploadingLogo(true)
+    else setUploadingBanner(true)
+
     const fd = new FormData()
     fd.append("file", file)
     try {
       const res = await fetch("/api/upload", { method: "POST", body: fd })
       const data = await res.json()
-      if (res.ok) setLogoUrl(data.url)
-      else setError(data.error ?? "Error al subir el logo")
+      if (res.ok) {
+        if (target === "logo") setLogoUrl(data.url)
+        else setBannerUrl(data.url)
+      } else {
+        setError(data.error ?? "Error al subir archivo")
+      }
     } catch {
-      setError("Error de red al subir el logo")
+      setError("Error de red al subir archivo")
+    } finally {
+      if (target === "logo") setUploadingLogo(false)
+      else setUploadingBanner(false)
     }
-    setUploadingLogo(false)
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!name.trim()) { setError("El nombre es requerido."); return }
+    if (!name.trim()) {
+      setError("El nombre es requerido.")
+      return
+    }
     setError("")
     const fd = new FormData()
     fd.set("name", name.trim())
     fd.set("logoUrl", logoUrl.trim())
+    fd.set("bannerUrl", bannerUrl.trim())
+    fd.set("description", description.trim())
+    fd.set("story", story.trim())
+    fd.set("metaTitle", metaTitle.trim())
+    fd.set("metaDescription", metaDescription.trim())
+    fd.set("highlights", highlightsText)
+    fd.set("faqs", faqsText)
     fd.set("isActive", String(isActive))
+
     startTransition(async () => {
       const result = isEditing
         ? await updateBrandAction(isEditing, fd)
         : await createBrandAction(fd)
-      if (!result.success) { setError(result.error ?? "Error"); return }
-      // Refresh brands list
+      if (!result.success) {
+        setError(result.error ?? "Error")
+        return
+      }
+
       const slug = slugify(name.trim())
       if (isEditing) {
-        setBrands((prev) => prev.map((b) => b.id === isEditing
-          ? { ...b, name: name.trim(), slug, logoUrl: logoUrl || null, isActive }
-          : b
-        ))
+        setBrands((prev) =>
+          prev.map((b) =>
+            b.id === isEditing
+              ? {
+                  ...b,
+                  name: name.trim(),
+                  slug,
+                  logoUrl: logoUrl || null,
+                  bannerUrl: bannerUrl || null,
+                  description: description || null,
+                  story: story || null,
+                  metaTitle: metaTitle || null,
+                  metaDescription: metaDescription || null,
+                  isActive,
+                }
+              : b
+          )
+        )
       } else {
-        setBrands((prev) => [...prev, {
-          id: result.id!,
-          name: name.trim(),
-          slug,
-          erpId: null,
-          logoUrl: logoUrl || null,
-          isActive,
-        }])
+        setBrands((prev) => [
+          ...prev,
+          {
+            id: result.id!,
+            name: name.trim(),
+            slug,
+            erpId: null,
+            logoUrl: logoUrl || null,
+            bannerUrl: bannerUrl || null,
+            description: description || null,
+            story: story || null,
+            metaTitle: metaTitle || null,
+            metaDescription: metaDescription || null,
+            highlights: [],
+            faqs: [],
+            isActive,
+          },
+        ])
       }
       resetForm()
     })
@@ -96,12 +177,16 @@ export default function BrandManager({ brands: initialBrands }: { brands: BrandD
     if (!confirm("¿Eliminar esta marca? Los productos que la tengan quedarán sin marca.")) return
     startTransition(async () => {
       const result = await deleteBrandAction(id)
-      if (!result.success) { setError(result.error ?? "Error"); return }
+      if (!result.success) {
+        setError(result.error ?? "Error")
+        return
+      }
       setBrands((prev) => prev.filter((b) => b.id !== id))
     })
   }
 
-  const inputCls = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-[#1C1C1C] focus:outline-none focus:ring-2 focus:ring-[#E31C23]"
+  const inputCls =
+    "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-[#1C1C1C] focus:outline-none focus:ring-2 focus:ring-[#E31C23]"
 
   return (
     <div className="space-y-6">
@@ -117,75 +202,224 @@ export default function BrandManager({ brands: initialBrands }: { brands: BrandD
 
       {/* Form */}
       {(isAdding || isEditing) && (
-        <form onSubmit={handleSubmit} className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
-          <h2 className="font-bold text-[#1C1C1C] text-lg">
-            {isEditing ? "Editar Marca" : "Nueva Marca"}
-          </h2>
-          <div>
-            <label className="block text-sm font-medium text-[#1C1C1C] mb-1">Nombre *</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Nike"
-              className={inputCls}
-              required
-            />
+        <form onSubmit={handleSubmit} className="bg-white border border-gray-200 rounded-xl p-6 space-y-6">
+          <div className="flex items-center justify-between border-b pb-3">
+            <h2 className="font-bold text-[#1C1C1C] text-lg">
+              {isEditing ? "Editar Marca" : "Nueva Marca"}
+            </h2>
+            <button
+              type="button"
+              onClick={resetForm}
+              className="text-xs text-gray-500 hover:text-black font-semibold"
+            >
+              Cerrar ✕
+            </button>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-[#1C1C1C] mb-1">Logo de Marca</label>
-            {logoUrl ? (
-              <div className="mb-3 p-3 bg-gray-50 border border-gray-200 rounded-xl flex items-center gap-4">
-                <div className="w-16 h-12 bg-white border border-gray-200 rounded-lg p-1 flex items-center justify-center overflow-hidden">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={logoUrl} alt="Logo" className="max-h-full max-w-full object-contain" />
+
+          {/* Datos básicos */}
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="block text-sm font-medium text-[#1C1C1C] mb-1">Nombre *</label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Ej. Nike, Adidas, New Balance"
+                className={inputCls}
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-[#1C1C1C] mb-1">Descripción corta (Hero)</label>
+              <input
+                type="text"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Calzado deportivo y urbano de alto rendimiento."
+                className={inputCls}
+              />
+            </div>
+          </div>
+
+          {/* Logo y Banner */}
+          <div className="grid gap-6 md:grid-cols-2">
+            {/* Logo */}
+            <div>
+              <label className="block text-sm font-medium text-[#1C1C1C] mb-1">Logo de Marca</label>
+              {logoUrl ? (
+                <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl flex items-center gap-4">
+                  <div className="w-16 h-12 bg-white border border-gray-200 rounded-lg p-1 flex items-center justify-center overflow-hidden">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={logoUrl} alt="Logo" className="max-h-full max-w-full object-contain" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setMediaTarget("logo")}
+                      className="px-3 py-1.5 bg-white border border-gray-300 hover:bg-gray-100 text-xs font-bold text-[#1C1C1C] rounded-lg transition-colors"
+                    >
+                      Biblioteca
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setLogoUrl("")}
+                      className="px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    >
+                      Quitar
+                    </button>
+                  </div>
                 </div>
+              ) : (
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => setShowMediaModal(true)}
-                    className="px-3 py-1.5 bg-white border border-gray-300 hover:bg-gray-100 text-xs font-bold text-[#1C1C1C] rounded-lg transition-colors"
+                    onClick={() => setMediaTarget("logo")}
+                    className="px-3 py-2 bg-[#1C1C1C] text-white hover:bg-gray-800 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors"
                   >
-                    Cambiar desde Biblioteca
+                    Elegir Logo
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setLogoUrl("")}
-                    className="px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                  >
-                    Quitar
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowMediaModal(true)}
-                    className="px-4 py-2 bg-[#1C1C1C] text-white hover:bg-gray-800 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-colors shadow-sm"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    Elegir de Biblioteca de Medios
-                  </button>
-                  <span className="text-xs text-gray-400 font-bold uppercase">o</span>
                   <label className="px-3 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors">
-                    <span>Subir archivo</span>
+                    <span>{uploadingLogo ? "Subiendo…" : "Subir archivo"}</span>
                     <input
                       type="file"
                       accept="image/*"
-                      onChange={handleLogoUpload}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) handleFileUpload(file, "logo")
+                      }}
                       disabled={uploadingLogo}
                       className="hidden"
                     />
                   </label>
                 </div>
-                {uploadingLogo && <p className="text-xs text-gray-400">Subiendo logo…</p>}
-              </div>
-            )}
+              )}
+            </div>
+
+            {/* Banner */}
+            <div>
+              <label className="block text-sm font-medium text-[#1C1C1C] mb-1">Banner de Cabecera (opcional)</label>
+              {bannerUrl ? (
+                <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl flex items-center gap-4">
+                  <div className="w-24 h-12 bg-white border border-gray-200 rounded-lg overflow-hidden">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={bannerUrl} alt="Banner" className="w-full h-full object-cover" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setMediaTarget("banner")}
+                      className="px-3 py-1.5 bg-white border border-gray-300 hover:bg-gray-100 text-xs font-bold text-[#1C1C1C] rounded-lg transition-colors"
+                    >
+                      Biblioteca
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBannerUrl("")}
+                      className="px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    >
+                      Quitar
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setMediaTarget("banner")}
+                    className="px-3 py-2 bg-[#1C1C1C] text-white hover:bg-gray-800 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors"
+                  >
+                    Elegir Banner
+                  </button>
+                  <label className="px-3 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors">
+                    <span>{uploadingBanner ? "Subiendo…" : "Subir archivo"}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) handleFileUpload(file, "banner")
+                      }}
+                      disabled={uploadingBanner}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              )}
+            </div>
           </div>
+
+          {/* Historia y Filosofía */}
+          <div>
+            <label className="block text-sm font-medium text-[#1C1C1C] mb-1">
+              Historia y Filosofía de la Marca (texto plano)
+            </label>
+            <textarea
+              rows={4}
+              value={story}
+              onChange={(e) => setStory(e.target.value)}
+              placeholder="Explica la historia de la marca, su tecnología y su propuesta de valor. Se mostrará en párrafos limpios en la página de marca."
+              className={inputCls}
+            />
+          </div>
+
+          {/* Beneficios propios y FAQs */}
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="block text-sm font-medium text-[#1C1C1C] mb-1">
+                Beneficios propios de la marca (uno por línea)
+              </label>
+              <textarea
+                rows={4}
+                value={highlightsText}
+                onChange={(e) => setHighlightsText(e.target.value)}
+                placeholder={"Amortiguación Air: Máxima absorción de impactos\nDiseño icónico: Estilo atemporal para todo el día"}
+                className={inputCls}
+              />
+              <p className="text-xs text-gray-500 mt-1">Formato: &ldquo;Título: detalle&rdquo; o texto simple.</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-[#1C1C1C] mb-1">
+                Preguntas frecuentes de la marca (Pregunta | Respuesta)
+              </label>
+              <textarea
+                rows={4}
+                value={faqsText}
+                onChange={(e) => setFaqsText(e.target.value)}
+                placeholder={"¿Nike talla normal? | La mayoría de modelos corren fieles a la talla.\n¿Cómo cuidar las zapatillas? | Limpiar con paño suave y jabón neutro."}
+                className={inputCls}
+              />
+              <p className="text-xs text-gray-500 mt-1">Una por línea separada con &ldquo;|&rdquo;.</p>
+            </div>
+          </div>
+
+          {/* SEO propio */}
+          <div className="border-t pt-4 space-y-4">
+            <h3 className="font-semibold text-sm text-[#1C1C1C]">SEO y Meta Etiquetas de Marca</h3>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Meta Title (opcional)</label>
+                <input
+                  type="text"
+                  value={metaTitle}
+                  onChange={(e) => setMetaTitle(e.target.value)}
+                  placeholder="Nike Colombia | Calzado y Ropa Original - One Star"
+                  className={inputCls}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Meta Description (opcional)</label>
+                <input
+                  type="text"
+                  value={metaDescription}
+                  onChange={(e) => setMetaDescription(e.target.value)}
+                  placeholder="Compra calzado Nike original con envío a todo Colombia y garantía de cambio."
+                  className={inputCls}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Estado */}
           <div className="flex items-center gap-2">
             <input
               type="checkbox"
@@ -194,9 +428,13 @@ export default function BrandManager({ brands: initialBrands }: { brands: BrandD
               onChange={(e) => setIsActive(e.target.checked)}
               className="rounded border-gray-300"
             />
-            <label htmlFor="isActive" className="text-sm text-[#1C1C1C]">Activa (visible en la tienda)</label>
+            <label htmlFor="isActive" className="text-sm text-[#1C1C1C]">
+              Activa (visible en el catálogo y página de marcas)
+            </label>
           </div>
+
           {error && <p className="text-sm text-red-600">{error}</p>}
+
           <div className="flex items-center gap-3">
             <button
               type="submit"
@@ -247,11 +485,17 @@ export default function BrandManager({ brands: initialBrands }: { brands: BrandD
                       </div>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-[#4A4A4A] font-mono text-xs truncate max-w-[150px]">{brand.erpId || "-"}</td>
+                  <td className="px-4 py-3 text-[#4A4A4A] font-mono text-xs truncate max-w-[150px]">
+                    {brand.erpId || "-"}
+                  </td>
                   <td className="px-4 py-3 font-medium text-[#1C1C1C]">{brand.name}</td>
                   <td className="px-4 py-3 text-[#4A4A4A] font-mono text-xs">{brand.slug}</td>
                   <td className="px-4 py-3">
-                    <span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full ${brand.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                    <span
+                      className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full ${
+                        brand.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
+                      }`}
+                    >
                       {brand.isActive ? "Activa" : "Inactiva"}
                     </span>
                   </td>
@@ -279,12 +523,14 @@ export default function BrandManager({ brands: initialBrands }: { brands: BrandD
 
       {/* Media Library Modal */}
       <MediaLibraryModal
-        isOpen={showMediaModal}
-        onClose={() => setShowMediaModal(false)}
+        isOpen={Boolean(mediaTarget)}
+        onClose={() => setMediaTarget(null)}
         acceptedType="image"
-        title="Seleccionar Logo de Marca"
+        title={mediaTarget === "logo" ? "Seleccionar Logo de Marca" : "Seleccionar Banner de Marca"}
         onSelect={(media) => {
-          setLogoUrl(media.url)
+          if (mediaTarget === "logo") setLogoUrl(media.url)
+          if (mediaTarget === "banner") setBannerUrl(media.url)
+          setMediaTarget(null)
         }}
       />
     </div>

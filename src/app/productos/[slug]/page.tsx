@@ -5,6 +5,8 @@ import Image from "next/image"
 import type { Metadata } from "next"
 import { getProductBySlug, type InventoryStoreDTO } from "@/server/services/product.service"
 import { getPublicStoreInfo } from "@/server/services/store-settings.service"
+import { getPublicSiteContent } from "@/server/services/site-content.service"
+import { getBrandDetailById } from "@/server/services/brand.service"
 import { getProductReviews, getProductReviewStats } from "@/server/services/review.service"
 import ProductDetail from "@/components/product/ProductDetail"
 import MetaViewContent from "@/components/tracking/MetaViewContent"
@@ -16,7 +18,7 @@ import WhyBuy from "@/components/product/WhyBuy"
 import ProductFaqSection from "@/components/product/ProductFaqSection"
 import ClosingCta from "@/components/product/ClosingCta"
 import { buildProductJsonLd, buildProductMetadata, getDisplayPrice, serializeJsonLd } from "@/lib/seo/product-seo"
-import { getStorePromises } from "@/lib/store-promises"
+import { resolveProductContent } from "@/lib/product-content-resolver"
 import { buildWhatsappUrl } from "@/lib/whatsapp"
 import { getSiteUrl } from "@/lib/site-url"
 import Reveal from "@/components/ui/Reveal"
@@ -38,13 +40,30 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     return { title: "Producto no encontrado | One Star", robots: { index: false, follow: false } }
   }
 
-  const settings = await getPublicStoreInfo().catch(() => null)
-  return buildProductMetadata(product, {
-    siteUrl: getSiteUrl(),
-    storeName: settings?.storeName ?? "One Star",
-    reviews: [],
-    reviewStats: { avg: 0, count: 0 },
+  // Consulta secuencial: primero producto, luego dependencias en paralelo
+  const [brandDetail, globalContent, settings] = await Promise.all([
+    product.brandId ? getBrandDetailById(product.brandId) : null,
+    getPublicSiteContent(),
+    getPublicStoreInfo().catch(() => null),
+  ])
+
+  const resolved = resolveProductContent({
+    product: { highlights: product.highlights, faqs: product.faqs },
+    brand: brandDetail,
+    global: globalContent,
+    hasWhatsapp: Boolean(settings?.whatsapp),
   })
+
+  return buildProductMetadata(
+    { ...product, faqs: resolved.faqs },
+    {
+      siteUrl: getSiteUrl(),
+      storeName: settings?.storeName ?? "One Star",
+      reviews: [],
+      reviewStats: { avg: 0, count: 0 },
+      returnWindowDays: resolved.returnWindowDays,
+    }
+  )
 }
 
 export default async function ProductPage({ params, searchParams }: PageProps) {
@@ -54,25 +73,39 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
 
   if (!product) notFound()
 
-  const [productReviews, productReviewStats, settings] = await Promise.all([
+  // Consulta secuencial: primero producto, luego dependencias en paralelo
+  const [brandDetail, globalContent, productReviews, productReviewStats, settings] = await Promise.all([
+    product.brandId ? getBrandDetailById(product.brandId) : null,
+    getPublicSiteContent(),
     getProductReviews(product.id),
     getProductReviewStats(product.id),
     getPublicStoreInfo().catch(() => null),
   ])
 
+  const hasWhatsapp = Boolean(settings?.whatsapp)
+  const resolvedContent = resolveProductContent({
+    product: { highlights: product.highlights, faqs: product.faqs },
+    brand: brandDetail,
+    global: globalContent,
+    hasWhatsapp,
+  })
+
   const displayPrice = getDisplayPrice(product)
-  const promises = getStorePromises({ hasWhatsapp: Boolean(settings?.whatsapp) })
   const whatsappUrl = buildWhatsappUrl(
     settings?.whatsapp,
     `Hola, quiero comprar ${product.name} (${getSiteUrl()}/productos/${product.slug}) y tengo una duda.`
   )
 
-  const jsonLd = buildProductJsonLd(product, {
-    siteUrl: getSiteUrl(),
-    storeName: settings?.storeName ?? "One Star",
-    reviews: productReviews,
-    reviewStats: productReviewStats,
-  })
+  const jsonLd = buildProductJsonLd(
+    { ...product, faqs: resolvedContent.faqs },
+    {
+      siteUrl: getSiteUrl(),
+      storeName: settings?.storeName ?? "One Star",
+      reviews: productReviews,
+      reviewStats: productReviewStats,
+      returnWindowDays: resolvedContent.returnWindowDays,
+    }
+  )
 
   // Disponibilidad online = stock vendible por variante (lo mismo que valida el
   // checkout). El desglose por sede es solo informativo: la web no lo reserva.
@@ -149,13 +182,13 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
         <ProductDetail
           product={product}
           reviewStats={productReviewStats}
-          promises={promises}
+          promises={resolvedContent.promises}
           whatsappUrl={whatsappUrl}
           initialColor={initialColor}
         />
 
         {/* ── Por qué comprarlo ── */}
-        <WhyBuy productName={product.name} highlights={product.highlights} promises={promises} />
+        <WhyBuy productName={product.name} highlights={resolvedContent.highlights} promises={resolvedContent.promises} />
 
         {/* ── Extended description hero (Nike-style) ── */}
         {(product.extendedDescription || product.description) && (
@@ -199,7 +232,7 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
 
       {/* ── FAQ + cierre ── */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12">
-        <ProductFaqSection faqs={product.faqs} />
+        <ProductFaqSection faqs={resolvedContent.faqs} />
         {product.availableOnline !== false && (
           <ClosingCta name={product.name} price={displayPrice} targetId="comprar" />
         )}

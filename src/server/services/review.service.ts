@@ -6,8 +6,12 @@ import {
   findReviewsForAdmin,
   countPendingReviews,
   setReviewApproval,
+  setReviewFeatured,
+  updateReviewRecord,
   deleteReviewRecord,
+  findFeaturedReviewsByBrand,
 } from "../repositories/review.repository"
+import type { EditReviewInput } from "../validators/review.validator"
 
 export async function getProductReviews(productId: string) {
   return getReviewsByProduct(productId)
@@ -40,12 +44,14 @@ export async function submitProductReview(data: ReviewInput) {
 }
 
 /** Reseña cargada por un admin (p. ej. testimonios reales recibidos por otros canales): se publica directo. */
-export async function createAdminReview(data: ReviewInput & { verified?: boolean }) {
+export async function createAdminReview(data: ReviewInput & { verified?: boolean; isFeatured?: boolean }) {
   validateReview(data)
-  return createReview({ ...data, isApproved: true })
+  const payload: Parameters<typeof createReview>[0] = { ...data, isApproved: true }
+  if (data.isFeatured !== undefined) payload.isFeatured = data.isFeatured
+  return createReview(payload)
 }
 
-export async function listReviewsForAdmin(filter: "pending" | "approved" | "all") {
+export async function listReviewsForAdmin(filter: "pending" | "approved" | "featured" | "all") {
   return findReviewsForAdmin(filter)
 }
 
@@ -57,6 +63,25 @@ export async function moderateReview(id: string, isApproved: boolean) {
   return setReviewApproval(id, isApproved)
 }
 
+export async function toggleFeaturedReview(id: string, isFeatured: boolean) {
+  return setReviewFeatured(id, isFeatured)
+}
+
+export async function updateReview(id: string, data: Omit<EditReviewInput, "id">) {
+  return updateReviewRecord(id, {
+    userName: data.userName,
+    rating: data.rating,
+    title: data.title,
+    body: data.body,
+    verified: data.verified,
+    isFeatured: data.isFeatured,
+  })
+}
+
 export async function removeReview(id: string) {
   return deleteReviewRecord(id)
+}
+
+export async function getFeaturedReviewsForBrand(brandId: string, limit = 6) {
+  return findFeaturedReviewsByBrand(brandId, limit)
 }

@@ -2,7 +2,14 @@
 
 import { revalidatePath } from "next/cache"
 import { requireAdmin } from "@/server/auth/require-admin"
-import { createAdminReview, moderateReview, removeReview } from "@/server/services/review.service"
+import {
+  createAdminReview,
+  moderateReview,
+  removeReview,
+  toggleFeaturedReview,
+  updateReview,
+} from "@/server/services/review.service"
+import { editReviewSchema } from "@/server/validators/review.validator"
 
 interface ReviewActionResult {
   success: boolean
@@ -11,7 +18,9 @@ interface ReviewActionResult {
 
 function refresh() {
   revalidatePath("/admin/resenas")
-  revalidatePath("/productos/[slug]", "page")
+  revalidatePath("/productos", "layout")
+  revalidatePath("/marcas", "layout")
+  revalidatePath("/")
 }
 
 function errorMessage(error: unknown): string {
@@ -22,6 +31,44 @@ export async function moderateReviewAction(id: string, isApproved: boolean): Pro
   try {
     await requireAdmin()
     await moderateReview(id, isApproved)
+    refresh()
+    return { success: true }
+  } catch (error: unknown) {
+    return { success: false, error: errorMessage(error) }
+  }
+}
+
+export async function toggleFeaturedAction(id: string, isFeatured: boolean): Promise<ReviewActionResult> {
+  try {
+    await requireAdmin()
+    await toggleFeaturedReview(id, isFeatured)
+    refresh()
+    return { success: true }
+  } catch (error: unknown) {
+    return { success: false, error: errorMessage(error) }
+  }
+}
+
+export async function updateReviewAction(formData: FormData): Promise<ReviewActionResult> {
+  try {
+    await requireAdmin()
+    const id = String(formData.get("id") ?? "")
+    const validated = editReviewSchema.safeParse({
+      id,
+      userName: String(formData.get("userName") ?? ""),
+      rating: Number(formData.get("rating")),
+      title: String(formData.get("title") ?? "").trim() || null,
+      body: String(formData.get("body") ?? ""),
+      verified: formData.get("verified") === "true" || formData.get("verified") === "on",
+      isFeatured: formData.get("isFeatured") === "true" || formData.get("isFeatured") === "on",
+    })
+
+    if (!validated.success) {
+      const msg = validated.error.issues[0]?.message ?? "Datos de reseña inválidos"
+      return { success: false, error: msg }
+    }
+
+    await updateReview(id, validated.data)
     refresh()
     return { success: true }
   } catch (error: unknown) {
@@ -52,7 +99,8 @@ export async function createReviewAction(formData: FormData): Promise<ReviewActi
       rating: Number(formData.get("rating")),
       title: String(formData.get("title") ?? "").trim() || undefined,
       body: String(formData.get("body") ?? ""),
-      verified: formData.get("verified") === "on",
+      verified: formData.get("verified") === "on" || formData.get("verified") === "true",
+      isFeatured: formData.get("isFeatured") === "on" || formData.get("isFeatured") === "true",
     })
     refresh()
     return { success: true }

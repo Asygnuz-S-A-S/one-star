@@ -41,15 +41,22 @@ model Category {
 }
 
 model Brand {
-  id        String    @id @default(cuid())
-  name      String    @unique
-  slug      String    @unique
-  erpId     String?   @unique
-  logoUrl   String?
-  isActive  Boolean   @default(true)
-  products  Product[]
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id              String    @id @default(cuid())
+  name            String    @unique
+  slug            String    @unique
+  erpId           String?   @unique
+  logoUrl         String?
+  bannerUrl       String?
+  description     String?
+  story           String?
+  metaTitle       String?
+  metaDescription String?
+  highlights      String[]  @default([])
+  faqs            Json?
+  isActive        Boolean   @default(true)
+  products        Product[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }
 
 model Product {
@@ -117,9 +124,12 @@ model ProductReview {
   verified   Boolean  @default(false)
   /// Las reseñas de clientes entran sin aprobar; solo las aprobadas se publican y puntúan en SEO.
   isApproved Boolean  @default(true)
+  /// Reseñas destacadas para mostrar en marcas y secciones destacadas (solo si están aprobadas).
+  isFeatured Boolean  @default(false)
   createdAt  DateTime @default(now())
 
   @@index([productId, isApproved])
+  @@index([isApproved, isFeatured])
 }
 
 model ProductImage {
@@ -535,6 +545,17 @@ model StoreSettings {
   metaTestEventCode String?
   metaPixelEnabled  Boolean  @default(false)
   updatedAt         DateTime @updatedAt
+}
+
+// Contenido y promesas globales de conversión: registro único (id = "default").
+// Beneficios generales, preguntas frecuentes globales y promesas de la tienda.
+model SiteContent {
+  id               String   @id @default("default")
+  highlights       String[] @default([])
+  faqs             Json?
+  promises         Json?
+  returnWindowDays Int      @default(30)
+  updatedAt        DateTime @updatedAt
 }
 
 // Paleta de colores de producto, administrable desde /admin/colores.

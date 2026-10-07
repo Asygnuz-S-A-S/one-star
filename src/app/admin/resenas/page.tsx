@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic"
 const FILTERS = [
   { value: "pendientes", label: "Pendientes", filter: "pending" },
   { value: "aprobadas", label: "Publicadas", filter: "approved" },
+  { value: "destacadas", label: "Destacadas", filter: "featured" },
   { value: "todas", label: "Todas", filter: "all" },
 ] as const
 
@@ -25,9 +26,10 @@ export default async function ResenasPage({
       <h1 className="font-['Barlow',sans-serif] text-2xl font-bold text-[#1C1C1C] mb-1">Reseñas</h1>
       <p className="text-sm text-[#4A4A4A] mb-6">
         Las reseñas de clientes llegan como pendientes: solo se publican (y suman a las estrellas en Google) cuando las apruebas.
+        Puedes editar testimonios y marcar reseñas aprobadas como destacadas para que aparezcan en la página de su marca.
       </p>
 
-      <div className="mb-6 flex gap-2">
+      <div className="mb-6 flex flex-wrap gap-2">
         {FILTERS.map((f) => (
           <Link
             key={f.value}
@@ -50,6 +52,7 @@ export default async function ResenasPage({
           body: r.body,
           verified: r.verified,
           isApproved: r.isApproved,
+          isFeatured: r.isFeatured,
           createdAt: r.createdAt.toISOString(),
           productName: r.product.name,
           productSlug: r.product.slug,
