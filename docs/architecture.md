@@ -221,6 +221,11 @@ esas condiciones para no sobrescribir una edición administrativa concurrente.
   - Reseñas destacadas de productos de esa marca (`isApproved: true` y `isFeatured: true`).
   - Preguntas frecuentes propias de la marca.
   - SEO propio en `src/lib/seo/brand-seo.ts`: `CollectionPage` con `ItemList`, `Brand`, `BreadcrumbList` y `FAQPage` (sin `aggregateRating` en marca para cumplir directrices de Google y evitar penalizaciones por self-serving reviews).
+- **Guía de tallas por marca (`SizeGuideModal`)**:
+  - `sizeGuideImageUrl` y `sizeGuideNote` en el modelo `Brand` (administrables desde `/admin/marcas`).
+  - La ficha de producto muestra la guía visual específica de la marca (ej. tabla oficial de Converse o Nike) con nota aclaratoria (ej. "calza medio número más grande").
+  - Si la marca no tiene imagen personalizada configurada, el modal recurre a la tabla estándar (CM / EU / US / UK).
+  - Accesibilidad completa: rol `dialog`, `aria-modal="true"`, cierre con tecla `Escape` o clic fuera, bloqueo de scroll del `body`, foco retornado al botón disparador y soporte de pinch-zoom móvil (`touch-auto`).
 - **Reseñas con moderación y destacadas** (`ProductReview`):
   - `isApproved`: las de clientes entran pendientes; solo las aprobadas se publican y puntúan en el SEO del producto. El admin las aprueba, oculta, edita o elimina en `/admin/resenas`.
   - `isFeatured`: permite marcar testimonios para destacarlos en la página de marca. Al desaprobar u ocultar una reseña, la marca `isFeatured` se apaga automáticamente.

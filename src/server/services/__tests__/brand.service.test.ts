@@ -18,6 +18,7 @@ import {
   getAllBrands,
   getBrandById,
   getBrandBySlug,
+  getBrandDetailBySlug,
   getStorefrontBrands,
   updateBrand,
 } from "../brand.service"
@@ -195,3 +196,23 @@ describe("getStorefrontBrands", () => {
     ])
   })
 })
+
+describe("getBrandDetailBySlug", () => {
+  it("devuelve los campos de detalle y guía de tallas cuando la marca existe", async () => {
+    vi.mocked(findBrandBySlug).mockResolvedValue(
+      marca({
+        sizeGuideImageUrl: "https://res.cloudinary.com/demo/image/upload/guide.jpg",
+        sizeGuideNote: "Talla normal",
+      }) as never
+    )
+
+    const result = await getBrandDetailBySlug("new-balance")
+
+    expect(result).toMatchObject({
+      slug: "new-balance",
+      sizeGuideImageUrl: "https://res.cloudinary.com/demo/image/upload/guide.jpg",
+      sizeGuideNote: "Talla normal",
+    })
+  })
+})
+

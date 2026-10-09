@@ -26,6 +26,8 @@ export default function BrandManager({ brands: initialBrands }: { brands: (Brand
   const [name, setName] = useState("")
   const [logoUrl, setLogoUrl] = useState("")
   const [bannerUrl, setBannerUrl] = useState("")
+  const [sizeGuideImageUrl, setSizeGuideImageUrl] = useState("")
+  const [sizeGuideNote, setSizeGuideNote] = useState("")
   const [description, setDescription] = useState("")
   const [story, setStory] = useState("")
   const [metaTitle, setMetaTitle] = useState("")
@@ -38,12 +40,15 @@ export default function BrandManager({ brands: initialBrands }: { brands: (Brand
   const [error, setError] = useState("")
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const [uploadingBanner, setUploadingBanner] = useState(false)
-  const [mediaTarget, setMediaTarget] = useState<"logo" | "banner" | null>(null)
+  const [uploadingSizeGuide, setUploadingSizeGuide] = useState(false)
+  const [mediaTarget, setMediaTarget] = useState<"logo" | "banner" | "sizeGuide" | null>(null)
 
   const resetForm = () => {
     setName("")
     setLogoUrl("")
     setBannerUrl("")
+    setSizeGuideImageUrl("")
+    setSizeGuideNote("")
     setDescription("")
     setStory("")
     setMetaTitle("")
@@ -67,6 +72,8 @@ export default function BrandManager({ brands: initialBrands }: { brands: (Brand
     setName(brand.name)
     setLogoUrl(brand.logoUrl ?? "")
     setBannerUrl(detail.bannerUrl ?? "")
+    setSizeGuideImageUrl(detail.sizeGuideImageUrl ?? "")
+    setSizeGuideNote(detail.sizeGuideNote ?? "")
     setDescription(detail.description ?? "")
     setStory(detail.story ?? "")
     setMetaTitle(detail.metaTitle ?? "")
@@ -78,9 +85,10 @@ export default function BrandManager({ brands: initialBrands }: { brands: (Brand
     setError("")
   }
 
-  async function handleFileUpload(file: File, target: "logo" | "banner") {
+  async function handleFileUpload(file: File, target: "logo" | "banner" | "sizeGuide") {
     if (target === "logo") setUploadingLogo(true)
-    else setUploadingBanner(true)
+    else if (target === "banner") setUploadingBanner(true)
+    else setUploadingSizeGuide(true)
 
     const fd = new FormData()
     fd.append("file", file)
@@ -89,7 +97,8 @@ export default function BrandManager({ brands: initialBrands }: { brands: (Brand
       const data = await res.json()
       if (res.ok) {
         if (target === "logo") setLogoUrl(data.url)
-        else setBannerUrl(data.url)
+        else if (target === "banner") setBannerUrl(data.url)
+        else setSizeGuideImageUrl(data.url)
       } else {
         setError(data.error ?? "Error al subir archivo")
       }
@@ -97,7 +106,8 @@ export default function BrandManager({ brands: initialBrands }: { brands: (Brand
       setError("Error de red al subir archivo")
     } finally {
       if (target === "logo") setUploadingLogo(false)
-      else setUploadingBanner(false)
+      else if (target === "banner") setUploadingBanner(false)
+      else setUploadingSizeGuide(false)
     }
   }
 
@@ -112,6 +122,8 @@ export default function BrandManager({ brands: initialBrands }: { brands: (Brand
     fd.set("name", name.trim())
     fd.set("logoUrl", logoUrl.trim())
     fd.set("bannerUrl", bannerUrl.trim())
+    fd.set("sizeGuideImageUrl", sizeGuideImageUrl.trim())
+    fd.set("sizeGuideNote", sizeGuideNote.trim())
     fd.set("description", description.trim())
     fd.set("story", story.trim())
     fd.set("metaTitle", metaTitle.trim())
@@ -140,6 +152,8 @@ export default function BrandManager({ brands: initialBrands }: { brands: (Brand
                   slug,
                   logoUrl: logoUrl || null,
                   bannerUrl: bannerUrl || null,
+                  sizeGuideImageUrl: sizeGuideImageUrl || null,
+                  sizeGuideNote: sizeGuideNote || null,
                   description: description || null,
                   story: story || null,
                   metaTitle: metaTitle || null,
@@ -159,6 +173,8 @@ export default function BrandManager({ brands: initialBrands }: { brands: (Brand
             erpId: null,
             logoUrl: logoUrl || null,
             bannerUrl: bannerUrl || null,
+            sizeGuideImageUrl: sizeGuideImageUrl || null,
+            sizeGuideNote: sizeGuideNote || null,
             description: description || null,
             story: story || null,
             metaTitle: metaTitle || null,
@@ -348,6 +364,84 @@ export default function BrandManager({ brands: initialBrands }: { brands: (Brand
             </div>
           </div>
 
+          {/* Guía de Tallas */}
+          <div className="grid gap-6 md:grid-cols-2 p-4 bg-gray-50 border border-gray-200 rounded-xl">
+            {/* Imagen de la guía */}
+            <div>
+              <label className="block text-sm font-medium text-[#1C1C1C] mb-1">
+                Guía de Tallas (Imagen)
+              </label>
+              <p className="text-xs text-gray-500 mb-3">
+                Sube la tabla oficial de la marca (ej. tabla de medidas Converse / Nike). Si no se carga ninguna, se mostrará la tabla genérica del sitio.
+              </p>
+              {sizeGuideImageUrl ? (
+                <div className="p-3 bg-white border border-gray-200 rounded-xl flex items-center gap-4">
+                  <div className="w-20 h-16 bg-gray-50 border border-gray-200 rounded-lg p-1 flex items-center justify-center overflow-hidden">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={sizeGuideImageUrl} alt="Guía de tallas" className="max-h-full max-w-full object-contain" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setMediaTarget("sizeGuide")}
+                      className="px-3 py-1.5 bg-white border border-gray-300 hover:bg-gray-100 text-xs font-bold text-[#1C1C1C] rounded-lg transition-colors"
+                    >
+                      Biblioteca
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSizeGuideImageUrl("")}
+                      className="px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    >
+                      Quitar guía
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setMediaTarget("sizeGuide")}
+                    className="px-3 py-2 bg-[#1C1C1C] text-white hover:bg-gray-800 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors"
+                  >
+                    Elegir Guía
+                  </button>
+                  <label className="px-3 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors">
+                    <span>{uploadingSizeGuide ? "Subiendo…" : "Subir archivo"}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) handleFileUpload(file, "sizeGuide")
+                      }}
+                      disabled={uploadingSizeGuide}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              )}
+            </div>
+
+            {/* Nota de la guía */}
+            <div>
+              <label className="block text-sm font-medium text-[#1C1C1C] mb-1">
+                Nota de la Guía de Tallas (opcional)
+              </label>
+              <p className="text-xs text-gray-500 mb-3">
+                Recomendación de horma o calce para esta marca (ej. &ldquo;Los modelos Hoka tienen horma ancha. Se recomienda pedir media talla menos.&rdquo;).
+              </p>
+              <textarea
+                rows={3}
+                value={sizeGuideNote}
+                onChange={(e) => setSizeGuideNote(e.target.value)}
+                placeholder="Ej. La horma de esta marca es reducida. Te aconsejamos seleccionar una talla superior a tu habitual."
+                className={inputCls}
+                maxLength={500}
+              />
+            </div>
+          </div>
+
           {/* Historia y Filosofía */}
           <div>
             <label className="block text-sm font-medium text-[#1C1C1C] mb-1">
@@ -526,10 +620,17 @@ export default function BrandManager({ brands: initialBrands }: { brands: (Brand
         isOpen={Boolean(mediaTarget)}
         onClose={() => setMediaTarget(null)}
         acceptedType="image"
-        title={mediaTarget === "logo" ? "Seleccionar Logo de Marca" : "Seleccionar Banner de Marca"}
+        title={
+          mediaTarget === "logo"
+            ? "Seleccionar Logo de Marca"
+            : mediaTarget === "banner"
+            ? "Seleccionar Banner de Marca"
+            : "Seleccionar Guía de Tallas"
+        }
         onSelect={(media) => {
           if (mediaTarget === "logo") setLogoUrl(media.url)
-          if (mediaTarget === "banner") setBannerUrl(media.url)
+          else if (mediaTarget === "banner") setBannerUrl(media.url)
+          else if (mediaTarget === "sizeGuide") setSizeGuideImageUrl(media.url)
           setMediaTarget(null)
         }}
       />

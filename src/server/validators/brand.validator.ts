@@ -27,6 +27,8 @@ export const brandInputSchema = z.object({
   slug: z.string().trim().min(1).max(100).optional(),
   logoUrl: optionalImageUrlSchema,
   bannerUrl: optionalImageUrlSchema,
+  sizeGuideImageUrl: optionalImageUrlSchema,
+  sizeGuideNote: z.string().trim().max(500).optional().nullable(),
   description: z.string().trim().max(1000).optional().nullable(),
   story: z.string().trim().max(5000).optional().nullable(),
   metaTitle: z.string().trim().max(120).optional().nullable(),

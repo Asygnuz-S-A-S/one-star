@@ -184,6 +184,7 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
           reviewStats={productReviewStats}
           promises={resolvedContent.promises}
           whatsappUrl={whatsappUrl}
+          brand={brandDetail}
           initialColor={initialColor}
         />
 

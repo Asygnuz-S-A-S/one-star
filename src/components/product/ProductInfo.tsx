@@ -31,6 +31,7 @@ interface ProductInfoProps {
   /** Garantías reales de la tienda (envío, entrega, cambios, pago) que se muestran junto al botón. */
   promises?: StorePromise[]
   whatsappUrl?: string | null
+  brand?: { name?: string | null; sizeGuideImageUrl?: string | null; sizeGuideNote?: string | null } | null
   /** Color controlado desde el padre para sincronizar la galería. */
   selectedColor?: string
   onColorChange?: (color: string) => void
@@ -95,6 +96,7 @@ export default function ProductInfo({
   reviewStats,
   promises = [],
   whatsappUrl = null,
+  brand = null,
   selectedColor: controlledColor,
   onColorChange,
 }: ProductInfoProps) {
@@ -608,7 +610,11 @@ export default function ProductInfo({
 
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
-      <SizeGuideModal isOpen={sizeModalOpen} onClose={() => setSizeModalOpen(false)} />
+      <SizeGuideModal
+        isOpen={sizeModalOpen}
+        onClose={() => setSizeModalOpen(false)}
+        brand={brand ?? (product.brand ? { name: product.brand } : null)}
+      />
     </MotionConfig>
   )
 }
