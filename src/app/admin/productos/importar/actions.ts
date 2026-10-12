@@ -29,7 +29,10 @@ export async function previewProductImportAction(
       return { success: false, error: "No se recibió ningún archivo." }
     }
     const buffer = await file.arrayBuffer()
-    const preview = await previewProductImport(buffer)
+    const onlyReadyParam = formData.get("onlyReadyRows")
+    const onlyReadyRows =
+      onlyReadyParam !== null ? onlyReadyParam === "true" || onlyReadyParam === "1" : undefined
+    const preview = await previewProductImport(buffer, { onlyReadyRows })
     return { success: true, data: preview }
   } catch (error: unknown) {
     return { success: false, error: getErrorMessage(error) }
@@ -50,7 +53,10 @@ export async function applyProductImportAction(
       return { success: false, error: "Falta la vista previa — vuelve a subir el archivo." }
     }
     const buffer = await file.arrayBuffer()
-    const result = await applyProductImport(buffer, fingerprint)
+    const onlyReadyParam = formData.get("onlyReadyRows")
+    const onlyReadyRows =
+      onlyReadyParam !== null ? onlyReadyParam === "true" || onlyReadyParam === "1" : undefined
+    const result = await applyProductImport(buffer, fingerprint, { onlyReadyRows })
 
     revalidatePath("/admin/productos")
     revalidatePath("/productos")

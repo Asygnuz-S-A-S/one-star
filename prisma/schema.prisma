@@ -67,6 +67,7 @@ model Product {
   metaDescription     String?
   extendedDescription String?
   videoUrl            String?
+  photosFolderUrl     String?
   categoryId          String
   category            Category       @relation(fields: [categoryId], references: [id])
   erpId               String?        @unique
