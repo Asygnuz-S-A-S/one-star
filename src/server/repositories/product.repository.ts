@@ -152,11 +152,52 @@ export async function createProductRecord(data: Prisma.ProductCreateInput) {
   return prisma.product.create({ data, include: productInclude })
 }
 
+/**
+ * Trae, para cada SKU dado, a qué producto pertenece su variante (id, slug y
+ * erpId) y el estado actual de la variante. Usado por el importador de Excel
+ * para decidir crear/actualizar/rechazar cada fila sin tocar productos que ya
+ * gestiona el ERP.
+ */
+export async function findVariantsBySkus(skus: string[]) {
+  if (skus.length === 0) return []
+  return prisma.variant.findMany({
+    where: { sku: { in: skus } },
+    select: {
+      id: true,
+      sku: true,
+      size: true,
+      color: true,
+      stock: true,
+      sizeUS: true,
+      sizeCM: true,
+      sizeEUR: true,
+      product: { select: { id: true, slug: true, name: true, erpId: true } },
+    },
+  })
+}
+
 export async function updateProductRecord(
   id: string,
   data: Prisma.ProductUpdateInput
 ) {
   return prisma.product.update({ where: { id }, data, include: productInclude })
+}
+
+/**
+ * Productos cargados a mano (sin `erpId`) — usado por el asistente de
+ * conexión ERP para detectar posibles duplicados antes de la primera
+ * sincronización real.
+ */
+export async function findManualProductNames() {
+  return prisma.product.findMany({
+    where: { erpId: null },
+    select: { id: true, name: true, slug: true },
+  })
+}
+
+/** Cambia el slug de un producto manual para que el sincronizador lo reconozca como el mismo del ERP. */
+export async function updateProductSlug(id: string, slug: string) {
+  return prisma.product.update({ where: { id }, data: { slug } })
 }
 
 export interface AdminProductRelationsUpdate {
