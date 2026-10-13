@@ -66,6 +66,9 @@ export interface ProductWithRelations {
   videoUrl: string | null
   metaTitle: string | null
   metaDescription: string | null
+  highlights: string[]
+  isNew?: boolean
+  faqs: { q: string; a: string }[]
   gender: string | null
   categoryId: string
   category: ProductCategory

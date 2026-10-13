@@ -1,7 +1,9 @@
 import type { MetadataRoute } from "next"
 import { getCategories } from "@/server/services/category.service"
 import { getProductSitemapEntries } from "@/server/services/product.service"
+import { getStorefrontBrands } from "@/server/services/brand.service"
 import { getSiteUrl } from "@/lib/site-url"
+import { absoluteUrl } from "@/lib/seo/product-seo"
 
 /** El sitemap se regenera cada hora; no necesita ser dinámico por petición. */
 export const revalidate = 3600
@@ -15,6 +17,7 @@ interface StaticRoute {
 const STATIC_ROUTES: StaticRoute[] = [
   { path: "/", changeFrequency: "daily", priority: 1 },
   { path: "/productos", changeFrequency: "daily", priority: 0.9 },
+  { path: "/marcas", changeFrequency: "weekly", priority: 0.8 },
   { path: "/lanzamientos", changeFrequency: "weekly", priority: 0.8 },
   { path: "/sale", changeFrequency: "daily", priority: 0.8 },
   { path: "/tarjeta-regalo", changeFrequency: "monthly", priority: 0.5 },
@@ -29,13 +32,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Si la base de datos falla, el sitemap sigue sirviendo las rutas estáticas
   // en lugar de tumbar el build o devolver un 500 (mismo criterio que el layout).
-  const [categories, products] = await Promise.all([
+  const [categories, products, brands] = await Promise.all([
     getCategories().catch((error: unknown) => {
       console.error("[sitemap] getCategories falló:", error)
       return []
     }),
     getProductSitemapEntries().catch((error: unknown) => {
       console.error("[sitemap] getProductSitemapEntries falló:", error)
+      return []
+    }),
+    getStorefrontBrands().catch((error: unknown) => {
+      console.error("[sitemap] getStorefrontBrands falló:", error)
       return []
     }),
   ])
@@ -53,11 +60,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "weekly" as const,
       priority: 0.7,
     })),
+    ...brands.map((brand) => ({
+      url: `${siteUrl}/marcas/${brand.slug}`,
+      lastModified: now,
+      changeFrequency: "weekly" as const,
+      priority: 0.7,
+    })),
     ...products.map((product) => ({
       url: `${siteUrl}/productos/${product.slug}`,
       lastModified: product.updatedAt,
       changeFrequency: "weekly" as const,
       priority: 0.6,
+      ...(product.imageUrl ? { images: [absoluteUrl(product.imageUrl, siteUrl)] } : {}),
     })),
   ]
 }

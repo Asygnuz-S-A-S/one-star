@@ -53,7 +53,7 @@ export async function submitReviewAction(formData: FormData) {
       title: title || undefined,
       body,
     })
-    revalidatePath(`/productos/[slug]`)
+    revalidatePath("/productos/[slug]", "page")
     return { ok: true }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Error al enviar reseña"

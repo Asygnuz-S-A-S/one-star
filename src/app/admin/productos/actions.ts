@@ -12,6 +12,7 @@ import {
   productFormSchema,
 } from "@/server/validators/product.validator"
 import { slugify } from "@/lib/utils"
+import { faqsFromText, highlightsFromText } from "@/lib/product-faq"
 import { requireAdmin } from "@/server/auth/require-admin"
 import type { ActionResult } from "@/types/admin"
 
@@ -49,6 +50,8 @@ function extractFormData(formData: FormData) {
     availableOnline: formData.get("availableOnline") !== "false",
     availableInStores: formData.get("availableInStores") !== "false",
     isPublished: formData.get("isPublished") !== "false",
+    highlights: highlightsFromText((formData.get("highlights") as string) ?? ""),
+    faqs: faqsFromText((formData.get("faqs") as string) ?? ""),
     variants: JSON.parse((formData.get("variants") as string) || "[]"),
     images: JSON.parse((formData.get("images") as string) || "[]"),
     colorFamilyProductIds: JSON.parse((formData.get("colorFamilyProductIds") as string) || "[]"),

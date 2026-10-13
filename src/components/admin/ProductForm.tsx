@@ -15,6 +15,7 @@ import {
   isRealColor,
   type ColorPalette,
 } from "@/lib/colors"
+import { faqsToText, parseProductFaqs } from "@/lib/product-faq"
 import ProductImagesByColor from "./images/ProductImagesByColor"
 import ProductVideoField from "./ProductVideoField"
 import {
@@ -123,6 +124,8 @@ export default function ProductForm({
   const [availableOnline, setAvailableOnline] = useState(product?.availableOnline ?? true)
   const [availableInStores, setAvailableInStores] = useState(product?.availableInStores ?? true)
   const [isPublished, setIsPublished] = useState(product?.isPublished ?? true)
+  const [highlightsText, setHighlightsText] = useState((product?.highlights ?? []).join("\n"))
+  const [faqsText, setFaqsText] = useState(faqsToText(parseProductFaqs(product?.faqs)))
 
   // Pricing
   // El precio llega de Loggro y es de solo lectura: un producto a $0 (p. ej. bolsas
@@ -489,6 +492,8 @@ export default function ProductForm({
     formData.set("availableOnline", String(availableOnline))
     formData.set("availableInStores", String(availableInStores))
     formData.set("isPublished", String(isPublished))
+    formData.set("highlights", highlightsText)
+    formData.set("faqs", faqsText)
     
     // Ensure all variants map their 'inventory' objects correctly with numbers.
     // Las sedes vinculadas al ERP no se envían: su stock lo escribe la sincronización.
@@ -725,6 +730,34 @@ export default function ProductForm({
             </Field>
           </div>
         )}
+      </Section>
+
+      {/* Conversión de la ficha: por qué comprarlo + preguntas frecuentes (también alimentan el SEO) */}
+      <Section title="Ficha que vende: beneficios y preguntas frecuentes">
+        <Field
+          label="Beneficios (uno por línea, máx. 8)"
+          hint="Responde «¿por qué debería comprarlo?». Escribe «Título corto: detalle». Junto al botón se muestra solo el título (los 4 primeros) y abajo, en «¿Por qué comprarlo?», el título con su detalle."
+        >
+          <textarea
+            value={highlightsText}
+            onChange={(e) => setHighlightsText(e.target.value)}
+            rows={5}
+            placeholder={"Amortiguación suave: absorbe el impacto en uso diario\nMalla transpirable: mantiene el pie fresco todo el día"}
+            className={inputClass}
+          />
+        </Field>
+        <Field
+          label="Preguntas frecuentes (una por línea: Pregunta | Respuesta)"
+          hint="Aparecen en la ficha y Google puede mostrarlas como desplegables en los resultados."
+        >
+          <textarea
+            value={faqsText}
+            onChange={(e) => setFaqsText(e.target.value)}
+            rows={5}
+            placeholder={"¿Talla normal o más pequeña? | Corre una talla normal; si estás entre dos, pide la mayor.\n¿Puedo cambiarlos? | Sí, tienes 30 días para cambios."}
+            className={inputClass}
+          />
+        </Field>
       </Section>
 
       {/* C. SEO */}

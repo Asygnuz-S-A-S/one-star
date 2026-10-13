@@ -6,17 +6,24 @@ vi.mock("@/server/repositories/review.repository", () => ({
   getReviewsByProduct: vi.fn(),
   createReview: vi.fn(),
   getReviewStats: vi.fn(),
+  findReviewsForAdmin: vi.fn(),
+  countPendingReviews: vi.fn(),
+  setReviewApproval: vi.fn(),
+  deleteReviewRecord: vi.fn(),
 }))
 
 import {
   getProductReviews,
   getProductReviewStats,
   submitProductReview,
+  createAdminReview,
+  moderateReview,
 } from "../review.service"
 import {
   createReview,
   getReviewStats,
   getReviewsByProduct,
+  setReviewApproval,
 } from "@/server/repositories/review.repository"
 
 const create = vi.mocked(createReview)
@@ -33,13 +40,19 @@ const reseñaValida = {
 beforeEach(() => vi.clearAllMocks())
 
 describe("submitProductReview", () => {
-  it("guarda la reseña cuando los datos son válidos", async () => {
+  it("guarda la reseña de un cliente como pendiente de aprobación", async () => {
     create.mockResolvedValue({ id: "rev_1" } as never)
 
     const result = await submitProductReview(reseñaValida)
 
-    expect(create).toHaveBeenCalledWith(reseñaValida)
+    expect(create).toHaveBeenCalledWith({ ...reseñaValida, isApproved: false })
     expect(result).toEqual({ id: "rev_1" })
+  })
+
+  it("rechaza un comentario demasiado largo", async () => {
+    await expect(
+      submitProductReview({ ...reseñaValida, body: "a".repeat(2001) })
+    ).rejects.toThrow("demasiado largo")
   })
 
   it.each([0, 6, -1])("rechaza la calificación fuera de 1 a 5: %s", async (rating) => {
@@ -86,5 +99,21 @@ describe("consultas de reseñas", () => {
 
     expect(await getProductReviewStats("prod_1")).toEqual({ average: 4.5, count: 2 })
     expect(stats).toHaveBeenCalledWith("prod_1")
+  })
+})
+
+describe("moderación", () => {
+  it("una reseña cargada por un admin se publica directo", async () => {
+    create.mockResolvedValue({ id: "rev_2" } as never)
+
+    await createAdminReview({ ...reseñaValida, verified: true })
+
+    expect(create).toHaveBeenCalledWith({ ...reseñaValida, verified: true, isApproved: true })
+  })
+
+  it("aprobar u ocultar delega en el repositorio", async () => {
+    await moderateReview("rev_1", true)
+
+    expect(vi.mocked(setReviewApproval)).toHaveBeenCalledWith("rev_1", true)
   })
 })
