@@ -42,6 +42,10 @@ vi.mock("@/server/services/coupon.service", () => ({
   releaseCouponUsageByCode: vi.fn(),
 }))
 
+vi.mock("@/server/services/gift-card.service", () => ({
+  issueAndSendGiftCardsForOrder: vi.fn(async () => undefined),
+}))
+
 vi.mock("@/server/services/email.service", () => ({
   sendOrderConfirmationEmail: vi.fn(),
 }))
@@ -120,6 +124,7 @@ const pricedVariant = {
     basePrice: makeDecimal(135000),
     isOnSale: false,
     salePrice: null,
+    categoryId: "cat-1",
   },
 }
 
@@ -309,7 +314,9 @@ describe("placeOrder — cupones", () => {
     mockRegisterUsage.mockResolvedValue(true)
     // 2 × 135.000 = 270.000 → envío gratis; 270.000 − 20.000 = 250.000
     await placeOrder("user-1", { ...orderInput, couponCode: "PROMO20" })
-    expect(mockValidateCoupon).toHaveBeenCalledWith("PROMO20", 270000)
+    expect(mockValidateCoupon).toHaveBeenCalledWith("PROMO20", [
+      { categoryId: "cat-1", unitPrice: 135000, quantity: 2 },
+    ])
     expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ total: 250000 }))
   })
 
