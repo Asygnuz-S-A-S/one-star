@@ -33,6 +33,7 @@ interface ProductGridProps {
   isOnSaleOnly?: boolean
   headerClassName?: string
   colorPalette?: ColorPalette
+  titleHeadingLevel?: "h1" | "h2"
 }
 
 // where and order builders removed (now handled in product.service)
@@ -80,6 +81,7 @@ export default async function ProductGrid({
   isOnSaleOnly,
   headerClassName,
   colorPalette,
+  titleHeadingLevel = "h1",
 }: ProductGridProps) {
   const page = Math.max(1, Number(searchParams.page ?? 1))
 
@@ -104,13 +106,15 @@ export default async function ProductGrid({
     Object.entries(searchParams).filter(([, v]) => v !== undefined) as [string, string][]
   ).toString()
 
+  const TitleTag = titleHeadingLevel
+
   return (
     <div>
       {/* Section header */}
       <div className={`px-4 md:px-8 py-8 ${headerClassName ?? ""}`}>
-        <h1 className="font-[var(--font-barlow)] font-bold text-3xl md:text-5xl uppercase tracking-tight text-[#1C1C1C] dark:text-white">
+        <TitleTag className="font-[var(--font-barlow)] font-bold text-3xl md:text-5xl uppercase tracking-tight text-[#1C1C1C] dark:text-white">
           {title}
-        </h1>
+        </TitleTag>
         {subtitle && (
           <p className="font-[var(--font-montserrat)] text-[#4A4A4A] dark:text-white/50 mt-1 text-sm">
             {subtitle}

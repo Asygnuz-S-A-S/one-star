@@ -120,6 +120,8 @@ export const productFormSchema = z.object({
   images: z.array(imageSchema).default([]),
   colorFamilyProductIds: z.array(z.string().min(1)).optional(),
   colorFamilyBaselineProductIds: z.array(z.string().min(1)).optional(),
+  highlights: z.array(z.string().trim().min(1).max(200)).max(8).default([]),
+  faqs: z.array(z.object({ q: z.string().trim().min(1).max(300), a: z.string().trim().min(1).max(1500) })).max(12).default([]),
   crossSellIds: z.array(z.string()).default([]),
 }).refine(
   (data) => !data.isOnSale || (data.salePrice !== null && data.salePrice !== undefined),

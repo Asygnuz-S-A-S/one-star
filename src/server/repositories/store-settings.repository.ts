@@ -23,6 +23,11 @@ export async function findStoreSettings() {
   })
 }
 
+/** Lectura sin escritura para páginas públicas: `null` si el registro aún no existe. */
+export async function findStoreSettingsReadOnly() {
+  return prisma.storeSettings.findUnique({ where: { id: STORE_SETTINGS_ID } })
+}
+
 export async function updateStoreSettingsRecord(patch: StoreSettingsPatch) {
   return prisma.storeSettings.upsert({
     where: { id: STORE_SETTINGS_ID },

@@ -13,13 +13,13 @@ import { createReview, getReviewStats, getReviewsByProduct } from "../review.rep
 beforeEach(() => vi.clearAllMocks())
 
 describe("getReviewsByProduct", () => {
-  it("devuelve las reseñas más recientes primero", async () => {
+  it("devuelve solo reseñas aprobadas, las más recientes primero", async () => {
     m.findMany.mockResolvedValue([])
 
     await getReviewsByProduct("prod_1")
 
     expect(m.findMany).toHaveBeenCalledWith({
-      where: { productId: "prod_1" },
+      where: { productId: "prod_1", isApproved: true },
       orderBy: { createdAt: "desc" },
     })
   })
@@ -29,10 +29,10 @@ describe("createReview", () => {
   it("guarda la reseña tal como llega del servicio, que ya la validó", async () => {
     m.create.mockResolvedValue({ id: "rev_1" })
 
-    await createReview({ productId: "prod_1", userName: "Ana", rating: 5, body: "Buena" })
+    await createReview({ productId: "prod_1", userName: "Ana", rating: 5, body: "Buena", isApproved: false })
 
     expect(m.create).toHaveBeenCalledWith({
-      data: { productId: "prod_1", userName: "Ana", rating: 5, body: "Buena" },
+      data: { productId: "prod_1", userName: "Ana", rating: 5, body: "Buena", isApproved: false },
     })
   })
 })
