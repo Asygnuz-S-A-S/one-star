@@ -25,6 +25,8 @@ function parseBrandFormData(formData: FormData) {
     slug: ((formData.get("slug") as string)?.trim()) || undefined,
     logoUrl: ((formData.get("logoUrl") as string)?.trim()) || null,
     bannerUrl: ((formData.get("bannerUrl") as string)?.trim()) || null,
+    sizeGuideImageUrl: ((formData.get("sizeGuideImageUrl") as string)?.trim()) || null,
+    sizeGuideNote: ((formData.get("sizeGuideNote") as string)?.trim()) || null,
     description: ((formData.get("description") as string)?.trim()) || null,
     story: ((formData.get("story") as string)?.trim()) || null,
     metaTitle: ((formData.get("metaTitle") as string)?.trim()) || null,

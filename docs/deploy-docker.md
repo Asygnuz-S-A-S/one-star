@@ -96,6 +96,16 @@ Un cambio destructivo de esquema debe pasar por el procedimiento de expansión y
 contracción descrito en `docs/architecture.md`; el gate
 `scripts/check-migration-safety.ts` lo verifica en CI.
 
+### Aprovisionamiento idempotente de marcas base
+
+Para crear o verificar marcas iniciales requeridas (como New Balance y On) en un entorno existente sin ejecutar el seed de demostración completo (`prisma/seed-demo.ts`, que puede generar datos ficticios no deseados en producción/staging), use el script idempotente:
+
+```bash
+pnpm exec tsx scripts/ensure-brands.ts
+```
+
+Este script solo crea las marcas si aún no existen por slug, respetando los datos ya presentes.
+
 ## Copias de seguridad
 
 Los datos viven en el volumen `onestar_pgdata`.

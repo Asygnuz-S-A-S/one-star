@@ -23,6 +23,8 @@ export interface BrandDTO {
 
 export interface BrandDetailDTO extends BrandDTO {
   bannerUrl: string | null
+  sizeGuideImageUrl: string | null
+  sizeGuideNote: string | null
   description: string | null
   story: string | null
   metaTitle: string | null
@@ -46,6 +48,8 @@ function mapToDetailDTO(brand: Brand): BrandDetailDTO {
   return {
     ...mapToDTO(brand),
     bannerUrl: brand.bannerUrl,
+    sizeGuideImageUrl: brand.sizeGuideImageUrl,
+    sizeGuideNote: brand.sizeGuideNote,
     description: brand.description,
     story: brand.story,
     metaTitle: brand.metaTitle,
@@ -101,6 +105,8 @@ export async function createBrand(input: {
   slug?: string
   logoUrl?: string | null
   bannerUrl?: string | null
+  sizeGuideImageUrl?: string | null
+  sizeGuideNote?: string | null
   description?: string | null
   story?: string | null
   metaTitle?: string | null
@@ -117,6 +123,8 @@ export async function createBrand(input: {
     isActive: input.isActive ?? true,
   }
   if (input.bannerUrl !== undefined) dataToCreate.bannerUrl = input.bannerUrl
+  if (input.sizeGuideImageUrl !== undefined) dataToCreate.sizeGuideImageUrl = input.sizeGuideImageUrl
+  if (input.sizeGuideNote !== undefined) dataToCreate.sizeGuideNote = input.sizeGuideNote
   if (input.description !== undefined) dataToCreate.description = input.description
   if (input.story !== undefined) dataToCreate.story = input.story
   if (input.metaTitle !== undefined) dataToCreate.metaTitle = input.metaTitle
@@ -135,6 +143,8 @@ export async function updateBrand(
     slug?: string
     logoUrl?: string | null
     bannerUrl?: string | null
+    sizeGuideImageUrl?: string | null
+    sizeGuideNote?: string | null
     description?: string | null
     story?: string | null
     metaTitle?: string | null
@@ -150,6 +160,8 @@ export async function updateBrand(
   if (slug !== undefined) dataToUpdate.slug = slug
   if (input.logoUrl !== undefined) dataToUpdate.logoUrl = input.logoUrl
   if (input.bannerUrl !== undefined) dataToUpdate.bannerUrl = input.bannerUrl
+  if (input.sizeGuideImageUrl !== undefined) dataToUpdate.sizeGuideImageUrl = input.sizeGuideImageUrl
+  if (input.sizeGuideNote !== undefined) dataToUpdate.sizeGuideNote = input.sizeGuideNote
   if (input.description !== undefined) dataToUpdate.description = input.description
   if (input.story !== undefined) dataToUpdate.story = input.story
   if (input.metaTitle !== undefined) dataToUpdate.metaTitle = input.metaTitle
