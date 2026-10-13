@@ -18,6 +18,7 @@ import { findVariantsForPricing } from "../repositories/variant.repository"
 import type { Prisma, OrderStatus, PaymentStatus } from "@prisma/client"
 import { getERPAdapter } from "../erp"
 import { sendOrderConfirmationEmail } from "./email.service"
+import { issueAndSendGiftCardsForOrder } from "./gift-card.service"
 import { getShippingCost, type ShippingMethod } from "@/lib/shipping"
 import { isGiftCardSku } from "@/lib/gift-card"
 import {
@@ -42,6 +43,8 @@ export interface OrderItemDTO {
   productImage: string | null
   quantity: number
   unitPrice: number
+  /** SKU de la variante comprada; null en pedidos previos a la migración sin variante. */
+  sku: string | null
 }
 
 export interface OrderDTO {
@@ -83,6 +86,7 @@ function mapToDTO(raw: {
     id: string
     productId: string
     product?: { name?: string; images?: Array<{ url: string }> }
+    variant?: { sku: string } | null
     quantity: number
     unitPrice: { toNumber: () => number }
   }>
@@ -111,6 +115,7 @@ function mapToDTO(raw: {
           productImage: item.product?.images?.[0]?.url ?? null,
           quantity: item.quantity,
           unitPrice: item.unitPrice.toNumber(),
+          sku: item.variant?.sku ?? null,
         }))
       : undefined,
   }
@@ -128,6 +133,7 @@ interface PricedOrderItem {
   productName: string
   quantity: number
   unitPrice: number
+  categoryId: string
 }
 
 /**
@@ -167,6 +173,7 @@ async function priceItemsFromDatabase(
       productName: product.name,
       quantity: item.quantity,
       unitPrice,
+      categoryId: product.categoryId,
     }
   })
 }
@@ -205,7 +212,10 @@ export async function placeOrder(
   // 0.2 Cupón: se revalida en servidor y el descuento se recalcula desde la BD.
   let appliedCoupon: { id: string; code: string; discountAmount: number } | null = null
   if (data.couponCode) {
-    const validation = await validateCouponForOrder(data.couponCode, subtotal)
+    const validation = await validateCouponForOrder(
+      data.couponCode,
+      pricedItems.map((i) => ({ categoryId: i.categoryId, unitPrice: i.unitPrice, quantity: i.quantity }))
+    )
     if (!validation.valid) {
       throw new Error(`El cupón "${data.couponCode}" ya no es válido: ${validation.reason}`)
     }
@@ -511,6 +521,14 @@ export async function changeOrderStatusAndTracking(
 ): Promise<void> {
   if (status === "PAID") {
     await markOrderPaidWithStock(id, trackingNumber)
+    // Marcar como pagado a mano (transferencia) también debe entregar las
+    // tarjetas de regalo. Es idempotente: si el webhook ya las emitió, no repite.
+    const paid = await getOrderById(id)
+    if (paid) {
+      issueAndSendGiftCardsForOrder(paid).catch((error: unknown) => {
+        console.error(`[order] Emisión de tarjeta(s) de regalo falló para pedido ${id}:`, error)
+      })
+    }
     return
   }
   if (status === "CANCELLED") {

@@ -94,6 +94,8 @@ export interface ProductDTO {
   id: string
   slug: string
   name: string
+  /** null = producto cargado manualmente (admin/Excel); presente = lo trae y gestiona el ERP. */
+  erpId: string | null
   brandId: string | null
   brandName: string | null
   /** Nombre de la marca (alias plano de brandName para la UI de la tienda) */
@@ -246,6 +248,7 @@ type RawProduct = {
   id: string
   slug: string
   name: string
+  erpId?: string | null
   brandId: string | null
   brand: { id: string; name: string; slug: string } | null
   basePrice: RawPrice
@@ -325,6 +328,7 @@ function mapToDTO(raw: RawProduct): ProductDTO {
     id: raw.id,
     slug: raw.slug,
     name: raw.name,
+    erpId: raw.erpId ?? null,
     brandId: raw.brandId ?? null,
     brandName: raw.brand?.name ?? null,
     brand: raw.brand?.name ?? null,
