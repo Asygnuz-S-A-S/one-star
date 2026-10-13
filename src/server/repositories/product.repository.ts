@@ -1,6 +1,6 @@
 import "server-only"
 import { prisma } from "../db/prisma"
-import type { Gender, Prisma } from "@prisma/client"
+import { Prisma, type Gender } from "@prisma/client"
 import { buildProductVariantUpdatePlan } from "@/server/domain/product-variant-update.plan"
 import { planProductColorFamilyUpdate } from "@/server/domain/product-color-family.plan"
 
@@ -217,6 +217,8 @@ export interface AdminProductRelationsUpdate {
   availableOnline: boolean
   availableInStores: boolean
   isPublished: boolean
+  highlights?: string[]
+  faqs?: Array<{ q: string; a: string }>
   variants: Array<{
     sku: string
     size: string
@@ -451,6 +453,8 @@ export async function updateProductWithAdminRelations(
         availableOnline: input.availableOnline,
         availableInStores: input.availableInStores,
         isPublished: input.isPublished,
+        highlights: input.highlights ?? [],
+        faqs: input.faqs && input.faqs.length > 0 ? input.faqs : Prisma.JsonNull,
         images: {
           create: input.images.map((image, index) => ({
             url: image.url,
@@ -578,11 +582,15 @@ export async function updateProductsPublishStatus(
  * Se limita a lo publicado: es lo mismo que deja pasar `getProductBySlug`.
  */
 export async function findPublishedProductSitemapEntries(): Promise<
-  { slug: string; updatedAt: Date }[]
+  { slug: string; updatedAt: Date; images: { url: string }[] }[]
 > {
   return prisma.product.findMany({
     where: { isPublished: true },
-    select: { slug: true, updatedAt: true },
+    select: {
+      slug: true,
+      updatedAt: true,
+      images: { select: { url: true }, orderBy: { position: "asc" }, take: 1 },
+    },
     orderBy: { updatedAt: "desc" },
   })
 }

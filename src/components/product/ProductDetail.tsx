@@ -5,10 +5,14 @@ import type { ProductWithRelations } from "@/types/shop"
 import ProductGallery from "./ProductGallery"
 import ProductInfo from "./ProductInfo"
 import { filterImagesByColor } from "@/lib/product-image"
+import type { StorePromise } from "@/lib/store-promises"
 
 interface ProductDetailProps {
   product: ProductWithRelations
   reviewStats?: { avg: number; count: number; distribution: number[] }
+  promises?: StorePromise[]
+  whatsappUrl?: string | null
+  brand?: { name?: string | null; sizeGuideImageUrl?: string | null; sizeGuideNote?: string | null } | null
   /**
    * Color con el que abrir la ficha, tomado de `?color=` en la URL. Permite
    * que una miniatura del catálogo lleve directo a ese color. Si no coincide
@@ -21,7 +25,7 @@ interface ProductDetailProps {
  * Une galería e información porque comparten el color seleccionado:
  * al cambiar de color, la galería pasa a mostrar las fotos de ese color.
  */
-export default function ProductDetail({ product, reviewStats, initialColor }: ProductDetailProps) {
+export default function ProductDetail({ product, reviewStats, promises, whatsappUrl, brand, initialColor }: ProductDetailProps) {
   const [selectedColor, setSelectedColor] = useState<string>(() => {
     const match = product.variants.find(
       (variant) => variant.color?.toLowerCase() === initialColor?.trim().toLowerCase()
@@ -45,6 +49,9 @@ export default function ProductDetail({ product, reviewStats, initialColor }: Pr
       <ProductInfo
         product={product}
         reviewStats={reviewStats}
+        promises={promises}
+        whatsappUrl={whatsappUrl}
+        brand={brand}
         selectedColor={selectedColor}
         onColorChange={setSelectedColor}
       />
