@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState } from "react"
+import { INVENTORY_OPERATOR_HREFS } from "@/lib/admin-access"
 import { signOut } from "@/lib/auth-client"
 
 interface AdminSidebarProps {
@@ -184,6 +185,16 @@ export default function AdminSidebar({ userName, userRole }: AdminSidebarProps) 
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
 
+  const visibleGroups =
+    userRole === "INVENTORY_OPERATOR"
+      ? navGroups
+          .map((group) => ({
+            ...group,
+            items: group.items.filter((item) => INVENTORY_OPERATOR_HREFS.has(item.href)),
+          }))
+          .filter((group) => group.items.length > 0)
+      : navGroups
+
   const isActive = (href: string) => {
     if (href === "/admin") return pathname === "/admin"
     return pathname.startsWith(href)
@@ -204,7 +215,7 @@ export default function AdminSidebar({ userName, userRole }: AdminSidebarProps) 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 overflow-y-auto">
         <div className="space-y-6">
-          {navGroups.map((group) => (
+          {visibleGroups.map((group) => (
             <div key={group.group}>
               <h4 className="px-3 mb-2 text-xs font-bold tracking-wider text-white/40 uppercase">
                 {group.group}
