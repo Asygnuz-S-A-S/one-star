@@ -115,10 +115,31 @@ src/
 
 ### Catálogo
 - **Category** → slug único, relación 1:N con Product
-- **Product** → precio base, precio de oferta, género (enum), marca, slug, SEO meta, descripción extendida, videoUrl, publicación y disponibilidad por canal; relaciones con ProductImage, Variant, CartItem, OrderItem y cross-sells (M:M auto-relación)
+- **Product** → precio base, precio de oferta, género (enum), marca, slug, SEO meta, descripción extendida, videoUrl, photosFolderUrl, publicación y disponibilidad por canal; relaciones con ProductImage, Variant, CartItem, OrderItem y cross-sells (M:M auto-relación)
 - **ProductImage** → url, alt, position, `color` (nullable), cascade delete
 - **Variant** → SKU único, talla (US/CM/EUR), color, stock
 - **ProductColorFamily** → agrupación local opcional de varios `Product` que son el mismo modelo en colores distintos
+
+#### Importación de catálogo desde Excel (`/admin/productos/importar`)
+- **Estructura y lectura**:
+  - Detección automática de la fila de encabezados por nombre (columna "SKU"), tolerando mayúsculas, minúsculas, tildes y alias en español (ej. `NOMBRE DEL PRODUCTO` → `name`, `DESCRIPCIÓN LARGA` / `DESCRIPCIÓN LARGAL` → `extendedDescription`, `EN OFERTA?` → `isOnSale`, `URL FOTOS` → `photosFolderUrl`, `PRODUCTO LISTO` → `readyFlag`).
+  - No asume fila fija de notas: los datos arrancan en la fila inmediatamente siguiente a los encabezados, omitiendo solo filas vacías o notas explícitas sin SKU.
+- **Formato fila por talla**:
+  - Un mismo SKU repetido en varias filas con tallas distintas se interpreta como SKU base y genera variantes `${sku}_${talla}` (ej. `VN0009QC6BT` con tallas 4.5, 5 genera `VN0009QC6BT_4.5`, `VN0009QC6BT_5`). Si el SKU ya contiene guion bajo (`_`), se respeta sin modificar.
+  - Normalización de tallas: "7.0" y "7" normalizan a la misma talla "7". Acepta números con medias tallas (.5), sufijos infantiles/juveniles (7I, 12J, 5B), "U" y "Única".
+  - Detección de tallas convertidas en fecha por Excel: si la celda tiene formato `d.m` o es fecha de mes 5 con día entre 1 y 13, se recupera como `${día}.${mes}` (ej. 8 de mayo → "8.5") con advertencia en la vista previa. Cualquier otra fecha se rechaza con error claro.
+  - Duplicados reales: mismo SKU y misma talla en dos filas genera error detallando ambas filas (`filas X e Y`).
+- **Alias y filtros de negocio**:
+  - Alias de marca: tabla configurable en código (`BRAND_ALIASES`) que mapea equivalencias comunes (ej. `ONCLOUD` → `On`, `ACESSORIOS VANS` → `Accesorios Vans`).
+  - Marcas omitidas: filas con marcas no catalogables (`BOLSAS DE VENTA`, `BONO`, `FALTA ORGANIZAR ESTA REFERENCIA`) se ignoran sin error y se reportan como omitidas.
+  - Alias de género: `NIÑOS`/`NIÑO` → `NINO`, `NIÑA`/`NIÑAS` → `NINA`, `BEBÉ` → `BEBE`.
+  - Filtro "PRODUCTO LISTO": opción para importar únicamente filas marcadas como `OK` / `SI` / `LISTO`; las demás se reportan como omitidas (no listas).
+- **Imágenes y Drive**:
+  - Soporte de hasta 8 imágenes por producto (`image1` a `image8`).
+  - La columna `URL FOTOS` enlaza a una carpeta de Drive: se guarda en el campo de referencia `Product.photosFolderUrl` y no se trata como archivo de imagen individual.
+  - Si un producto nuevo no tiene fotos individuales cargadas, se crea como no publicado (`isPublished = false`) con advertencia "sin fotos".
+- **Seguridad ERP**:
+  - Los productos y variantes gestionados por ERP (`erpId != null`) están protegidos: si un SKU del Excel coincide con uno del ERP, la fila se rechaza como error y nunca se sobreescribe.
 
 #### Familias de productos por color
 

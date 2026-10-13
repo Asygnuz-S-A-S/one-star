@@ -13,10 +13,12 @@ const ACTION_LABELS: Record<string, { label: string; className: string }> = {
   add_variant: { label: "Agregar variante", className: "bg-blue-50 text-blue-800" },
   update_variant: { label: "Actualizar variante", className: "bg-amber-50 text-amber-800" },
   error: { label: "Error", className: "bg-red-50 text-red-800" },
+  skip: { label: "Omitida", className: "bg-gray-100 text-gray-700" },
 }
 
 export default function ImportarProductosPage() {
   const [file, setFile] = useState<File | null>(null)
+  const [onlyReadyRows, setOnlyReadyRows] = useState(true)
   const [preview, setPreview] = useState<ProductImportPreview | null>(null)
   const [result, setResult] = useState<ProductImportApplyResult | null>(null)
   const [loading, setLoading] = useState(false)
@@ -29,6 +31,7 @@ export default function ImportarProductosPage() {
     setResult(null)
     const formData = new FormData()
     formData.set("file", file)
+    formData.set("onlyReadyRows", String(onlyReadyRows))
     const res = await previewProductImportAction(formData)
     setLoading(false)
     if (!res.success || !res.data) {
@@ -46,6 +49,7 @@ export default function ImportarProductosPage() {
     const formData = new FormData()
     formData.set("file", file)
     formData.set("fingerprint", preview.fingerprint)
+    formData.set("onlyReadyRows", String(onlyReadyRows))
     const res = await applyProductImportAction(formData)
     setLoading(false)
     if (!res.success || !res.data) {
@@ -87,12 +91,31 @@ export default function ImportarProductosPage() {
 
       {!preview && (
         <div className="rounded-lg border border-dashed border-gray-300 bg-white p-6">
+          <div className="mb-4 flex items-center justify-between">
+            <span className="text-sm font-medium text-gray-700">Seleccionar archivo Excel</span>
+            <a
+              href="/plantillas/plantilla_carga_productos_onestar.xlsx"
+              download
+              className="text-xs font-medium text-blue-600 hover:underline"
+            >
+              Descargar plantilla de ejemplo (.xlsx)
+            </a>
+          </div>
           <input
             type="file"
             accept=".xlsx"
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             className="block w-full text-sm text-gray-700"
           />
+          <label className="mt-3 flex items-center gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={onlyReadyRows}
+              onChange={(e) => setOnlyReadyRows(e.target.checked)}
+              className="rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+            />
+            Importar solo filas marcadas como listas (&quot;PRODUCTO LISTO = OK&quot; si la columna existe)
+          </label>
           <button
             type="button"
             onClick={handlePreview}
@@ -116,6 +139,11 @@ export default function ImportarProductosPage() {
             <span className="rounded-full bg-amber-100 px-3 py-1 text-amber-800">
               {preview.summary.updatedVariants} variante(s) a actualizar
             </span>
+            {(preview.summary.skipped ?? 0) > 0 && (
+              <span className="rounded-full bg-gray-100 px-3 py-1 text-gray-700">
+                {preview.summary.skipped} fila(s) omitida(s)
+              </span>
+            )}
             <span className="rounded-full bg-red-100 px-3 py-1 text-red-800">
               {preview.summary.errors} error(es)
             </span>
