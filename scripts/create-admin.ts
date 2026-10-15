@@ -9,35 +9,39 @@ const prisma = new PrismaClient()
  *
  * Credenciales vía variables de entorno (nunca hardcodeadas):
  *   ADMIN_EMAIL    — requerido
+ *   ADMIN_ROLE     — requerido: "SUPER_ADMIN" | "INVENTORY_OPERATOR" (sin valor por defecto)
  *   ADMIN_PASSWORD — opcional; si falta se genera una aleatoria y se muestra una vez
  *   ADMIN_NAME     — opcional (default: "Admin One Star")
- *   ADMIN_ROLE     — opcional: "SUPER_ADMIN" (default) | "INVENTORY_OPERATOR"
  */
 async function main() {
-  const email = process.env.ADMIN_EMAIL
+  const email = process.env.ADMIN_EMAIL?.trim()
   if (!email) {
-    console.error("ADMIN_EMAIL es requerida. Uso: ADMIN_EMAIL=tu@correo.com npx tsx scripts/create-admin.ts")
+    console.error("ADMIN_EMAIL es requerida. Uso: ADMIN_ROLE=SUPER_ADMIN ADMIN_EMAIL=tu@correo.com npx tsx scripts/create-admin.ts")
     process.exitCode = 1
     return
   }
 
-  const roleInput = process.env.ADMIN_ROLE?.trim().toUpperCase() || undefined
-  if (roleInput && roleInput !== "SUPER_ADMIN" && roleInput !== "INVENTORY_OPERATOR") {
-    console.error('ADMIN_ROLE debe ser "SUPER_ADMIN" o "INVENTORY_OPERATOR".')
+  const rawRole = process.env.ADMIN_ROLE?.trim()
+  if (!rawRole) {
+    console.error('ADMIN_ROLE es requerida (sin valor por defecto). Debe ser "SUPER_ADMIN" o "INVENTORY_OPERATOR".')
     process.exitCode = 1
     return
   }
+
+  if (rawRole !== "SUPER_ADMIN" && rawRole !== "INVENTORY_OPERATOR") {
+    console.error(`ADMIN_ROLE no válida: "${rawRole}". Debe ser "SUPER_ADMIN" o "INVENTORY_OPERATOR".`)
+    process.exitCode = 1
+    return
+  }
+
+  const role: AdminRole = rawRole
 
   const generatedPassword = !process.env.ADMIN_PASSWORD
   const password = process.env.ADMIN_PASSWORD ?? randomBytes(12).toString("base64url")
   const name = process.env.ADMIN_NAME ?? "Admin One Star"
   const passwordHash = bcrypt.hashSync(password, 10)
 
-  // Sin ADMIN_ROLE explícito: si ya existe, se conserva su rol actual (nunca
-  // se degrada/asciende un admin existente por accidente al re-ejecutar el
-  // script); si es nuevo, nace SUPER_ADMIN.
   const existing = await prisma.adminUser.findUnique({ where: { email } })
-  const role = (roleInput as AdminRole | undefined) ?? existing?.role ?? "SUPER_ADMIN"
 
   const admin = await prisma.adminUser.upsert({
     where: { email },

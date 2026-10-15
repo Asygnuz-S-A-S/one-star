@@ -1,11 +1,27 @@
 import { auth } from "@/lib/auth"
 import { buildContentSecurityPolicy } from "@/lib/content-security-policy"
-import { canAccessAdminPath, normalizeAdminRole } from "@/lib/admin-access"
+import { canAccessAdminPath } from "@/lib/admin-access"
+import {
+  resolveActiveAdminRole,
+  revokeAdminSessionByToken,
+} from "@/server/services/admin-role.service"
 import { NextResponse, type NextRequest } from "next/server"
 
 interface CspContext {
   policy: string
   requestHeaders: Headers
+}
+
+function clearAuthCookies(response: NextResponse): void {
+  const cookieNames = [
+    "better-auth.session_token",
+    "__Secure-better-auth.session_token",
+    "better-auth.session_data",
+    "__Secure-better-auth.session_data",
+  ]
+  for (const name of cookieNames) {
+    response.cookies.delete(name)
+  }
 }
 
 function createCspContext(request: NextRequest): CspContext {
@@ -70,11 +86,28 @@ export async function proxy(request: NextRequest) {
       loginUrl.searchParams.set("callbackUrl", nextUrl.pathname)
       return redirectWithCsp(loginUrl, csp)
     }
+
+    const adminRole = await resolveActiveAdminRole(
+      session.user.id,
+      (session.user as { email?: string } | undefined)?.email
+    )
+
+    if (!adminRole) {
+      // Sin rol válido: redirige a /admin/login, cierra la sesión en el navegador
+      // e invalida el token en base de datos si es posible.
+      const loginUrl = new URL("/admin/login", nextUrl.origin)
+      loginUrl.searchParams.set("callbackUrl", nextUrl.pathname)
+      const redirectResponse = redirectWithCsp(loginUrl, csp)
+      clearAuthCookies(redirectResponse)
+      const sessionToken = (session?.session as { token?: string } | undefined)?.token
+      if (sessionToken) {
+        void revokeAdminSessionByToken(sessionToken)
+      }
+      return redirectResponse
+    }
+
     // Los roles limitados solo entran a su lista blanca: ocultar el menú no
     // basta, la URL escrita a mano se corta aquí (cubre también páginas nuevas).
-    const adminRole = normalizeAdminRole(
-      (session?.user as { adminRole?: string | null } | undefined)?.adminRole
-    )
     if (!canAccessAdminPath(adminRole, nextUrl.pathname)) {
       return redirectWithCsp(new URL("/admin", nextUrl.origin), csp)
     }
