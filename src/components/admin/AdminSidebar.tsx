@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { useState } from "react"
 import { INVENTORY_OPERATOR_HREFS, type AdminRole } from "@/lib/admin-access"
 import { signOut } from "@/lib/auth-client"
@@ -200,6 +200,7 @@ const roleLabel: Record<string, string> = {
 }
 
 export default function AdminSidebar({ userName, userRole }: AdminSidebarProps) {
+  const router = useRouter()
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
 
@@ -278,8 +279,7 @@ export default function AdminSidebar({ userName, userRole }: AdminSidebarProps) 
         <div>
           <button
             type="button"
-            onClick={() => signOut({ fetchOptions: { onSuccess: () => { window.location.href = "/admin/login" } } })}
-
+            onClick={() => signOut({ fetchOptions: { onSuccess: () => { router.push("/admin/login") } } })}
             className="w-full flex items-center gap-2 px-3 py-2 rounded-lg font-montserrat text-sm text-white/70 hover:bg-white/10 hover:text-white transition-colors"
           >
             <svg
