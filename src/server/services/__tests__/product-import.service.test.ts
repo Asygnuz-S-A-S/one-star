@@ -44,8 +44,17 @@ vi.mock("@/server/repositories/product.repository", () => ({
   findVariantsBySkus: vi.fn(async () => []),
 }))
 
+import * as fflate from "fflate"
 import { findVariantsBySkus } from "@/server/repositories/product.repository"
-import { applyProductImport, previewProductImport } from "../product-import.service"
+import {
+  applyProductImport,
+  previewProductImport,
+  validateImportFile,
+  validateZipSafety,
+  rowArrayToObject,
+  MAX_FILE_SIZE_BYTES,
+  MAX_CELL_LENGTH,
+} from "../product-import.service"
 
 const COLUMNS = [
   "sku", "name", "brandName", "categoryName", "gender", "price", "isOnSale", "salePrice",
@@ -369,5 +378,243 @@ describe("applyProductImport", () => {
     await previewProductImport(buffer)
     await expect(applyProductImport(buffer, "fingerprint-viejo")).rejects.toThrow(/cambió/i)
     expect(txMock.product.create).not.toHaveBeenCalled()
+  })
+})
+
+function createCraftedZipBomb(declaredEntrySize: number): ArrayBuffer {
+  const zipBytes = fflate.zipSync({
+    "sheet1.xml": fflate.strToU8("<xml></xml>"),
+  })
+  const buf = Buffer.from(zipBytes)
+  const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength)
+
+  for (let i = 0; i < buf.length - 4; i++) {
+    // Local File Header
+    if (buf[i] === 0x50 && buf[i + 1] === 0x4b && buf[i + 2] === 0x03 && buf[i + 3] === 0x04) {
+      view.setUint32(i + 22, declaredEntrySize, true)
+    }
+    // Central Directory File Header
+    if (buf[i] === 0x50 && buf[i + 1] === 0x4b && buf[i + 2] === 0x01 && buf[i + 3] === 0x02) {
+      view.setUint32(i + 24, declaredEntrySize, true)
+    }
+  }
+
+  return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer
+}
+
+function createCraftedMultiEntryZip(declaredPerEntrySize: number): ArrayBuffer {
+  const zipBytes = fflate.zipSync({
+    "entry1.xml": fflate.strToU8("<xml></xml>"),
+    "entry2.xml": fflate.strToU8("<xml></xml>"),
+    "entry3.xml": fflate.strToU8("<xml></xml>"),
+  })
+  const buf = Buffer.from(zipBytes)
+  const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength)
+
+  for (let i = 0; i < buf.length - 4; i++) {
+    if (buf[i] === 0x50 && buf[i + 1] === 0x4b && buf[i + 2] === 0x03 && buf[i + 3] === 0x04) {
+      view.setUint32(i + 22, declaredPerEntrySize, true)
+    }
+    if (buf[i] === 0x50 && buf[i + 1] === 0x4b && buf[i + 2] === 0x01 && buf[i + 3] === 0x02) {
+      view.setUint32(i + 24, declaredPerEntrySize, true)
+    }
+  }
+
+  return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer
+}
+
+describe("validateImportFile (pre-read limits)", () => {
+  it("rechaza archivos con extensiones no permitidas (.xlsm, .xls, .csv, .txt)", () => {
+    expect(() =>
+      validateImportFile({ name: "productos.xlsm", size: 1024 })
+    ).toThrow(/solo se admiten archivos con extensión \.xlsx/i)
+
+    expect(() =>
+      validateImportFile({ name: "productos.xls", size: 1024 })
+    ).toThrow(/solo se admiten archivos con extensión \.xlsx/i)
+
+    expect(() =>
+      validateImportFile({ name: "productos.csv", size: 1024 })
+    ).toThrow(/solo se admiten archivos con extensión \.xlsx/i)
+
+    expect(() =>
+      validateImportFile({ name: "malware.exe", size: 1024 })
+    ).toThrow(/solo se admiten archivos con extensión \.xlsx/i)
+  })
+
+  it("rechaza archivos vacíos (0 bytes)", () => {
+    expect(() =>
+      validateImportFile({ name: "productos.xlsx", size: 0 })
+    ).toThrow(/el archivo está vacío/i)
+  })
+
+  it("rechaza archivos que exceden el tamaño máximo permitido (> 2 MB)", () => {
+    expect(() =>
+      validateImportFile({ name: "productos.xlsx", size: MAX_FILE_SIZE_BYTES + 1 })
+    ).toThrow(/excede el tamaño máximo permitido de 2 MB/i)
+  })
+
+  it("rechaza tipos MIME incompatibles", () => {
+    expect(() =>
+      validateImportFile({
+        name: "productos.xlsx",
+        size: 1024,
+        type: "application/pdf",
+      })
+    ).toThrow(/tipo de contenido del archivo no es compatible/i)
+
+    expect(() =>
+      validateImportFile({
+        name: "productos.xlsx",
+        size: 1024,
+        type: "image/png",
+      })
+    ).toThrow(/tipo de contenido del archivo no es compatible/i)
+  })
+
+  it("admite archivos .xlsx con tamaño y MIME válidos", () => {
+    expect(() =>
+      validateImportFile({
+        name: "productos.xlsx",
+        size: 1024,
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      })
+    ).not.toThrow()
+
+    expect(() =>
+      validateImportFile({
+        name: "productos.xlsx",
+        size: 1024,
+        type: "application/octet-stream",
+      })
+    ).not.toThrow()
+  })
+})
+
+describe("validateZipSafety (protección contra zip bomb)", () => {
+  it("rechaza buffers que no son archivos ZIP válidos", () => {
+    const invalidBuffer = new Uint8Array([0x00, 0x01, 0x02, 0x03]).buffer
+    expect(() => validateZipSafety(invalidBuffer)).toThrow(/no es un archivo ZIP \/ XLSX válido/i)
+  })
+
+  it("rechaza un ZIP que declara un tamaño descomprimido enorme en una sola entrada (> 20 MB)", () => {
+    const zipBomb = createCraftedZipBomb(25 * 1024 * 1024)
+    expect(() => validateZipSafety(zipBomb)).toThrow(/excede el límite de seguridad \(máx 20 MB\)/i)
+  })
+
+  it("rechaza un ZIP cuyo total acumulado excede el límite permitido (> 50 MB)", () => {
+    // 3 entradas de 18 MB = 54 MB total
+    const multiEntryBomb = createCraftedMultiEntryZip(18 * 1024 * 1024)
+    expect(() => validateZipSafety(multiEntryBomb)).toThrow(/tamaño total descomprimido.*excede el límite de seguridad.*50 MB/i)
+  })
+})
+
+describe("Límites de contenido y parseo seguro", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(findVariantsBySkus).mockResolvedValue([])
+  })
+
+  it("rechaza un buffer que excede MAX_FILE_SIZE_BYTES en previewProductImport", async () => {
+    const largeBuffer = new ArrayBuffer(MAX_FILE_SIZE_BYTES + 1)
+    await expect(previewProductImport(largeBuffer)).rejects.toThrow(/excede el tamaño máximo permitido de 2 MB/i)
+  })
+
+  it("rechaza si excede el límite de columnas (> 40 columnas)", async () => {
+    const tooManyColumns = Array.from({ length: 41 }, (_, i) => `col_${i}`)
+    const aoa = [tooManyColumns, tooManyColumns.map(() => "nota"), tooManyColumns.map(() => "val")]
+    const sheet = XLSX.utils.aoa_to_sheet(aoa)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, sheet, "Productos")
+    const buf = XLSX.write(wb, { bookType: "xlsx", type: "buffer" }) as Buffer
+    const buffer = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer
+
+    await expect(previewProductImport(buffer)).rejects.toThrow(/excede el límite máximo de 40 columnas/i)
+  })
+
+  it("rechaza si una celda excede MAX_CELL_LENGTH (> 5.000 caracteres)", async () => {
+    const giantCell = "A".repeat(MAX_CELL_LENGTH + 1)
+    const row = baseRow({ description: giantCell })
+    const buffer = buildBuffer([row])
+
+    await expect(previewProductImport(buffer)).rejects.toThrow(/excede el límite máximo de 5\.000 caracteres/i)
+  })
+
+  it("rechaza si hay más de 5.000 filas de datos sin truncar en silencio", async () => {
+    const rows: string[][] = []
+    for (let i = 0; i < 5001; i++) {
+      rows.push([`NK-${i}`])
+    }
+    const aoa = [["sku"], ["nota"], ...rows]
+    const sheet = XLSX.utils.aoa_to_sheet(aoa)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, sheet, "Productos")
+    const buf = XLSX.write(wb, { bookType: "xlsx", type: "buffer" }) as Buffer
+    const buffer = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer
+
+    await expect(previewProductImport(buffer)).rejects.toThrow(/excede el límite máximo de 5\.000 filas de datos/i)
+  })
+
+  it("ignora encabezados peligrosos (__proto__, constructor, prototype) previniendo contaminación de prototipo", () => {
+    const evilRow = ["evil-sku", "evil-value", "another-evil"]
+    const evilHeaders = ["sku", "__proto__", "constructor"]
+
+    const obj = rowArrayToObject(evilRow, evilHeaders)
+
+    expect(obj.sku).toBe("evil-sku")
+    expect(obj["__proto__"]).toBeUndefined()
+    expect(obj["constructor"]).toBeUndefined()
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined()
+    expect((Object.prototype as unknown as Record<string, unknown>).polluted).toBeUndefined()
+    expect((Object.prototype as unknown as Record<string, unknown>)["__proto__"]).not.toBe("evil-value")
+  })
+
+  it("un archivo de Excel con columna __proto__ no contamina el prototipo global al previsualizar", async () => {
+    const customColumns = [...COLUMNS, "__proto__"]
+    const rowData = [...baseRow({ sku: "PROTO-1" }), "malicious_payload"]
+    const aoa = [customColumns, customColumns.map(() => "nota"), rowData]
+    const sheet = XLSX.utils.aoa_to_sheet(aoa)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, sheet, "Productos")
+    const buf = XLSX.write(wb, { bookType: "xlsx", type: "buffer" }) as Buffer
+    const buffer = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer
+
+    const preview = await previewProductImport(buffer)
+    expect(preview.rows).toHaveLength(1)
+    expect(preview.rows[0].sku).toBe("PROTO-1")
+    expect(({} as Record<string, unknown>)["malicious_payload"]).toBeUndefined()
+    expect((Object.prototype as unknown as Record<string, unknown>)["malicious_payload"]).toBeUndefined()
+  })
+
+  it("procesa exitosamente un archivo válido de 12 filas con resumen preciso", async () => {
+    // 6 productos, cada uno con 2 variantes (tallas 40 y 41) = 12 filas
+    const rows: (string | number | Date)[][] = []
+    for (let p = 1; p <= 6; p++) {
+      const prodName = `Nike Modelo ${p}`
+      rows.push(baseRow({ sku: `NK-P${p}-T40`, name: prodName, size: "40" }))
+      rows.push(baseRow({ sku: `NK-P${p}-T41`, name: prodName, size: "41" }))
+    }
+    expect(rows).toHaveLength(12)
+
+    const buffer = buildBuffer(rows)
+    const preview = await previewProductImport(buffer)
+
+    expect(preview.rows).toHaveLength(12)
+    expect(preview.summary).toEqual({
+      newProducts: 6,
+      newVariants: 6,
+      updatedVariants: 0,
+      errors: 0,
+    })
+    expect(preview.fingerprint).toBeTruthy()
+
+    const applyResult = await applyProductImport(buffer, preview.fingerprint)
+    expect(applyResult).toEqual({
+      newProducts: 6,
+      newVariants: 12,
+      updatedVariants: 0,
+    })
+    expect(txMock.product.create).toHaveBeenCalledTimes(6)
+    expect(txMock.variant.create).toHaveBeenCalledTimes(12)
   })
 })

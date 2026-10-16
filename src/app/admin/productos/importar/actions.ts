@@ -5,6 +5,7 @@ import { requireAdmin } from "@/server/auth/require-admin"
 import {
   previewProductImport,
   applyProductImport,
+  validateImportFile,
   type ProductImportPreview,
   type ProductImportApplyResult,
 } from "@/server/services/product-import.service"
@@ -28,11 +29,9 @@ export async function previewProductImportAction(
     if (!file || !(file instanceof File)) {
       return { success: false, error: "No se recibió ningún archivo." }
     }
+    validateImportFile(file)
     const buffer = await file.arrayBuffer()
-    const onlyReadyParam = formData.get("onlyReadyRows")
-    const onlyReadyRows =
-      onlyReadyParam !== null ? onlyReadyParam === "true" || onlyReadyParam === "1" : undefined
-    const preview = await previewProductImport(buffer, { onlyReadyRows })
+    const preview = await previewProductImport(buffer)
     return { success: true, data: preview }
   } catch (error: unknown) {
     return { success: false, error: getErrorMessage(error) }
@@ -49,14 +48,12 @@ export async function applyProductImportAction(
     if (!file || !(file instanceof File)) {
       return { success: false, error: "No se recibió ningún archivo." }
     }
+    validateImportFile(file)
     if (typeof fingerprint !== "string" || fingerprint.length === 0) {
       return { success: false, error: "Falta la vista previa — vuelve a subir el archivo." }
     }
     const buffer = await file.arrayBuffer()
-    const onlyReadyParam = formData.get("onlyReadyRows")
-    const onlyReadyRows =
-      onlyReadyParam !== null ? onlyReadyParam === "true" || onlyReadyParam === "1" : undefined
-    const result = await applyProductImport(buffer, fingerprint, { onlyReadyRows })
+    const result = await applyProductImport(buffer, fingerprint)
 
     revalidatePath("/admin/productos")
     revalidatePath("/productos")

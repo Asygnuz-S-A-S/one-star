@@ -267,6 +267,7 @@ esas condiciones para no sobrescribir una edición administrativa concurrente.
 | 7 | **`server-only`** en módulos de servidor | Previene importar código de servidor en componentes de cliente en build time |
 | 8 | **Capa ERP agnóstica (Ports & Adapters)** en `src/server/erp/` | La tienda NO depende de ningún ERP específico. Cambiar de Alegra a otro ERP = solo cambiar `ERP_PROVIDER` en `.env` y crear un adaptador. El core nunca se modifica. Ver `REQUERIMIENTOS.md §D` |
 | 9 | **CSP dinámica con nonce por request** | Bloquea scripts no autorizados sin romper Next.js, ePayco, Sentry, mapas ni el preview administrativo |
+| 10 | **Control de acceso administrativo fail-closed con resolución de rol en BD y caché de 60s** | Previene que roles inválidos, nulos o no sincronizados otorguen acceso (fail-open); propaga degradaciones y revocaciones de rol en un máximo de 60 segundos tanto en el proxy (Node runtime) como en Server Actions y páginas de servidor (`requireAdmin`, `requireSuperAdmin`). |
 
 ### Content Security Policy
 
@@ -293,6 +294,17 @@ administrables. `object-src 'none'`, `base-uri 'self'` y
 Agregar un proveedor de scripts, tracking, conexiones o frames exige actualizar
 el inventario en `src/lib/content-security-policy.ts`, sus pruebas y esta
 sección. No se deben usar comodines globales ni nonces fijos.
+
+### Control de Acceso Administrativo y Resolución de Rol Fail-Closed
+
+El sistema de roles administrativos (`SUPER_ADMIN` y `INVENTORY_OPERATOR`) sigue un principio estricto de **fail-closed**:
+
+1. **Normalización estricta**: `normalizeAdminRole` en `src/lib/admin-access.ts` devuelve `AdminRole` si coincide exactamente con un rol conocido; ante cualquier otro valor (nulo, indefinido, vacío, errores de tipografía o mayúsculas, o roles nuevos no incorporados), devuelve `null`.
+2. **Proxy en Node runtime**: `src/proxy.ts` se ejecuta en el runtime Node.js de Next.js, lo que permite consultar el rol activo del administrador directamente contra `AdminUser.role` a través de `resolveActiveAdminRole`. Para evitar latencia excesiva en cada solicitud, el rol se mantiene en una caché en memoria de proceso por un máximo de 60 segundos (`ADMIN_ROLE_CACHE_TTL_MS = 60000`).
+3. **Efecto inmediato de degradaciones/revocaciones**: Al degradar o eliminar a un administrador en la base de datos, el cambio surte efecto en el proxy y en el panel en a lo sumo 60 segundos (o de inmediato si se invalida la caché), sin requerir que el usuario cierre sesión o espere la expiración de su cookie de autenticación.
+4. **Respuesta ante rol inválido**: Si un usuario con sesión no tiene un rol válido en la base de datos, `proxy.ts` deniega el acceso redirigiendo a `/admin/login`, borra las cookies de sesión en la respuesta (`better-auth.session_token` y `__Secure-better-auth.session_token`) y revoca el token en base de datos.
+5. **Defensa en profundidad en el servidor**: `requireAdmin()` y `requireSuperAdmin()` en `src/server/auth/require-admin.ts` y las páginas dinámicas del panel admin resuelven igualmente el rol activo desde la base de datos mediante `resolveActiveAdminRole`. Si el rol no es válido, lanzan `UnauthorizedError`.
+6. **Aprovisionamiento explícito**: `scripts/create-admin.ts` exige la variable `ADMIN_ROLE` de forma obligatoria y sin valor por defecto, validando exhaustivamente que sea un rol conocido.
 
 ## Decisiones Arquitectónicas Pendientes
 

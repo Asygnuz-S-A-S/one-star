@@ -1,14 +1,14 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { useState } from "react"
-import { INVENTORY_OPERATOR_HREFS } from "@/lib/admin-access"
+import { INVENTORY_OPERATOR_HREFS, type AdminRole } from "@/lib/admin-access"
 import { signOut } from "@/lib/auth-client"
 
 interface AdminSidebarProps {
   userName: string
-  userRole: string
+  userRole: AdminRole | string | null
 }
 
 const navGroups = [
@@ -200,18 +200,21 @@ const roleLabel: Record<string, string> = {
 }
 
 export default function AdminSidebar({ userName, userRole }: AdminSidebarProps) {
+  const router = useRouter()
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
 
   const visibleGroups =
-    userRole === "INVENTORY_OPERATOR"
+    userRole === "SUPER_ADMIN"
       ? navGroups
-          .map((group) => ({
-            ...group,
-            items: group.items.filter((item) => INVENTORY_OPERATOR_HREFS.has(item.href)),
-          }))
-          .filter((group) => group.items.length > 0)
-      : navGroups
+      : userRole === "INVENTORY_OPERATOR"
+        ? navGroups
+            .map((group) => ({
+              ...group,
+              items: group.items.filter((item) => INVENTORY_OPERATOR_HREFS.has(item.href)),
+            }))
+            .filter((group) => group.items.length > 0)
+        : []
 
   const isActive = (href: string) => {
     if (href === "/admin") return pathname === "/admin"
@@ -270,14 +273,13 @@ export default function AdminSidebar({ userName, userRole }: AdminSidebarProps) 
             {userName}
           </p>
           <p className="font-montserrat text-xs text-white/50 mt-0.5">
-            {roleLabel[userRole] ?? userRole}
+            {userRole ? (roleLabel[userRole] ?? userRole) : "Sin rol"}
           </p>
         </div>
         <div>
           <button
             type="button"
-            onClick={() => signOut({ fetchOptions: { onSuccess: () => { window.location.href = "/admin/login" } } })}
-
+            onClick={() => signOut({ fetchOptions: { onSuccess: () => { router.push("/admin/login") } } })}
             className="w-full flex items-center gap-2 px-3 py-2 rounded-lg font-montserrat text-sm text-white/70 hover:bg-white/10 hover:text-white transition-colors"
           >
             <svg

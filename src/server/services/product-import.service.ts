@@ -1,6 +1,7 @@
 import "server-only"
 
 import crypto from "node:crypto"
+import * as fflate from "fflate"
 import * as XLSX from "xlsx"
 import type { Gender, Prisma } from "@prisma/client"
 
@@ -19,6 +20,132 @@ import {
 } from "@/server/validators/product-import.validator"
 
 type TxClient = Prisma.TransactionClient
+
+export const MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024 // 2 MB
+export const MAX_ENTRY_UNCOMPRESSED_SIZE_BYTES = 20 * 1024 * 1024 // 20 MB
+export const MAX_TOTAL_UNCOMPRESSED_SIZE_BYTES = 50 * 1024 * 1024 // 50 MB
+export const MAX_SHEET_ROWS = 5000 // Máximo 5.000 filas de datos
+export const MAX_COLUMNS = 40 // Máximo 40 columnas
+export const MAX_CELL_LENGTH = 5000 // Máximo 5.000 caracteres por celda
+export const ALLOWED_FILE_EXTENSION = ".xlsx"
+export const ALLOWED_MIME_TYPES: ReadonlySet<string> = new Set([
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/octet-stream",
+  "application/x-zip-compressed",
+  "application/zip",
+  "",
+])
+
+export const DANGEROUS_KEYS: ReadonlySet<string> = new Set([
+  "__proto__",
+  "constructor",
+  "prototype",
+])
+
+export const TEMPLATE_COLUMNS = [
+  "sku", "name", "brandName", "categoryName", "gender", "price", "isOnSale", "salePrice",
+  "description", "extendedDescription", "size", "sizeUS", "sizeCM", "sizeEUR", "color", "stock",
+  "image1", "image2", "image3", "image4", "image5", "image6", "image7", "image8", "videoUrl",
+  "photosFolderUrl", "readyFlag", "isPublished", "availableOnline", "availableInStores",
+] as const
+
+/**
+ * Valida los límites de entrada del archivo (extensión, tamaño y MIME type)
+ * ANTES de cargarlo en memoria o parsearlo.
+ */
+export function validateImportFile(file: { name: string; size: number; type?: string }): void {
+  const fileName = file.name.trim()
+  if (!fileName.toLowerCase().endsWith(ALLOWED_FILE_EXTENSION)) {
+    throw new Error(
+      "Solo se admiten archivos con extensión .xlsx. No se permiten archivos .xls, .xlsm ni otros formatos."
+    )
+  }
+
+  if (file.size <= 0) {
+    throw new Error("El archivo está vacío.")
+  }
+
+  if (file.size > MAX_FILE_SIZE_BYTES) {
+    throw new Error(
+      `El archivo excede el tamaño máximo permitido de ${Math.round(MAX_FILE_SIZE_BYTES / (1024 * 1024))} MB.`
+    )
+  }
+
+  const mime = (file.type ?? "").toLowerCase().trim()
+  if (mime && !ALLOWED_MIME_TYPES.has(mime)) {
+    throw new Error(
+      "El tipo de contenido del archivo no es compatible con un libro de Excel (.xlsx)."
+    )
+  }
+}
+
+/**
+ * Protege contra archivos ZIP maliciosos (zip bomb) revisando los tamaños
+ * descomprimidos declarados en el directorio central del ZIP sin descomprimir
+ * el contenido en memoria.
+ */
+export function validateZipSafety(buffer: ArrayBuffer | Uint8Array): void {
+  const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer)
+
+  if (bytes.length < 4 || bytes[0] !== 0x50 || bytes[1] !== 0x4b) {
+    throw new Error("El archivo no es un archivo ZIP / XLSX válido.")
+  }
+
+  let totalUncompressedSize = 0
+
+  try {
+    fflate.unzipSync(bytes, {
+      filter(file) {
+        const originalSize = file.originalSize ?? 0
+        if (originalSize > MAX_ENTRY_UNCOMPRESSED_SIZE_BYTES) {
+          throw new Error(
+            `El archivo contiene un elemento descomprimido que excede el límite de seguridad (máx 20 MB). Elemento: "${file.name}".`
+          )
+        }
+        totalUncompressedSize += originalSize
+        if (totalUncompressedSize > MAX_TOTAL_UNCOMPRESSED_SIZE_BYTES) {
+          throw new Error(
+            "El tamaño total descomprimido del archivo excede el límite de seguridad permitido (máx 50 MB)."
+          )
+        }
+        return false
+      },
+    })
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message.includes("límite de seguridad")) {
+      throw err
+    }
+    throw new Error(
+      `El archivo no pudo ser verificado contra zip bomb o está dañado: ${err instanceof Error ? err.message : String(err)}`
+    )
+  }
+}
+
+/**
+ * Convierte un arreglo de celdas a un objeto plano protegido contra contaminación
+ * de prototipo (ignora __proto__, constructor, prototype y crea con prototype null).
+ */
+export function rowArrayToObject(
+  row: unknown[],
+  headers?: unknown[]
+): Record<string, unknown> {
+  const obj: Record<string, unknown> = Object.create(null)
+  const keys = headers ?? TEMPLATE_COLUMNS
+
+  keys.forEach((rawKey, idx) => {
+    const key = String(rawKey ?? "").trim()
+    if (!key) return
+    const lower = key.toLowerCase()
+
+    if (DANGEROUS_KEYS.has(lower) || DANGEROUS_KEYS.has(key)) {
+      return
+    }
+
+    obj[key] = row[idx] ?? ""
+  })
+
+  return obj
+}
 
 export const COLUMN_HEADER_ALIASES: Record<string, string> = {
   // SKU
@@ -135,12 +262,21 @@ export const COLUMN_HEADER_ALIASES: Record<string, string> = {
 export function matchHeader(rawHeader: unknown): string | null {
   const trimmed = String(rawHeader ?? "").trim()
   if (!trimmed) return null
-  const upper = trimmed.toUpperCase()
-  if (COLUMN_HEADER_ALIASES[upper]) return COLUMN_HEADER_ALIASES[upper]
-  const norm = normalizeKey(trimmed).toUpperCase()
-  if (COLUMN_HEADER_ALIASES[norm]) return COLUMN_HEADER_ALIASES[norm]
 
   const lowerKey = trimmed.toLowerCase()
+  if (DANGEROUS_KEYS.has(lowerKey) || DANGEROUS_KEYS.has(trimmed)) {
+    return null
+  }
+
+  const upper = trimmed.toUpperCase()
+  if (Object.prototype.hasOwnProperty.call(COLUMN_HEADER_ALIASES, upper)) {
+    return COLUMN_HEADER_ALIASES[upper]
+  }
+  const norm = normalizeKey(trimmed).toUpperCase()
+  if (Object.prototype.hasOwnProperty.call(COLUMN_HEADER_ALIASES, norm)) {
+    return COLUMN_HEADER_ALIASES[norm]
+  }
+
   const directMap: Record<string, string> = {
     sku: "sku",
     name: "name",
@@ -173,7 +309,10 @@ export function matchHeader(rawHeader: unknown): string | null {
     availableonline: "availableOnline",
     availableinstores: "availableInStores",
   }
-  return directMap[lowerKey] ?? null
+  if (Object.prototype.hasOwnProperty.call(directMap, lowerKey)) {
+    return directMap[lowerKey]
+  }
+  return null
 }
 
 export interface ProductImportRowResult {
@@ -233,12 +372,66 @@ function parseWorkbook(buffer: ArrayBuffer): {
   rows: ParsedRawRow[]
   hasReadyColumn: boolean
 } {
-  const wb = XLSX.read(new Uint8Array(buffer), { type: "array", cellDates: true, cellNF: true })
-  const sheet = wb.Sheets[wb.SheetNames[0]]
+  if (buffer.byteLength > MAX_FILE_SIZE_BYTES) {
+    throw new Error(
+      `El archivo excede el tamaño máximo permitido de ${Math.round(MAX_FILE_SIZE_BYTES / (1024 * 1024))} MB.`
+    )
+  }
+
+  const bytes = new Uint8Array(buffer)
+  validateZipSafety(bytes)
+
+  const maxReadRows = MAX_SHEET_ROWS + 50
+  const wb = XLSX.read(bytes, {
+    type: "array",
+    cellDates: true,
+    cellNF: true,
+    sheets: 0,
+    sheetRows: maxReadRows,
+  })
+
+  const sheetName = wb.SheetNames[0]
+  if (!sheetName) {
+    throw new Error("El archivo no contiene ninguna hoja de cálculo.")
+  }
+  const sheet = wb.Sheets[sheetName]
+  if (!sheet) {
+    throw new Error("No se pudo leer la primera hoja del archivo Excel.")
+  }
+
+  if (sheet["!ref"]) {
+    const range = XLSX.utils.decode_range(sheet["!ref"])
+    if (range.e.c + 1 > MAX_COLUMNS) {
+      throw new Error(
+        `El archivo excede el límite máximo de ${MAX_COLUMNS} columnas permitidas (se detectaron ${range.e.c + 1} columnas).`
+      )
+    }
+  }
+
   const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, blankrows: false })
 
   if (!matrix || matrix.length === 0) {
     return { rows: [], hasReadyColumn: false }
+  }
+
+  for (let r = 0; r < matrix.length; r++) {
+    const row = matrix[r]
+    if (!Array.isArray(row)) continue
+
+    if (row.length > MAX_COLUMNS) {
+      throw new Error(
+        `El archivo excede el límite máximo de ${MAX_COLUMNS} columnas permitidas (la fila ${r + 1} tiene ${row.length} columnas).`
+      )
+    }
+
+    for (let c = 0; c < row.length; c++) {
+      const cellValue = String(row[c] ?? "")
+      if (cellValue.length > MAX_CELL_LENGTH) {
+        throw new Error(
+          `La celda en la fila ${r + 1}, columna ${c + 1} excede el límite máximo de ${MAX_CELL_LENGTH.toLocaleString("es-CO")} caracteres.`
+        )
+      }
+    }
   }
 
   // 1. Detectar la fila de encabezados: primera fila con columna "SKU"
@@ -261,7 +454,7 @@ function parseWorkbook(buffer: ArrayBuffer): {
       // Mapear todas las columnas de esta fila
       for (let c = 0; c < row.length; c++) {
         const field = matchHeader(row[c])
-        if (field) {
+        if (field && !DANGEROUS_KEYS.has(field.toLowerCase())) {
           colMap.set(c, field)
           if (field === "size") sizeColIdx = c
           if (field === "readyFlag") hasReadyColumn = true
@@ -284,8 +477,9 @@ function parseWorkbook(buffer: ArrayBuffer): {
       continue
     }
 
-    const rowObj: Record<string, unknown> = {}
+    const rowObj: Record<string, unknown> = Object.create(null)
     colMap.forEach((fieldKey, colIdx) => {
+      if (DANGEROUS_KEYS.has(fieldKey.toLowerCase())) return
       rowObj[fieldKey] = rawRow[colIdx] ?? ""
     })
 
@@ -334,6 +528,12 @@ function parseWorkbook(buffer: ArrayBuffer): {
       rawSizeCell,
       cellMetaForSize,
     })
+  }
+
+  if (matrix.length >= maxReadRows || parsedRows.length > MAX_SHEET_ROWS) {
+    throw new Error(
+      `El archivo excede el límite máximo de ${MAX_SHEET_ROWS.toLocaleString("es-CO")} filas de datos permitidas (se encontraron ${parsedRows.length.toLocaleString("es-CO")}).`
+    )
   }
 
   return { rows: parsedRows, hasReadyColumn }
