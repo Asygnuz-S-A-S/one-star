@@ -399,8 +399,8 @@ Configura `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` y
 
 ## Despliegue
 
-La guía de despliegue en Vercel con PostgreSQL/Supabase está en
-[docs/deploy-vercel.md](./docs/deploy-vercel.md). La rama configurada para el
+El despliegue es un contenedor Docker con PostgreSQL. El procedimiento está en
+[docs/deploy-docker.md](./docs/deploy-docker.md). La rama configurada para el
 despliegue actual es `develop`.
 
 ## Licencia y acceso

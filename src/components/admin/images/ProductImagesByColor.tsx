@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { dropTargetForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
 import { getColorSwatchStyle } from "@/lib/colors"
 import DraggableImageCard from "./DraggableImageCard"
-import { MIN_PRODUCT_IMAGES, isImageDragData, type ImageRow } from "./types"
+import { RECOMMENDED_PRODUCT_IMAGES, isImageDragData, type ImageRow } from "./types"
 
 /** Una foto junto a su posición en la lista completa (la que usa el drag & drop). */
 interface IndexedImage {
@@ -103,10 +103,10 @@ export default function ProductImagesByColor({
     <>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-[#4A4A4A]">
-          Mínimo {MIN_PRODUCT_IMAGES} fotos en total · {images.length} cargada(s)
-          {images.length < MIN_PRODUCT_IMAGES && (
-            <span className="text-[#E31C23] ml-1">
-              — faltan {MIN_PRODUCT_IMAGES - images.length}
+          Recomendado {RECOMMENDED_PRODUCT_IMAGES} fotos en total · {images.length} cargada(s)
+          {images.length < RECOMMENDED_PRODUCT_IMAGES && (
+            <span className="text-amber-600 ml-1">
+              — puedes guardar con menos, pero la ficha luce mejor con {RECOMMENDED_PRODUCT_IMAGES}
             </span>
           )}
         </p>

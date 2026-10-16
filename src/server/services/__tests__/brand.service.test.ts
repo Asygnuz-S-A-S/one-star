@@ -1,0 +1,218 @@
+import { beforeEach, describe, expect, it, vi } from "vitest"
+
+vi.mock("server-only", () => ({}))
+
+vi.mock("@/server/repositories/brand.repository", () => ({
+  findManyBrands: vi.fn(),
+  findBrandById: vi.fn(),
+  findBrandBySlug: vi.fn(),
+  findActiveBrandsWithPublishedProducts: vi.fn(),
+  createBrandRecord: vi.fn(),
+  updateBrandRecord: vi.fn(),
+  deleteBrandRecord: vi.fn(),
+}))
+
+import {
+  createBrand,
+  deleteBrand,
+  getAllBrands,
+  getBrandById,
+  getBrandBySlug,
+  getBrandDetailBySlug,
+  getStorefrontBrands,
+  updateBrand,
+} from "../brand.service"
+import {
+  createBrandRecord,
+  deleteBrandRecord,
+  findActiveBrandsWithPublishedProducts,
+  findBrandById,
+  findBrandBySlug,
+  findManyBrands,
+  updateBrandRecord,
+} from "@/server/repositories/brand.repository"
+
+const findMany = vi.mocked(findManyBrands)
+const findById = vi.mocked(findBrandById)
+const create = vi.mocked(createBrandRecord)
+const update = vi.mocked(updateBrandRecord)
+const remove = vi.mocked(deleteBrandRecord)
+
+function marca(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    id: "brand_1",
+    name: "New Balance",
+    slug: "new-balance",
+    erpId: null,
+    logoUrl: null,
+    isActive: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  }
+}
+
+beforeEach(() => vi.clearAllMocks())
+
+describe("getAllBrands", () => {
+  it("devuelve solo los campos del DTO, sin metadatos de la tabla", async () => {
+    findMany.mockResolvedValue([marca()] as never)
+
+    expect(await getAllBrands()).toEqual([
+      { id: "brand_1", name: "New Balance", slug: "new-balance", erpId: null, logoUrl: null, isActive: true },
+    ])
+  })
+
+  it("sin argumentos pide todas las marcas", async () => {
+    findMany.mockResolvedValue([])
+
+    await getAllBrands()
+
+    expect(findMany).toHaveBeenCalledWith(undefined)
+  })
+
+  it("filtra por activas cuando se pide", async () => {
+    findMany.mockResolvedValue([])
+
+    await getAllBrands(true)
+
+    expect(findMany).toHaveBeenCalledWith({ isActive: true })
+  })
+})
+
+describe("getBrandById", () => {
+  it("devuelve null cuando la marca no existe", async () => {
+    findById.mockResolvedValue(null)
+
+    expect(await getBrandById("desconocida")).toBeNull()
+  })
+
+  it("mapea la marca encontrada", async () => {
+    findById.mockResolvedValue(marca({ erpId: "erp-9" }) as never)
+
+    expect(await getBrandById("brand_1")).toMatchObject({ erpId: "erp-9" })
+  })
+})
+
+describe("createBrand", () => {
+  it("deriva el slug del nombre cuando no se envía", async () => {
+    create.mockResolvedValue(marca() as never)
+
+    await createBrand({ name: "New Balance" })
+
+    expect(create).toHaveBeenCalledWith({
+      name: "New Balance",
+      slug: "new-balance",
+      logoUrl: null,
+      isActive: true,
+    })
+  })
+
+  it("respeta el slug explícito", async () => {
+    create.mockResolvedValue(marca() as never)
+
+    await createBrand({ name: "New Balance", slug: "nb" })
+
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ slug: "nb" }))
+  })
+
+  it("permite crear la marca desactivada", async () => {
+    create.mockResolvedValue(marca({ isActive: false }) as never)
+
+    await createBrand({ name: "Veja", isActive: false })
+
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ isActive: false }))
+  })
+})
+
+describe("updateBrand", () => {
+  it("solo envía los campos presentes, para no pisar los demás con undefined", async () => {
+    update.mockResolvedValue(marca() as never)
+
+    await updateBrand("brand_1", { isActive: false })
+
+    expect(update).toHaveBeenCalledWith("brand_1", { isActive: false })
+  })
+
+  it("recalcula el slug cuando cambia el nombre", async () => {
+    update.mockResolvedValue(marca() as never)
+
+    await updateBrand("brand_1", { name: "Air Jordan" })
+
+    expect(update).toHaveBeenCalledWith("brand_1", {
+      name: "Air Jordan",
+      slug: "air-jordan",
+    })
+  })
+
+  it("permite borrar el logo enviando null", async () => {
+    update.mockResolvedValue(marca() as never)
+
+    await updateBrand("brand_1", { logoUrl: null })
+
+    expect(update).toHaveBeenCalledWith("brand_1", { logoUrl: null })
+  })
+})
+
+describe("deleteBrand", () => {
+  it("delega la eliminación al repositorio", async () => {
+    remove.mockResolvedValue(undefined as never)
+
+    await deleteBrand("brand_1")
+
+    expect(remove).toHaveBeenCalledWith("brand_1")
+  })
+})
+
+describe("getBrandBySlug", () => {
+  it("devuelve la marca mapeada cuando existe", async () => {
+    vi.mocked(findBrandBySlug).mockResolvedValue(marca() as never)
+
+    const result = await getBrandBySlug("new-balance")
+
+    expect(findBrandBySlug).toHaveBeenCalledWith("new-balance")
+    expect(result).toMatchObject({ id: "brand_1", slug: "new-balance", name: "New Balance" })
+  })
+
+  it("devuelve null cuando no existe", async () => {
+    vi.mocked(findBrandBySlug).mockResolvedValue(null)
+
+    await expect(getBrandBySlug("no-existe")).resolves.toBeNull()
+  })
+})
+
+describe("getStorefrontBrands", () => {
+  it("expone las marcas con su conteo de productos publicados", async () => {
+    vi.mocked(findActiveBrandsWithPublishedProducts).mockResolvedValue([
+      { ...marca(), _count: { products: 12 } },
+      { ...marca({ id: "brand_2", name: "Vans", slug: "vans" }), _count: { products: 1 } },
+    ] as never)
+
+    const result = await getStorefrontBrands()
+
+    expect(result).toEqual([
+      expect.objectContaining({ slug: "new-balance", productCount: 12 }),
+      expect.objectContaining({ slug: "vans", productCount: 1 }),
+    ])
+  })
+})
+
+describe("getBrandDetailBySlug", () => {
+  it("devuelve los campos de detalle y guía de tallas cuando la marca existe", async () => {
+    vi.mocked(findBrandBySlug).mockResolvedValue(
+      marca({
+        sizeGuideImageUrl: "https://res.cloudinary.com/demo/image/upload/guide.jpg",
+        sizeGuideNote: "Talla normal",
+      }) as never
+    )
+
+    const result = await getBrandDetailBySlug("new-balance")
+
+    expect(result).toMatchObject({
+      slug: "new-balance",
+      sizeGuideImageUrl: "https://res.cloudinary.com/demo/image/upload/guide.jpg",
+      sizeGuideNote: "Talla normal",
+    })
+  })
+})
+

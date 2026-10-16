@@ -115,10 +115,31 @@ src/
 
 ### Catálogo
 - **Category** → slug único, relación 1:N con Product
-- **Product** → precio base, precio de oferta, género (enum), marca, slug, SEO meta, descripción extendida, videoUrl, publicación y disponibilidad por canal; relaciones con ProductImage, Variant, CartItem, OrderItem y cross-sells (M:M auto-relación)
+- **Product** → precio base, precio de oferta, género (enum), marca, slug, SEO meta, descripción extendida, videoUrl, photosFolderUrl, publicación y disponibilidad por canal; relaciones con ProductImage, Variant, CartItem, OrderItem y cross-sells (M:M auto-relación)
 - **ProductImage** → url, alt, position, `color` (nullable), cascade delete
 - **Variant** → SKU único, talla (US/CM/EUR), color, stock
 - **ProductColorFamily** → agrupación local opcional de varios `Product` que son el mismo modelo en colores distintos
+
+#### Importación de catálogo desde Excel (`/admin/productos/importar`)
+- **Estructura y lectura**:
+  - Detección automática de la fila de encabezados por nombre (columna "SKU"), tolerando mayúsculas, minúsculas, tildes y alias en español (ej. `NOMBRE DEL PRODUCTO` → `name`, `DESCRIPCIÓN LARGA` / `DESCRIPCIÓN LARGAL` → `extendedDescription`, `EN OFERTA?` → `isOnSale`, `URL FOTOS` → `photosFolderUrl`, `PRODUCTO LISTO` → `readyFlag`).
+  - No asume fila fija de notas: los datos arrancan en la fila inmediatamente siguiente a los encabezados, omitiendo solo filas vacías o notas explícitas sin SKU.
+- **Formato fila por talla**:
+  - Un mismo SKU repetido en varias filas con tallas distintas se interpreta como SKU base y genera variantes `${sku}_${talla}` (ej. `VN0009QC6BT` con tallas 4.5, 5 genera `VN0009QC6BT_4.5`, `VN0009QC6BT_5`). Si el SKU ya contiene guion bajo (`_`), se respeta sin modificar.
+  - Normalización de tallas: "7.0" y "7" normalizan a la misma talla "7". Acepta números con medias tallas (.5), sufijos infantiles/juveniles (7I, 12J, 5B), "U" y "Única".
+  - Detección de tallas convertidas en fecha por Excel: si la celda tiene formato `d.m` o es fecha de mes 5 con día entre 1 y 13, se recupera como `${día}.${mes}` (ej. 8 de mayo → "8.5") con advertencia en la vista previa. Cualquier otra fecha se rechaza con error claro.
+  - Duplicados reales: mismo SKU y misma talla en dos filas genera error detallando ambas filas (`filas X e Y`).
+- **Alias y filtros de negocio**:
+  - Alias de marca: tabla configurable en código (`BRAND_ALIASES`) que mapea equivalencias comunes (ej. `ONCLOUD` → `On`, `ACESSORIOS VANS` → `Accesorios Vans`).
+  - Marcas omitidas: filas con marcas no catalogables (`BOLSAS DE VENTA`, `BONO`, `FALTA ORGANIZAR ESTA REFERENCIA`) se ignoran sin error y se reportan como omitidas.
+  - Alias de género: `NIÑOS`/`NIÑO` → `NINO`, `NIÑA`/`NIÑAS` → `NINA`, `BEBÉ` → `BEBE`.
+  - Filtro "PRODUCTO LISTO": opción para importar únicamente filas marcadas como `OK` / `SI` / `LISTO`; las demás se reportan como omitidas (no listas).
+- **Imágenes y Drive**:
+  - Soporte de hasta 8 imágenes por producto (`image1` a `image8`).
+  - La columna `URL FOTOS` enlaza a una carpeta de Drive: se guarda en el campo de referencia `Product.photosFolderUrl` y no se trata como archivo de imagen individual.
+  - Si un producto nuevo no tiene fotos individuales cargadas, se crea como no publicado (`isPublished = false`) con advertencia "sin fotos".
+- **Seguridad ERP**:
+  - Los productos y variantes gestionados por ERP (`erpId != null`) están protegidos: si un SKU del Excel coincide con uno del ERP, la fila se rechaza como error y nunca se sobreescribe.
 
 #### Familias de productos por color
 
@@ -190,7 +211,7 @@ esas condiciones para no sobrescribir una edición administrativa concurrente.
 ### Carrito y Pedidos
 - **Cart** → 1:1 con User, items con Variant y Product
 - **CartItem** → quantity, variant, product
-- **Order** → estado (enum OrderStatus), total, shipping, items, couponId
+- **Order** → estado logístico (enum `OrderStatus`: PENDING → PAID → SHIPPED → DELIVERED / CANCELLED), estado del pago (enum `PaymentStatus`: PENDING, APPROVED, REJECTED, FAILED, EXPIRED), `paidAt`, `paymentReference` (ref_payco), total, shipping (Json con dirección, método, costo y cupón), items. **Solo cuenta como venta cuando `paymentStatus = APPROVED`**: el pedido se crea PENDING al entrar al checkout de ePayco y pasa a PAID únicamente cuando la pasarela confirma (webhook `x_id_invoice` o consulta por `ref_payco` desde la página de respuesta). Los que nunca reciben notificación vencen pasadas 24 h vía `/api/cron/expire-orders` (`EXPIRED`; el cron es diario, así que en la práctica cierran entre 24 y 48 h); el correo de confirmación y el `Purchase` de Meta se disparan solo al aprobar el pago.
 - **OrderItem** → snapshot de precio, quantity, variante
 - **AbandonedCart** → email, cartData (Json), userId opcional, recoveredAt
 
@@ -203,6 +224,35 @@ esas condiciones para no sobrescribir una edición administrativa concurrente.
 - El repositorio reclama un vencimiento con un `UPDATE ... WHERE nextRunAt <= now RETURNING` y adelanta `nextRunAt` antes de consultar el ERP. Así dos procesos no ejecutan el mismo vencimiento y no se mantiene una transacción durante llamadas HTTP.
 - Desactivar el automático pone `nextRunAt=null`; la sincronización manual permanece independiente.
 - La programación solo puede activarse cuando el `IERPAdapter` efectivo implementa `fetchCatalog`. Si una configuración heredada permanece activa con un adaptador incompatible —incluido el fallback nulo por credenciales ausentes— el scheduler la reconcilia a `enabled=false` y `nextRunAt=null` antes de reclamar el vencimiento. La operación compara el `updatedAt` observado y modifica únicamente esos dos campos: preserva el intervalo y no pisa una edición concurrente posterior; también limpia vencimientos residuales de configuraciones ya inactivas. Esos ticks se omiten con `catalog_sync_unavailable`, sin consultar el ERP ni generar fallos repetitivos.
+
+### Configuración global
+- **StoreSettings** → registro único (`id = "default"`): nombre, email y WhatsApp de contacto (Configuración); `metaPixelId`, `metaPixelEnabled`, `metaTestEventCode` y `metaAccessToken` (solo servidor) para Meta Pixel + API de Conversiones (Integraciones → Marketing)
+- **SiteContent** → registro único (`id = "default"`): beneficios generales (`highlights`), preguntas frecuentes globales (`faqs`), promesas de tienda editables (`promises`) y plazo legal de devoluciones (`returnWindowDays`, por defecto 30).
+
+### Ficha de producto y Marcas: conversión y SEO en 3 niveles
+
+- **Resolución jerárquica de contenido (`resolveProductContent`)**:
+  - Regla de prioridad: `producto > marca > global > predeterminado`.
+  - Beneficios (`highlights`): si el producto tiene lista, se usa esa; si no, la de la marca; si no, la global.
+  - Preguntas frecuentes (`faqs`): si el producto tiene lista, se usa esa; si no, la de la marca; si no, la global.
+  - Promesas y plazos (`promises` y `returnWindowDays`): definidas a nivel global. Las promesas de envío y plazo de entrega provienen estrictamente de las constantes del sistema (`STANDARD_SHIPPING_THRESHOLD` y `DELIVERY_BUSINESS_DAYS`) para garantizar consistencia con el checkout. Devoluciones, pago seguro y soporte son editables desde `/admin/contenido`.
+- **Páginas de marca (`/marcas/[slug]`)**:
+  - Hero con logo, banner optimizado, descripción e historia/filosofía (texto plano seguro).
+  - Beneficios de marca y catálogo completo con filtros (`ProductGrid` y `FilterSidebar`).
+  - Reseñas destacadas de productos de esa marca (`isApproved: true` y `isFeatured: true`).
+  - Preguntas frecuentes propias de la marca.
+  - SEO propio en `src/lib/seo/brand-seo.ts`: `CollectionPage` con `ItemList`, `Brand`, `BreadcrumbList` y `FAQPage` (sin `aggregateRating` en marca para cumplir directrices de Google y evitar penalizaciones por self-serving reviews).
+- **Guía de tallas por marca (`SizeGuideModal`)**:
+  - `sizeGuideImageUrl` y `sizeGuideNote` en el modelo `Brand` (administrables desde `/admin/marcas`).
+  - La ficha de producto muestra la guía visual específica de la marca (ej. tabla oficial de Converse o Nike) con nota aclaratoria (ej. "calza medio número más grande").
+  - Si la marca no tiene imagen personalizada configurada, el modal recurre a la tabla estándar (CM / EU / US / UK).
+  - Accesibilidad completa: rol `dialog`, `aria-modal="true"`, cierre con tecla `Escape` o clic fuera, bloqueo de scroll del `body`, foco retornado al botón disparador y soporte de pinch-zoom móvil (`touch-auto`).
+- **Reseñas con moderación y destacadas** (`ProductReview`):
+  - `isApproved`: las de clientes entran pendientes; solo las aprobadas se publican y puntúan en el SEO del producto. El admin las aprueba, oculta, edita o elimina en `/admin/resenas`.
+  - `isFeatured`: permite marcar testimonios para destacarlos en la página de marca. Al desaprobar u ocultar una reseña, la marca `isFeatured` se apaga automáticamente.
+- **SEO de producto** vive en `src/lib/seo/product-seo.ts`: título/descripción, canonical limpio, Open Graph/Twitter y JSON-LD `@graph` con `Product` (oferta, disponibilidad, envío, devoluciones sincronizadas con `returnWindowDays`, `aggregateRating` y `review`), `BreadcrumbList` y `FAQPage` resuelto. El sitemap incluye todas las marcas activas y fotos de productos.
+- **Móvil**: `StickyBuyBar` fija precio y botón cuando el botón principal no está a la vista; si falta la talla, la pide en lugar de fallar en silencio.
+- **E2E**: `e2e/product-page.spec.ts`, `e2e/admin-resenas.spec.ts`, `e2e/admin-ficha-conversion.spec.ts`, `e2e/admin-contenido.spec.ts` y `e2e/brand-page.spec.ts`.
 
 ## Decisiones Arquitectónicas Tomadas
 
@@ -217,6 +267,7 @@ esas condiciones para no sobrescribir una edición administrativa concurrente.
 | 7 | **`server-only`** en módulos de servidor | Previene importar código de servidor en componentes de cliente en build time |
 | 8 | **Capa ERP agnóstica (Ports & Adapters)** en `src/server/erp/` | La tienda NO depende de ningún ERP específico. Cambiar de Alegra a otro ERP = solo cambiar `ERP_PROVIDER` en `.env` y crear un adaptador. El core nunca se modifica. Ver `REQUERIMIENTOS.md §D` |
 | 9 | **CSP dinámica con nonce por request** | Bloquea scripts no autorizados sin romper Next.js, ePayco, Sentry, mapas ni el preview administrativo |
+| 10 | **Control de acceso administrativo fail-closed con resolución de rol en BD y caché de 60s** | Previene que roles inválidos, nulos o no sincronizados otorguen acceso (fail-open); propaga degradaciones y revocaciones de rol en un máximo de 60 segundos tanto en el proxy (Node runtime) como en Server Actions y páginas de servidor (`requireAdmin`, `requireSuperAdmin`). |
 
 ### Content Security Policy
 
@@ -235,7 +286,7 @@ JavaScript inline.
 
 La política permite conexiones únicamente a ePayco, los endpoints de ingestión
 de Sentry y Nominatim. Los frames y formularios externos se restringen a
-ePayco. Imágenes y medios admiten HTTPS para Cloudinary, CARTO y los recursos
+ePayco. Imágenes y medios admiten HTTPS para Cloudinary, los tiles de OpenStreetMap y los recursos
 administrables. `object-src 'none'`, `base-uri 'self'` y
 `frame-ancestors 'none'` permanecen cerrados; solo `/?preview=true` admite
 `frame-ancestors 'self'` para el iframe interno del panel.
@@ -243,6 +294,17 @@ administrables. `object-src 'none'`, `base-uri 'self'` y
 Agregar un proveedor de scripts, tracking, conexiones o frames exige actualizar
 el inventario en `src/lib/content-security-policy.ts`, sus pruebas y esta
 sección. No se deben usar comodines globales ni nonces fijos.
+
+### Control de Acceso Administrativo y Resolución de Rol Fail-Closed
+
+El sistema de roles administrativos (`SUPER_ADMIN` y `INVENTORY_OPERATOR`) sigue un principio estricto de **fail-closed**:
+
+1. **Normalización estricta**: `normalizeAdminRole` en `src/lib/admin-access.ts` devuelve `AdminRole` si coincide exactamente con un rol conocido; ante cualquier otro valor (nulo, indefinido, vacío, errores de tipografía o mayúsculas, o roles nuevos no incorporados), devuelve `null`.
+2. **Proxy en Node runtime**: `src/proxy.ts` se ejecuta en el runtime Node.js de Next.js, lo que permite consultar el rol activo del administrador directamente contra `AdminUser.role` a través de `resolveActiveAdminRole`. Para evitar latencia excesiva en cada solicitud, el rol se mantiene en una caché en memoria de proceso por un máximo de 60 segundos (`ADMIN_ROLE_CACHE_TTL_MS = 60000`).
+3. **Efecto inmediato de degradaciones/revocaciones**: Al degradar o eliminar a un administrador en la base de datos, el cambio surte efecto en el proxy y en el panel en a lo sumo 60 segundos (o de inmediato si se invalida la caché), sin requerir que el usuario cierre sesión o espere la expiración de su cookie de autenticación.
+4. **Respuesta ante rol inválido**: Si un usuario con sesión no tiene un rol válido en la base de datos, `proxy.ts` deniega el acceso redirigiendo a `/admin/login`, borra las cookies de sesión en la respuesta (`better-auth.session_token` y `__Secure-better-auth.session_token`) y revoca el token en base de datos.
+5. **Defensa en profundidad en el servidor**: `requireAdmin()` y `requireSuperAdmin()` en `src/server/auth/require-admin.ts` y las páginas dinámicas del panel admin resuelven igualmente el rol activo desde la base de datos mediante `resolveActiveAdminRole`. Si el rol no es válido, lanzan `UnauthorizedError`.
+6. **Aprovisionamiento explícito**: `scripts/create-admin.ts` exige la variable `ADMIN_ROLE` de forma obligatoria y sin valor por defecto, validando exhaustivamente que sea un rol conocido.
 
 ## Decisiones Arquitectónicas Pendientes
 
@@ -270,10 +332,35 @@ Se usan para endpoints que necesitan acceso desde el cliente sin full-page navig
 ### Validación
 Zod valida en la capa de `validators/` antes de llamar servicios. Los errores se devuelven tipados.
 
+## Stock por sede (informativo)
+
+El ERP entrega las existencias por establecimiento y la web las publica en dos niveles:
+
+| Dato | Dónde vive | Quién lo escribe | Para qué sirve |
+|---|---|---|---|
+| Total vendible por variante | `Variant.stock` | Sincronización ERP; se descuenta al pagar | Catálogo, filtros, selector de tallas, validación del checkout |
+| Desglose por sede | `InventoryLevel` (`variantId` × `storeLocationId`) | Sincronización ERP para sedes con `StoreLocation.erpId`; el admin para sedes sin vínculo | Ficha de producto ("Fundadores: 2 · Centro: 1") y formulario administrativo |
+
+Reglas:
+
+- `StoreLocation.erpId` (único) vincula una tienda física con el establecimiento del ERP. La
+  sincronización garantiza una sede por establecimiento: reutiliza la vinculada, enlaza por nombre
+  una sede sin vínculo (`normalizeStoreName`) o la crea **oculta** con dirección/ciudad `Por definir`
+  para que el administrador la complete en `/admin/tiendas` antes de publicarla.
+- El desglose es **solo informativo**: la web no reserva ni aparta unidades de tienda y no ofrece
+  recogida en sede. El cliente ve dónde hay existencias para comprarlas presencialmente.
+- Al pagar un pedido se descuenta `Variant.stock` y, en la misma transacción, el desglose de las
+  sedes con más existencias; la siguiente sincronización vuelve a alinear ambos con el ERP.
+- El formulario de producto solo permite editar el stock de sedes sin vínculo ERP y solo reemplaza
+  las filas de las sedes que envía, para no borrar el desglose sincronizado.
+- La capa ERP expone el desglose de forma agnóstica: `ERPCatalogSnapshot.locations`,
+  `ERPCatalogVariant.stockByLocation` y `IERPAdapter.listStockLocations?()`. Un ERP que no
+  distinga sedes simplemente no los informa y la tienda sigue funcionando con el total.
+
 ## Variables de Entorno Requeridas
 
 > Inventario completo y comentado: **`.env.example`** (versionado).
-> Procedimiento de despliegue: **`docs/deploy-vercel.md`**.
+> Procedimiento de despliegue: **`docs/deploy-docker.md`**.
 
 ```bash
 # Base de datos
@@ -285,11 +372,11 @@ DIRECT_URL=postgresql://...       # Conexión directa para migraciones de Prisma
 DATABASE_STARTUP_MAX_ATTEMPTS=12  # Intentos de conexión del entrypoint Docker antes de abortar
 DATABASE_STARTUP_RETRY_SECONDS=5  # Segundos entre sondeos de conexión del entrypoint
 DATABASE_STARTUP_PROBE_TIMEOUT_SECONDS=5 # Timeout de cada sondeo; rango permitido 1..60
-# En local ambas apuntan al mismo Postgres. En serverless NO son intercambiables:
-# DATABASE_URL debe ir al pooler (modo transaction) con ?pgbouncer=true, porque
-# cada invocación abre su propia conexión; DIRECT_URL debe ser la conexión
-# directa, porque `prisma migrate` necesita una sesión persistente para los
-# advisory locks y el DDL transaccional.
+# En el despliegue Docker ambas apuntan al mismo Postgres. Si algún día se usa un
+# pooler externo NO son intercambiables: DATABASE_URL debe ir al pooler (modo
+# transaction) con ?pgbouncer=true, y DIRECT_URL a la conexión directa, porque
+# `prisma migrate` necesita una sesión persistente para los advisory locks y el
+# DDL transaccional.
 
 # Autenticación (better-auth)
 AUTH_SECRET=...                   # Secret para firmar sesiones
@@ -306,7 +393,9 @@ LOGGRO_BASE_URL=""                # Base URL para Loggro Pymes (default: https:/
 LOGGRO_ESTABLECIMIENTO_UUID=""    # (opcional) UUID del establecimiento para consultar existencias
 LOGGRO_BODEGA_UUID=""             # (opcional) UUID de la bodega; si se omiten, se auto-detectan
 LOGGRO_STOCK_SCOPE="all"          # "all" suma el stock de todas las tiendas | "primary" solo la sede principal
+LOGGRO_IVA_RATE="0.19"            # Tasa de IVA de RESPALDO: solo aplica a ítems sin `ivaVenta` válido (ver nota abajo)
 ERP_CATALOG_WRITES_ENABLED="false" # Fail-closed: habilitar solo tras validar dry-run y reparar duplicados
+DISABLE_INTERNAL_CRON=""          # "1" apaga los cron internos; usar solo con disparador externo
 CRON_SECRET=""                    # (opcional) Protege /api/cron/sync-erp para disparadores externos
 
 # Correos transaccionales (Resend — ver src/server/email/)
@@ -331,48 +420,77 @@ NEXT_PUBLIC_EPAYCO_TEST=true        # "true" en staging, "false" en producción
 CLOUDINARY_CLOUD_NAME=...        # Nombre del cloud (Dashboard > Settings)
 CLOUDINARY_API_KEY=...           # API Key
 CLOUDINARY_API_SECRET=...        # API Secret (solo servidor)
+
+# Chatbot de ventas (ver src/server/services/ai-chat.service.ts)
+ANTHROPIC_API_KEY=...            # Sin esto, el chat responde "no disponible" en vez de romper la página
+ANTHROPIC_MODEL=claude-sonnet-5  # Opcional; ya es el default
 ```
+
+**Nota sobre el IVA de Loggro (`LOGGRO_IVA_RATE`).** Loggro entrega el precio
+de venta SIN IVA y el contrato del core (`basePrice`) es el precio final que
+paga el cliente, así que el adaptador suma el IVA al normalizar el catálogo
+(`src/server/erp/adapters/loggro-pricing.ts` y `loggro-catalog.normalizer.ts`).
+La tasa se resuelve por ítem, en este orden:
+
+1. `ivaVenta` del ítem vendible (porcentaje, ej. `"19.00"`, `"5.00"`, `"0"`).
+2. `ivaVenta` de la definición padre (`definicion: true`) a la que pertenece.
+3. `LOGGRO_IVA_RATE` (default `0.19`), solo cuando ninguno de los anteriores
+   viene o es válido.
+
+Reglas de validez: se acepta string o número, con punto o coma decimal; los
+valores `>= 1` se leen como porcentaje y los menores como fracción; negativos,
+no numéricos o `>= 100 %` se descartan y se cae al siguiente nivel. `"0"` es
+válido e identifica un ítem exento: se publica a precio neto aunque la tasa
+global sea 19 %. En consecuencia, `LOGGRO_IVA_RATE=0` ya NO desactiva el IVA
+para ítems que traen `ivaVenta`; solo afecta a los que no lo traen. El precio
+siempre se redondea al peso más cercano.
 
 Variables pendientes de definir:
 - `MERCADOPAGO_ACCESS_TOKEN`
 - `RESEND_API_KEY` (o equivalente de email)
-- `META_PIXEL_ID` / `META_ACCESS_TOKEN`
 - `GA4_MEASUREMENT_ID`
+
+Meta Pixel y API de Conversiones **no usan variables de entorno**: el ID del
+píxel, el token de la API de Conversiones y el código de evento de prueba se
+administran desde `/admin/integraciones` (sección Marketing) y viven en la
+tabla `StoreSettings`. El token nunca se envía al navegador; solo lo lee
+`src/server/services/meta-conversions.service.ts`, que dispara el `Purchase`
+server-side desde el webhook de ePayco con `event_id` = id del pedido para que
+Meta lo deduplique contra el `Purchase` del píxel. `BETTER_AUTH_URL` se reutiliza
+como base de `event_source_url`.
 
 ## Despliegue
 
-El proyecto soporta dos topologías. El código es el mismo; la diferencia se
-detecta en tiempo de ejecución con `process.env.VERCEL`.
+El despliegue es un contenedor Docker construido con `output: "standalone"`,
+junto a un PostgreSQL propio. El proceso Node queda vivo entre peticiones, así
+que las tareas programadas viven dentro de la aplicación.
 
-| | Con proceso persistente | Serverless |
-|---|---|---|
-| Dónde | local, Docker, VPS, Lightsail | Vercel |
-| Postgres | contenedor `db` | Supabase (pooler 6543 en runtime + pooler 5432 para migraciones) |
-| Sync ERP | `node-cron` despierta cada minuto; PostgreSQL decide el vencimiento | disparador externo → `GET /api/cron/sync-erp`; PostgreSQL decide el vencimiento |
+| | Configuración actual |
+|---|---|
+| Dónde | contenedor Docker (local, VPS, Lightsail) |
+| Postgres | contenedor `db` |
+| Sync ERP | `node-cron` despierta cada minuto; PostgreSQL decide el vencimiento |
+| Vencimiento de pedidos | `node-cron` a las 07:30 |
 
 **Programación del cron.** `node-cron` requiere un proceso vivo entre
-ejecuciones, algo que no existe en serverless: allí cada request crea y destruye
-su propia instancia, así que el `schedule` nunca dispara. Por eso
-`instrumentation-node.ts` se salta la inicialización cuando `VERCEL === "1"`, y
-el despertador pasa a `vercel.json`, que llama al endpoint con
-`Authorization: Bearer $CRON_SECRET`.
+ejecuciones, y el contenedor lo tiene. `instrumentation-node.ts` programa las
+dos tareas al arrancar.
 
-Consecuencia a tener presente: **el plan Hobby de Vercel solo permite una
-ejecución diaria**. El administrador puede guardar intervalos de 15 minutos a
-24 horas, pero la frecuencia efectiva nunca será mayor que la cadencia del
-scheduler externo: un vencimiento de 15 minutos invocado una vez al día se
-ejecutará, como máximo, una vez al día. Si la frecuencia configurada es un
-requisito estricto del negocio, se necesita un scheduler externo con esa misma
-cadencia o un proceso Node persistente.
+Los endpoints `GET /api/cron/sync-erp` y `GET /api/cron/expire-orders` siguen
+existiendo para un disparador externo (crontab, EventBridge) con
+`Authorization: Bearer $CRON_SECRET`. Si se usa uno, hay que apagar el cron
+interno con `DISABLE_INTERNAL_CRON=1` para no ejecutar la tarea dos veces; con
+un disparador externo, la frecuencia efectiva nunca supera su propia cadencia,
+por más que el administrador configure un intervalo menor.
 
-En ambas topologías, `erp-sync-scheduler.service.ts` usa `ErpSyncConfig` como
-fuente de verdad. `instrumentation-node.ts` y `/api/cron/sync-erp` solo despiertan
-el coordinador; no contienen una frecuencia de negocio fija.
+`erp-sync-scheduler.service.ts` usa `ErpSyncConfig` como fuente de verdad.
+`instrumentation-node.ts` y `/api/cron/sync-erp` solo despiertan el coordinador;
+no contienen una frecuencia de negocio fija.
 
 `CRON_SECRET` es *fail-closed*: en producción, sin ella el endpoint responde
 `503` en vez de ejecutar la sincronización sin autenticar.
 
-Procedimiento paso a paso: **`docs/deploy-vercel.md`**.
+Procedimiento paso a paso: **`docs/deploy-docker.md`**.
 
 En servidor propio, el entrypoint del `runner` sondea PostgreSQL con reintentos
 acotados y ejecuta `prisma migrate deploy` antes de `node server.js`; nunca

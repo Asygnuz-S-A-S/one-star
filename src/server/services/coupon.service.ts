@@ -5,6 +5,7 @@ import {
   createCouponRecord,
   updateCouponRecord,
   incrementCouponUsage,
+  decrementCouponUsage,
 } from "../repositories/coupon.repository"
 import type { DiscountType } from "@prisma/client"
 
@@ -72,19 +73,30 @@ export type CouponOrderValidation =
       code: string
       discountType: "PERCENTAGE" | "FIXED_AMOUNT"
       discountValue: number
-      /** Descuento en pesos ya calculado sobre el subtotal */
+      /** Descuento en pesos ya calculado sobre el subtotal elegible */
       discountAmount: number
     }
   | { valid: false; reason: string }
 
+/** Ítem del carrito ya resuelto desde la base de datos (precio y categoría reales). */
+export interface CouponOrderItemInput {
+  categoryId: string
+  unitPrice: number
+  quantity: number
+}
+
 /**
- * Valida un cupón para aplicarlo a una compra y calcula el descuento sobre el
- * subtotal. A diferencia de {@link validateCoupon}, también verifica el monto
- * mínimo de compra y el tope de usos.
+ * Valida un cupón para aplicarlo a una compra y calcula el descuento. A
+ * diferencia de {@link validateCoupon}, también verifica el monto mínimo de
+ * compra (siempre sobre el total del carrito) y el tope de usos.
+ *
+ * Cuando el cupón tiene `categoryId`, el descuento se calcula únicamente
+ * sobre el subtotal de los ítems de esa categoría — no sobre todo el
+ * carrito — y se rechaza si el carrito no tiene ningún ítem elegible.
  */
 export async function validateCouponForOrder(
   code: string,
-  subtotal: number
+  items: CouponOrderItemInput[]
 ): Promise<CouponOrderValidation> {
   const coupon = await findCouponByCode(code.trim().toUpperCase())
   const now = new Date()
@@ -98,6 +110,8 @@ export async function validateCouponForOrder(
   if (coupon.maxUses !== null && coupon.usedCount >= coupon.maxUses) {
     return { valid: false, reason: "El cupón alcanzó su límite de usos" }
   }
+
+  const subtotal = items.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0)
   const minOrder = coupon.minOrderAmount ? Number(coupon.minOrderAmount) : null
   if (minOrder !== null && subtotal < minOrder) {
     return {
@@ -106,11 +120,19 @@ export async function validateCouponForOrder(
     }
   }
 
+  const eligibleItems = coupon.categoryId
+    ? items.filter((i) => i.categoryId === coupon.categoryId)
+    : items
+  if (coupon.categoryId && eligibleItems.length === 0) {
+    return { valid: false, reason: "Este cupón no aplica a los productos de tu carrito" }
+  }
+  const eligibleSubtotal = eligibleItems.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0)
+
   const discountValue = coupon.discountValue.toNumber()
   const rawDiscount =
-    coupon.discountType === "PERCENTAGE" ? (subtotal * discountValue) / 100 : discountValue
-  // El descuento nunca supera el subtotal (el total no puede quedar negativo)
-  const discountAmount = Math.round(Math.min(rawDiscount, subtotal))
+    coupon.discountType === "PERCENTAGE" ? (eligibleSubtotal * discountValue) / 100 : discountValue
+  // El descuento nunca supera el subtotal elegible (el total no puede quedar negativo)
+  const discountAmount = Math.round(Math.min(rawDiscount, eligibleSubtotal))
 
   return {
     valid: true,
@@ -153,4 +175,14 @@ export async function registerCouponUsage(id: string): Promise<boolean> {
 /** Libera un uso reservado (p. ej. si la creación del pedido falló después de reservar). */
 export async function releaseCouponUsage(id: string): Promise<void> {
   await updateCouponRecord(id, { usedCount: { decrement: 1 } })
+}
+
+/**
+ * Libera el uso reservado por un pedido que finalmente no se pagó (rechazo,
+ * vencimiento o cancelación). Silencioso si el código ya no existe.
+ */
+export async function releaseCouponUsageByCode(code: string): Promise<void> {
+  const coupon = await findCouponByCode(code)
+  if (!coupon) return
+  await decrementCouponUsage(coupon.id)
 }

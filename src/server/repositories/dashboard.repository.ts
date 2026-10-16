@@ -1,9 +1,20 @@
 import "server-only"
 import { prisma } from "../db/prisma"
 
+/** Ventana de comparación de los KPI: últimos N días contra los N anteriores. */
+export const DASHBOARD_PERIOD_DAYS = 30
+
+function daysAgo(days: number): Date {
+  const date = new Date()
+  date.setDate(date.getDate() - days)
+  return date
+}
+
 export async function getDashboardData() {
-  const thirtyDaysAgo = new Date()
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+  const thirtyDaysAgo = daysAgo(DASHBOARD_PERIOD_DAYS)
+  const sixtyDaysAgo = daysAgo(DASHBOARD_PERIOD_DAYS * 2)
+  // Venta real: pago confirmado por la pasarela y no cancelada.
+  const paidSale = { paymentStatus: "APPROVED" as const, status: { not: "CANCELLED" as const } }
 
   const [
     gmvResult,
@@ -14,15 +25,20 @@ export async function getDashboardData() {
     lowStockRaw,
     revenueByDayRaw,
     ordersByStatusRaw,
+    currentPeriodOrders,
+    previousPeriodOrders,
+    currentPeriodCustomers,
+    previousPeriodCustomers,
   ] = await Promise.all([
     prisma.order.aggregate({
       _sum: { total: true },
       _count: { id: true },
-      where: { status: { not: "CANCELLED" } },
+      where: paidSale,
     }),
     prisma.product.count(),
     prisma.user.count(),
-    prisma.order.count({ where: { status: "PENDING" } }),
+    // "Pendientes" para el negocio: ventas pagadas que aún no se despachan.
+    prisma.order.count({ where: { status: "PAID" } }),
     prisma.orderItem.groupBy({
       by: ["productId"],
       _sum: { quantity: true, unitPrice: true },
@@ -36,16 +52,27 @@ export async function getDashboardData() {
       take: 20,
     }),
     prisma.order.findMany({
-      where: {
-        status: { not: "CANCELLED" },
-        createdAt: { gte: thirtyDaysAgo },
-      },
+      where: { ...paidSale, createdAt: { gte: thirtyDaysAgo } },
       select: { createdAt: true, total: true },
     }),
     prisma.order.groupBy({
+      where: { paymentStatus: "APPROVED" },
       by: ["status"],
       _count: { id: true },
     }),
+    // Tendencias reales: mismo agregado que el GMV, acotado a cada ventana.
+    prisma.order.aggregate({
+      _sum: { total: true },
+      _count: { id: true },
+      where: { ...paidSale, createdAt: { gte: thirtyDaysAgo } },
+    }),
+    prisma.order.aggregate({
+      _sum: { total: true },
+      _count: { id: true },
+      where: { ...paidSale, createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } },
+    }),
+    prisma.user.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
+    prisma.user.count({ where: { createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } } }),
   ])
 
   let products: Array<{ id: string; name: string; brand: string | null }> = []
@@ -68,5 +95,9 @@ export async function getDashboardData() {
     topProductsData: products,
     revenueByDayRaw,
     ordersByStatusRaw,
+    currentPeriodOrders,
+    previousPeriodOrders,
+    currentPeriodCustomers,
+    previousPeriodCustomers,
   }
 }

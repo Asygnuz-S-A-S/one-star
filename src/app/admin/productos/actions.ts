@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache"
 import {
-  createProduct as createProductService,
   updateProduct as updateProductService,
   deleteProduct as deleteProductService,
   searchProducts as searchProductsService,
@@ -13,6 +12,7 @@ import {
   productFormSchema,
 } from "@/server/validators/product.validator"
 import { slugify } from "@/lib/utils"
+import { faqsFromText, highlightsFromText } from "@/lib/product-faq"
 import { requireAdmin } from "@/server/auth/require-admin"
 import type { ActionResult } from "@/types/admin"
 
@@ -50,6 +50,8 @@ function extractFormData(formData: FormData) {
     availableOnline: formData.get("availableOnline") !== "false",
     availableInStores: formData.get("availableInStores") !== "false",
     isPublished: formData.get("isPublished") !== "false",
+    highlights: highlightsFromText((formData.get("highlights") as string) ?? ""),
+    faqs: faqsFromText((formData.get("faqs") as string) ?? ""),
     variants: JSON.parse((formData.get("variants") as string) || "[]"),
     images: JSON.parse((formData.get("images") as string) || "[]"),
     colorFamilyProductIds: JSON.parse((formData.get("colorFamilyProductIds") as string) || "[]"),
@@ -57,47 +59,6 @@ function extractFormData(formData: FormData) {
       (formData.get("colorFamilyBaselineProductIds") as string) || "[]"
     ),
     crossSellIds: JSON.parse((formData.get("crossSellIds") as string) || "[]"),
-  }
-}
-
-export async function createProduct(formData: FormData): Promise<ActionResult> {
-  const raw = extractFormData(formData)
-  const parsed = productFormSchema.safeParse(raw)
-  if (!parsed.success) {
-    return { success: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos." }
-  }
-
-  const data = parsed.data
-  const slug = data.slug || slugify(data.name)
-
-  try {
-    await requireAdmin()
-    const product = await createProductService({
-      ...data,
-      slug,
-      variants: data.variants.map((v) => ({
-        sku: v.sku,
-        size: v.size,
-        color: v.color,
-        stock: v.stock,
-        inventory: v.inventory || [],
-        sizeUS: v.sizeUS ?? null,
-        sizeCM: v.sizeCM ?? null,
-        sizeEUR: v.sizeEUR ?? null,
-      })),
-      images: data.images.map((img, idx) => ({
-        url: img.url,
-        alt: img.alt ?? data.name,
-        position: img.position ?? idx,
-        color: img.color ?? null,
-      })),
-    })
-
-    revalidatePath("/admin/productos")
-    revalidatePath("/productos")
-    return { success: true, id: product.id }
-  } catch (error: unknown) {
-    return { success: false, error: getErrorMessage(error) }
   }
 }
 

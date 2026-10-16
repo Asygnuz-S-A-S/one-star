@@ -4,7 +4,6 @@ vi.mock("server-only", () => ({}))
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }))
 vi.mock("@/server/auth/require-admin", () => ({ requireAdmin: vi.fn() }))
 vi.mock("@/server/services/product.service", () => ({
-  createProduct: vi.fn(),
   updateProduct: vi.fn(),
   deleteProduct: vi.fn(),
   searchProducts: vi.fn(),

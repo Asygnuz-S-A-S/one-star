@@ -49,7 +49,7 @@ function InteractiveStars({ value, onChange }: { value: number; onChange: (v: nu
 }
 
 export default function ProductReviews({ productId, initialReviews, stats }: ProductReviewsProps) {
-  const [reviews, setReviews] = useState(initialReviews)
+  const [reviews] = useState(initialReviews)
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [rating, setRating] = useState(5)
   const [submitting, setSubmitting] = useState(false)
@@ -71,32 +71,19 @@ export default function ProductReviews({ productId, initialReviews, stats }: Pro
     if (result.ok) {
       setSuccess(true)
       setIsFormOpen(false)
-      // Optimistic update
-      const newReview = {
-        id: Date.now().toString(),
-        productId,
-        userId: session?.user?.id ?? null,
-        userName: formData.get("userName") as string,
-        rating,
-        title: formData.get("title") as string | null,
-        body: formData.get("body") as string,
-        verified: false,
-        createdAt: new Date(),
-      } as ProductReview
-      setReviews(prev => [newReview, ...prev])
     } else {
       setError(result.error ?? "Error al enviar")
     }
   }
 
   return (
-    <section className="py-16 border-t border-[#E0E0E0] dark:border-white/10">
+    <section id="resenas" aria-labelledby="titulo-resenas" className="py-16 border-t border-[#E0E0E0] dark:border-white/10 scroll-mt-24">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
         {/* Header */}
         <div className="flex items-center justify-between mb-10">
           <div>
-            <h2 className="font-[var(--font-barlow)] font-bold text-2xl uppercase tracking-wider text-[#1C1C1C] dark:text-white mb-1">
+            <h2 id="titulo-resenas" className="font-[var(--font-barlow)] font-bold text-2xl uppercase tracking-wider text-[#1C1C1C] dark:text-white mb-1">
               Reseñas
             </h2>
             {stats.count > 0 && (
@@ -274,7 +261,7 @@ export default function ProductReviews({ productId, initialReviews, stats }: Pro
                     disabled={submitting}
                     className="flex-1 py-3 bg-[#1C1C1C] dark:bg-white text-white dark:text-black font-[var(--font-barlow)] font-bold text-sm uppercase tracking-widest hover:bg-[#E31C23] dark:hover:bg-gray-200 transition-colors disabled:opacity-50"
                   >
-                    {submitting ? "Enviando..." : "Publicar reseña"}
+                    {submitting ? "Enviando..." : "Enviar reseña"}
                   </button>
                   <button
                     type="button"
@@ -295,7 +282,7 @@ export default function ProductReviews({ productId, initialReviews, stats }: Pro
             animate={{ opacity: 1 }}
             className="text-green-600 dark:text-green-400 font-[var(--font-montserrat)] text-sm mt-4"
           >
-            ✓ ¡Gracias por tu reseña! Ya está publicada.
+            ✓ ¡Gracias por tu reseña! La publicaremos en cuanto la revisemos.
           </motion.p>
         )}
       </div>

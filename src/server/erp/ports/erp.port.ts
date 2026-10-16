@@ -78,6 +78,12 @@ export interface IERPAdapter {
   fetchCatalog?(): Promise<import("../erp.types").ERPCatalogSnapshot>
 
   /**
+   * Sedes del ERP cuyo inventario alimenta la tienda. Permite vincularlas con
+   * las tiendas físicas administradas en la web. Opcional.
+   */
+  listStockLocations?(): Promise<import("../erp.types").ERPStockLocation[]>
+
+  /**
    * Prueba explícita y de solo lectura de las capacidades operativas del ERP.
    * Es opcional para conservar compatibilidad con adaptadores existentes.
    */

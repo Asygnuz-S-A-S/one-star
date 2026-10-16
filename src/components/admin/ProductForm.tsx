@@ -5,7 +5,7 @@ import Image from "next/image"
 import { useState, useTransition, useCallback, useMemo, useEffect, useRef } from "react"
 import type { StoreLocation } from "@prisma/client"
 import type { ProductWithRelations } from "@/types/admin"
-import { createProduct, updateProduct, deleteProduct, searchProducts } from "@/app/admin/productos/actions"
+import { updateProduct, deleteProduct, searchProducts } from "@/app/admin/productos/actions"
 import { monitorForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
 import {
   PRODUCT_COLORS,
@@ -15,9 +15,10 @@ import {
   isRealColor,
   type ColorPalette,
 } from "@/lib/colors"
+import { faqsToText, parseProductFaqs } from "@/lib/product-faq"
 import ProductImagesByColor from "./images/ProductImagesByColor"
+import ProductVideoField from "./ProductVideoField"
 import {
-  MIN_PRODUCT_IMAGES,
   isColorPanelDropData,
   isImageDragData,
   type ImageRow,
@@ -55,8 +56,7 @@ interface ColorFamilyItem {
 }
 
 interface Props {
-  mode: "create" | "edit"
-  product?: ProductWithRelations
+  product: ProductWithRelations
   categories: { id: string; name: string }[]
   brands?: { id: string; name: string }[]
   stores?: StoreLocation[]
@@ -65,16 +65,6 @@ interface Props {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function slugify(text: string): string {
-  return text
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-z0-9\s-]/g, "")
-    .trim()
-    .replace(/\s+/g, "-")
-}
 
 // ─── Section Wrapper ───────────────────────────────────────────────────────────
 
@@ -108,7 +98,6 @@ const inputClass =
 // ─── Main Component ────────────────────────────────────────────────────────────
 
 export default function ProductForm({
-  mode,
   product,
   categories,
   brands = [],
@@ -135,11 +124,15 @@ export default function ProductForm({
   const [availableOnline, setAvailableOnline] = useState(product?.availableOnline ?? true)
   const [availableInStores, setAvailableInStores] = useState(product?.availableInStores ?? true)
   const [isPublished, setIsPublished] = useState(product?.isPublished ?? true)
+  const [highlightsText, setHighlightsText] = useState((product?.highlights ?? []).join("\n"))
+  const [faqsText, setFaqsText] = useState(faqsToText(parseProductFaqs(product?.faqs)))
 
   // Pricing
-  const [basePrice] = useState(product?.basePrice ? String(Number(product.basePrice)) : "")
+  // El precio llega de Loggro y es de solo lectura: un producto a $0 (p. ej. bolsas
+  // de obsequio) debe poder guardarse igual, así que el cero no se trata como vacío.
+  const [basePrice] = useState(product?.basePrice != null ? String(Number(product.basePrice)) : "")
   const [isOnSale] = useState(product?.isOnSale ?? false)
-  const [salePrice] = useState(product?.salePrice ? String(Number(product.salePrice)) : "")
+  const [salePrice] = useState(product?.salePrice != null ? String(Number(product.salePrice)) : "")
 
   // SEO
   const [metaTitle, setMetaTitle] = useState(product?.metaTitle ?? "")
@@ -288,9 +281,6 @@ export default function ProductForm({
 
   function handleNameChange(val: string) {
     setName(val)
-    if (mode === "create") {
-      setSlug(slugify(val))
-    }
   }
 
   function updateVariant(idx: number, field: keyof VariantRow, value: string) {
@@ -476,10 +466,6 @@ export default function ProductForm({
     if (!basePrice || isNaN(parseFloat(basePrice))) { setError("El precio base es requerido."); return }
     if (isOnSale && (!salePrice || isNaN(parseFloat(salePrice)))) { setError("Ingresa el precio de oferta."); return }
     if (hasDuplicateSkus()) { setError("Hay SKUs duplicados en las variantes."); return }
-    if (images.length < MIN_PRODUCT_IMAGES) {
-      setError(`Sube al menos ${MIN_PRODUCT_IMAGES} imágenes del producto.`)
-      return
-    }
     // Las fotos se publican por color: una sin asignar no se vería en la ficha.
     const unassignedImages = images.filter((img) => !img.color).length
     if (unassignedImages > 0) {
@@ -506,15 +492,21 @@ export default function ProductForm({
     formData.set("availableOnline", String(availableOnline))
     formData.set("availableInStores", String(availableInStores))
     formData.set("isPublished", String(isPublished))
+    formData.set("highlights", highlightsText)
+    formData.set("faqs", faqsText)
     
-    // Ensure all variants map their 'inventory' objects correctly with numbers
+    // Ensure all variants map their 'inventory' objects correctly with numbers.
+    // Las sedes vinculadas al ERP no se envían: su stock lo escribe la sincronización.
+    const erpStoreIds = new Set(stores.filter((store) => store.erpId).map((store) => store.id))
     const cleanVariants = variants.map(v => ({
       ...v,
       stock: Number(v.stock) || 0,
-      inventory: v.inventory.map(inv => ({
-        storeLocationId: inv.storeLocationId,
-        stock: Number(inv.stock) || 0
-      }))
+      inventory: v.inventory
+        .filter((inv) => inv.storeLocationId === null || !erpStoreIds.has(inv.storeLocationId))
+        .map(inv => ({
+          storeLocationId: inv.storeLocationId,
+          stock: Number(inv.stock) || 0
+        }))
     }))
     
     formData.set("variants", JSON.stringify(cleanVariants))
@@ -531,16 +523,10 @@ export default function ProductForm({
     formData.set("crossSellIds", JSON.stringify(crossSells.map((cs) => cs.id)))
 
     startTransition(async () => {
-      const result =
-        mode === "create"
-          ? await createProduct(formData)
-          : await updateProduct(product!.id, formData)
+      const result = await updateProduct(product.id, formData)
 
       if (result.success) {
         setSuccess(true)
-        if (mode === "create") {
-          router.push(`/admin/productos/${result.id}`)
-        }
       } else {
         setError(result.error ?? "Error desconocido.")
       }
@@ -549,7 +535,7 @@ export default function ProductForm({
 
   function handleDelete() {
     startDelete(async () => {
-      const result = await deleteProduct(product!.id)
+      const result = await deleteProduct(product.id)
       if (result.success) {
         router.push("/admin/productos")
       } else {
@@ -568,7 +554,7 @@ export default function ProductForm({
           {error}
         </div>
       )}
-      {success && mode === "edit" && (
+      {success && (
         <div className="mb-4 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg px-4 py-3">
           Producto guardado correctamente.
         </div>
@@ -595,7 +581,10 @@ export default function ProductForm({
               className={inputClass}
             />
           </Field>
-          <Field label="Marca">
+          <Field
+            label="Marca"
+            hint="Es la «Categoría» de Loggro (Converse, Nike, Vans…). Al sincronizar se asigna sola a partir del código del ERP."
+          >
             <select
               value={brandId}
               onChange={(e) => setBrandId(e.target.value)}
@@ -619,7 +608,11 @@ export default function ProductForm({
               <option value="BEBE">Bebé</option>
             </select>
           </Field>
-          <Field label="Categoría" required>
+          <Field
+            label="Categoría web"
+            required
+            hint="Tipo de producto en la tienda (tenis, chanclas, accesorios…). No es la «Categoría» de Loggro: esa corresponde al campo Marca."
+          >
             <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className={inputClass}>
               <option value="">Seleccionar categoría…</option>
               {categories.map((cat) => (
@@ -629,15 +622,7 @@ export default function ProductForm({
               ))}
             </select>
           </Field>
-          <Field label="URL de video" hint="Opcional — YouTube, Vimeo…">
-            <input
-              type="text"
-              value={videoUrl}
-              onChange={(e) => setVideoUrl(e.target.value)}
-              placeholder="https://youtube.com/watch?v=…"
-              className={inputClass}
-            />
-          </Field>
+          <ProductVideoField value={videoUrl} onChange={setVideoUrl} />
         </div>
         <Field label="Descripción breve">
           <textarea
@@ -747,6 +732,34 @@ export default function ProductForm({
         )}
       </Section>
 
+      {/* Conversión de la ficha: por qué comprarlo + preguntas frecuentes (también alimentan el SEO) */}
+      <Section title="Ficha que vende: beneficios y preguntas frecuentes">
+        <Field
+          label="Beneficios (uno por línea, máx. 8)"
+          hint="Responde «¿por qué debería comprarlo?». Escribe «Título corto: detalle». Junto al botón se muestra solo el título (los 4 primeros) y abajo, en «¿Por qué comprarlo?», el título con su detalle."
+        >
+          <textarea
+            value={highlightsText}
+            onChange={(e) => setHighlightsText(e.target.value)}
+            rows={5}
+            placeholder={"Amortiguación suave: absorbe el impacto en uso diario\nMalla transpirable: mantiene el pie fresco todo el día"}
+            className={inputClass}
+          />
+        </Field>
+        <Field
+          label="Preguntas frecuentes (una por línea: Pregunta | Respuesta)"
+          hint="Aparecen en la ficha y Google puede mostrarlas como desplegables en los resultados."
+        >
+          <textarea
+            value={faqsText}
+            onChange={(e) => setFaqsText(e.target.value)}
+            rows={5}
+            placeholder={"¿Talla normal o más pequeña? | Corre una talla normal; si estás entre dos, pide la mayor.\n¿Puedo cambiarlos? | Sí, tienes 30 días para cambios."}
+            className={inputClass}
+          />
+        </Field>
+      </Section>
+
       {/* C. SEO */}
       <Section title="SEO">
         <Field label={`Meta título (${metaTitle.length}/60)`}>
@@ -791,7 +804,8 @@ export default function ProductForm({
           <p>
             <strong>Inventario:</strong> El Stock Web, SKU y talla vienen de Loggro (solo lectura). El color se
             detecta automáticamente cuando el código y la descripción son confiables; puedes corregir cada
-            variante individualmente como respaldo. También puedes editar el <strong>Stock en Tiendas Físicas</strong>.
+            variante individualmente como respaldo. El stock de las sedes vinculadas a Loggro (marcadas con ⟳)
+            también es de solo lectura; solo puedes editar el de tiendas sin vínculo.
           </p>
         </div>
         <div className="overflow-x-auto">
@@ -803,8 +817,12 @@ export default function ProductForm({
                 <th className="text-left py-2 pr-2 text-[#4A4A4A] font-semibold min-w-[70px]">Talla</th>
                 <th className="text-left py-2 pr-2 text-[#4A4A4A] font-semibold min-w-[60px]">Stock Web</th>
                 {stores.map(store => (
-                  <th key={store.id} className="text-left py-2 pr-2 text-[#4A4A4A] font-semibold min-w-[70px] truncate max-w-[100px]" title={store.name}>
-                    {store.name}
+                  <th
+                    key={store.id}
+                    className="text-left py-2 pr-2 text-[#4A4A4A] font-semibold min-w-[70px] truncate max-w-[100px]"
+                    title={store.erpId ? `${store.name} — sincronizada desde Loggro` : store.name}
+                  >
+                    {store.erpId ? "⟳ " : ""}{store.name}
                   </th>
                 ))}
                 <th className="text-left py-2 pr-2 text-[#4A4A4A] font-semibold min-w-[60px]">US</th>
@@ -872,6 +890,7 @@ export default function ProductForm({
                     </td>
                     {stores.map(store => {
                       const storeInv = v.inventory.find(i => i.storeLocationId === store.id)
+                      const syncedFromErp = Boolean(store.erpId)
                       return (
                         <td key={store.id} className="py-1 pr-2">
                           <input 
@@ -879,8 +898,11 @@ export default function ProductForm({
                             value={storeInv?.stock || "0"} 
                             onChange={(e) => updateVariantInventory(idx, store.id, e.target.value)} 
                             min="0" 
-                            className={`${inputClass} text-xs`} 
-                            title={`Stock ${store.name}`}
+                            disabled={syncedFromErp}
+                            className={`${inputClass} text-xs ${
+                              syncedFromErp ? "border-blue-200 bg-blue-50/50 text-gray-500 cursor-not-allowed" : ""
+                            }`} 
+                            title={syncedFromErp ? `Stock ${store.name} (sincronizado desde Loggro)` : `Stock ${store.name}`}
                           />
                         </td>
                       )
@@ -926,92 +948,91 @@ export default function ProductForm({
       </Section>
 
       {/* F. Colores del mismo modelo */}
-      {mode === "edit" && (
-        <Section title="Colores del mismo modelo">
-          <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
-            Los formatos de código Loggro reconocidos se agrupan automáticamente. Usa esta sección
-            solo para excepciones: cada producto conservará sus propias tallas, SKU, precio, stock y fotos.
-          </div>
-          <div className="relative mb-3">
-            <input
-              type="text"
-              value={colorFamilySearch}
-              onChange={(event) => void handleColorFamilySearch(event.target.value)}
-              placeholder="Buscar otro color de este modelo…"
-              className={inputClass}
-            />
-            {isSearchingColorFamily && (
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#4A4A4A]">
-                Buscando…
-              </span>
-            )}
-            {colorFamilyResults.length > 0 && (
-              <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-64 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
-                {colorFamilyResults.map((item) => {
-                  const belongsToAnotherFamily = Boolean(
-                    item.colorFamilyId && item.colorFamilyId !== (product?.colorFamily?.id ?? null)
-                  )
-                  const hasRealProductColor = Boolean(item.color && isRealColor(item.color))
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      disabled={belongsToAnotherFamily || !hasRealProductColor}
-                      onClick={() => addColorFamilyProduct(item)}
-                      className="flex w-full items-center gap-3 border-b border-gray-50 px-3 py-2 text-left last:border-0 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md bg-gray-100">
-                        {item.imageUrl ? (
-                          <Image src={item.imageUrl} alt="" fill sizes="48px" className="object-cover" />
-                        ) : (
-                          <span className="flex h-full items-center justify-center text-[9px] text-gray-400">Sin foto</span>
-                        )}
-                      </div>
-                      <span className="min-w-0">
-                        <span className="block truncate text-sm font-medium text-[#1C1C1C]">{item.name}</span>
-                        <span className="block text-xs text-[#4A4A4A]">
-                          {[item.brandName, item.color].filter(Boolean).join(" · ") || "Color sin asignar"}
-                          {belongsToAnotherFamily ? " · Ya pertenece a otra familia" : ""}
-                          {!hasRealProductColor ? " · Debes asignarle un color primero" : ""}
-                        </span>
-                      </span>
-                    </button>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-          {colorFamilyProducts.length > 0 ? (
-            <div className="grid gap-2 sm:grid-cols-2">
-              {colorFamilyProducts.map((item) => (
-                <div key={item.id} className="flex items-center gap-3 rounded-lg border border-gray-200 p-2">
-                  <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-md bg-gray-100">
-                    {item.imageUrl ? (
-                      <Image src={item.imageUrl} alt="" fill sizes="56px" className="object-cover" />
-                    ) : (
-                      <span className="flex h-full items-center justify-center text-[9px] text-gray-400">Sin foto</span>
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-[#1C1C1C]">{item.name}</p>
-                    <p className="text-xs text-[#4A4A4A]">{item.color ?? "Color sin asignar"}</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => removeColorFamilyProduct(item.id)}
-                    className="px-2 text-xl text-gray-400 transition-colors hover:text-[#E31C23]"
-                    aria-label={`Retirar ${item.name} de la familia`}
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-gray-400">Este producto todavía no tiene otros colores relacionados.</p>
+            <Section title="Colores del mismo modelo">
+        <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+          Los formatos de código Loggro reconocidos se agrupan automáticamente. Usa esta sección
+          solo para excepciones: cada producto conservará sus propias tallas, SKU, precio, stock y fotos.
+        </div>
+        <div className="relative mb-3">
+          <input
+            type="text"
+            value={colorFamilySearch}
+            onChange={(event) => void handleColorFamilySearch(event.target.value)}
+            placeholder="Buscar otro color de este modelo…"
+            className={inputClass}
+          />
+          {isSearchingColorFamily && (
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#4A4A4A]">
+              Buscando…
+            </span>
           )}
-        </Section>
-      )}
+          {colorFamilyResults.length > 0 && (
+            <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-64 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
+              {colorFamilyResults.map((item) => {
+                const belongsToAnotherFamily = Boolean(
+                  item.colorFamilyId && item.colorFamilyId !== (product?.colorFamily?.id ?? null)
+                )
+                const hasRealProductColor = Boolean(item.color && isRealColor(item.color))
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    disabled={belongsToAnotherFamily || !hasRealProductColor}
+                    onClick={() => addColorFamilyProduct(item)}
+                    className="flex w-full items-center gap-3 border-b border-gray-50 px-3 py-2 text-left last:border-0 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md bg-gray-100">
+                      {item.imageUrl ? (
+                        <Image src={item.imageUrl} alt="" fill sizes="48px" className="object-contain" />
+                      ) : (
+                        <span className="flex h-full items-center justify-center text-[9px] text-gray-400">Sin foto</span>
+                      )}
+                    </div>
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium text-[#1C1C1C]">{item.name}</span>
+                      <span className="block text-xs text-[#4A4A4A]">
+                        {[item.brandName, item.color].filter(Boolean).join(" · ") || "Color sin asignar"}
+                        {belongsToAnotherFamily ? " · Ya pertenece a otra familia" : ""}
+                        {!hasRealProductColor ? " · Debes asignarle un color primero" : ""}
+                      </span>
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+        {colorFamilyProducts.length > 0 ? (
+          <div className="grid gap-2 sm:grid-cols-2">
+            {colorFamilyProducts.map((item) => (
+              <div key={item.id} className="flex items-center gap-3 rounded-lg border border-gray-200 p-2">
+                <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-md bg-gray-100">
+                  {item.imageUrl ? (
+                    <Image src={item.imageUrl} alt="" fill sizes="56px" className="object-contain" />
+                  ) : (
+                    <span className="flex h-full items-center justify-center text-[9px] text-gray-400">Sin foto</span>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-[#1C1C1C]">{item.name}</p>
+                  <p className="text-xs text-[#4A4A4A]">{item.color ?? "Color sin asignar"}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeColorFamilyProduct(item.id)}
+                  className="px-2 text-xl text-gray-400 transition-colors hover:text-[#E31C23]"
+                  aria-label={`Retirar ${item.name} de la familia`}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-gray-400">Este producto todavía no tiene otros colores relacionados.</p>
+        )}
+      </Section>
+    
 
       {/* G. Cross-selling */}
       <Section title="Cross-selling (productos relacionados)">
@@ -1075,7 +1096,7 @@ export default function ProductForm({
             disabled={isPending}
             className="bg-[#E31C23] text-white font-semibold px-6 py-2.5 rounded-lg hover:bg-red-700 disabled:opacity-60 transition-colors"
           >
-            {isPending ? "Guardando…" : mode === "create" ? "Crear producto" : "Guardar cambios"}
+            {isPending ? "Guardando…" : "Guardar cambios"}
           </button>
           <button
             type="button"
@@ -1085,15 +1106,14 @@ export default function ProductForm({
             Cancelar
           </button>
         </div>
-        {mode === "edit" && (
-          <button
-            type="button"
-            onClick={() => setShowDeleteDialog(true)}
-            className="text-sm text-gray-400 hover:text-[#E31C23] transition-colors"
-          >
-            Eliminar producto
-          </button>
-        )}
+                <button
+          type="button"
+          onClick={() => setShowDeleteDialog(true)}
+          className="text-sm text-gray-400 hover:text-[#E31C23] transition-colors"
+        >
+          Eliminar producto
+        </button>
+      
       </div>
 
       {/* Delete confirmation dialog */}

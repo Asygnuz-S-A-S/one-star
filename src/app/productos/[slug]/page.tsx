@@ -1,15 +1,26 @@
+import { cache } from "react"
 import { notFound } from "next/navigation"
-import { headers } from "next/headers"
 import Link from "next/link"
 import Image from "next/image"
 import type { Metadata } from "next"
 import { getProductBySlug, type InventoryStoreDTO } from "@/server/services/product.service"
+import { getPublicStoreInfo } from "@/server/services/store-settings.service"
+import { getPublicSiteContent } from "@/server/services/site-content.service"
+import { getBrandDetailById } from "@/server/services/brand.service"
 import { getProductReviews, getProductReviewStats } from "@/server/services/review.service"
 import ProductDetail from "@/components/product/ProductDetail"
+import MetaViewContent from "@/components/tracking/MetaViewContent"
 import CrossSelling from "@/components/product/CrossSelling"
 import RelatedProducts from "@/components/product/RelatedProducts"
 import ProductReviews from "@/components/product/ProductReviews"
 import StoreAvailability from "@/components/product/StoreAvailability"
+import WhyBuy from "@/components/product/WhyBuy"
+import ProductFaqSection from "@/components/product/ProductFaqSection"
+import ClosingCta from "@/components/product/ClosingCta"
+import { buildProductJsonLd, buildProductMetadata, getDisplayPrice, serializeJsonLd } from "@/lib/seo/product-seo"
+import { resolveProductContent } from "@/lib/product-content-resolver"
+import { buildWhatsappUrl } from "@/lib/whatsapp"
+import { getSiteUrl } from "@/lib/site-url"
 import Reveal from "@/components/ui/Reveal"
 
 interface PageProps {
@@ -18,72 +29,92 @@ interface PageProps {
   searchParams?: Promise<{ color?: string }>
 }
 
+/** Una sola consulta por petición: la comparten `generateMetadata` y la página. */
+const loadProduct = cache(getProductBySlug)
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params
-  const product = await getProductBySlug(slug)
+  const product = await loadProduct(slug)
 
   if (!product) {
-    return { title: "Producto no encontrado | One Star" }
+    return { title: "Producto no encontrado | One Star", robots: { index: false, follow: false } }
   }
 
-  return {
-    title: product.metaTitle ?? `${product.name} | One Star`,
-    description: product.metaDescription ?? product.description ?? undefined,
-    openGraph: {
-      title: product.metaTitle ?? `${product.name} | One Star`,
-      description: product.metaDescription ?? product.description ?? undefined,
-      images: product.images[0]?.url ? [{ url: product.images[0].url }] : [],
-    },
-  }
+  // Consulta secuencial: primero producto, luego dependencias en paralelo
+  const [brandDetail, globalContent, settings] = await Promise.all([
+    product.brandId ? getBrandDetailById(product.brandId) : null,
+    getPublicSiteContent(),
+    getPublicStoreInfo().catch(() => null),
+  ])
+
+  const resolved = resolveProductContent({
+    product: { highlights: product.highlights, faqs: product.faqs },
+    brand: brandDetail,
+    global: globalContent,
+    hasWhatsapp: Boolean(settings?.whatsapp),
+  })
+
+  return buildProductMetadata(
+    { ...product, faqs: resolved.faqs },
+    {
+      siteUrl: getSiteUrl(),
+      storeName: settings?.storeName ?? "One Star",
+      reviews: [],
+      reviewStats: { avg: 0, count: 0 },
+      returnWindowDays: resolved.returnWindowDays,
+    }
+  )
 }
 
 export default async function ProductPage({ params, searchParams }: PageProps) {
-  const nonce = (await headers()).get("x-nonce") ?? undefined
   const { slug } = await params
   const { color: initialColor } = (await searchParams) ?? {}
-  const product = await getProductBySlug(slug)
+  const product = await loadProduct(slug)
 
   if (!product) notFound()
 
-  const [productReviews, productReviewStats] = await Promise.all([
+  // Consulta secuencial: primero producto, luego dependencias en paralelo
+  const [brandDetail, globalContent, productReviews, productReviewStats, settings] = await Promise.all([
+    product.brandId ? getBrandDetailById(product.brandId) : null,
+    getPublicSiteContent(),
     getProductReviews(product.id),
     getProductReviewStats(product.id),
+    getPublicStoreInfo().catch(() => null),
   ])
 
+  const hasWhatsapp = Boolean(settings?.whatsapp)
+  const resolvedContent = resolveProductContent({
+    product: { highlights: product.highlights, faqs: product.faqs },
+    brand: brandDetail,
+    global: globalContent,
+    hasWhatsapp,
+  })
 
-  const displayPrice = product.isOnSale && product.salePrice
-    ? Number(product.salePrice)
-    : Number(product.basePrice)
+  const displayPrice = getDisplayPrice(product)
+  const whatsappUrl = buildWhatsappUrl(
+    settings?.whatsapp,
+    `Hola, quiero comprar ${product.name} (${getSiteUrl()}/productos/${product.slug}) y tengo una duda.`
+  )
 
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Product",
-    name: product.name,
-    description: product.description ?? undefined,
-    image: product.images.map((img) => img.url),
-    brand: { "@type": "Brand", name: product.brand ?? "One Star" },
-    aggregateRating: productReviewStats.count > 0 ? {
-      "@type": "AggregateRating",
-      ratingValue: productReviewStats.avg.toFixed(1),
-      reviewCount: productReviewStats.count,
-    } : undefined,
-    offers: {
-      "@type": "Offer",
-      price: displayPrice.toFixed(0),
-      priceCurrency: "COP",
-      availability: "https://schema.org/InStock",
-      url: `https://onestar.com.co/productos/${product.slug}`,
-    },
-  }
+  const jsonLd = buildProductJsonLd(
+    { ...product, faqs: resolvedContent.faqs },
+    {
+      siteUrl: getSiteUrl(),
+      storeName: settings?.storeName ?? "One Star",
+      reviews: productReviews,
+      reviewStats: productReviewStats,
+      returnWindowDays: resolvedContent.returnWindowDays,
+    }
+  )
 
-  // Compute store availability from variants inventory
+  // Disponibilidad online = stock vendible por variante (lo mismo que valida el
+  // checkout). El desglose por sede es solo informativo: la web no lo reserva.
   const storeMap = new Map<string, { store: InventoryStoreDTO; stock: number }>()
-  let webStock = 0
+  const webStock = product.variants.reduce((total, variant) => total + variant.stock, 0)
   for (const variant of product.variants) {
     for (const inv of variant.inventory ?? []) {
-      if (!inv.storeLocation || inv.storeLocation.isWebWarehouse) {
-        webStock += inv.stock
-      } else if (inv.storeLocation.isActive) {
+      if (!inv.storeLocation || inv.storeLocation.isWebWarehouse) continue
+      if (inv.storeLocation.isActive) {
         const existing = storeMap.get(inv.storeLocation.id)
         if (existing) {
           existing.stock += inv.stock
@@ -108,11 +139,16 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
 
   return (
     <>
-      {/* JSON-LD for SEO */}
+      {/*
+        JSON-LD for SEO. Sin `nonce`: el navegador vacía ese atributo tras
+        parsear el HTML, así que React veía "" en el DOM contra el valor del
+        payload y reportaba un error de hidratación. Un bloque de datos
+        `application/ld+json` no se ejecuta, por lo que `script-src` de la CSP
+        no lo bloquea y el nonce era innecesario.
+      */}
       <script
-        nonce={nonce}
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -137,11 +173,23 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
         </nav>
 
         {/* ── Main product grid ── */}
+        <MetaViewContent
+          productId={product.id}
+          name={product.name}
+          category={product.category?.name ?? ""}
+          price={displayPrice}
+        />
         <ProductDetail
           product={product}
           reviewStats={productReviewStats}
+          promises={resolvedContent.promises}
+          whatsappUrl={whatsappUrl}
+          brand={brandDetail}
           initialColor={initialColor}
         />
+
+        {/* ── Por qué comprarlo ── */}
+        <WhyBuy productName={product.name} highlights={resolvedContent.highlights} promises={resolvedContent.promises} />
 
         {/* ── Extended description hero (Nike-style) ── */}
         {(product.extendedDescription || product.description) && (
@@ -182,6 +230,14 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
         initialReviews={productReviews}
         stats={productReviewStats}
       />
+
+      {/* ── FAQ + cierre ── */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12">
+        <ProductFaqSection faqs={resolvedContent.faqs} />
+        {product.availableOnline !== false && (
+          <ClosingCta name={product.name} price={displayPrice} targetId="comprar" />
+        )}
+      </div>
 
       {/* ── Store Availability ── */}
       <StoreAvailability

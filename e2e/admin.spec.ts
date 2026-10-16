@@ -79,11 +79,10 @@ test.describe("Admin — Panel (requiere sesión)", () => {
     await expect(page.getByRole("heading", { name: "Constructor Visual", exact: true })).toBeVisible()
   })
 
-  test("navegar a nuevo producto carga el editor", async ({ adminPage: page }) => {
-    await page.goto("/admin/productos/nuevo")
-    await expect(page.getByRole("heading", { name: "Nuevo producto", exact: true })).toBeVisible({
-      timeout: 8_000,
-    })
-    await expect(page.getByRole("button", { name: "Crear producto", exact: true })).toBeVisible()
+  test("no existe la ruta de nuevo producto: el catálogo nace en Loggro", async ({ adminPage: page }) => {
+    const response = await page.goto("/admin/productos/nuevo")
+    expect(response?.status()).toBe(404)
+    await page.goto("/admin/productos")
+    await expect(page.getByText(/se crean en Loggro/)).toBeVisible({ timeout: 8_000 })
   })
 })

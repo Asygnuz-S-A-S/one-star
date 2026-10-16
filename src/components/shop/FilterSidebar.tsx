@@ -1,6 +1,8 @@
 "use client"
 
 import { useRouter, usePathname } from "next/navigation"
+import { GENDER_FILTER_OPTIONS } from "@/lib/gender-filter"
+import { DEFAULT_PRODUCT_SORT, PRODUCT_SORT_OPTIONS } from "@/lib/product-sort"
 import { useState } from "react"
 import { PRODUCT_COLORS, getColorSwatchStyle, isRealColor, type ColorPalette } from "@/lib/colors"
 
@@ -77,8 +79,9 @@ export default function FilterSidebar({
     router.push(pathname)
   }
 
-  const currentOrden = currentParams.get("orden") ?? "reciente"
+  const currentOrden = currentParams.get("orden") ?? DEFAULT_PRODUCT_SORT
   const currentMarca = currentParams.get("marca") ?? ""
+  const currentGenero = currentParams.get("genero") ?? ""
   const currentTalla = currentParams.get("talla") ?? ""
   const currentColor = currentParams.get("color") ?? ""
 
@@ -99,12 +102,7 @@ export default function FilterSidebar({
           <span className={chevron}>▾</span>
         </summary>
         <div className="pt-3 flex flex-col gap-2">
-          {[
-            { label: "Más reciente", value: "reciente" },
-            { label: "Precio: menor a mayor", value: "precio_asc" },
-            { label: "Precio: mayor a menor", value: "precio_desc" },
-            { label: "Más antiguo", value: "antiguo" },
-          ].map(({ label, value }) => (
+          {PRODUCT_SORT_OPTIONS.map(({ label, value }) => (
             <label key={value} className="flex items-center gap-2 cursor-pointer">
               <input
                 type="radio"
@@ -154,6 +152,40 @@ export default function FilterSidebar({
           >
             Aplicar
           </button>
+        </div>
+      </details>
+
+      {/* Género */}
+      <details open>
+        <summary className={sectionSummary}>
+          Género
+          <span className={chevron}>▾</span>
+        </summary>
+        <div className="pt-3 flex flex-col gap-2">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="genero"
+              value=""
+              checked={currentGenero === ""}
+              onChange={() => setParam("genero", "")}
+              className="accent-[#1C1C1C] dark:accent-white"
+            />
+            <span className={optionText}>Todos</span>
+          </label>
+          {GENDER_FILTER_OPTIONS.map(({ value, label }) => (
+            <label key={value} className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="genero"
+                value={value}
+                checked={currentGenero === value}
+                onChange={() => setParam("genero", value)}
+                className="accent-[#1C1C1C] dark:accent-white"
+              />
+              <span className={optionText}>{label}</span>
+            </label>
+          ))}
         </div>
       </details>
 

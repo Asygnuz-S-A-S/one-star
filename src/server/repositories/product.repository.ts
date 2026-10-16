@@ -1,6 +1,6 @@
 import "server-only"
 import { prisma } from "../db/prisma"
-import type { Gender, Prisma } from "@prisma/client"
+import { Prisma, type Gender } from "@prisma/client"
 import { buildProductVariantUpdatePlan } from "@/server/domain/product-variant-update.plan"
 import { planProductColorFamilyUpdate } from "@/server/domain/product-color-family.plan"
 
@@ -152,11 +152,52 @@ export async function createProductRecord(data: Prisma.ProductCreateInput) {
   return prisma.product.create({ data, include: productInclude })
 }
 
+/**
+ * Trae, para cada SKU dado, a qué producto pertenece su variante (id, slug y
+ * erpId) y el estado actual de la variante. Usado por el importador de Excel
+ * para decidir crear/actualizar/rechazar cada fila sin tocar productos que ya
+ * gestiona el ERP.
+ */
+export async function findVariantsBySkus(skus: string[]) {
+  if (skus.length === 0) return []
+  return prisma.variant.findMany({
+    where: { sku: { in: skus } },
+    select: {
+      id: true,
+      sku: true,
+      size: true,
+      color: true,
+      stock: true,
+      sizeUS: true,
+      sizeCM: true,
+      sizeEUR: true,
+      product: { select: { id: true, slug: true, name: true, erpId: true } },
+    },
+  })
+}
+
 export async function updateProductRecord(
   id: string,
   data: Prisma.ProductUpdateInput
 ) {
   return prisma.product.update({ where: { id }, data, include: productInclude })
+}
+
+/**
+ * Productos cargados a mano (sin `erpId`) — usado por el asistente de
+ * conexión ERP para detectar posibles duplicados antes de la primera
+ * sincronización real.
+ */
+export async function findManualProductNames() {
+  return prisma.product.findMany({
+    where: { erpId: null },
+    select: { id: true, name: true, slug: true },
+  })
+}
+
+/** Cambia el slug de un producto manual para que el sincronizador lo reconozca como el mismo del ERP. */
+export async function updateProductSlug(id: string, slug: string) {
+  return prisma.product.update({ where: { id }, data: { slug } })
 }
 
 export interface AdminProductRelationsUpdate {
@@ -176,6 +217,8 @@ export interface AdminProductRelationsUpdate {
   availableOnline: boolean
   availableInStores: boolean
   isPublished: boolean
+  highlights?: string[]
+  faqs?: Array<{ q: string; a: string }>
   variants: Array<{
     sku: string
     size: string
@@ -329,8 +372,26 @@ export async function updateProductWithAdminRelations(
           sizeEUR: variant.sizeEUR ?? null,
         },
       })
-      await tx.inventoryLevel.deleteMany({ where: { variantId: variant.id } })
+      // Solo se reemplazan las sedes que envió el formulario: el desglose que
+      // escribe la sincronización ERP para otras sedes no se pierde al guardar.
+      const submittedStoreIds = variant.inventory.flatMap((inventory) =>
+        inventory.storeLocationId ? [inventory.storeLocationId] : []
+      )
+      const includesWebWarehouse = variant.inventory.some(
+        (inventory) => inventory.storeLocationId === null
+      )
       if (variant.inventory.length > 0) {
+        await tx.inventoryLevel.deleteMany({
+          where: {
+            variantId: variant.id,
+            OR: [
+              ...(submittedStoreIds.length > 0
+                ? [{ storeLocationId: { in: submittedStoreIds } }]
+                : []),
+              ...(includesWebWarehouse ? [{ storeLocationId: null }] : []),
+            ],
+          },
+        })
         await tx.inventoryLevel.createMany({
           data: variant.inventory.map((inventory) => ({
             variantId: variant.id,
@@ -392,6 +453,8 @@ export async function updateProductWithAdminRelations(
         availableOnline: input.availableOnline,
         availableInStores: input.availableInStores,
         isPublished: input.isPublished,
+        highlights: input.highlights ?? [],
+        faqs: input.faqs && input.faqs.length > 0 ? input.faqs : Prisma.JsonNull,
         images: {
           create: input.images.map((image, index) => ({
             url: image.url,
@@ -511,5 +574,23 @@ export async function updateProductsPublishStatus(
       throw new Error("No se pudieron actualizar todos los productos seleccionados.")
     }
     return result
+  })
+}
+
+/**
+ * Slugs de los productos visibles en la vitrina, para el sitemap.
+ * Se limita a lo publicado: es lo mismo que deja pasar `getProductBySlug`.
+ */
+export async function findPublishedProductSitemapEntries(): Promise<
+  { slug: string; updatedAt: Date; images: { url: string }[] }[]
+> {
+  return prisma.product.findMany({
+    where: { isPublished: true },
+    select: {
+      slug: true,
+      updatedAt: true,
+      images: { select: { url: true }, orderBy: { position: "asc" }, take: 1 },
+    },
+    orderBy: { updatedAt: "desc" },
   })
 }

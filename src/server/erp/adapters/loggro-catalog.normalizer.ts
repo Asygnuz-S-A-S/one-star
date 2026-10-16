@@ -3,6 +3,7 @@ import "server-only"
 import type {
   ERPCatalogProductGroup,
   ERPCatalogSnapshot,
+  ERPVariantLocationStock,
 } from "../erp.types"
 import { parseSku } from "@/lib/sku"
 import type { LoggroCatalogItem } from "./loggro.client"
@@ -10,10 +11,21 @@ import { deriveLoggroColorFamilyKey } from "./loggro-color-family-key"
 import { detectLoggroGender, hasLoggroGenderSignal } from "./loggro-gender"
 import { detectLoggroCategory } from "./loggro-category"
 import { detectLoggroBrand } from "./loggro-brand"
+import { applyIva, parseLoggroItemIvaRate } from "./loggro-pricing"
 import { detectLoggroOnlineExclusion } from "./loggro-online-availability"
+
+export interface LoggroStockLocation {
+  /** UUID del establecimiento en Loggro. */
+  erpId: string
+  name: string
+}
 
 export interface LoggroStockSnapshot {
   stockByCodigo: Map<string, number>
+  /** Sedes consultadas; ausente cuando la lectura falló antes de resolverlas. */
+  locations?: LoggroStockLocation[]
+  /** codigo → (uuid de establecimiento → cantidad). */
+  stockByCodigoAndLocation?: Map<string, Map<string, number>>
   complete: boolean
   requestedCount: number
   resolvedCount: number
@@ -21,12 +33,56 @@ export interface LoggroStockSnapshot {
   errors: string[]
 }
 
-function priceOf(item: LoggroCatalogItem): number | undefined {
+export interface NormalizeLoggroCatalogOptions {
+  /**
+   * Tasa de IVA de respaldo que se suma al precio neto de Loggro (0.19 = 19 %).
+   * Loggro entrega el precio sin IVA; el contrato del core espera el precio final.
+   * Solo aplica a los ítems cuyo `ivaVenta` (propio o de la definición padre)
+   * falte o sea inválido. Con 0 (default) esos ítems se entregan tal cual llegan.
+   */
+  ivaRate?: number
+}
+
+/**
+ * Tasa de IVA de una variante: manda el `ivaVenta` del ítem, luego el de la
+ * definición padre y, si ninguno es válido, la tasa global de respaldo.
+ */
+function ivaRateOf(
+  item: LoggroCatalogItem,
+  parent: LoggroCatalogItem | undefined,
+  fallbackRate: number
+): number {
+  return (
+    parseLoggroItemIvaRate(item.ivaVenta) ??
+    parseLoggroItemIvaRate(parent?.ivaVenta) ??
+    fallbackRate
+  )
+}
+
+function priceOf(item: LoggroCatalogItem, ivaRate: number): number | undefined {
   const rawPrice = [item.precioDefecto, item.precioBase, item.precioVta]
     .find((value) => value !== undefined && value !== null && value !== "")
   if (rawPrice === undefined) return undefined
   const price = Number(rawPrice)
-  return Number.isFinite(price) ? price : undefined
+  return Number.isFinite(price) ? applyIva(price, ivaRate) : undefined
+}
+
+/**
+ * Desglose por sede de una variante. Una sede sin fila en la respuesta de
+ * disponibilidad cuenta como cero, para que cada variante cubra todas las sedes.
+ */
+function stockByLocationOf(
+  sku: string,
+  totalStock: number | null,
+  stock: LoggroStockSnapshot
+): ERPVariantLocationStock[] | undefined {
+  const locations = stock.locations ?? []
+  if (totalStock === null || locations.length === 0) return undefined
+  const perLocation = stock.stockByCodigoAndLocation?.get(sku)
+  return locations.map((location) => ({
+    locationErpId: location.erpId,
+    stock: perLocation?.get(location.erpId) ?? 0,
+  }))
 }
 
 function unitOfMeasureOf(item: LoggroCatalogItem): string | undefined {
@@ -36,8 +92,10 @@ function unitOfMeasureOf(item: LoggroCatalogItem): string | undefined {
 
 export function normalizeLoggroCatalog(
   items: LoggroCatalogItem[],
-  stock: LoggroStockSnapshot
+  stock: LoggroStockSnapshot,
+  options: NormalizeLoggroCatalogOptions = {}
 ): ERPCatalogSnapshot {
+  const ivaRate = options.ivaRate ?? 0
   const definitions = items.filter((item) => item.definicion === true)
   const variants = items.filter((item) => item.definicion !== true)
   const definitionsById = new Map(
@@ -60,12 +118,13 @@ export function normalizeLoggroCatalog(
       parent?.uuid ?? item.definidoEn_uuid ?? `sku:${fallbackBaseSku}`
     )
     const groupSku = String(parent?.codigo ?? fallbackBaseSku).trim()
-    const itemPrice = priceOf(item)
+    const itemIvaRate = ivaRateOf(item, parent, ivaRate)
+    const itemPrice = priceOf(item, itemIvaRate)
 
     let group = groupsById.get(groupId)
     if (!group) {
       const source = parent ?? item
-      const sourcePrice = priceOf(source)
+      const sourcePrice = priceOf(source, itemIvaRate)
       group = {
         erpId: groupId,
         sku: groupSku,
@@ -90,13 +149,15 @@ export function normalizeLoggroCatalog(
       groupsWithDefinedPrice.add(groupId)
     }
 
+    const variantStock = stock.stockByCodigo.get(sku) ?? null
     group.variants.push({
       erpId: String(item.uuid ?? item.codigo ?? ""),
       sku,
       name: item.descripcion || group.name,
       detailedName: item.descripcionDetallada || undefined,
       basePrice: itemPrice ?? group.basePrice,
-      stock: stock.stockByCodigo.get(sku) ?? null,
+      stock: variantStock,
+      stockByLocation: stockByLocationOf(sku, variantStock, stock),
       unitOfMeasure: unitOfMeasureOf(item),
     })
   }
@@ -150,6 +211,10 @@ export function normalizeLoggroCatalog(
 
   return {
     groups: normalizedGroups,
+    locations: (stock.locations ?? []).map((location) => ({
+      erpId: location.erpId,
+      name: location.name,
+    })),
     diagnostics: {
       sourceItemCount: items.length,
       definitionCount: definitions.length,

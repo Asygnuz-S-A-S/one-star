@@ -101,7 +101,10 @@ export default function BrandStrip({
           {displayList.map((brand, i) => {
             const hasLogo = Boolean(brand.logoUrl)
             const showLogo = (displayMode === "auto" && hasLogo) || (displayMode === "logoOnly" && hasLogo)
-            const brandHref = `/productos?brand=${encodeURIComponent(brand.name)}`
+            // El catálogo filtra con ?marca=, no ?brand=: el enlace anterior no filtraba nada.
+            const brandHref = brand.slug
+              ? `/marcas/${brand.slug}`
+              : `/productos?marca=${encodeURIComponent(brand.name)}`
 
             const content = (
               <div className="inline-flex items-center gap-6 group transition-transform duration-200 hover:scale-105">

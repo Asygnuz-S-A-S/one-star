@@ -56,6 +56,19 @@ export interface ERPStockItem {
   stock: number
 }
 
+/** Sede o establecimiento del ERP cuyo inventario se consulta por separado. */
+export interface ERPStockLocation {
+  /** Identidad estable de la sede en el ERP. */
+  erpId: string
+  name: string
+}
+
+/** Existencias de una variante en una sede concreta del ERP. */
+export interface ERPVariantLocationStock {
+  locationErpId: string
+  stock: number
+}
+
 export interface ERPCatalogVariant {
   erpId: string
   sku: string
@@ -65,6 +78,11 @@ export interface ERPCatalogVariant {
   basePrice: number
   /** `null` significa que la consulta de inventario fue parcial o falló. */
   stock: number | null
+  /**
+   * Desglose de `stock` por sede. Ausente cuando el ERP no distingue sedes o
+   * cuando el stock total es desconocido. Cubre todas las sedes del snapshot.
+   */
+  stockByLocation?: ERPVariantLocationStock[]
   unitOfMeasure?: string
 }
 
@@ -118,6 +136,8 @@ export interface ERPCatalogProductGroup {
 
 export interface ERPCatalogSnapshot {
   groups: ERPCatalogProductGroup[]
+  /** Sedes cuyo inventario compone el stock; vacío si el ERP no las distingue. */
+  locations?: ERPStockLocation[]
   diagnostics: {
     sourceItemCount: number
     definitionCount: number
@@ -147,6 +167,11 @@ export interface ERPCatalogSyncResult {
     created: number
     updated: number
     omitted: number
+  }
+  /** Desglose por sede escrito en la web; ausente si el ERP no distingue sedes. */
+  storeStock?: {
+    locations: number
+    inventoryLevels: number
   }
   error?: string
 }

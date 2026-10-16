@@ -5,9 +5,9 @@ import { defineConfig } from "@prisma/config"
 // `prisma migrate deploy` y `db:seed` fallaban con
 // "Environment variable not found: DIRECT_URL". Lo cargamos explícitamente.
 //
-// process.loadEnvFile es nativo desde Node 20.12 — no hace falta dotenv. En
-// Vercel no existe .env (las variables vienen del entorno): de ahí el guard y el
-// try/catch, para no romper el build allá.
+// process.loadEnvFile es nativo desde Node 20.12 — no hace falta dotenv. En el
+// contenedor no existe .env (las variables vienen del entorno): de ahí el guard y
+// el try/catch, para no romper el build allá.
 if (!process.env.DATABASE_URL) {
   try {
     process.loadEnvFile()

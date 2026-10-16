@@ -7,6 +7,7 @@ import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea
 import { motion, AnimatePresence } from "motion/react"
 import dynamic from "next/dynamic"
 import Image from "next/image"
+import Link from "next/link"
 import BannerForm from "@/components/admin/BannerForm"
 import HomeGridClient from "@/components/admin/HomeGridClient"
 import LogoManager from "@/components/admin/LogoManager"
@@ -66,7 +67,7 @@ interface DeleteConfirm {
 
 const SECTION_LABELS: Record<string, string> = {
   HERO: "Hero Banner (Principal)",
-  CATEGORY_GRID: "Grilla de Categorías",
+  CATEGORY_GRID: "Grilla de Categorías web",
   FEATURED_PRODUCTS: "Productos Destacados",
   BRAND_STRIP: "Carrusel de Marcas",
   NEW_ARRIVALS: "Nuevos Lanzamientos",
@@ -865,14 +866,14 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
                 <div key={banner.id} className="flex items-center gap-3 rounded border border-gray-200 bg-white p-3">
                   <div className="relative h-12 w-20 flex-shrink-0 overflow-hidden rounded bg-gray-100">
                     {banner.mediaType === "video" ? (
-                      <video src={safePublicUrl(banner.imageUrl, "")} className="h-full w-full object-cover" muted />
+                      <video src={safePublicUrl(banner.imageUrl, "")} className="h-full w-full object-contain" muted />
                     ) : (
                       <Image
                         src={safePublicUrl(banner.imageUrl, "/placeholder-product.svg")}
                         alt={banner.title || "Banner"}
                         fill
                         unoptimized
-                        className="object-cover"
+                        className="object-contain"
                       />
                     )}
                   </div>
@@ -1177,36 +1178,8 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
                     Efecto Difuminado (Blur)
                   </label>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-[10px] text-gray-500 mb-1">Margen (ej. 10px)</label>
-                      <input
-                        type="text"
-                        value={headerConfig.margin}
-                        onChange={(e) => setHeaderConfig({ ...headerConfig, margin: e.target.value })}
-                        className="text-xs border-gray-300 rounded p-2 w-full"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] text-gray-500 mb-1">Padding Interno</label>
-                      <input
-                        type="text"
-                        value={headerConfig.padding}
-                        onChange={(e) => setHeaderConfig({ ...headerConfig, padding: e.target.value })}
-                        className="text-xs border-gray-300 rounded p-2 w-full"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] text-gray-500 mb-1">Bordes Redondeados (ej. 12px, 0px)</label>
-                    <input
-                      type="text"
-                      value={headerConfig.borderRadius}
-                      onChange={(e) => setHeaderConfig({ ...headerConfig, borderRadius: e.target.value })}
-                      className="text-xs border-gray-300 rounded p-2 w-full"
-                    />
-                  </div>
+                  {/* Margen, relleno y bordes redondeados se retiraron (HU-11): el
+                      encabezado es siempre una sola barra fija pegada al anuncio. */}
                 </div>
               </div>
 
@@ -1354,6 +1327,7 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
               <option value="/sale">Ofertas</option>
               <option value="/tiendas">Tiendas</option>
               <option value="/productos">Catálogo</option>
+              <option value="/marcas">Marcas</option>
               <option value="/login">Login</option>
               <option value="/carrito">Carrito</option>
               {categories?.map(c => (
@@ -1576,6 +1550,23 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
 
           {editingSection.type === "CATEGORY_GRID" && (
             <>
+              <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-lg text-xs text-blue-900 flex items-start gap-2">
+                <svg className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <p className="font-semibold">Gestionar Categorías web</p>
+                  <p className="mt-0.5 text-blue-700">
+                    Esta grilla muestra las categorías web de la tienda (tipo de producto: tenis, chanclas,
+                    accesorios…). Puedes crearlas o editarlas en el módulo{" "}
+                    <Link href="/admin/categorias" target="_blank" className="font-bold underline hover:text-blue-900">
+                      Administrar Categorías web
+                    </Link>.
+                    No son las «Categorías» de Loggro: esas corresponden a las Marcas.
+                  </p>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wider">Subtítulo</label>
                 <input
@@ -1907,7 +1898,7 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
                           }}
                         >
                           {product.imageUrl && (
-                            <Image src={product.imageUrl} alt={product.name} width={40} height={40} unoptimized className="w-10 h-10 object-cover rounded" />
+                            <Image src={product.imageUrl} alt={product.name} width={40} height={40} unoptimized className="w-10 h-10 object-contain rounded" />
                           )}
                           <div>
                             <p className="text-sm font-bold text-gray-900">{product.name}</p>

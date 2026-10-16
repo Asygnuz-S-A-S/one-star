@@ -30,7 +30,6 @@ export default async function EditarProductoPage({ params }: Props) {
         Editar producto
       </h1>
       <ProductForm
-        mode="edit"
         product={product as unknown as ProductWithRelations}
         categories={categories}
         brands={brands}

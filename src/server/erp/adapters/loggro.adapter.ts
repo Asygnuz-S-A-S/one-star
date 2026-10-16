@@ -8,9 +8,11 @@ import type {
   ERPInvoice,
   ERPSyncResult,
   ERPStockItem,
+  ERPStockLocation,
 } from "../erp.types"
 import { LoggroClient } from "./loggro.client"
 import { normalizeLoggroCatalog } from "./loggro-catalog.normalizer"
+import { resolveLoggroIvaRate } from "./loggro-pricing"
 
 /**
  * Adaptador ERP para Loggro Pymes.
@@ -21,12 +23,24 @@ import { normalizeLoggroCatalog } from "./loggro-catalog.normalizer"
  *
  * Configuración requerida en .env:
  *   LOGGRO_API_TOKEN=xxxxxxxxxxxxxxxx
+ *   LOGGRO_IVA_RATE=0.19   (opcional) Loggro entrega precios sin IVA; se suma aquí usando
+ *                          el `ivaVenta` de cada ítem y esta tasa como respaldo
  */
+export interface LoggroERPAdapterOptions {
+  /**
+   * Tasa de IVA de respaldo para ítems sin `ivaVenta` válido.
+   * Default: LOGGRO_IVA_RATE o 19 %.
+   */
+  ivaRate?: number
+}
+
 export class LoggroERPAdapter implements IERPAdapter {
   private client: LoggroClient
+  private readonly ivaRate: number
 
-  constructor(token: string, client?: LoggroClient) {
+  constructor(token: string, client?: LoggroClient, options: LoggroERPAdapterOptions = {}) {
     this.client = client ?? new LoggroClient(token)
+    this.ivaRate = options.ivaRate ?? resolveLoggroIvaRate()
   }
 
   async onOrderConfirmed(invoice: ERPInvoice): Promise<ERPSyncResult> {
@@ -112,6 +126,10 @@ export class LoggroERPAdapter implements IERPAdapter {
     return this.client.diagnoseEndpoints()
   }
 
+  async listStockLocations(): Promise<ERPStockLocation[]> {
+    return this.client.listStockLocations()
+  }
+
   async fetchCatalog(): Promise<ERPCatalogSnapshot> {
     const loggroItems = await this.client.getProducts()
 
@@ -123,6 +141,7 @@ export class LoggroERPAdapter implements IERPAdapter {
       .filter(Boolean)
     const stock = await this.client.getDisponibilidadSnapshot(codigos)
 
-    return normalizeLoggroCatalog(loggroItems, stock)
+    // Loggro entrega el precio de venta sin IVA; el core espera el precio final.
+    return normalizeLoggroCatalog(loggroItems, stock, { ivaRate: this.ivaRate })
   }
 }

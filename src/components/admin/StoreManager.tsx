@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
+import { isStoreLocationPending } from "@/lib/store-location"
 import dynamic from "next/dynamic"
 import type { StoreLocation } from "@prisma/client"
 import { 
@@ -12,8 +13,20 @@ import {
 
 const AdminMapPicker = dynamic(() => import("./AdminMapPicker"), { ssr: false })
 
-export default function StoreManager({ initialStores }: { initialStores: StoreLocation[] }) {
+interface ErpLocationOption {
+  erpId: string
+  name: string
+}
+
+interface StoreManagerProps {
+  initialStores: StoreLocation[]
+  /** Sedes que expone el ERP; vacío si no responde o no distingue sedes. */
+  erpLocations?: ErpLocationOption[]
+}
+
+export default function StoreManager({ initialStores, erpLocations = [] }: StoreManagerProps) {
   const [stores, setStores] = useState(initialStores)
+  const erpNameById = new Map(erpLocations.map((location) => [location.erpId, location.name]))
   const [isEditing, setIsEditing] = useState<string | null>(null)
   
   // Form state
@@ -25,6 +38,7 @@ export default function StoreManager({ initialStores }: { initialStores: StoreLo
   const [latitude, setLatitude] = useState<number | null>(null)
   const [longitude, setLongitude] = useState<number | null>(null)
   const [isActive, setIsActive] = useState(true)
+  const [erpId, setErpId] = useState("")
   
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState("")
@@ -41,6 +55,7 @@ export default function StoreManager({ initialStores }: { initialStores: StoreLo
     setLatitude(store.latitude)
     setLongitude(store.longitude)
     setIsActive(store.isActive)
+    setErpId(store.erpId ?? "")
     setError("")
   }
 
@@ -54,6 +69,7 @@ export default function StoreManager({ initialStores }: { initialStores: StoreLo
     setLatitude(null)
     setLongitude(null)
     setIsActive(true)
+    setErpId("")
     setError("")
   }
 
@@ -86,7 +102,17 @@ export default function StoreManager({ initialStores }: { initialStores: StoreLo
     setIsSaving(true)
     setError("")
 
-    const data = { name, address, city, phone, schedule, latitude, longitude, isActive }
+    const data = {
+      name,
+      address,
+      city,
+      phone,
+      schedule,
+      latitude,
+      longitude,
+      isActive,
+      erpId: erpId || null,
+    }
 
     let result
     if (isEditing) {
@@ -225,6 +251,33 @@ export default function StoreManager({ initialStores }: { initialStores: StoreLo
             )}
           </div>
 
+          <div>
+            <label htmlFor="erpId" className="block text-sm font-bold text-gray-700 mb-1">
+              Sede en el ERP (inventario)
+            </label>
+            <select
+              id="erpId"
+              value={erpId}
+              onChange={(e) => setErpId(e.target.value)}
+              className="w-full p-2 border border-gray-300 rounded bg-white"
+            >
+              <option value="">Sin vínculo (stock manual)</option>
+              {erpLocations.map((location) => (
+                <option key={location.erpId} value={location.erpId}>
+                  {location.name}
+                </option>
+              ))}
+              {erpId && !erpNameById.has(erpId) && (
+                <option value={erpId}>Vinculada (ID {erpId})</option>
+              )}
+            </select>
+            <p className="text-xs text-gray-500 mt-1">
+              Con vínculo, el stock por talla de esta sucursal se actualiza solo en cada
+              sincronización del catálogo y deja de editarse a mano.
+              {erpLocations.length === 0 && " El ERP no devolvió sedes en este momento."}
+            </p>
+          </div>
+
           <div className="flex items-center gap-2 pt-2">
             <input
               type="checkbox"
@@ -288,6 +341,17 @@ export default function StoreManager({ initialStores }: { initialStores: StoreLo
                 </div>
                 
                 <div className="text-sm text-gray-600 space-y-1 mb-4 flex-1">
+                  {store.erpId && (
+                    <p className="inline-block text-[11px] font-bold uppercase tracking-wider bg-blue-50 text-blue-700 px-2 py-0.5 rounded">
+                      Inventario desde el ERP
+                      {erpNameById.get(store.erpId) ? ` · ${erpNameById.get(store.erpId)}` : ""}
+                    </p>
+                  )}
+                  {isStoreLocationPending(store) && (
+                    <p className="text-xs font-semibold text-amber-700 bg-amber-50 px-2 py-1 rounded">
+                      Creada por la sincronización: completa dirección y ciudad antes de activarla.
+                    </p>
+                  )}
                   <p><strong>Dirección:</strong> {store.address}, {store.city}</p>
                   {store.schedule && <p><strong>Horario:</strong> {store.schedule}</p>}
                   {store.phone && <p><strong>Teléfono:</strong> {store.phone}</p>}

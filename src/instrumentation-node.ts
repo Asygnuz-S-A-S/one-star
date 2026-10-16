@@ -12,33 +12,30 @@ Sentry.init({
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CRON JOB INTERNO — solo en despliegues con proceso Node persistente
+// CRON JOBS INTERNOS
 //
-// node-cron necesita un proceso vivo entre ejecuciones. Eso existe en local,
-// en Docker y en un VPS, pero NO en plataformas serverless: allí cada request
-// arranca y destruye su propia instancia, así que el schedule nunca dispara.
+// node-cron necesita un proceso Node vivo entre ejecuciones. El despliegue es
+// un contenedor Docker (`output: "standalone"`), así que ese proceso existe y
+// las tareas se programan aquí dentro.
 //
-// En serverless el disparador es externo (Vercel Cron / EventBridge / crontab)
-// llamando a GET /api/cron/sync-erp con el header Authorization: Bearer
-// $CRON_SECRET. La programación vive en vercel.json.
-//
-// Se detecta el entorno con process.env.VERCEL, que Vercel inyecta con valor
-// "1" en build y en runtime. Así el mismo código sirve para ambas rutas de
-// despliegue sin ejecutar la sincronización dos veces.
+// Los endpoints GET /api/cron/sync-erp y GET /api/cron/expire-orders siguen
+// disponibles para un disparador externo (crontab, EventBridge…) con el header
+// Authorization: Bearer $CRON_SECRET. Si se usa uno, hay que apagar el cron
+// interno con DISABLE_INTERNAL_CRON=1 para no ejecutar la tarea dos veces.
 // ─────────────────────────────────────────────────────────────────────────────
-const isServerless = process.env.VERCEL === "1"
+const isInternalCronDisabled = process.env.DISABLE_INTERNAL_CRON === "1"
 
 // Evita que el cron se inicialice múltiples veces en dev con HMR
 const globalWithCron = global as typeof global & { __cronInitialized?: boolean }
 
-if (!isServerless && !globalWithCron.__cronInitialized) {
+if (!isInternalCronDisabled && !globalWithCron.__cronInitialized) {
   globalWithCron.__cronInitialized = true
 
   console.log("[Cron] Inicializando tareas programadas internas...")
 
   void (async () => {
-    // Import dinámico: mantiene node-cron fuera del bundle cuando el despliegue
-    // es serverless y nunca va a usarlo.
+    // Import dinámico: mantiene node-cron fuera del bundle cuando el cron
+    // interno está apagado y nunca va a usarlo.
     const cron = await import("node-cron")
 
     // Despierta cada minuto; la frecuencia real y el apagado viven en PostgreSQL.
@@ -60,6 +57,24 @@ if (!isServerless && !globalWithCron.__cronInitialized) {
         }
       } catch (err) {
         console.error("[Cron] Error no controlado en la sincronización:", err)
+      }
+    })
+
+    // Vence los pedidos que quedaron PENDING sin notificación de la pasarela.
+    // Mismo horario que tenía la programación externa: 07:30 en la zona horaria
+    // del proceso. Es idempotente: una segunda pasada no encuentra nada.
+    cron.schedule("30 7 * * *", async () => {
+      try {
+        const { expireAbandonedOrders } = await import(
+          "./server/services/order.service"
+        )
+        const expired = await expireAbandonedOrders()
+
+        if (expired.length > 0) {
+          console.log(`[Cron] Pedidos abandonados vencidos: ${expired.length}.`)
+        }
+      } catch (err) {
+        console.error("[Cron] Error venciendo pedidos abandonados:", err)
       }
     })
   })()

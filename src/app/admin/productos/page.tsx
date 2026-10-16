@@ -74,6 +74,10 @@ export default async function ProductosPage({ searchParams }: Props) {
           Sincronizar ERP
         </Link>
       </div>
+      <p className="mb-6 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+        Los productos se crean en Loggro y llegan aquí al sincronizar. En la web solo se completa
+        lo que Loggro no tiene: categoría web, género, descripciones, fotos, cross-selling y publicación.
+      </p>
 
       <form method="GET" className="flex flex-wrap gap-3 mb-6">
         <input
@@ -88,7 +92,7 @@ export default async function ProductosPage({ searchParams }: Props) {
           defaultValue={categoryId ?? ""}
           className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-[#1C1C1C] bg-white focus:outline-none focus:ring-2 focus:ring-[#E31C23]"
         >
-          <option value="">Todas las categorías</option>
+          <option value="">Todas las categorías web</option>
           {categories.map((cat) => (
             <option key={cat.id} value={cat.id}>
               {cat.name}

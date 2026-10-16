@@ -6,6 +6,164 @@ import { normalizeLoggroCatalog } from "../loggro-catalog.normalizer"
 import type { LoggroCatalogItem } from "../loggro.client"
 
 describe("normalizeLoggroCatalog", () => {
+  it("suma el IVA al precio neto de Loggro cuando se indica la tasa", () => {
+    const items: LoggroCatalogItem[] = [
+      {
+        uuid: "parent-iva",
+        codigo: "MODEL-BLK",
+        descripcion: "TENIS MODELO NEGRO",
+        definicion: true,
+        precioDefecto: "293277",
+      },
+      {
+        uuid: "variant-iva",
+        codigo: "MODEL-BLK_9",
+        descripcion: "TENIS MODELO NEGRO",
+        definicion: false,
+        definidoEn_uuid: "parent-iva",
+        precioDefecto: "293277",
+      },
+    ]
+    const stock = {
+      stockByCodigo: new Map([["MODEL-BLK_9", 1]]),
+      locations: [],
+      stockByCodigoAndLocation: new Map(),
+      complete: true,
+      requestedCount: 1,
+      resolvedCount: 1,
+      missingCodes: [],
+      errors: [],
+    }
+
+    const conIva = normalizeLoggroCatalog(items, stock, { ivaRate: 0.19 })
+    const sinIva = normalizeLoggroCatalog(items, stock)
+
+    expect(conIva.groups[0].basePrice).toBe(349_000)
+    expect(conIva.groups[0].variants[0].basePrice).toBe(349_000)
+    expect(sinIva.groups[0].basePrice).toBe(293_277)
+  })
+
+  describe("IVA por ítem (ivaVenta)", () => {
+    const stockDe = (codigo: string) => ({
+      stockByCodigo: new Map([[codigo, 1]]),
+      locations: [],
+      stockByCodigoAndLocation: new Map(),
+      complete: true,
+      requestedCount: 1,
+      resolvedCount: 1,
+      missingCodes: [],
+      errors: [],
+    })
+
+    const catalogo = (
+      parentIva: string | number | undefined,
+      variantIva: string | number | undefined
+    ): LoggroCatalogItem[] => [
+      {
+        uuid: "parent-item-iva",
+        codigo: "MODEL-RED",
+        descripcion: "TENIS MODELO ROJO",
+        definicion: true,
+        precioDefecto: "100000",
+        ...(parentIva !== undefined ? { ivaVenta: parentIva } : {}),
+      },
+      {
+        uuid: "variant-item-iva",
+        codigo: "MODEL-RED_9",
+        descripcion: "TENIS MODELO ROJO",
+        definicion: false,
+        definidoEn_uuid: "parent-item-iva",
+        precioDefecto: "100000",
+        ...(variantIva !== undefined ? { ivaVenta: variantIva } : {}),
+      },
+    ]
+
+    it("usa el ivaVenta del ítem por encima de la tasa global", () => {
+      const snapshot = normalizeLoggroCatalog(catalogo("5.00", "5.00"), stockDe("MODEL-RED_9"), {
+        ivaRate: 0.19,
+      })
+
+      expect(snapshot.groups[0].basePrice).toBe(105_000)
+      expect(snapshot.groups[0].variants[0].basePrice).toBe(105_000)
+    })
+
+    it("aplica el ivaVenta del ítem aunque no se indique tasa global", () => {
+      const snapshot = normalizeLoggroCatalog(catalogo("19.00", "19.00"), stockDe("MODEL-RED_9"))
+
+      expect(snapshot.groups[0].basePrice).toBe(119_000)
+      expect(snapshot.groups[0].variants[0].basePrice).toBe(119_000)
+    })
+
+    it("respeta un ítem exento (ivaVenta 0) aunque la tasa global sea 19 %", () => {
+      const snapshot = normalizeLoggroCatalog(catalogo("0", "0"), stockDe("MODEL-RED_9"), {
+        ivaRate: 0.19,
+      })
+
+      expect(snapshot.groups[0].basePrice).toBe(100_000)
+      expect(snapshot.groups[0].variants[0].basePrice).toBe(100_000)
+    })
+
+    it("hereda el ivaVenta de la definición padre cuando la variante no lo trae", () => {
+      const snapshot = normalizeLoggroCatalog(catalogo("5.00", undefined), stockDe("MODEL-RED_9"), {
+        ivaRate: 0.19,
+      })
+
+      expect(snapshot.groups[0].basePrice).toBe(105_000)
+      expect(snapshot.groups[0].variants[0].basePrice).toBe(105_000)
+    })
+
+    it("prefiere el ivaVenta de la variante sobre el del padre", () => {
+      const snapshot = normalizeLoggroCatalog(catalogo("19.00", "5.00"), stockDe("MODEL-RED_9"), {
+        ivaRate: 0.19,
+      })
+
+      expect(snapshot.groups[0].variants[0].basePrice).toBe(105_000)
+    })
+
+    it("cae a la tasa global cuando el ivaVenta es inválido en ítem y padre", () => {
+      const snapshot = normalizeLoggroCatalog(catalogo("abc", "-3"), stockDe("MODEL-RED_9"), {
+        ivaRate: 0.19,
+      })
+
+      expect(snapshot.groups[0].basePrice).toBe(119_000)
+      expect(snapshot.groups[0].variants[0].basePrice).toBe(119_000)
+    })
+
+    it("cae a la tasa global cuando ningún ítem trae ivaVenta", () => {
+      const snapshot = normalizeLoggroCatalog(catalogo(undefined, undefined), stockDe("MODEL-RED_9"), {
+        ivaRate: 0.19,
+      })
+
+      expect(snapshot.groups[0].basePrice).toBe(119_000)
+    })
+
+    it("acepta ivaVenta numérico", () => {
+      const snapshot = normalizeLoggroCatalog(catalogo(19, 19), stockDe("MODEL-RED_9"))
+
+      expect(snapshot.groups[0].variants[0].basePrice).toBe(119_000)
+    })
+
+    it("usa el ivaVenta de la variante huérfana cuando no hay definición padre", () => {
+      const snapshot = normalizeLoggroCatalog(
+        [
+          {
+            uuid: "orphan-iva",
+            codigo: "ORPH-BLU_8",
+            descripcion: "TENIS HUERFANO AZUL",
+            definicion: false,
+            precioDefecto: "200000",
+            ivaVenta: "5.00",
+          },
+        ],
+        stockDe("ORPH-BLU_8"),
+        { ivaRate: 0.19 }
+      )
+
+      expect(snapshot.groups[0].basePrice).toBe(210_000)
+      expect(snapshot.groups[0].variants[0].basePrice).toBe(210_000)
+    })
+  })
+
   it("expone una razón normalizada para excluir artículos internos del catálogo online", () => {
     const snapshot = normalizeLoggroCatalog(
       [
@@ -505,5 +663,84 @@ describe("normalizeLoggroCatalog", () => {
 
     expect(snapshot.groups).toHaveLength(1)
     expect(snapshot.groups[0].sku).toBe("LEGACY-BLK")
+  })
+})
+
+describe("normalizeLoggroCatalog — stock por sede", () => {
+  const items: LoggroCatalogItem[] = [
+    {
+      uuid: "variant-8",
+      codigo: "MODEL-BLK_8",
+      descripcion: "TENIS HOKA NEGRO",
+      definicion: false,
+      precioDefecto: 100_000,
+    },
+    {
+      uuid: "variant-9",
+      codigo: "MODEL-BLK_9",
+      descripcion: "TENIS HOKA NEGRO",
+      definicion: false,
+      precioDefecto: 100_000,
+    },
+  ]
+
+  it("expone el desglose por sede cubriendo todas las sedes, con cero para las ausentes", () => {
+    const snapshot = normalizeLoggroCatalog(items, {
+      stockByCodigo: new Map([["MODEL-BLK_8", 3], ["MODEL-BLK_9", 0]]),
+      locations: [
+        { erpId: "est-fundadores", name: "One Star Fundadores" },
+        { erpId: "est-centro", name: "One Star Centro" },
+      ],
+      stockByCodigoAndLocation: new Map([
+        ["MODEL-BLK_8", new Map([["est-fundadores", 2], ["est-centro", 1]])],
+      ]),
+      complete: true,
+      requestedCount: 2,
+      resolvedCount: 2,
+      missingCodes: [],
+      errors: [],
+    })
+
+    expect(snapshot.locations).toEqual([
+      { erpId: "est-fundadores", name: "One Star Fundadores" },
+      { erpId: "est-centro", name: "One Star Centro" },
+    ])
+    const [variant8, variant9] = snapshot.groups[0].variants
+    expect(variant8.stockByLocation).toEqual([
+      { locationErpId: "est-fundadores", stock: 2 },
+      { locationErpId: "est-centro", stock: 1 },
+    ])
+    expect(variant9.stockByLocation).toEqual([
+      { locationErpId: "est-fundadores", stock: 0 },
+      { locationErpId: "est-centro", stock: 0 },
+    ])
+  })
+
+  it("omite el desglose cuando el stock total es desconocido o no hay sedes", () => {
+    const snapshot = normalizeLoggroCatalog(items, {
+      stockByCodigo: new Map([["MODEL-BLK_8", 3]]),
+      locations: [{ erpId: "est-centro", name: "Centro" }],
+      stockByCodigoAndLocation: new Map([["MODEL-BLK_8", new Map([["est-centro", 3]])]]),
+      complete: false,
+      requestedCount: 2,
+      resolvedCount: 1,
+      missingCodes: ["MODEL-BLK_9"],
+      errors: [],
+    })
+    const [variant8, variant9] = snapshot.groups[0].variants
+    expect(variant8.stockByLocation).toEqual([{ locationErpId: "est-centro", stock: 3 }])
+    expect(variant9.stock).toBeNull()
+    expect(variant9.stockByLocation).toBeUndefined()
+
+    const legacy = normalizeLoggroCatalog(items, {
+      stockByCodigo: new Map([["MODEL-BLK_8", 3], ["MODEL-BLK_9", 1]]),
+      complete: true,
+      requestedCount: 2,
+      resolvedCount: 2,
+      missingCodes: [],
+      errors: [],
+    })
+    expect(legacy.locations).toEqual([])
+    expect(legacy.groups[0].variants[0].stockByLocation).toBeUndefined()
   })
 })

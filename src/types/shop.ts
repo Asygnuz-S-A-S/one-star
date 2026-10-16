@@ -17,6 +17,14 @@ export interface Variant {
     id: string
     storeLocationId: string | null
     storeName: string | null
+    /** Sede física dueña del nivel; null para la bodega web. */
+    storeLocation?: {
+      id: string
+      name: string
+      city: string
+      isActive: boolean
+      isWebWarehouse: boolean
+    } | null
     stock: number
   }[]
   sizeUS: string | null
@@ -58,6 +66,9 @@ export interface ProductWithRelations {
   videoUrl: string | null
   metaTitle: string | null
   metaDescription: string | null
+  highlights: string[]
+  isNew?: boolean
+  faqs: { q: string; a: string }[]
   gender: string | null
   categoryId: string
   category: ProductCategory

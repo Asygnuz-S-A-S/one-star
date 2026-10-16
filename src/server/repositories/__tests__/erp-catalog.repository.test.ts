@@ -2,18 +2,22 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 vi.mock("server-only", () => ({}))
 
-const { brandDeleteMany, updateMany, transaction } = vi.hoisted(() => ({
-  brandDeleteMany: vi.fn(),
-  updateMany: vi.fn(),
-  transaction: vi.fn(async (operations: Array<Promise<unknown>>) =>
-    Promise.all(operations)
-  ),
-}))
+const { brandDeleteMany, updateMany, transaction, inventoryDeleteMany, inventoryCreateMany } =
+  vi.hoisted(() => ({
+    brandDeleteMany: vi.fn(),
+    updateMany: vi.fn(),
+    inventoryDeleteMany: vi.fn(),
+    inventoryCreateMany: vi.fn(),
+    transaction: vi.fn(async (operations: Array<Promise<unknown>>) =>
+      Promise.all(operations)
+    ),
+  }))
 
 vi.mock("@/server/db/prisma", () => ({
   prisma: {
     product: { updateMany },
     brand: { deleteMany: brandDeleteMany },
+    inventoryLevel: { deleteMany: inventoryDeleteMany, createMany: inventoryCreateMany },
     $transaction: transaction,
   },
 }))
@@ -21,6 +25,7 @@ vi.mock("@/server/db/prisma", () => ({
 import {
   fillDefaultCatalogProductCategories,
   fillMissingCatalogProductGenders,
+  replaceErpInventoryLevels,
   unpublishCatalogProducts,
   replaceProvisionalCatalogProductBrands,
 } from "../erp-catalog.repository"
@@ -146,5 +151,37 @@ describe("replaceProvisionalCatalogProductBrands", () => {
       },
     })
     expect(result).toEqual({ updatedCount: 1, deletedProvisionalBrandCount: 1 })
+  })
+})
+
+describe("replaceErpInventoryLevels", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    inventoryDeleteMany.mockResolvedValue({ count: 2 })
+    inventoryCreateMany.mockResolvedValue({ count: 3 })
+  })
+
+  it("borra solo las sedes vinculadas y recrea el desglose en una transacción", async () => {
+    const rows = [
+      { variantId: "v1", storeLocationId: "s1", stock: 2 },
+      { variantId: "v1", storeLocationId: "s2", stock: 0 },
+      { variantId: "v2", storeLocationId: "s1", stock: 1 },
+    ]
+
+    const created = await replaceErpInventoryLevels(["s1", "s2"], rows)
+
+    expect(created).toBe(3)
+    expect(transaction).toHaveBeenCalledTimes(1)
+    expect(inventoryDeleteMany).toHaveBeenCalledWith({
+      where: { storeLocationId: { in: ["s1", "s2"] } },
+    })
+    expect(inventoryCreateMany).toHaveBeenCalledWith({ data: rows, skipDuplicates: true })
+  })
+
+  it("no escribe nada cuando no hay sedes vinculadas", async () => {
+    const created = await replaceErpInventoryLevels([], [])
+
+    expect(created).toBe(0)
+    expect(transaction).not.toHaveBeenCalled()
   })
 })

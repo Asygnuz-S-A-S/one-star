@@ -1,10 +1,12 @@
 # Plan de despliegue — One Star
 
-> Ruta de dos etapas: primero un ambiente público gratuito para que el cliente
-> valide la tienda, después producción real en un servidor propio.
+> **Documento histórico (superado).** Describe una ruta de dos etapas cuya
+> etapa 1 (hosting serverless gratuito) nunca llegó a usarse: el proyecto se
+> despliega en un contenedor Docker con PostgreSQL propio. Se conserva por el
+> razonamiento sobre portabilidad, que sigue siendo válido.
 >
-> Documentos relacionados: `docs/deploy-vercel.md` (procedimiento detallado de la
-> etapa 1), `docs/architecture.md` (sección Despliegue).
+> Procedimiento vigente: `docs/deploy-docker.md`; `docs/architecture.md`
+> (sección Despliegue).
 
 ---
 
@@ -17,7 +19,6 @@ nada. Lo que hace portable al proyecto:
 |---|---|
 | Postgres | Supabase es PostgreSQL estándar. Mismo `schema.prisma`, mismas migraciones, misma tabla `_prisma_migrations`. Mover la base es un `pg_dump` + `psql`. De Supabase se usa **solo la base de datos**: no Auth (es better-auth), no Storage (es Cloudinary), no el SDK `@supabase/*`. |
 | `directUrl` en Prisma | Campo estándar de Prisma, no de ningún hosting. Con tu propio Postgres apunta al mismo sitio que `DATABASE_URL`. |
-| `vercel.json` | Lo ignora cualquier otra plataforma. En un VPS es un archivo inerte. |
 | Cron | `node-cron` se reactiva solo cuando `process.env.VERCEL` no existe. Recuperas los 30 min sin tocar código. |
 | Imágenes | Cloudinary por HTTP — funciona igual desde donde sea. Deliberadamente **no** se usa Vercel Blob. |
 | Correos y pagos | Resend y ePayco son APIs HTTP, indiferentes al hosting. |

@@ -1,19 +1,23 @@
 import "server-only"
+import { serializeDecimals, type WithPlainDecimals } from "@/lib/serialize-decimals"
 import {
   findManyProducts,
   findProductCatalogCandidates,
   findProductsByIds,
   findProductBySlug,
   findProductByIdForAdmin,
+  findPublishedProductSitemapEntries,
   countProducts,
   fetchBrands,
-  createProductRecord,
   deleteProductRecord,
   searchProductsByName,
   updateProductWithAdminRelations,
   updateProductsPublishStatus as repoUpdateProductsPublishStatus,
 } from "../repositories/product.repository"
 import type { Prisma, Gender } from "@prisma/client"
+import { parseProductFaqs, type ProductFaq } from "@/lib/product-faq"
+import { resolveGenderFilter } from "@/lib/gender-filter"
+import { resolveProductSort, type ProductSortValue } from "@/lib/product-sort"
 import { buildVisibleProductPage } from "@/server/domain/product-color-family.plan"
 
 export interface CategoryDTO {
@@ -90,6 +94,8 @@ export interface ProductDTO {
   id: string
   slug: string
   name: string
+  /** null = producto cargado manualmente (admin/Excel); presente = lo trae y gestiona el ERP. */
+  erpId: string | null
   brandId: string | null
   brandName: string | null
   /** Nombre de la marca (alias plano de brandName para la UI de la tienda) */
@@ -102,6 +108,8 @@ export interface ProductDTO {
   videoUrl: string | null
   metaTitle: string | null
   metaDescription: string | null
+  highlights: string[]
+  faqs: ProductFaq[]
   gender: string | null
   categoryId: string
   category: CategoryDTO
@@ -125,7 +133,7 @@ export interface AppProductFilter {
   color?: string
   precio_min?: string
   precio_max?: string
-  orden?: "precio_asc" | "precio_desc" | "reciente" | "antiguo"
+  orden?: ProductSortValue
   page?: string
   genero?: string
   categorySlug?: string
@@ -191,6 +199,8 @@ export interface ProductInput {
   availableOnline: boolean
   availableInStores: boolean
   isPublished: boolean
+  highlights?: string[]
+  faqs?: ProductFaq[]
   variants: VariantInput[]
   images: ImageInput[]
   colorFamilyProductIds?: string[]
@@ -238,6 +248,7 @@ type RawProduct = {
   id: string
   slug: string
   name: string
+  erpId?: string | null
   brandId: string | null
   brand: { id: string; name: string; slug: string } | null
   basePrice: RawPrice
@@ -248,6 +259,8 @@ type RawProduct = {
   videoUrl?: string | null
   metaTitle?: string | null
   metaDescription?: string | null
+  highlights?: string[]
+  faqs?: unknown
   gender?: string | null
   categoryId: string
   category: { id: string; name: string; slug: string }
@@ -315,6 +328,7 @@ function mapToDTO(raw: RawProduct): ProductDTO {
     id: raw.id,
     slug: raw.slug,
     name: raw.name,
+    erpId: raw.erpId ?? null,
     brandId: raw.brandId ?? null,
     brandName: raw.brand?.name ?? null,
     brand: raw.brand?.name ?? null,
@@ -326,6 +340,8 @@ function mapToDTO(raw: RawProduct): ProductDTO {
     videoUrl: raw.videoUrl ?? null,
     metaTitle: raw.metaTitle ?? null,
     metaDescription: raw.metaDescription ?? null,
+    highlights: raw.highlights ?? [],
+    faqs: parseProductFaqs(raw.faqs),
     gender: raw.gender ?? null,
     categoryId: raw.categoryId,
     category: {
@@ -361,10 +377,16 @@ function buildPrismaWhere(
   if (filter.status === "active") where.isPublished = true
   if (filter.status === "inactive") where.isPublished = false
 
-  if (filter.extraGenders && filter.extraGenders.length > 0) {
-    where.gender = { in: filter.extraGenders as Gender[] }
-  } else if (filter.genero) {
-    where.gender = filter.genero as Gender
+  // La sección (/c/hombre, /c/mujer, /c/ninos) fija extraGenders; el visitante puede
+  // acotar más con ?genero=. Dentro de una sección, el filtro solo puede restringir.
+  const sectionGenders = filter.extraGenders && filter.extraGenders.length > 0 ? filter.extraGenders : null
+  const requestedGenders = resolveGenderFilter(filter.genero)
+  const genders =
+    sectionGenders && requestedGenders
+      ? requestedGenders.filter((g) => sectionGenders.includes(g))
+      : (requestedGenders ?? sectionGenders)
+  if (genders) {
+    where.gender = { in: genders as Gender[] }
   }
 
   if (filter.q) where.name = { contains: filter.q, mode: "insensitive" }
@@ -409,10 +431,21 @@ function buildPrismaWhere(
 function buildPrismaOrderBy(
   orden?: string
 ): Prisma.ProductOrderByWithRelationInput[] {
-  if (orden === "precio_asc") return [{ basePrice: "asc" }, { id: "asc" }]
-  if (orden === "precio_desc") return [{ basePrice: "desc" }, { id: "asc" }]
-  if (orden === "antiguo") return [{ createdAt: "asc" }, { id: "asc" }]
-  return [{ createdAt: "desc" }, { id: "asc" }]
+  // Un criterio desconocido cae al orden por defecto en vez de romper la consulta.
+  switch (resolveProductSort(orden)) {
+    case "precio_asc":
+      return [{ basePrice: "asc" }, { id: "asc" }]
+    case "precio_desc":
+      return [{ basePrice: "desc" }, { id: "asc" }]
+    case "az":
+      return [{ name: "asc" }, { id: "asc" }]
+    case "za":
+      return [{ name: "desc" }, { id: "asc" }]
+    case "antiguo":
+      return [{ createdAt: "asc" }, { id: "asc" }]
+    default:
+      return [{ createdAt: "desc" }, { id: "asc" }]
+  }
 }
 
 export async function getProducts(
@@ -468,56 +501,6 @@ export async function getUniqueBrands(): Promise<string[]> {
   return fetchBrands()
 }
 
-export async function createProduct(input: ProductInput): Promise<ProductDTO> {
-  const raw = await createProductRecord({
-    name: input.name,
-    slug: input.slug,
-    ...(input.brandId ? { brand: { connect: { id: input.brandId } } } : {}),
-    gender: (input.gender as Gender) ?? null,
-    category: { connect: { id: input.categoryId } },
-    description: input.description ?? null,
-    extendedDescription: input.extendedDescription ?? null,
-    videoUrl: input.videoUrl ?? null,
-    basePrice: input.basePrice,
-    isOnSale: input.isOnSale,
-    salePrice: input.salePrice ?? null,
-    metaTitle: input.metaTitle ?? null,
-    metaDescription: input.metaDescription ?? null,
-    availableOnline: input.availableOnline,
-    availableInStores: input.availableInStores,
-    isPublished: input.isPublished,
-    variants: {
-      create: input.variants.map((v) => ({
-        sku: v.sku,
-        size: v.size,
-        color: v.color,
-        stock: v.stock,
-        inventory: {
-          create: v.inventory.map((inv) => ({
-            storeLocationId: inv.storeLocationId,
-            stock: inv.stock,
-          })),
-        },
-        sizeUS: v.sizeUS ?? null,
-        sizeCM: v.sizeCM ?? null,
-        sizeEUR: v.sizeEUR ?? null,
-      })),
-    },
-    images: {
-      create: input.images.map((img, idx) => ({
-        url: img.url,
-        alt: img.alt ?? input.name,
-        position: img.position ?? idx,
-        color: img.color ?? null,
-      })),
-    },
-    ...(input.crossSellIds?.length
-      ? { crossSells: { connect: input.crossSellIds.map((id) => ({ id })) } }
-      : {}),
-  })
-  return mapToDTO(raw)
-}
-
 export async function updateProduct(
   id: string,
   input: ProductInput
@@ -526,10 +509,12 @@ export async function updateProduct(
   return mapToDTO(raw)
 }
 
-export type AdminProductDetail = Awaited<ReturnType<typeof findProductByIdForAdmin>>
+/** Detalle para el admin con los Decimal ya convertidos a number (cruza a Client Components). */
+export type AdminProductDetail = WithPlainDecimals<Awaited<ReturnType<typeof findProductByIdForAdmin>>>
 
 export async function getProductByIdForAdmin(id: string): Promise<AdminProductDetail> {
-  return findProductByIdForAdmin(id)
+  const product = await findProductByIdForAdmin(id)
+  return serializeDecimals(product)
 }
 
 export async function deleteProduct(id: string): Promise<void> {
@@ -585,4 +570,17 @@ export async function searchProducts(
     imageUrl: row.images[0]?.url ?? null,
     color: row.variants.find((variant) => variant.color.trim().length > 0)?.color ?? null,
   }))
+}
+
+export interface ProductSitemapEntry {
+  slug: string
+  updatedAt: Date
+  /** Foto principal: Google la indexa desde el sitemap de imágenes. */
+  imageUrl: string | null
+}
+
+/** Entradas de producto para `src/app/sitemap.ts`. */
+export async function getProductSitemapEntries(): Promise<ProductSitemapEntry[]> {
+  const rows = await findPublishedProductSitemapEntries()
+  return rows.map((row) => ({ slug: row.slug, updatedAt: row.updatedAt, imageUrl: row.images[0]?.url ?? null }))
 }

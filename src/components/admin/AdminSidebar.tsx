@@ -1,13 +1,14 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { useState } from "react"
+import { INVENTORY_OPERATOR_HREFS, type AdminRole } from "@/lib/admin-access"
 import { signOut } from "@/lib/auth-client"
 
 interface AdminSidebarProps {
   userName: string
-  userRole: string
+  userRole: AdminRole | string | null
 }
 
 const navGroups = [
@@ -55,6 +56,24 @@ const navGroups = [
           </svg>
         ),
       },
+      {
+        label: "Tarjetas de regalo",
+        href: "/admin/tarjetas-regalo",
+        icon: (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.5-3-6-3-6 0s4.5 3 6 3 6-0 6-3-4.5-3-6 0zM3 12h18v7a1 1 0 01-1 1H4a1 1 0 01-1-1v-7zM3 8h18v4H3z" />
+          </svg>
+        ),
+      },
+      {
+        label: "Reseñas",
+        href: "/admin/resenas",
+        icon: (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z" />
+          </svg>
+        ),
+      },
     ]
   },
   {
@@ -70,7 +89,16 @@ const navGroups = [
         ),
       },
       {
-        label: "Categorías",
+        label: "Importar productos",
+        href: "/admin/productos/importar",
+        icon: (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 16V4m0 0L8 8m4-4l4 4M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
+          </svg>
+        ),
+      },
+      {
+        label: "Categorías web",
         href: "/admin/categorias",
         icon: (
           <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
@@ -107,6 +135,15 @@ const navGroups = [
         icon: (
           <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+          </svg>
+        ),
+      },
+      {
+        label: "Contenido y Promesas",
+        href: "/admin/contenido",
+        icon: (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
           </svg>
         ),
       },
@@ -163,8 +200,21 @@ const roleLabel: Record<string, string> = {
 }
 
 export default function AdminSidebar({ userName, userRole }: AdminSidebarProps) {
+  const router = useRouter()
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
+
+  const visibleGroups =
+    userRole === "SUPER_ADMIN"
+      ? navGroups
+      : userRole === "INVENTORY_OPERATOR"
+        ? navGroups
+            .map((group) => ({
+              ...group,
+              items: group.items.filter((item) => INVENTORY_OPERATOR_HREFS.has(item.href)),
+            }))
+            .filter((group) => group.items.length > 0)
+        : []
 
   const isActive = (href: string) => {
     if (href === "/admin") return pathname === "/admin"
@@ -186,7 +236,7 @@ export default function AdminSidebar({ userName, userRole }: AdminSidebarProps) 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 overflow-y-auto">
         <div className="space-y-6">
-          {navGroups.map((group) => (
+          {visibleGroups.map((group) => (
             <div key={group.group}>
               <h4 className="px-3 mb-2 text-xs font-bold tracking-wider text-white/40 uppercase">
                 {group.group}
@@ -223,14 +273,13 @@ export default function AdminSidebar({ userName, userRole }: AdminSidebarProps) 
             {userName}
           </p>
           <p className="font-montserrat text-xs text-white/50 mt-0.5">
-            {roleLabel[userRole] ?? userRole}
+            {userRole ? (roleLabel[userRole] ?? userRole) : "Sin rol"}
           </p>
         </div>
         <div>
           <button
             type="button"
-            onClick={() => signOut({ fetchOptions: { onSuccess: () => { window.location.href = "/admin/login" } } })}
-
+            onClick={() => signOut({ fetchOptions: { onSuccess: () => { router.push("/admin/login") } } })}
             className="w-full flex items-center gap-2 px-3 py-2 rounded-lg font-montserrat text-sm text-white/70 hover:bg-white/10 hover:text-white transition-colors"
           >
             <svg

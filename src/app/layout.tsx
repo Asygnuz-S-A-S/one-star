@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import "./globals.css";
 import PublicSiteFrame from "@/components/PublicSiteFrame";
 import Providers from "@/app/providers";
+import MetaPixel from "@/components/tracking/MetaPixel";
 
 export const metadata: Metadata = {
   title: "One Star | Urban Performance",
@@ -14,6 +15,7 @@ import { getActiveNavigationItems } from "@/server/repositories/navigation.repos
 import { getTopBanner } from "@/server/repositories/top-banner.repository";
 import { getPrimaryLogos } from "@/server/repositories/site-logo.repository";
 import { getHeaderConfig } from "@/server/repositories/header-config.repository";
+import { getMetaPixelPublicConfig } from "@/server/services/store-settings.service";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +28,7 @@ export default async function RootLayout({
 
   // Queries independientes en paralelo; si la BD falla, la página
   // se renderiza con fallbacks en lugar de caerse entera.
-  const [navigationItems, topBanner, primaryLogos, headerConfig] = await Promise.all([
+  const [navigationItems, topBanner, primaryLogos, headerConfig, metaPixel] = await Promise.all([
     getActiveNavigationItems().catch((error: unknown) => {
       console.error("[layout] getActiveNavigationItems falló:", error);
       return [];
@@ -43,12 +45,17 @@ export default async function RootLayout({
       console.error("[layout] getHeaderConfig falló:", error);
       return null;
     }),
+    getMetaPixelPublicConfig().catch((error: unknown) => {
+      console.error("[layout] getMetaPixelPublicConfig falló:", error);
+      return null;
+    }),
   ]);
 
   return (
     <html lang="es" className="h-full antialiased" suppressHydrationWarning>
       <body className="min-h-full flex flex-col bg-white text-[#1C1C1C] dark:bg-[#0f0f0f] dark:text-[#f5f5f7] transition-colors duration-300">
         <Providers nonce={nonce}>
+          {metaPixel && <MetaPixel pixelId={metaPixel.pixelId} />}
           <PublicSiteFrame
             items={navigationItems}
             banner={topBanner}

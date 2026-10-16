@@ -11,7 +11,10 @@ RUN apk add --no-cache openssl libc6-compat
 
 WORKDIR /app
 
-COPY package.json pnpm-lock.yaml ./
+# pnpm-workspace.yaml lleva los `overrides` (pnpm 10 ya no lee
+# `pnpm.overrides` del package.json). Sin este archivo la instalación con
+# lockfile congelado falla con ERR_PNPM_LOCKFILE_CONFIG_MISMATCH.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
 # Instalar la versión reproducible de pnpm y luego las dependencias con frozen lockfile
 RUN npm install -g pnpm@10.34.5 && pnpm config set node-linker hoisted && pnpm install --frozen-lockfile

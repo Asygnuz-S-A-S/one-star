@@ -122,6 +122,13 @@ export async function updateCatalogProduct(
     basePrice: number
     unitOfMeasure?: string
     brandId?: string | null
+    isPublished?: boolean
+    /**
+     * Solo se debe pasar para completar un `erpId` que hoy es `null` (un
+     * producto manual vinculado por el asistente de conexión). Nunca pisa un
+     * `erpId` ya asignado — el caller decide cuándo incluirlo.
+     */
+    erpId?: string
   }
 ) {
   return prisma.product.update({ where: { id }, data })
@@ -251,4 +258,32 @@ export async function createCatalogVariant(data: {
   stock: number
 }) {
   return prisma.variant.create({ data })
+}
+
+export interface ErpInventoryLevelRow {
+  variantId: string
+  storeLocationId: string
+  stock: number
+}
+
+/**
+ * Reemplaza el desglose de stock por sede que proviene del ERP.
+ *
+ * Solo toca las filas de las sedes vinculadas (`storeLocationIds`): la bodega
+ * web (`storeLocationId = null`) y las sedes administradas a mano quedan
+ * intactas. Borrar y recrear en una transacción evita filas huérfanas de
+ * variantes que el ERP dejó de reportar.
+ */
+export async function replaceErpInventoryLevels(
+  storeLocationIds: string[],
+  rows: ErpInventoryLevelRow[]
+): Promise<number> {
+  if (storeLocationIds.length === 0) return 0
+  const [, created] = await prisma.$transaction([
+    prisma.inventoryLevel.deleteMany({
+      where: { storeLocationId: { in: storeLocationIds } },
+    }),
+    prisma.inventoryLevel.createMany({ data: rows, skipDuplicates: true }),
+  ])
+  return created.count
 }

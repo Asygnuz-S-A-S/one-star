@@ -89,7 +89,9 @@ export default function EpaycoButton({
         country: "co",
         lang: "es",
         external: "false",
-        response: `${baseUrl}/checkout/success`,
+        // ePayco redirige aquí con `ref_payco`; orderId va de respaldo por si
+        // la consulta por referencia no responde.
+        response: `${baseUrl}/checkout/success?orderId=${encodeURIComponent(orderId)}`,
         confirmation: `${baseUrl}/api/epayco/webhook`,
         email_billing: customerEmail,
         name_billing: `${customerName} ${customerLastName}`.trim(),

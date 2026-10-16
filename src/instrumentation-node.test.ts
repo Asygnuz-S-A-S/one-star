@@ -12,7 +12,7 @@ describe("instrumentation-node", () => {
   beforeEach(() => {
     vi.resetModules()
     mocks.init.mockReset()
-    vi.stubEnv("VERCEL", "1")
+    vi.stubEnv("DISABLE_INTERNAL_CRON", "1")
   })
 
   afterEach(() => {

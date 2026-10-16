@@ -74,7 +74,7 @@ export default function ProductGallery({ images, videoUrl }: ProductGalleryProps
                 src={img.url}
                 alt={img.alt || `Miniatura ${idx + 1}`}
                 fill
-                className="object-cover object-center"
+                className="object-contain object-center p-1"
                 sizes="80px"
               />
             </motion.button>
@@ -117,8 +117,9 @@ export default function ProductGallery({ images, videoUrl }: ProductGalleryProps
           />
         ) : activeImage ? (
           <>
-            {/* Capa con zoom al hover: al pasar el mouse la imagen crece un poco */}
-            <div className="absolute inset-0 transition-transform duration-500 ease-out group-hover:scale-110">
+            {/* Sin zoom al hover: la foto debe verse completa y centrada, igual que las
+                miniaturas (HU-6). La rotación de vistas al mover el mouse se mantiene. */}
+            <div className="absolute inset-0">
               {allImages.map((url, idx) => (
                 <Image
                   key={`main-${idx}`}

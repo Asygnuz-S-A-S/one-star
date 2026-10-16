@@ -48,3 +48,69 @@ describe("getErpErrorPresentation", () => {
     expect(getErpErrorPresentation(error).title).toBe(title)
   })
 })
+
+import { countConsecutiveFailures, getErpIndicators, isErpConfigured } from "../erp-sync-display"
+
+describe("countConsecutiveFailures", () => {
+  it("cuenta desde la corrida más reciente hasta el primer éxito", () => {
+    expect(countConsecutiveFailures([])).toBe(0)
+    expect(countConsecutiveFailures([{ success: true }, { success: false }])).toBe(0)
+    expect(
+      countConsecutiveFailures([{ success: false }, { success: false }, { success: true }, { success: false }])
+    ).toBe(2)
+  })
+})
+
+describe("getErpIndicators", () => {
+  const base = {
+    provider: "loggro",
+    connected: true,
+    catalogSyncAvailable: true,
+    autoSyncEnabled: true,
+    intervalLabel: "Cada 30 minutos",
+    history: [{ success: true }],
+  }
+
+  it("no muestra nada en verde cuando no hay ERP configurado, aunque el ping responda", () => {
+    expect(isErpConfigured("null")).toBe(false)
+    const result = getErpIndicators({ ...base, provider: "null", connected: true })
+    expect(result.api).toMatchObject({ tone: "off", label: "No configurado" })
+    expect(result.autoSync).toMatchObject({ tone: "off", label: "No disponible" })
+  })
+
+  it("marca la programación activa como con errores cuando las corridas fallan", () => {
+    const result = getErpIndicators({
+      ...base,
+      history: [{ success: false }, { success: false }, { success: false }, { success: true }],
+    })
+    expect(result.consecutiveFailures).toBe(3)
+    expect(result.autoSync).toMatchObject({ tone: "error", label: "Activa con errores" })
+    expect(result.autoSync.detail).toContain("3 fallos seguidos")
+    expect(result.lastSync).toMatchObject({ tone: "error", label: "Con error" })
+  })
+
+  it("solo pone verde cuando el ERP responde y la última corrida fue correcta", () => {
+    const result = getErpIndicators(base)
+    expect(result.api).toMatchObject({ tone: "ok", label: "Responde" })
+    expect(result.autoSync).toEqual({ tone: "ok", label: "Activa", detail: "Cada 30 minutos" })
+    expect(result.lastSync).toMatchObject({ tone: "ok" })
+  })
+
+  it("distingue sin respuesta, inactiva, sin catálogo y sin corridas", () => {
+    expect(getErpIndicators({ ...base, connected: false }).api).toMatchObject({
+      tone: "error",
+      label: "Sin respuesta",
+    })
+    expect(getErpIndicators({ ...base, autoSyncEnabled: false }).autoSync).toMatchObject({
+      tone: "off",
+      label: "Inactiva",
+    })
+    expect(getErpIndicators({ ...base, catalogSyncAvailable: false }).autoSync).toMatchObject({
+      tone: "off",
+      label: "No disponible",
+    })
+    const fresh = getErpIndicators({ ...base, history: [] })
+    expect(fresh.autoSync).toMatchObject({ tone: "warn", label: "Activa, sin corridas" })
+    expect(fresh.lastSync).toBeNull()
+  })
+})

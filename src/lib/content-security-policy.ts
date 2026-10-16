@@ -18,6 +18,8 @@ export function buildContentSecurityPolicy({
     `'nonce-${nonce}'`,
     "'strict-dynamic'",
     "https://*.epayco.co",
+    // Píxel de Meta: fallback para navegadores sin 'strict-dynamic'.
+    "https://connect.facebook.net",
   ]
   const connectSources = ["'self'"]
 
@@ -27,6 +29,9 @@ export function buildContentSecurityPolicy({
     "https://*.ingest.sentry.io",
     "https://*.ingest.us.sentry.io",
     "https://nominatim.openstreetmap.org",
+    // Píxel de Meta: fbevents.js reporta a facebook.com vía fetch/beacon.
+    "https://connect.facebook.net",
+    "https://www.facebook.com",
   )
 
   if (isDevelopment) {

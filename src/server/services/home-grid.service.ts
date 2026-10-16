@@ -28,10 +28,20 @@ export async function createGridBlock(data: HomeGridBlockInput) {
 }
 
 export async function updateGridBlock(id: string, data: Partial<HomeGridBlockInput>) {
-  // We allow partial updates, so we don't strictly parse with the full schema
-  // But we could use `HomeGridBlockSchema.partial().parse(data)`
   const validData = HomeGridBlockSchema.partial().parse(data)
-  return repo.updateGridBlock(id, validData)
+
+  // `.partial()` no desactiva los `.default()` del esquema: Zod rellena
+  // darkText, position e isActive aunque el llamador no los envíe. Escribirlos
+  // tal cual reiniciaría la posición del bloque y lo reactivaría al cambiar
+  // solo la etiqueta, o al alternar su visibilidad desde el Landing Builder.
+  // Por eso solo se persisten las claves que sí venían en la entrada.
+  const changes = Object.fromEntries(
+    Object.keys(data)
+      .filter((key): key is keyof typeof validData => key in validData)
+      .map((key) => [key, validData[key]])
+  )
+
+  return repo.updateGridBlock(id, changes)
 }
 
 export async function deleteGridBlock(id: string) {

@@ -5,14 +5,20 @@ import Link from "next/link"
 import { motion } from "motion/react"
 import { useCart, useCartStore } from "@/store"
 import { formatCOP } from "@/lib/shop-utils"
+import { buildMetaCommerceParams, trackMetaEvent } from "@/lib/tracking/meta-pixel"
 import { COLOMBIA_DEPARTMENTS } from "@/lib/colombia-departments"
+import {
+  EXPRESS_SHIPPING_COST,
+  STANDARD_SHIPPING_COST,
+  STANDARD_SHIPPING_THRESHOLD,
+  getShippingCost,
+} from "@/lib/shipping"
 import {
   clearCheckoutDraft,
   getCheckoutSessionStorage,
   loadCheckoutDraft,
   saveCheckoutDraft,
   type CheckoutFormDraft,
-  type CheckoutShippingMethod,
 } from "@/lib/checkout-draft"
 import CheckoutStepper from "@/components/checkout/CheckoutStepper"
 import OrderSummary, { type AppliedCoupon } from "@/components/checkout/OrderSummary"
@@ -34,17 +40,12 @@ const sectionVariants = {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type ShippingMethod = CheckoutShippingMethod
-
 type FormValues = CheckoutFormDraft
 
 type FormErrors = Partial<Record<keyof FormValues, string>>
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const STANDARD_SHIPPING_THRESHOLD = 200_000
-const STANDARD_SHIPPING_COST = 15_000
-const EXPRESS_SHIPPING_COST = 25_000
 const INITIAL_FORM_VALUES: FormValues = {
   email: "",
   newsletter: false,
@@ -58,11 +59,6 @@ const INITIAL_FORM_VALUES: FormValues = {
   postalCode: "",
   saveAddress: false,
   shippingMethod: "standard",
-}
-
-function getShippingCost(method: ShippingMethod, subtotal: number): number {
-  if (method === "express") return EXPRESS_SHIPPING_COST
-  return subtotal >= STANDARD_SHIPPING_THRESHOLD ? 0 : STANDARD_SHIPPING_COST
 }
 
 // ─── Validation ───────────────────────────────────────────────────────────────
@@ -175,6 +171,14 @@ function CheckoutForm({
   const { items, subtotal } = useCart()
   const hasEditedForm = useRef(false)
 
+  // InitiateCheckout una sola vez por visita al checkout, con el carrito inicial.
+  const hasTrackedCheckout = useRef(false)
+  useEffect(() => {
+    if (hasTrackedCheckout.current || items.length === 0) return
+    hasTrackedCheckout.current = true
+    trackMetaEvent("InitiateCheckout", buildMetaCommerceParams(items))
+  }, [items])
+
   const [errors, setErrors] = useState<FormErrors>({})
   const [submitting, setSubmitting] = useState(false)
   const [serverError, setServerError] = useState("")
@@ -201,10 +205,13 @@ function CheckoutForm({
       if (!hasEditedForm.current) setValues(draft.form)
       if (!draft.couponCode) return
 
-      const currentSubtotal = useCartStore.getState().subtotal
-      if (currentSubtotal <= 0) return
+      const currentCart = useCartStore.getState()
+      if (currentCart.subtotal <= 0 || currentCart.items.length === 0) return
 
-      const couponResult = await validateCouponAction(draft.couponCode, currentSubtotal)
+      const couponResult = await validateCouponAction(
+        draft.couponCode,
+        currentCart.items.map((i) => ({ variantId: i.id, quantity: i.quantity }))
+      )
       if (cancelled) return
       if (couponResult.valid && couponResult.code && couponResult.discountAmount !== undefined) {
         setAppliedCoupon({
@@ -222,7 +229,9 @@ function CheckoutForm({
     }
   }, [canCreateOrder, sessionEmail])
 
-  const shippingCost = getShippingCost(values.shippingMethod, subtotal)
+  // Un carrito solo de tarjetas de regalo se entrega por correo: sin envío.
+  const digitalOnly = items.length > 0 && items.every((item) => item.kind === "gift_card")
+  const shippingCost = getShippingCost(values.shippingMethod, subtotal, { digitalOnly })
   const discount = appliedCoupon?.discountAmount ?? 0
   const total = subtotal - discount + shippingCost
 
@@ -495,6 +504,17 @@ function CheckoutForm({
                 <h2 className="font-barlow font-bold text-sm uppercase tracking-widest text-[#1C1C1C] mb-4">
                   Método de envío
                 </h2>
+                {digitalOnly ? (
+                  <div className="flex items-center justify-between p-4 rounded-lg border border-[#1C1C1C] bg-[#F5F5F5]">
+                    <div>
+                      <p className="text-sm font-montserrat font-medium text-[#1C1C1C]">Entrega digital</p>
+                      <p className="text-xs text-[#4A4A4A] font-montserrat mt-0.5">
+                        La tarjeta de regalo llega por correo electrónico después del pago.
+                      </p>
+                    </div>
+                    <span className="text-sm font-montserrat font-medium text-green-600">Sin costo</span>
+                  </div>
+                ) : (
                 <div className="space-y-3">
                   <label className={`flex items-center justify-between p-4 rounded-lg border cursor-pointer transition-colors ${
                     values.shippingMethod === "standard" ? "border-[#1C1C1C] bg-[#F5F5F5]" : "border-[#E0E0E0] hover:border-[#4A4A4A]"}`}>
@@ -527,6 +547,7 @@ function CheckoutForm({
                     <span className="text-sm font-montserrat font-medium text-[#1C1C1C]">{formatCOP(EXPRESS_SHIPPING_COST)}</span>
                   </label>
                 </div>
+                )}
               </motion.section>
 
               {/* Section 4: Pago — solo info, el pago ocurre en paso 2 */}

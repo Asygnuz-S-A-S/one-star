@@ -871,3 +871,66 @@ describe("LoggroClient.getDisponibilidadSnapshot", () => {
     expect(result.find((probe) => probe.endpoint === "stock")?.status).not.toBe("healthy")
   })
 })
+
+describe("LoggroClient — desglose por sede", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it("suma el total y conserva la cantidad de cada establecimiento", async () => {
+    const client = new LoggroClient("token")
+    vi.spyOn(
+      client as unknown as { resolveStockLocations: () => Promise<unknown[]> },
+      "resolveStockLocations"
+    ).mockResolvedValue([
+      { establecimientoUuid: "est-fundadores", establecimientoNombre: "Fundadores", bodegaUuid: "bod-1" },
+      { establecimientoUuid: "est-centro", establecimientoNombre: "Centro", bodegaUuid: "bod-2" },
+    ])
+    const quantities: Record<string, number> = { "est-fundadores": 2, "est-centro": 1 }
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(async (_url: string, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as {
+        establecimientoUuid: string
+        items: Array<{ codigoItem: string }>
+      }
+      return new Response(
+        JSON.stringify({
+          contenido: body.items.map(({ codigoItem }) => ({
+            codigo: codigoItem,
+            cantidadDisponible: quantities[body.establecimientoUuid],
+          })),
+        }),
+        { status: 200 }
+      )
+    }))
+
+    const snapshot = await client.getDisponibilidadSnapshot(["SKU-1"])
+
+    expect(snapshot.complete).toBe(true)
+    expect(snapshot.stockByCodigo.get("SKU-1")).toBe(3)
+    expect(snapshot.locations).toEqual([
+      { erpId: "est-fundadores", name: "Fundadores" },
+      { erpId: "est-centro", name: "Centro" },
+    ])
+    expect([...(snapshot.stockByCodigoAndLocation?.get("SKU-1") ?? [])]).toEqual([
+      ["est-fundadores", 2],
+      ["est-centro", 1],
+    ])
+  })
+
+  it("lista las sedes publicables sin repetir establecimientos", async () => {
+    const client = new LoggroClient("token")
+    vi.spyOn(
+      client as unknown as { resolveStockLocations: () => Promise<unknown[]> },
+      "resolveStockLocations"
+    ).mockResolvedValue([
+      { establecimientoUuid: "est-1", establecimientoNombre: "Uno", bodegaUuid: "bod-1" },
+      { establecimientoUuid: "est-1", establecimientoNombre: "Uno", bodegaUuid: "bod-1b" },
+      { establecimientoUuid: "est-2", establecimientoNombre: "", bodegaUuid: "bod-2" },
+    ])
+
+    await expect(client.listStockLocations()).resolves.toEqual([
+      { erpId: "est-1", name: "Uno" },
+      { erpId: "est-2", name: "est-2" },
+    ])
+  })
+})

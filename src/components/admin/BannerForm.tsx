@@ -230,7 +230,7 @@ export default function BannerForm({ actions, initial, onClose }: Props) {
             {mediaType === "video" ? (
               <video
                 src={previewMediaUrl}
-                className="w-full h-40 object-cover"
+                className="w-full h-40 object-contain"
                 muted
                 autoPlay
                 loop
@@ -242,7 +242,7 @@ export default function BannerForm({ actions, initial, onClose }: Props) {
                 alt="Preview"
                 fill
                 unoptimized
-                className="object-cover"
+                className="object-contain"
               />
             )}
             <div className="absolute top-2 right-2 flex gap-1">

@@ -31,7 +31,9 @@ export default async function AdminDashboardPage() {
         aov={stats.aov}
         totalProducts={stats.totalProducts}
         totalCustomers={stats.totalCustomers}
+        newCustomers={stats.newCustomers}
         pendingOrders={stats.pendingOrders}
+        trends={stats.trends}
       />
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
