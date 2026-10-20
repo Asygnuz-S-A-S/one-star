@@ -63,10 +63,10 @@ export default function ProductGallery({ images, videoUrl }: ProductGalleryProps
               whileTap={{ scale: 0.92 }}
               animate={{ scale: active ? 1.05 : 1 }}
               transition={{ type: "spring", stiffness: 420, damping: 15 }}
-              className={`relative shrink-0 w-16 h-16 md:w-20 md:h-20 bg-white dark:bg-white/5 overflow-hidden rounded-xl border-2 transition-all ${
+              className={`relative shrink-0 w-16 h-16 md:w-20 md:h-20 bg-transparent overflow-hidden rounded-xl transition-all ${
                 active
-                  ? "border-[#E31C23] shadow-md dark:border-[#E31C23]"
-                  : "border-gray-200 hover:border-gray-400 dark:border-white/10"
+                  ? "opacity-100"
+                  : "opacity-50 hover:opacity-100"
               }`}
               aria-label={img.alt || `Imagen ${idx + 1}`}
             >
@@ -74,7 +74,7 @@ export default function ProductGallery({ images, videoUrl }: ProductGalleryProps
                 src={img.url}
                 alt={img.alt || `Miniatura ${idx + 1}`}
                 fill
-                className="object-contain object-center p-1"
+                className="object-contain object-center p-1 mix-blend-multiply dark:mix-blend-normal"
                 sizes="80px"
               />
             </motion.button>

@@ -180,7 +180,7 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
                 // object-contain: la foto completa dentro del marco 3:4, sin recortar el
                 // producto (HU-6). El padding deja aire alrededor como en la ficha.
                 className={`object-contain object-center transition-opacity duration-150 ease-in-out ${
-                  src === PLACEHOLDER_IMAGE_URL ? "" : "p-2"
+                  src === PLACEHOLDER_IMAGE_URL ? "" : "p-2 mix-blend-multiply dark:mix-blend-normal"
                 } ${index === visibleFrame ? "opacity-100" : "opacity-0"}`}
                 sizes="(max-width: 768px) 50vw, 25vw"
               />
@@ -239,10 +239,10 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
                   key={option.name}
                   href={`/productos/${option.slug ?? slug}?color=${encodeURIComponent(option.name)}`}
                   prefetch={false}
-                  className={`relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-white border p-0.5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E31C23] focus-visible:ring-offset-2 dark:bg-white/5 dark:focus-visible:ring-offset-[#0F0F0F] ${
+                  className={`relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-transparent transition-all duration-200 focus-visible:outline-none ${
                     isActive
-                      ? "border-transparent ring-2 ring-[#E31C23] shadow-sm"
-                      : "border-gray-200/90 opacity-80 hover:opacity-100 hover:border-gray-400 dark:border-white/20"
+                      ? "opacity-100 scale-105"
+                      : "opacity-50 hover:opacity-100 hover:scale-105"
                   }`}
                   aria-label={`Ver ${option.productName ?? name} en color ${option.name}`}
                   aria-current={isActive ? "true" : undefined}
@@ -258,7 +258,7 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
                     alt=""
                     fill
                     sizes="40px"
-                    className="object-contain p-0.5"
+                    className="object-contain mix-blend-multiply dark:mix-blend-normal"
                   />
                 </Link>
               )

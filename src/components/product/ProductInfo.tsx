@@ -348,13 +348,13 @@ export default function ProductInfo({
               {familyColorSummary.options.map((option) => {
                 const belongsToCurrentProduct = option.productId === product.id
                 const active = belongsToCurrentProduct && selectedColor === option.name
-                const className = `relative h-12 w-12 overflow-hidden rounded-md bg-white border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E31C23] ${
+                const className = `relative h-12 w-12 overflow-hidden rounded-lg bg-transparent transition-all duration-200 focus-visible:outline-none ${
                   active
-                    ? "border-transparent ring-2 ring-offset-2 ring-[#E31C23] shadow-sm dark:ring-offset-black"
-                    : "border-gray-200/90 hover:border-gray-400 opacity-80 hover:opacity-100 dark:border-white/20"
+                    ? "opacity-100 scale-105"
+                    : "opacity-50 hover:opacity-100 hover:scale-105"
                 }`
                 const content = option.imageUrl ? (
-                  <Image src={option.imageUrl} alt="" fill sizes="48px" className="object-contain p-0.5" />
+                  <Image src={option.imageUrl} alt="" fill sizes="48px" className="object-contain mix-blend-multiply dark:mix-blend-normal" />
                 ) : (
                   <span
                     className="block h-full w-full rounded-md"
