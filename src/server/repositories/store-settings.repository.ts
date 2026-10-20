@@ -12,6 +12,7 @@ export interface StoreSettingsPatch {
   metaAccessToken?: string | null
   metaTestEventCode?: string | null
   metaPixelEnabled?: boolean
+  catalogSource?: string
 }
 
 /** Devuelve el registro único; lo crea con los defaults del schema si no existe. */

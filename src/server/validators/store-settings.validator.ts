@@ -61,3 +61,11 @@ export const MetaPixelInputSchema = z
   })
 
 export type MetaPixelInput = z.infer<typeof MetaPixelInputSchema>
+
+export const CatalogSourceInputSchema = z.object({
+  catalogSource: z.enum(["ERP", "ARCHIVO"], {
+    message: "La fuente debe ser ERP o ARCHIVO",
+  }),
+})
+
+export type CatalogSourceInput = z.infer<typeof CatalogSourceInputSchema>

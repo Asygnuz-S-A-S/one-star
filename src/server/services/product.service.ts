@@ -19,6 +19,7 @@ import { parseProductFaqs, type ProductFaq } from "@/lib/product-faq"
 import { resolveGenderFilter } from "@/lib/gender-filter"
 import { resolveProductSort, type ProductSortValue } from "@/lib/product-sort"
 import { buildVisibleProductPage } from "@/server/domain/product-color-family.plan"
+import { isErpCatalogOwner } from "@/server/services/catalog-source.service"
 
 export interface CategoryDTO {
   id: string
@@ -505,7 +506,8 @@ export async function updateProduct(
   id: string,
   input: ProductInput
 ): Promise<ProductDTO> {
-  const raw = await updateProductWithAdminRelations(id, input)
+  const erpOwner = await isErpCatalogOwner()
+  const raw = await updateProductWithAdminRelations(id, input, { isErpCatalogOwner: erpOwner })
   return mapToDTO(raw)
 }
 

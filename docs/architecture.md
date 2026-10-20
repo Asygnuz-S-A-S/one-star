@@ -613,3 +613,66 @@ src/server/erp/
 
 **Regla:** El código de negocio SOLO importa desde `@/server/erp` (el barrel).
 Nunca importar adaptadores o clientes directamente.
+
+---
+
+## Fuente de Verdad del Catálogo (ERP vs ARCHIVO)
+
+### Contexto y Decisión de Negocio
+En producción (`new.tiendaonestar.com`), la variable `ERP_PROVIDER` permanece en `null` mientras se completa la transición hacia Mekano. Sin embargo, persisten ~513 productos heredados de Loggro que conservan un identificador `erpId` en base de datos (con stock en 0 y precios desactualizados). Adicionalmente, se cargan y curan manualmente imágenes de Cloudinary, descripciones y categorías.
+
+Por decisión de negocio, mientras no exista un ERP conectado, el **archivo Excel de inventario es la fuente de verdad en tiempo real** para precios, stock y tallas disponibles.
+
+### Regla Canónica: `isErpCatalogOwner()`
+La condición de pertenencia o bloqueo por ERP **no debe depender únicamente de `product.erpId` o `variant.erpId`**. En su lugar, todo el sistema utiliza el helper canónico:
+
+```ts
+import { isErpCatalogOwner } from "@/server/services/catalog-source.service"
+```
+
+El helper devuelve `true` **únicamente** si se cumplen dos condiciones simultáneas:
+1. La configuración de la tienda (`StoreSettings.catalogSource`) está fijada en `"ERP"`.
+2. Existe un proveedor de ERP válido configurado en el entorno (`ERP_PROVIDER` distinto de vacío/null).
+
+Si cualquiera de las dos condiciones no se cumple (por ejemplo, `catalogSource = "ARCHIVO"` o `ERP_PROVIDER = null`), `isErpCatalogOwner()` devuelve `false`.
+
+### Comportamiento según el Modo
+
+1. **Modo ARCHIVO (`isErpCatalogOwner() === false`):**
+   - **Importador Excel:** Actualiza precio base, precio de oferta, stock de variante y el `InventoryLevel` web (`storeLocationId = null`) de productos con `erpId`. Nunca elimina `erpId`, imágenes existentes, familias de color ni productos relacionados.
+   - **Prevención de duplicados por SKU base:** El importador analiza el SKU base mediante `parseSku(sku).baseSku` (que coincide con el `slug` del producto). Si el producto ya existe con unas tallas y el archivo trae otras, se agregan como variantes al producto existente sin crear un segundo producto duplicado (ej. caso `132173C`).
+   - **Cruce de variantes:** Se cruza por coincidencia exacta de SKU; si no coincide, por `(baseSku + talla normalizada)`.
+   - **Protección de curación manual:** El importador soporta `textUpdateMode: "fill_empty"` (por defecto), conservando intactas las descripciones, imágenes y datos manuales, y actualizando siempre precios y stock.
+   - **Formulario de producto (`ProductForm`):** Los campos de precio base, precio oferta y stock web son editables en el panel de administración aún si el producto tiene `erpId`.
+   - **Plan de variantes (`buildProductVariantUpdatePlan`):** Permite actualizar tallas y stock en variantes con `erpId`, y no arroja `ERP_VARIANT_MISSING` al eliminar variantes.
+
+2. **Modo ERP (`isErpCatalogOwner() === true`):**
+   - Se mantiene el comportamiento estricto: Loggro/Mekano gobierna variantes y stock. El importador rechaza con `"Gestionado por ERP"` y el plan de actualización lanza `ERP_VARIANT_MISSING` si se omite una variante sincronizada.
+
+### Interruptor en Panel de Administración
+- **Ruta:** `/admin/integraciones` (`CatalogSourceSwitch.tsx`).
+- **Seguridad:** Restringido exclusivamente al rol **Super Admin** (`requireSuperAdmin`).
+- **Persistencia:** Almacenado en la columna `catalogSource` de la tabla `StoreSettings` (con valor por defecto `'ARCHIVO'`).
+
+---
+
+## Optimización y Entrega de Imágenes con Cloudinary
+
+### Problema Resuelto
+Por defecto, `next/image` procesa y redimensiona imágenes remotas en el servidor local Node.js (`/_next/image`). Al cargar catálogos con cientos de fotos de Cloudinary en un VPS con recursos acotados, las solicitudes concurrentes saturaban la CPU y memoria del servidor, provocando imágenes rotas (504/timeout) y degradando severamente el LCP móvil.
+
+### Solución: Custom Loader de Cloudinary
+Se implementó un loader desacoplado en `src/lib/cloudinary-loader.ts` configurado globalmente en `next.config.ts`:
+
+```ts
+// next.config.ts
+images: {
+  loader: "custom",
+  loaderFile: "./src/lib/cloudinary-loader.ts",
+}
+```
+
+- **Para URLs de Cloudinary (`res.cloudinary.com`):** Inserta transformaciones de borde automáticas (`f_auto,q_auto,w_{width}`) dentro del segmento `/image/upload/`. La optimización y compresión se delega íntegramente al CDN de Cloudinary.
+- **Para cualquier otra URL (locales o externas):** Retorna la URL original sin transformaciones.
+- **Protección LCP:** Reduce la carga de CPU del VPS a cero para el pipeline de imágenes y entrega tamaños optimizados según el viewport del dispositivo móvil.
+

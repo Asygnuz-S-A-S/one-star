@@ -3,10 +3,12 @@
 import { revalidatePath } from "next/cache"
 import { requireSuperAdmin } from "@/server/auth/require-admin"
 import {
+  updateCatalogSource,
   updateMetaPixelSettings,
   updateStoreInfo,
 } from "@/server/services/store-settings.service"
 import {
+  CatalogSourceInputSchema,
   MetaPixelInputSchema,
   StoreInfoInputSchema,
 } from "@/server/validators/store-settings.validator"
@@ -67,5 +69,24 @@ export async function updateMetaPixelAction(
   } catch (error: unknown) {
     console.error("[store-settings] updateMetaPixelAction:", error)
     return { success: false, error: firstIssueMessage(error, "No se pudo guardar el píxel de Meta") }
+  }
+}
+
+export async function updateCatalogSourceAction(
+  formData: FormData,
+): Promise<StoreSettingsActionResult> {
+  try {
+    await requireSuperAdmin()
+    const input = CatalogSourceInputSchema.parse({
+      catalogSource: text(formData, "catalogSource").trim(),
+    })
+    await updateCatalogSource(input.catalogSource)
+    revalidatePath("/admin/integraciones")
+    revalidatePath("/admin/productos")
+    revalidatePath("/admin/productos/importar")
+    return { success: true }
+  } catch (error: unknown) {
+    console.error("[store-settings] updateCatalogSourceAction:", error)
+    return { success: false, error: firstIssueMessage(error, "No se pudo actualizar la fuente del catálogo") }
   }
 }

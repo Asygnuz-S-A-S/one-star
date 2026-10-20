@@ -26,6 +26,8 @@ const nextConfig: NextConfig = {
     ]
   },
   images: {
+    loader: "custom",
+    loaderFile: "./src/lib/cloudinary-loader.ts",
     remotePatterns: NEXT_IMAGE_REMOTE_PATTERNS,
   },
 }
