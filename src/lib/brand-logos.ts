@@ -21,6 +21,9 @@ export const DEFAULT_BRAND_LOGOS: Record<string, string> = {
   on: "/brands/on.svg",
   "on-running": "/brands/on.svg",
   asics: "/brands/asics.svg",
+  jordan: "/brands/jordan.svg",
+  "air-jordan": "/brands/jordan.svg",
+  reebok: "/brands/reebok.svg",
 }
 
 function normalizeKey(str: string): string {
