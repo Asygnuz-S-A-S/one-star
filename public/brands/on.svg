@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 70" fill="#1C1C1C">
+  <!-- On Running Intersecting Circles Symbol -->
+  <g transform="translate(45, 12)">
+    <circle cx="18" cy="18" r="16" fill="none" stroke="#1C1C1C" stroke-width="7" />
+    <path d="M42,2 L42,34 C42,42 48,46 56,46 C64,46 70,42 70,34 L70,2" fill="none" stroke="#1C1C1C" stroke-width="7" stroke-linecap="round" />
+  </g>
+</svg>

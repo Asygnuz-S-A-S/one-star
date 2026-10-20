@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 70" fill="#1C1C1C">
+  <!-- Adidas 3-bars logo -->
+  <polygon points="40,50 60,50 42,32 22,32" />
+  <polygon points="68,50 88,50 62,20 42,20" />
+  <polygon points="96,50 116,50 82,8 62,8" />
+  <!-- adidas wordmark -->
+  <text x="124" y="46" font-family="'Helvetica Neue', Arial, sans-serif" font-weight="700" font-size="24" letter-spacing="-0.5">adidas</text>
+</svg>

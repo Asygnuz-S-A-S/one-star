@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 70" fill="#1C1C1C">
+  <!-- Star Emblem -->
+  <polygon points="35,12 40,27 55,27 43,36 47,50 35,41 23,50 27,36 15,27 30,27" />
+  <!-- Wordmark -->
+  <text x="68" y="38" font-family="'Helvetica Neue', Arial, sans-serif" font-weight="900" font-size="20" letter-spacing="3">ONE STAR</text>
+  <text x="69" y="52" font-family="'Helvetica Neue', Arial, sans-serif" font-weight="600" font-size="10" letter-spacing="4" fill="#71717A">ESSENTIALS</text>
+</svg>

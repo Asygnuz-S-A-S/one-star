@@ -17,6 +17,7 @@ import { serializeJsonLd } from "@/lib/seo/product-seo"
 import { resolveProductContent } from "@/lib/product-content-resolver"
 import { splitHighlight } from "@/lib/product-faq"
 import { getSiteUrl } from "@/lib/site-url"
+import { resolveBrandLogoUrl } from "@/lib/brand-logos"
 import type { ProductSortValue } from "@/lib/product-sort"
 
 interface BrandPageProps {
@@ -122,28 +123,33 @@ export default async function BrandPage({ params, searchParams }: BrandPageProps
             <span className="text-[#1C1C1C] dark:text-white font-medium">{brand.name}</span>
           </nav>
 
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
-            {brand.logoUrl && (
-              <div className="relative h-20 w-20 sm:h-24 sm:w-24 shrink-0 rounded-2xl border border-gray-200 bg-white p-3 shadow-sm dark:border-white/10 dark:bg-[#1C1C1C]">
-                <Image
-                  src={brand.logoUrl}
-                  alt={`Logo ${brand.name}`}
-                  fill
-                  className="object-contain p-2"
-                />
+          {(() => {
+            const logoUrl = resolveBrandLogoUrl(brand)
+            return (
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+                {logoUrl && (
+                  <div className="relative h-20 w-20 sm:h-24 sm:w-24 shrink-0 rounded-2xl border border-gray-200 bg-white p-3 shadow-sm dark:border-white/10 dark:bg-[#1C1C1C]">
+                    <Image
+                      src={logoUrl}
+                      alt={`Logo ${brand.name}`}
+                      fill
+                      className="object-contain p-2"
+                    />
+                  </div>
+                )}
+                <div>
+                  <h1 className="font-[var(--font-barlow)] text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tight text-[#1C1C1C] dark:text-white">
+                    {brand.name}
+                  </h1>
+                  {brand.description && (
+                    <p className="mt-2 max-w-3xl font-[var(--font-montserrat)] text-sm sm:text-base text-[#4A4A4A] dark:text-gray-300 leading-relaxed">
+                      {brand.description}
+                    </p>
+                  )}
+                </div>
               </div>
-            )}
-            <div>
-              <h1 className="font-[var(--font-barlow)] text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tight text-[#1C1C1C] dark:text-white">
-                {brand.name}
-              </h1>
-              {brand.description && (
-                <p className="mt-2 max-w-3xl font-[var(--font-montserrat)] text-sm sm:text-base text-[#4A4A4A] dark:text-gray-300 leading-relaxed">
-                  {brand.description}
-                </p>
-              )}
-            </div>
-          </div>
+            )
+          })()}
 
           {/* Historia de la marca (texto plano seguro, no HTML) */}
           {brand.story && (

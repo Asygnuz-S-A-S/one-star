@@ -125,16 +125,22 @@ const STORES = [
     name: "One Star Centro", city: "Medellín",
     address: "Cra. 50 #50-20, La Candelaria", phone: "+57 604 000 0001",
     schedule: "Lun a Sáb 9:00 – 20:00 · Dom 10:00 – 18:00",
+    latitude: 6.25052, longitude: -75.56781,
+    googleMapsUrl: "https://maps.google.com/?q=6.25052,-75.56781",
   },
   {
     name: "One Star Unicentro", city: "Medellín",
     address: "Cra. 66B #34A-76, Local 220", phone: "+57 604 000 0002",
     schedule: "Lun a Dom 10:00 – 21:00",
+    latitude: 6.2408625, longitude: -75.587071,
+    googleMapsUrl: "https://maps.google.com/?q=6.2408625,-75.587071",
   },
   {
     name: "One Star Fundadores", city: "Medellín",
     address: "Cl. 50 #46-36, Centro Comercial Fundadores", phone: "+57 604 000 0003",
     schedule: "Lun a Sáb 9:00 – 20:00",
+    latitude: 6.25143, longitude: -75.56452,
+    googleMapsUrl: "https://maps.google.com/?q=6.25143,-75.56452",
   },
 ]
 

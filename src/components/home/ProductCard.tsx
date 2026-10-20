@@ -161,7 +161,7 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
       {href && <Link href={href} className="absolute inset-0 z-20" aria-label={name} />}
       <div 
         ref={imageFrameRef}
-        className={`relative aspect-[3/4] bg-[#F5F5F5] dark:bg-white/5 dark:backdrop-blur-md dark:border dark:border-white/10 overflow-hidden rounded-xl shadow-sm transition-shadow duration-300 group-hover:shadow-2xl ${
+        className={`relative aspect-[3/4] bg-white bg-[radial-gradient(ellipse_at_center,_#ffffff_45%,_#f2f2f4_100%)] border border-gray-200/80 shadow-sm overflow-hidden rounded-xl transition-all duration-300 group-hover:shadow-xl dark:bg-white/5 dark:backdrop-blur-md dark:border-white/10 ${
           imageColorOptions.length > 0 ? "mb-2" : "mb-4"
         }`}
       >
@@ -239,10 +239,10 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
                   key={option.name}
                   href={`/productos/${option.slug ?? slug}?color=${encodeURIComponent(option.name)}`}
                   prefetch={false}
-                  className={`relative h-10 w-10 shrink-0 overflow-hidden rounded-sm bg-[#F5F5F5] transition-[box-shadow,opacity] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E31C23] focus-visible:ring-offset-2 dark:bg-white/5 dark:focus-visible:ring-offset-[#0F0F0F] ${
+                  className={`relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-white border p-0.5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E31C23] focus-visible:ring-offset-2 dark:bg-white/5 dark:focus-visible:ring-offset-[#0F0F0F] ${
                     isActive
-                      ? "ring-2 ring-[#1C1C1C] dark:ring-white"
-                      : "opacity-75 ring-1 ring-[#D4D4D4] hover:opacity-100 dark:ring-white/25"
+                      ? "border-transparent ring-2 ring-[#E31C23] shadow-sm"
+                      : "border-gray-200/90 opacity-80 hover:opacity-100 hover:border-gray-400 dark:border-white/20"
                   }`}
                   aria-label={`Ver ${option.productName ?? name} en color ${option.name}`}
                   aria-current={isActive ? "true" : undefined}
@@ -258,7 +258,7 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
                     alt=""
                     fill
                     sizes="40px"
-                    className="object-contain"
+                    className="object-contain p-0.5"
                   />
                 </Link>
               )

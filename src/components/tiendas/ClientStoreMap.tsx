@@ -24,10 +24,10 @@ interface ClientStoreMapProps {
 
 export default function ClientStoreMap({ position, name, address }: ClientStoreMapProps) {
   return (
-    <div className="w-full h-full min-h-[200px] relative z-0">
+    <div className="w-full h-full min-h-[208px] relative z-0">
       <MapContainer
         center={position}
-        zoom={15}
+        zoom={16}
         scrollWheelZoom={false}
         style={{ height: "100%", width: "100%", zIndex: 0 }}
       >
@@ -38,8 +38,10 @@ export default function ClientStoreMap({ position, name, address }: ClientStoreM
         />
         <Marker position={position} icon={customIcon}>
           <Popup>
-            <strong>{name}</strong><br />
-            {address}
+            <div className="p-1 font-[var(--font-montserrat)] text-xs">
+              <strong className="font-[var(--font-barlow)] text-sm text-[#1C1C1C] uppercase block mb-0.5">{name}</strong>
+              <span className="text-gray-600">{address}</span>
+            </div>
           </Popup>
         </Marker>
       </MapContainer>

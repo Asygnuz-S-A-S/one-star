@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 70" fill="#1C1C1C">
+  <!-- New Balance NB Symbol -->
+  <g transform="translate(10, 10)">
+    <!-- Stylized N & B with speed cuts -->
+    <path d="M0,45 L15,0 L32,0 L20,32 L40,0 L58,0 L42,45 L25,45 L38,15 L18,45 Z" />
+    <path d="M48,0 L72,0 C82,0 88,5 88,13 C88,18 84,22 79,24 C86,26 90,32 90,38 C90,46 82,50 71,50 L42,50 L45,42 L70,42 C74,42 78,40 78,36 C78,32 74,30 69,30 L52,30 L54,23 L71,23 C75,23 78,21 78,17 C78,13 75,11 70,11 L58,11 Z" />
+    <!-- White speed slice cutouts -->
+    <rect x="0" y="16" width="90" height="3" fill="#FFFFFF" transform="rotate(-15, 45, 17)" />
+    <rect x="0" y="27" width="90" height="3" fill="#FFFFFF" transform="rotate(-15, 45, 28)" />
+    <rect x="0" y="38" width="90" height="3" fill="#FFFFFF" transform="rotate(-15, 45, 39)" />
+  </g>
+  <!-- new balance Wordmark -->
+  <text x="110" y="34" font-family="'Helvetica Neue', Arial, sans-serif" font-weight="700" font-size="14" letter-spacing="1">new</text>
+  <text x="110" y="48" font-family="'Helvetica Neue', Arial, sans-serif" font-weight="700" font-size="14" letter-spacing="1">balance</text>
+</svg>

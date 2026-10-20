@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 70" fill="#1C1C1C">
+  <!-- Skechers Slanted 'S' Emblem -->
+  <g transform="translate(15, 12)">
+    <!-- Base stylized S shape -->
+    <path d="M22,3 C12,3 6,8 5,16 C4,25 15,26 21,29 C28,32 30,35 29,39 C28,45 20,47 13,46 C6,45 1,41 0,35 L9,33 C10,37 13,39 16,39 C19,39 21,37 21,35 C21,31 12,30 6,27 C1,24 -1,20 0,14 C1,6 8,0 19,0 C28,0 34,4 35,11 L26,13 C25,8 21,5 16,5 Z" transform="skewX(-14)" />
+    <!-- Blue/Red speed bars accent -->
+    <polygon points="36,4 40,4 33,44 29,44" fill="#003366" transform="skewX(-14)" />
+    <polygon points="43,4 47,4 40,44 36,44" fill="#E31C23" transform="skewX(-14)" />
+  </g>
+  <!-- SKECHERS Wordmark -->
+  <text x="82" y="44" font-family="'Helvetica Neue', Impact, Arial, sans-serif" font-weight="900" font-style="italic" font-size="28" letter-spacing="2">SKECHERS</text>
+</svg>
