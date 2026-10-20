@@ -21,6 +21,10 @@ vi.mock("@/server/repositories/product.repository", () => ({
   updateProductsPublishStatus: vi.fn(),
 }))
 
+vi.mock("@/server/services/catalog-source.service", () => ({
+  isErpCatalogOwner: vi.fn(async () => false),
+}))
+
 import {
   getAdminProducts,
   getProducts,
@@ -469,7 +473,8 @@ describe("updateProduct", () => {
       "prod-1",
       expect.objectContaining({
         variants: [expect.objectContaining({ sku: "NK-001" })],
-      })
+      }),
+      { isErpCatalogOwner: false }
     )
   })
 })

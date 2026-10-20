@@ -4,6 +4,7 @@ import { getCategories } from "@/server/services/category.service"
 import { getAllBrands } from "@/server/services/brand.service"
 import { getStoreLocations } from "@/server/services/store.service"
 import { getColorPalette } from "@/server/services/product-color.service"
+import { isErpCatalogOwner } from "@/server/services/catalog-source.service"
 import ProductForm from "@/components/admin/ProductForm"
 import type { ProductWithRelations } from "@/types/admin"
 
@@ -14,12 +15,13 @@ interface Props {
 export default async function EditarProductoPage({ params }: Props) {
   const { id } = await params
 
-  const [product, categories, brands, stores, colorPalette] = await Promise.all([
+  const [product, categories, brands, stores, colorPalette, erpOwner] = await Promise.all([
     getProductByIdForAdmin(id),
     getCategories(),
     getAllBrands(),
     getStoreLocations(),
     getColorPalette(),
+    isErpCatalogOwner(),
   ])
 
   if (!product) notFound()
@@ -35,6 +37,7 @@ export default async function EditarProductoPage({ params }: Props) {
         brands={brands}
         stores={stores}
         colorPalette={colorPalette}
+        isErpCatalogOwner={erpOwner}
       />
     </div>
   )

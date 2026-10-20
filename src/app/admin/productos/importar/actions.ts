@@ -8,6 +8,7 @@ import {
   validateImportFile,
   type ProductImportPreview,
   type ProductImportApplyResult,
+  type TextUpdateMode,
 } from "@/server/services/product-import.service"
 
 export interface ImportActionResult<T> {
@@ -30,8 +31,13 @@ export async function previewProductImportAction(
       return { success: false, error: "No se recibió ningún archivo." }
     }
     validateImportFile(file)
+    const onlyReadyRows = formData.get("onlyReadyRows") === "true"
+    const textUpdateMode =
+      (formData.get("textUpdateMode") as TextUpdateMode) === "overwrite"
+        ? "overwrite"
+        : "fill_empty"
     const buffer = await file.arrayBuffer()
-    const preview = await previewProductImport(buffer)
+    const preview = await previewProductImport(buffer, { onlyReadyRows, textUpdateMode })
     return { success: true, data: preview }
   } catch (error: unknown) {
     return { success: false, error: getErrorMessage(error) }
@@ -52,8 +58,13 @@ export async function applyProductImportAction(
     if (typeof fingerprint !== "string" || fingerprint.length === 0) {
       return { success: false, error: "Falta la vista previa — vuelve a subir el archivo." }
     }
+    const onlyReadyRows = formData.get("onlyReadyRows") === "true"
+    const textUpdateMode =
+      (formData.get("textUpdateMode") as TextUpdateMode) === "overwrite"
+        ? "overwrite"
+        : "fill_empty"
     const buffer = await file.arrayBuffer()
-    const result = await applyProductImport(buffer, fingerprint)
+    const result = await applyProductImport(buffer, fingerprint, { onlyReadyRows, textUpdateMode })
 
     revalidatePath("/admin/productos")
     revalidatePath("/productos")

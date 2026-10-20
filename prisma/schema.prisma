@@ -555,6 +555,7 @@ model StoreSettings {
   metaAccessToken   String?
   metaTestEventCode String?
   metaPixelEnabled  Boolean  @default(false)
+  catalogSource     String   @default("ARCHIVO")
   updatedAt         DateTime @updatedAt
 }
 

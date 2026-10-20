@@ -7,14 +7,19 @@ const txMock = {
   product: {
     create: vi.fn(async (args: { data: Record<string, unknown> }) => ({ id: "new-product-id", ...args.data })),
     findUnique: vi.fn(async () => null),
+    update: vi.fn(async (args: { where: { id: string }; data: Record<string, unknown> }) => ({ id: args.where.id, ...args.data })),
   },
   productImage: {
     findMany: vi.fn(async () => [] as { url: string }[]),
     createMany: vi.fn(async () => ({ count: 0 })),
   },
   variant: {
-    create: vi.fn(async () => ({ id: "new-variant-id" })),
-    update: vi.fn(async () => ({ id: "updated" })),
+    create: vi.fn(async (args?: { data: Record<string, unknown> }) => ({ id: "new-variant-id", ...(args?.data ?? {}) })),
+    update: vi.fn(async (args: { where: { id: string }; data: Record<string, unknown> }) => ({ id: args.where.id, ...args.data })),
+  },
+  inventoryLevel: {
+    deleteMany: vi.fn(async () => ({ count: 0 })),
+    create: vi.fn(async (args: { data: Record<string, unknown> }) => ({ id: "new-inv-id", ...args.data })),
   },
   category: {
     upsert: vi.fn(async (args: { create: { name: string } }) => ({ id: "new-category-id", ...args.create })),
@@ -25,7 +30,12 @@ const txMock = {
 }
 
 vi.mock("@/server/db/prisma", () => ({
-  prisma: { $transaction: vi.fn(async (cb: (tx: typeof txMock) => unknown) => cb(txMock)) },
+  prisma: {
+    $transaction: vi.fn(async (cb: (tx: typeof txMock) => unknown) => cb(txMock)),
+    storeSettings: {
+      findUnique: vi.fn(async () => ({ catalogSource: "ARCHIVO" })),
+    },
+  },
 }))
 
 vi.mock("@/server/repositories/category.repository", () => ({
@@ -40,12 +50,29 @@ vi.mock("@/server/repositories/brand.repository", () => ({
   ]),
 }))
 
+const {
+  mockIsErpCatalogOwner,
+  mockFindVariantsBySkus,
+  mockFindProductsByBaseSkus,
+  mockFindProductsByIdsForImport,
+} = vi.hoisted(() => ({
+  mockIsErpCatalogOwner: vi.fn(async () => false),
+  mockFindVariantsBySkus: vi.fn(async () => []),
+  mockFindProductsByBaseSkus: vi.fn(async () => []),
+  mockFindProductsByIdsForImport: vi.fn(async () => []),
+}))
+
+vi.mock("@/server/services/catalog-source.service", () => ({
+  isErpCatalogOwner: mockIsErpCatalogOwner,
+}))
+
 vi.mock("@/server/repositories/product.repository", () => ({
-  findVariantsBySkus: vi.fn(async () => []),
+  findVariantsBySkus: mockFindVariantsBySkus,
+  findProductsByBaseSkus: mockFindProductsByBaseSkus,
+  findProductsByIdsForImport: mockFindProductsByIdsForImport,
 }))
 
 import * as fflate from "fflate"
-import { findVariantsBySkus } from "@/server/repositories/product.repository"
 import {
   applyProductImport,
   previewProductImport,
@@ -114,7 +141,10 @@ function buildBuffer(rows: (string | number | Date)[][], customHeaders = COLUMNS
 describe("previewProductImport", () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(findVariantsBySkus).mockResolvedValue([])
+    mockIsErpCatalogOwner.mockResolvedValue(false)
+    mockFindVariantsBySkus.mockResolvedValue([])
+    mockFindProductsByBaseSkus.mockResolvedValue([])
+    mockFindProductsByIdsForImport.mockResolvedValue([])
   })
 
   it("producto nuevo con una variante -> create_product", async () => {
@@ -265,29 +295,357 @@ describe("previewProductImport", () => {
   })
 
   it("SKU existente sin erpId -> update_variant", async () => {
-    vi.mocked(findVariantsBySkus).mockResolvedValue([
+    const existingProd = {
+      id: "p1",
+      slug: "nike-pegasus-41",
+      name: "Nike Pegasus 41",
+      erpId: null,
+      basePrice: 480000,
+      salePrice: null,
+      isOnSale: false,
+      description: null,
+      extendedDescription: null,
+      gender: null,
+      isPublished: true,
+      availableOnline: true,
+      availableInStores: true,
+      categoryId: "cat-calzado",
+      category: { id: "cat-calzado", name: "Calzado" },
+      brandId: "brand-nike",
+      brand: { id: "brand-nike", name: "Nike" },
+      images: [],
+      variants: [
+        {
+          id: "v1",
+          sku: "NK-1",
+          size: "39",
+          color: "Negro",
+          stock: 1,
+          erpId: null,
+        },
+      ],
+    }
+    mockFindVariantsBySkus.mockResolvedValue([
       {
-        id: "v1", sku: "NK-1", size: "39", color: "Negro", stock: 1,
-        sizeUS: null, sizeCM: null, sizeEUR: null,
-        product: { id: "p1", slug: "nike-pegasus-41", name: "Nike Pegasus 41", erpId: null },
+        id: "v1",
+        sku: "NK-1",
+        size: "39",
+        color: "Negro",
+        stock: 1,
+        sizeUS: null,
+        sizeCM: null,
+        sizeEUR: null,
+        product: existingProd,
       },
     ] as never)
+    mockFindProductsByIdsForImport.mockResolvedValue([existingProd] as never)
+    mockFindProductsByBaseSkus.mockResolvedValue([existingProd] as never)
+
     const preview = await previewProductImport(buildBuffer([baseRow({ sku: "NK-1" })]))
     expect(preview.rows[0].action).toBe("update_variant")
     expect(preview.summary.updatedVariants).toBe(1)
   })
 
-  it("SKU gestionado por ERP se rechaza", async () => {
-    vi.mocked(findVariantsBySkus).mockResolvedValue([
+  it("con fuente ERP: SKU gestionado por ERP se rechaza", async () => {
+    mockIsErpCatalogOwner.mockResolvedValue(true)
+    const erpProduct = {
+      id: "p1",
+      slug: "erp-slug",
+      name: "Nike Pegasus 41",
+      erpId: "erp-123",
+      basePrice: 400000,
+      salePrice: null,
+      isOnSale: false,
+      description: null,
+      extendedDescription: null,
+      gender: null,
+      isPublished: true,
+      availableOnline: true,
+      availableInStores: true,
+      categoryId: "cat-calzado",
+      category: { id: "cat-calzado", name: "Calzado" },
+      brandId: "brand-nike",
+      brand: { id: "brand-nike", name: "Nike" },
+      images: [],
+      variants: [
+        {
+          id: "v1",
+          sku: "NK-1",
+          size: "39",
+          color: "Negro",
+          stock: 1,
+          erpId: "loggro-v1",
+        },
+      ],
+    }
+    mockFindVariantsBySkus.mockResolvedValue([
       {
-        id: "v1", sku: "NK-1", size: "39", color: "Negro", stock: 1,
-        sizeUS: null, sizeCM: null, sizeEUR: null,
-        product: { id: "p1", slug: "erp-slug", name: "Nike Pegasus 41", erpId: "erp-123" },
+        id: "v1",
+        sku: "NK-1",
+        size: "39",
+        color: "Negro",
+        stock: 1,
+        sizeUS: null,
+        sizeCM: null,
+        sizeEUR: null,
+        product: erpProduct,
       },
     ] as never)
+    mockFindProductsByIdsForImport.mockResolvedValue([erpProduct] as never)
+    mockFindProductsByBaseSkus.mockResolvedValue([erpProduct] as never)
+
     const preview = await previewProductImport(buildBuffer([baseRow({ sku: "NK-1" })]))
     expect(preview.rows[0].action).toBe("error")
     expect(preview.rows[0].message).toMatch(/gestionado por erp/i)
+  })
+
+  it("con fuente ARCHIVO: producto existente con erpId recibe precio y stock del archivo", async () => {
+    mockIsErpCatalogOwner.mockResolvedValue(false)
+    const existingProduct = {
+      id: "prod-erp-1",
+      slug: "nk-1",
+      name: "Nike Pegasus 41 Legacy",
+      erpId: "loggro-prod-999",
+      basePrice: 200000,
+      salePrice: null,
+      isOnSale: false,
+      description: "Descripción previa",
+      extendedDescription: null,
+      gender: "HOMBRE",
+      isPublished: true,
+      availableOnline: true,
+      availableInStores: true,
+      categoryId: "cat-calzado",
+      category: { id: "cat-calzado", name: "Calzado" },
+      brandId: "brand-nike",
+      brand: { id: "brand-nike", name: "Nike" },
+      images: [{ id: "img-1", url: "https://res.cloudinary.com/demo/image/upload/v1/foto1.jpg", order: 0 }],
+      variants: [
+        {
+          id: "v-erp-1",
+          sku: "NK-1",
+          size: "40",
+          color: "Negro",
+          stock: 0,
+          erpId: "loggro-var-999",
+        },
+      ],
+    }
+
+    mockFindVariantsBySkus.mockResolvedValue([
+      {
+        id: "v-erp-1",
+        sku: "NK-1",
+        size: "40",
+        color: "Negro",
+        stock: 0,
+        sizeUS: null,
+        sizeCM: null,
+        sizeEUR: null,
+        product: existingProduct,
+      },
+    ] as never)
+    mockFindProductsByBaseSkus.mockResolvedValue([existingProduct] as never)
+
+    const buffer = buildBuffer([baseRow({ sku: "NK-1", size: "40", price: 499000, stock: 12 })])
+    const preview = await previewProductImport(buffer)
+
+    expect(preview.rows[0].action).toBe("update_variant")
+    expect(preview.summary.updatedVariants).toBe(1)
+    expect(preview.summary.newProducts).toBe(0)
+    expect(preview.products[0]).toMatchObject({
+      productId: "prod-erp-1",
+      isExisting: true,
+      priceBefore: 200000,
+      priceAfter: 499000,
+      stockBefore: 0,
+      stockAfter: 12,
+    })
+
+    const result = await applyProductImport(buffer, preview.fingerprint)
+    expect(result.updatedVariants).toBe(1)
+    expect(result.newProducts).toBe(0)
+
+    expect(txMock.product.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "prod-erp-1" },
+        data: expect.objectContaining({
+          basePrice: 499000,
+        }),
+      })
+    )
+
+    expect(txMock.variant.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "v-erp-1" },
+        data: expect.objectContaining({
+          stock: 12,
+        }),
+      })
+    )
+
+    expect(txMock.inventoryLevel.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          variantId: "v-erp-1",
+          storeLocationId: null,
+          stock: 12,
+        }),
+      })
+    )
+  })
+
+  it("sin duplicados: agrega tallas faltantes a producto existente por SKU base sin crear nuevo producto", async () => {
+    mockIsErpCatalogOwner.mockResolvedValue(false)
+    const existingProduct = {
+      id: "prod-132173c",
+      slug: "132173c",
+      name: "Converse Chuck Taylor 132173C",
+      erpId: "loggro-132173c",
+      basePrice: 320000,
+      salePrice: null,
+      isOnSale: false,
+      description: "Chuck Taylor clásico",
+      extendedDescription: null,
+      gender: "UNISEX",
+      isPublished: true,
+      availableOnline: true,
+      availableInStores: true,
+      categoryId: "cat-calzado",
+      category: { id: "cat-calzado", name: "Calzado" },
+      brandId: "brand-nike",
+      brand: { id: "brand-nike", name: "Converse" },
+      images: [{ id: "img-1", url: "https://res.cloudinary.com/demo/image/upload/v1/converse.jpg", order: 0 }],
+      variants: [
+        {
+          id: "var-t38",
+          sku: "132173C_38",
+          size: "38",
+          color: "Negro",
+          stock: 4,
+          erpId: "loggro-var-38",
+        },
+      ],
+    }
+
+    mockFindProductsByBaseSkus.mockResolvedValue([existingProduct] as never)
+    mockFindVariantsBySkus.mockResolvedValue([])
+
+    const buffer = buildBuffer([
+      baseRow({
+        sku: "132173C_39",
+        name: "Converse Chuck Taylor 132173C",
+        size: "39",
+        price: 320000,
+        stock: 8,
+      }),
+    ])
+
+    const preview = await previewProductImport(buffer)
+
+    expect(preview.rows[0].action).toBe("add_variant")
+    expect(preview.summary.newProducts).toBe(0)
+    expect(preview.summary.newVariants).toBe(1)
+    expect(preview.products[0]).toMatchObject({
+      productId: "prod-132173c",
+      isExisting: true,
+      addedSizesCount: 1,
+    })
+
+    const applyResult = await applyProductImport(buffer, preview.fingerprint)
+    expect(applyResult.newProducts).toBe(0)
+    expect(applyResult.newVariants).toBe(1)
+
+    expect(txMock.product.create).not.toHaveBeenCalled()
+    expect(txMock.variant.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          productId: "prod-132173c",
+          size: "39",
+          stock: 8,
+        }),
+      })
+    )
+  })
+
+  it("conserva imágenes y descripciones existentes intactas al importar con fill_empty", async () => {
+    mockIsErpCatalogOwner.mockResolvedValue(false)
+    const existingProduct = {
+      id: "prod-curated-1",
+      slug: "cur-1",
+      name: "Zapato Curado Manual",
+      erpId: "loggro-curated",
+      basePrice: 250000,
+      salePrice: null,
+      isOnSale: false,
+      description: "Descripción redactada a mano el 19 oct",
+      extendedDescription: "Descripción extendida manual",
+      gender: "UNISEX",
+      isPublished: true,
+      availableOnline: true,
+      availableInStores: true,
+      categoryId: "cat-calzado",
+      category: { id: "cat-calzado", name: "Calzado" },
+      brandId: "brand-nike",
+      brand: { id: "brand-nike", name: "Nike" },
+      images: [
+        { id: "img-c1", url: "https://res.cloudinary.com/onestar/image/upload/manual1.jpg", order: 0 },
+      ],
+      variants: [
+        {
+          id: "var-c1",
+          sku: "CUR-1",
+          size: "40",
+          color: "Negro",
+          stock: 2,
+          erpId: "var-loggro-1",
+        },
+      ],
+    }
+
+    mockFindProductsByBaseSkus.mockResolvedValue([existingProduct] as never)
+    mockFindVariantsBySkus.mockResolvedValue([
+      {
+        id: "var-c1",
+        sku: "CUR-1",
+        size: "40",
+        color: "Negro",
+        stock: 2,
+        sizeUS: null,
+        sizeCM: null,
+        sizeEUR: null,
+        product: existingProduct,
+      },
+    ] as never)
+    txMock.productImage.findMany.mockResolvedValue([
+      { url: "https://res.cloudinary.com/onestar/image/upload/manual1.jpg" },
+    ])
+
+    const buffer = buildBuffer([
+      baseRow({
+        sku: "CUR-1",
+        name: "Nombre Nuevo en Excel",
+        description: "Nueva descripción en Excel",
+        price: 290000,
+        stock: 10,
+        image1: "https://res.cloudinary.com/onestar/image/upload/manual1.jpg",
+      }),
+    ])
+
+    const preview = await previewProductImport(buffer, { textUpdateMode: "fill_empty" })
+    await applyProductImport(buffer, preview.fingerprint, { textUpdateMode: "fill_empty" })
+
+    expect(txMock.product.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "prod-curated-1" },
+        data: expect.not.objectContaining({
+          description: "Nueva descripción en Excel",
+          name: "Nombre Nuevo en Excel",
+        }),
+      })
+    )
+
+    expect(txMock.productImage.createMany).not.toHaveBeenCalled()
   })
 
   it("campos obligatorios vacíos generan error de fila", async () => {
@@ -299,7 +657,10 @@ describe("previewProductImport", () => {
 describe("applyProductImport", () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(findVariantsBySkus).mockResolvedValue([])
+    mockIsErpCatalogOwner.mockResolvedValue(false)
+    mockFindVariantsBySkus.mockResolvedValue([])
+    mockFindProductsByBaseSkus.mockResolvedValue([])
+    mockFindProductsByIdsForImport.mockResolvedValue([])
   })
 
   it("crea el producto y su variante cuando el fingerprint coincide", async () => {
@@ -512,7 +873,10 @@ describe("validateZipSafety (protección contra zip bomb)", () => {
 describe("Límites de contenido y parseo seguro", () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(findVariantsBySkus).mockResolvedValue([])
+    mockIsErpCatalogOwner.mockResolvedValue(false)
+    mockFindVariantsBySkus.mockResolvedValue([])
+    mockFindProductsByBaseSkus.mockResolvedValue([])
+    mockFindProductsByIdsForImport.mockResolvedValue([])
   })
 
   it("rechaza un buffer que excede MAX_FILE_SIZE_BYTES en previewProductImport", async () => {
@@ -591,8 +955,8 @@ describe("Límites de contenido y parseo seguro", () => {
     const rows: (string | number | Date)[][] = []
     for (let p = 1; p <= 6; p++) {
       const prodName = `Nike Modelo ${p}`
-      rows.push(baseRow({ sku: `NK-P${p}-T40`, name: prodName, size: "40" }))
-      rows.push(baseRow({ sku: `NK-P${p}-T41`, name: prodName, size: "41" }))
+      rows.push(baseRow({ sku: `NKP${p}_40`, name: prodName, size: "40" }))
+      rows.push(baseRow({ sku: `NKP${p}_41`, name: prodName, size: "41" }))
     }
     expect(rows).toHaveLength(12)
 

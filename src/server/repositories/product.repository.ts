@@ -176,6 +176,73 @@ export async function findVariantsBySkus(skus: string[]) {
   })
 }
 
+const productImportSelect = {
+  id: true,
+  slug: true,
+  name: true,
+  erpId: true,
+  basePrice: true,
+  salePrice: true,
+  isOnSale: true,
+  description: true,
+  extendedDescription: true,
+  videoUrl: true,
+  gender: true,
+  categoryId: true,
+  brandId: true,
+  isPublished: true,
+  availableOnline: true,
+  availableInStores: true,
+  variants: {
+    select: {
+      id: true,
+      sku: true,
+      size: true,
+      color: true,
+      stock: true,
+      erpId: true,
+      sizeUS: true,
+      sizeCM: true,
+      sizeEUR: true,
+      inventory: {
+        select: {
+          storeLocationId: true,
+          stock: true,
+        },
+      },
+    },
+  },
+  images: {
+    select: { id: true, url: true, color: true, position: true },
+    orderBy: { position: "asc" as const },
+  },
+} as const
+
+export type ProductForImport = Prisma.ProductGetPayload<{
+  select: typeof productImportSelect
+}>
+
+export async function findProductsByBaseSkus(baseSkus: string[]) {
+  if (baseSkus.length === 0) return []
+  const slugs = [...new Set(baseSkus.flatMap((s) => [s, s.toLowerCase(), s.toUpperCase()]))]
+  return prisma.product.findMany({
+    where: {
+      slug: { in: slugs },
+    },
+    select: productImportSelect,
+  })
+}
+
+export async function findProductsByIdsForImport(ids: string[]) {
+  if (ids.length === 0) return []
+  return prisma.product.findMany({
+    where: {
+      id: { in: ids },
+    },
+    select: productImportSelect,
+  })
+}
+
 export async function updateProductRecord(
   id: string,
   data: Prisma.ProductUpdateInput
@@ -344,16 +411,23 @@ async function syncProductColorFamily(
  * Guarda la edición conservando la identidad y `erpId` de cada variante.
  * Las variantes de Loggro se actualizan en sitio; nunca se borran y recrean.
  */
+export interface UpdateProductAdminRelationsOptions {
+  isErpCatalogOwner?: boolean
+}
+
 export async function updateProductWithAdminRelations(
   id: string,
-  input: AdminProductRelationsUpdate
+  input: AdminProductRelationsUpdate,
+  options?: UpdateProductAdminRelationsOptions
 ) {
   return prisma.$transaction(async (tx) => {
     const existingVariants = await tx.variant.findMany({
       where: { productId: id },
       select: { id: true, sku: true, erpId: true, size: true, stock: true },
     })
-    const variantPlan = buildProductVariantUpdatePlan(existingVariants, input.variants)
+    const variantPlan = buildProductVariantUpdatePlan(existingVariants, input.variants, {
+      isErpCatalogOwner: options?.isErpCatalogOwner ?? false,
+    })
     if (!variantPlan.success) throw new Error(variantPlan.error.message)
 
     if (variantPlan.deleteIds.length > 0) {
