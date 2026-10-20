@@ -33,6 +33,7 @@ const rawSettings = {
   metaAccessToken: "EAAB-secret-token-9876",
   metaTestEventCode: "TEST1",
   metaPixelEnabled: true,
+  catalogSource: "ARCHIVO",
   updatedAt: new Date("2026-09-04T00:00:00Z"),
 }
 

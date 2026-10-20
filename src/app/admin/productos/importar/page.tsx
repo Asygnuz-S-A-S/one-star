@@ -6,7 +6,11 @@ import {
   previewProductImportAction,
   applyProductImportAction,
 } from "./actions"
-import type { ProductImportPreview, ProductImportApplyResult } from "@/server/services/product-import.service"
+import type {
+  ProductImportPreview,
+  ProductImportApplyResult,
+  TextUpdateMode,
+} from "@/server/services/product-import.service"
 
 const ACTION_LABELS: Record<string, { label: string; className: string }> = {
   create_product: { label: "Crear producto", className: "bg-green-50 text-green-800" },
@@ -19,6 +23,7 @@ const ACTION_LABELS: Record<string, { label: string; className: string }> = {
 export default function ImportarProductosPage() {
   const [file, setFile] = useState<File | null>(null)
   const [onlyReadyRows, setOnlyReadyRows] = useState(true)
+  const [textUpdateMode, setTextUpdateMode] = useState<TextUpdateMode>("fill_empty")
   const [preview, setPreview] = useState<ProductImportPreview | null>(null)
   const [result, setResult] = useState<ProductImportApplyResult | null>(null)
   const [loading, setLoading] = useState(false)
@@ -32,6 +37,7 @@ export default function ImportarProductosPage() {
     const formData = new FormData()
     formData.set("file", file)
     formData.set("onlyReadyRows", String(onlyReadyRows))
+    formData.set("textUpdateMode", textUpdateMode)
     const res = await previewProductImportAction(formData)
     setLoading(false)
     if (!res.success || !res.data) {
@@ -50,6 +56,7 @@ export default function ImportarProductosPage() {
     formData.set("file", file)
     formData.set("fingerprint", preview.fingerprint)
     formData.set("onlyReadyRows", String(onlyReadyRows))
+    formData.set("textUpdateMode", textUpdateMode)
     const res = await applyProductImportAction(formData)
     setLoading(false)
     if (!res.success || !res.data) {
@@ -116,6 +123,42 @@ export default function ImportarProductosPage() {
             />
             Importar solo filas marcadas como listas (&quot;PRODUCTO LISTO = OK&quot; si la columna existe)
           </label>
+
+          <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50/70 p-3">
+            <span className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">
+              Modo de actualización de textos (descripción, categoría, género):
+            </span>
+            <div className="flex flex-col sm:flex-row gap-4 text-xs text-gray-700">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="textUpdateMode"
+                  value="fill_empty"
+                  checked={textUpdateMode === "fill_empty"}
+                  onChange={() => setTextUpdateMode("fill_empty")}
+                  className="accent-gray-900"
+                />
+                <span>
+                  <strong>Solo llenar campos vacíos</strong> (por defecto: conserva descripciones y fotos manuales)
+                </span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="textUpdateMode"
+                  value="overwrite"
+                  checked={textUpdateMode === "overwrite"}
+                  onChange={() => setTextUpdateMode("overwrite")}
+                  className="accent-gray-900"
+                />
+                <span>Sobrescribir textos existentes con el archivo</span>
+              </label>
+            </div>
+            <p className="mt-1 text-[11px] text-gray-500">
+              * El precio, oferta y stock siempre son actualizados desde el archivo para todos los productos en modo ARCHIVO.
+            </p>
+          </div>
+
           <button
             type="button"
             onClick={handlePreview}
@@ -148,6 +191,79 @@ export default function ImportarProductosPage() {
               {preview.summary.errors} error(es)
             </span>
           </div>
+
+          {/* Resumen por producto: precio, stock y tallas */}
+          {preview.products && preview.products.length > 0 && (
+            <div className="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+              <h3 className="text-sm font-bold text-gray-900 mb-2">
+                Resumen de cambios por producto ({preview.products.length} productos afectados)
+              </h3>
+              <div className="max-h-60 overflow-y-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="sticky top-0 bg-gray-50 text-[10px] uppercase text-gray-500">
+                    <tr>
+                      <th className="px-3 py-2">Producto</th>
+                      <th className="px-3 py-2">SKU Base</th>
+                      <th className="px-3 py-2">Estado</th>
+                      <th className="px-3 py-2">Precio</th>
+                      <th className="px-3 py-2">Stock total</th>
+                      <th className="px-3 py-2">Tallas</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {preview.products.map((p, idx) => (
+                      <tr key={p.productId || idx}>
+                        <td className="px-3 py-2 font-medium text-gray-900">{p.productName}</td>
+                        <td className="px-3 py-2 font-mono text-gray-600">{p.baseSku || "—"}</td>
+                        <td className="px-3 py-2">
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                              p.isExisting
+                                ? "bg-amber-50 text-amber-800 border border-amber-200"
+                                : "bg-green-50 text-green-800 border border-green-200"
+                            }`}
+                          >
+                            {p.isExisting ? "Existente" : "Nuevo"}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2">
+                          {p.isExisting && p.priceBefore != null ? (
+                            <span>
+                              <span className="text-gray-400 line-through mr-1">
+                                ${p.priceBefore.toLocaleString("es-CO")}
+                              </span>
+                              → <span className="font-semibold text-gray-900">${p.priceAfter.toLocaleString("es-CO")}</span>
+                            </span>
+                          ) : (
+                            <span className="font-semibold text-gray-900">${p.priceAfter.toLocaleString("es-CO")}</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2">
+                          {p.isExisting && p.stockBefore != null ? (
+                            <span>
+                              <span className="text-gray-400 mr-1">{p.stockBefore}</span>
+                              → <span className="font-semibold text-gray-900">{p.stockAfter}</span>
+                            </span>
+                          ) : (
+                            <span className="font-semibold text-gray-900">{p.stockAfter}</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-gray-600">
+                          {p.addedSizesCount > 0 && (
+                            <span className="text-blue-700 font-medium mr-2">+{p.addedSizesCount} nueva(s)</span>
+                          )}
+                          {p.updatedVariantsCount > 0 && (
+                            <span className="text-amber-700 font-medium">{p.updatedVariantsCount} actualiz.</span>
+                          )}
+                          {p.addedSizesCount === 0 && p.updatedVariantsCount === 0 && "Sin cambios"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           <div className="max-h-[28rem] overflow-y-auto rounded-lg border border-gray-200">
             <table className="w-full text-left text-sm">

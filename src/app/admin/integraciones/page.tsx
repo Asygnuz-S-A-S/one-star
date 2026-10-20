@@ -4,6 +4,7 @@ import { getStoreSettings } from "@/server/services/store-settings.service"
 import { getAdminSession } from "@/server/auth/require-admin"
 import SyncPanel from "@/components/admin/SyncPanel"
 import MetaPixelSettingsForm from "@/components/admin/MetaPixelSettingsForm"
+import CatalogSourceSwitch from "@/components/admin/CatalogSourceSwitch"
 import { erpSyncScheduleSnapshotKey } from "@/lib/erp-sync-schedule"
 
 // Datos en vivo (estado del ERP + historial): nunca pre-generar.
@@ -18,8 +19,16 @@ export default async function IntegrationsPage() {
   }
 
   const [status, settings] = await Promise.all([getErpSyncStatus(), getStoreSettings()])
+  const isSuperAdmin = session.user.adminRole === "SUPER_ADMIN"
+
   return (
     <>
+      <div className="mx-auto max-w-5xl px-6 pt-6 sm:px-8">
+        <CatalogSourceSwitch
+          initialSource={settings.catalogSource}
+          isSuperAdmin={isSuperAdmin}
+        />
+      </div>
       <SyncPanel
         key={`${erpSyncScheduleSnapshotKey({
           enabled: status.autoSyncEnabled,

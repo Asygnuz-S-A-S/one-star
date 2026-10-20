@@ -6,10 +6,17 @@ import * as XLSX from "xlsx"
 import type { Gender, Prisma } from "@prisma/client"
 
 import { slugify } from "@/lib/utils"
+import { parseSku } from "@/lib/sku"
 import { prisma } from "@/server/db/prisma"
 import { findManyCategories } from "@/server/repositories/category.repository"
 import { findManyBrands } from "@/server/repositories/brand.repository"
-import { findVariantsBySkus } from "@/server/repositories/product.repository"
+import {
+  findProductsByBaseSkus,
+  findProductsByIdsForImport,
+  findVariantsBySkus,
+  type ProductForImport,
+} from "@/server/repositories/product.repository"
+import { isErpCatalogOwner } from "@/server/services/catalog-source.service"
 import {
   isSkippedBrand,
   normalizeKey,
@@ -18,6 +25,19 @@ import {
   validateAndNormalizeSize,
   type ProductImportRow,
 } from "@/server/validators/product-import.validator"
+
+export function normalizeVariantSize(size: string): string {
+  const trimmed = size.trim()
+  const res = validateAndNormalizeSize(trimmed)
+  if (res.valid && res.size) {
+    return res.size
+  }
+  const clean = trimmed.replace(/,/, ".")
+  if (/^\d+\.0$/.test(clean)) {
+    return clean.slice(0, -2)
+  }
+  return clean.toLowerCase()
+}
 
 type TxClient = Prisma.TransactionClient
 
@@ -333,15 +353,32 @@ export interface ProductImportSummary {
   skipped?: number
 }
 
+export interface ProductImportProductSummary {
+  productId?: string
+  productName: string
+  baseSku?: string
+  isExisting: boolean
+  priceBefore: number | null
+  priceAfter: number
+  stockBefore: number | null
+  stockAfter: number
+  addedSizesCount: number
+  updatedVariantsCount: number
+}
+
 export interface ProductImportPreview {
   fingerprint: string
   rows: ProductImportRowResult[]
+  products: ProductImportProductSummary[]
   summary: ProductImportSummary
   hasReadyColumn: boolean
 }
 
+export type TextUpdateMode = "fill_empty" | "overwrite"
+
 export interface ProductImportOptions {
   onlyReadyRows?: boolean
+  textUpdateMode?: TextUpdateMode
 }
 
 interface PlannedVariant {
@@ -357,6 +394,7 @@ interface PlannedGroup {
   name: string
   brandName: string
   categoryName: string
+  baseSku?: string
   existingProductId: string | null
   variants: PlannedVariant[]
 }
@@ -555,8 +593,10 @@ async function planImport(
 ): Promise<{
   rowResults: ProductImportRowResult[]
   groups: PlannedGroup[]
+  productsSummary: ProductImportProductSummary[]
   fingerprint: string
   hasReadyColumn: boolean
+  existingProductsMap: Map<string, ProductForImport>
 }> {
   const { rows: rawRows, hasReadyColumn } = parseWorkbook(buffer)
   const onlyReady = options?.onlyReadyRows ?? (hasReadyColumn ? true : false)
@@ -697,31 +737,132 @@ async function planImport(
     })
   }
 
-  // 8. Consultar variantes existentes en la BD para planear create/update y verificar ERP
+  // 8. Consultar variantes y productos existentes en la BD para planear create/update y verificar ERP
   const skus = preparedRows.map((r) => r.row.sku)
-  const [existingVariants, categories, brands] = await Promise.all([
+  const baseSkus = [
+    ...new Set(preparedRows.map((r) => parseSku(r.row.sku).baseSku.trim()).filter(Boolean)),
+  ]
+
+  const isErpOwner = await isErpCatalogOwner()
+
+  const [existingVariants, productsByBase, categories, brands] = await Promise.all([
     findVariantsBySkus(skus),
+    findProductsByBaseSkus(baseSkus),
     findManyCategories(),
     findManyBrands(),
   ])
-  const existingBySku = new Map(existingVariants.map((v) => [v.sku, v]))
+
+  const existingProductsMap = new Map<string, ProductForImport>()
+  for (const p of productsByBase) {
+    existingProductsMap.set(p.id, p)
+  }
+
+  // Si alguna variante coincide por SKU exacto pero su producto no fue retornado por baseSku, lo buscamos
+  const missingProductIds = [
+    ...new Set(
+      existingVariants.map((v) => v.product.id).filter((id) => !existingProductsMap.has(id))
+    ),
+  ]
+  if (missingProductIds.length > 0) {
+    const missingProducts = await findProductsByIdsForImport(missingProductIds)
+    for (const p of missingProducts) {
+      existingProductsMap.set(p.id, p)
+    }
+  }
+
+  // Índice de productos por slug en minúsculas (el slug de los productos ERP es el SKU base)
+  const productBySlug = new Map<string, ProductForImport>()
+  for (const p of existingProductsMap.values()) {
+    productBySlug.set(p.slug.toLowerCase(), p)
+  }
+
+  // Índice de variantes existentes por SKU exacto -> { product, variant }
+  const variantByExactSku = new Map<
+    string,
+    { product: ProductForImport; variant: ProductForImport["variants"][number] }
+  >()
+  for (const p of existingProductsMap.values()) {
+    for (const v of p.variants) {
+      variantByExactSku.set(v.sku, { product: p, variant: v })
+    }
+  }
 
   const groups = new Map<string, PlannedGroup>()
+  const matchedVariantIds = new Set<string>()
 
   for (const { row, rowNumber, isRecoveredFromDate } of preparedRows) {
-    const existing = existingBySku.get(row.sku)
-    if (existing && existing.product.erpId !== null) {
+    const rowBaseSku = parseSku(row.sku).baseSku.trim()
+    const rowNormSize = normalizeVariantSize(row.size)
+
+    // Identificar producto existente sin duplicados:
+    // 1. Coincidencia exacta por SKU de variante
+    // 2. Coincidencia de baseSku con slug del producto (los productos ERP tienen el SKU base como slug)
+    // 3. Coincidencia de variante existente con mismo baseSku y talla normalizada
+    let existingProduct: ProductForImport | null = null
+    const exactVar = variantByExactSku.get(row.sku)
+    if (exactVar) {
+      existingProduct = exactVar.product
+    } else if (rowBaseSku && productBySlug.has(rowBaseSku.toLowerCase())) {
+      existingProduct = productBySlug.get(rowBaseSku.toLowerCase())!
+    } else if (rowBaseSku) {
+      for (const p of existingProductsMap.values()) {
+        const found = p.variants.some(
+          (v) =>
+            parseSku(v.sku).baseSku.toLowerCase() === rowBaseSku.toLowerCase() &&
+            normalizeVariantSize(v.size) === rowNormSize
+        )
+        if (found) {
+          existingProduct = p
+          break
+        }
+      }
+    }
+
+    // El rechazo "Gestionado por ERP" solo aplica si el ERP es dueño del catálogo (isErpCatalogOwner() === true)
+    if (existingProduct && existingProduct.erpId !== null && isErpOwner) {
       rowResults.push({
         rowNumber,
         sku: row.sku,
         productName: row.name,
         action: "error",
-        message: `Gestionado por ERP (producto "${existing.product.name}") — no se puede modificar aquí`,
+        message: `Gestionado por ERP (producto "${existingProduct.name}") — no se puede modificar aquí`,
       })
       continue
     }
 
-    const groupKey = [row.name, row.brandName, row.categoryName].map(normalizeKey).join("|")
+    // Cruce de variantes dentro del producto:
+    // 1. Por SKU exacto
+    // 2. Si no hay coincidencia, por (SKU base + talla normalizada)
+    let matchedVariant: ProductForImport["variants"][number] | null = null
+    if (existingProduct) {
+      const byExact = existingProduct.variants.find(
+        (v) => v.sku === row.sku && !matchedVariantIds.has(v.id)
+      )
+      if (byExact) {
+        matchedVariant = byExact
+      } else if (rowBaseSku) {
+        const byBaseAndSize = existingProduct.variants.find(
+          (v) =>
+            !matchedVariantIds.has(v.id) &&
+            parseSku(v.sku).baseSku.toLowerCase() === rowBaseSku.toLowerCase() &&
+            normalizeVariantSize(v.size) === rowNormSize
+        )
+        if (byBaseAndSize) {
+          matchedVariant = byBaseAndSize
+        }
+      }
+      if (matchedVariant) {
+        matchedVariantIds.add(matchedVariant.id)
+      }
+    }
+
+    // Agrupación para evitar duplicar productos:
+    // Si existe el producto en BD, se agrupan en su ID.
+    // Si es nuevo, se agrupan por baseSku (o por nombre+marca+categoría si no tiene SKU base).
+    const groupKey = existingProduct
+      ? `prod:${existingProduct.id}`
+      : `new:${rowBaseSku ? rowBaseSku.toLowerCase() : [row.name, row.brandName, row.categoryName].map(normalizeKey).join("|")}`
+
     let group = groups.get(groupKey)
     if (!group) {
       group = {
@@ -729,25 +870,15 @@ async function planImport(
         name: row.name,
         brandName: row.brandName,
         categoryName: row.categoryName,
-        existingProductId: existing ? existing.product.id : null,
+        baseSku: rowBaseSku || undefined,
+        existingProductId: existingProduct ? existingProduct.id : null,
         variants: [],
       }
       groups.set(groupKey, group)
-    } else if (existing && group.existingProductId && existing.product.id !== group.existingProductId) {
-      rowResults.push({
-        rowNumber,
-        sku: row.sku,
-        productName: row.name,
-        action: "error",
-        message: "Este grupo de filas apunta a más de un producto existente distinto — revisa el SKU",
-      })
-      continue
-    } else if (existing && !group.existingProductId) {
-      group.existingProductId = existing.product.id
     }
 
-    const plannedVariant: PlannedVariant = existing
-      ? { row, rowNumber, kind: "update", existingVariantId: existing.id, isRecoveredFromDate }
+    const plannedVariant: PlannedVariant = matchedVariant
+      ? { row, rowNumber, kind: "update", existingVariantId: matchedVariant.id, isRecoveredFromDate }
       : { row, rowNumber, kind: "create", isRecoveredFromDate }
     group.variants.push(plannedVariant)
   }
@@ -807,20 +938,76 @@ async function planImport(
     }
   }
 
-  // 10. Huella digital del catálogo
+  // 10. Resumen por producto (precio y stock antes → después, y cuántas tallas se agregan)
+  const productsSummary: ProductImportProductSummary[] = []
+  for (const group of groups.values()) {
+    const firstRow = group.variants[0]?.row
+    if (!firstRow) continue
+
+    if (group.existingProductId && existingProductsMap.has(group.existingProductId)) {
+      const existingProduct = existingProductsMap.get(group.existingProductId)!
+      const priceBefore = existingProduct.basePrice != null ? Number(existingProduct.basePrice) : null
+      const priceAfter = firstRow.price
+      const stockBefore = existingProduct.variants.reduce((sum, v) => sum + (v.stock || 0), 0)
+
+      const updatedVariantIds = new Set(
+        group.variants.filter((v) => v.kind === "update").map((v) => v.existingVariantId)
+      )
+      const unmentionedStock = existingProduct.variants
+        .filter((v) => !updatedVariantIds.has(v.id))
+        .reduce((sum, v) => sum + (v.stock || 0), 0)
+      const importStock = group.variants.reduce((sum, v) => sum + (v.row.stock || 0), 0)
+      const stockAfter = unmentionedStock + importStock
+
+      const addedSizesCount = group.variants.filter((v) => v.kind === "create").length
+      const updatedVariantsCount = group.variants.filter((v) => v.kind === "update").length
+
+      productsSummary.push({
+        productId: existingProduct.id,
+        productName: existingProduct.name,
+        baseSku: group.baseSku,
+        isExisting: true,
+        priceBefore,
+        priceAfter,
+        stockBefore,
+        stockAfter,
+        addedSizesCount,
+        updatedVariantsCount,
+      })
+    } else {
+      const priceBefore = null
+      const priceAfter = firstRow.price
+      const stockBefore = null
+      const stockAfter = group.variants.reduce((sum, v) => sum + (v.row.stock || 0), 0)
+      const addedSizesCount = group.variants.length
+      const updatedVariantsCount = 0
+
+      productsSummary.push({
+        productName: group.name,
+        baseSku: group.baseSku,
+        isExisting: false,
+        priceBefore,
+        priceAfter,
+        stockBefore,
+        stockAfter,
+        addedSizesCount,
+        updatedVariantsCount,
+      })
+    }
+  }
+
+  // 11. Huella digital del catálogo
   const categoryNames = categories.map((c) => normalizeKey(c.name)).sort()
   const brandNames = brands.map((b) => normalizeKey(b.name)).sort()
   const fingerprintPayload = {
-    variants: existingVariants
+    variants: Array.from(existingProductsMap.values())
+      .flatMap((p) => p.variants)
       .map((v) => ({
+        id: v.id,
         sku: v.sku,
-        productId: v.product.id,
-        erpId: v.product.erpId,
-        size: v.size,
-        color: v.color,
         stock: v.stock,
       }))
-      .sort((a, b) => a.sku.localeCompare(b.sku)),
+      .sort((a, b) => a.id.localeCompare(b.id)),
     categoryNames,
     brandNames,
     onlyReady,
@@ -830,14 +1017,21 @@ async function planImport(
     .update(JSON.stringify(fingerprintPayload))
     .digest("hex")
 
-  return { rowResults, groups: [...groups.values()], fingerprint, hasReadyColumn }
+  return {
+    rowResults,
+    groups: [...groups.values()],
+    productsSummary,
+    fingerprint,
+    hasReadyColumn,
+    existingProductsMap,
+  }
 }
 
 export async function previewProductImport(
   buffer: ArrayBuffer,
   options?: ProductImportOptions
 ): Promise<ProductImportPreview> {
-  const { rowResults, fingerprint, hasReadyColumn } = await planImport(buffer, options)
+  const { rowResults, productsSummary, fingerprint, hasReadyColumn } = await planImport(buffer, options)
   const rawSummary = rowResults.reduce(
     (acc, r) => {
       if (r.action === "create_product") acc.newProducts++
@@ -859,6 +1053,7 @@ export async function previewProductImport(
   return {
     fingerprint,
     rows: rowResults.sort((a, b) => a.rowNumber - b.rowNumber),
+    products: productsSummary,
     summary,
     hasReadyColumn,
   }
@@ -934,12 +1129,15 @@ export async function applyProductImport(
   expectedFingerprint: string,
   options?: ProductImportOptions
 ): Promise<ProductImportApplyResult> {
-  const { groups, fingerprint } = await planImport(buffer, options)
+  const { groups, fingerprint, existingProductsMap } = await planImport(buffer, options)
   if (fingerprint !== expectedFingerprint) {
     throw new Error(
       "El catálogo cambió desde que generaste la vista previa. Vuelve a subir el archivo para revisar los cambios."
     )
   }
+
+  const textUpdateMode = options?.textUpdateMode ?? "fill_empty"
+  const isOverwrite = textUpdateMode === "overwrite"
 
   const categories = await findManyCategories()
   const brands = await findManyBrands()
@@ -959,7 +1157,8 @@ export async function applyProductImport(
           const categoryId = await resolveCategoryId(tx, group.categoryName, categories, categoryCache)
           const brandId = await resolveBrandId(tx, group.brandName, brands, brandCache)
           const first = group.variants.find((v) => v.kind === "create")!.row
-          const slug = await uniqueSlug(tx, slugify(group.name))
+          const slugBase = group.baseSku ? group.baseSku : slugify(group.name)
+          const slug = await uniqueSlug(tx, slugBase)
           const images: Prisma.ProductImageCreateWithoutProductInput[] = []
           const seenUrls = new Set<string>()
 
@@ -1007,18 +1206,59 @@ export async function applyProductImport(
           })
           productId = created.id
           newProducts++
-        }
+        } else {
+          // Actualización de producto existente en modo ARCHIVO
+          const existingProduct = existingProductsMap.get(productId)
+          const first = group.variants[0].row
 
-        if (group.existingProductId) {
+          const categoryId =
+            isOverwrite || !existingProduct?.categoryId
+              ? await resolveCategoryId(tx, group.categoryName, categories, categoryCache)
+              : existingProduct.categoryId
+
+          const brandId =
+            isOverwrite || !existingProduct?.brandId
+              ? await resolveBrandId(tx, group.brandName, brands, brandCache)
+              : existingProduct.brandId
+
+          await tx.product.update({
+            where: { id: productId },
+            data: {
+              // Precios y disponibilidad web siempre los manda el archivo en ARCHIVO
+              basePrice: first.price,
+              isOnSale: first.isOnSale ?? false,
+              salePrice: first.isOnSale ? (first.salePrice ?? null) : null,
+              availableOnline: first.availableOnline ?? true,
+              availableInStores: first.availableInStores ?? true,
+              isPublished: first.isPublished ?? true,
+              // Campos de texto: según textUpdateMode ("fill_empty" vs "overwrite")
+              ...(isOverwrite || !existingProduct?.name ? { name: group.name } : {}),
+              ...(isOverwrite || !existingProduct?.description
+                ? { description: first.description ?? null }
+                : {}),
+              ...(isOverwrite || !existingProduct?.extendedDescription
+                ? { extendedDescription: first.extendedDescription ?? null }
+                : {}),
+              ...(isOverwrite || !existingProduct?.videoUrl
+                ? { videoUrl: first.videoUrl ?? null }
+                : {}),
+              ...(isOverwrite || !existingProduct?.gender
+                ? { gender: (first.gender as Gender | undefined) ?? null }
+                : {}),
+              ...(categoryId ? { category: { connect: { id: categoryId } } } : {}),
+              ...(brandId ? { brand: { connect: { id: brandId } } } : {}),
+            },
+          })
+
+          // Conservar fotos existentes e incorporar fotos nuevas sin borrar las actuales
           const current = await tx.productImage.findMany({
-            where: { productId: group.existingProductId },
+            where: { productId },
             select: { url: true },
           })
           const seen = new Set(current.map((i) => i.url))
           let position = current.length
           const extra: Prisma.ProductImageCreateManyInput[] = []
           for (const v of group.variants) {
-            if (v.kind !== "create") continue
             const rowImages = [
               v.row.image1,
               v.row.image2,
@@ -1033,7 +1273,7 @@ export async function applyProductImport(
               if (url && !seen.has(url)) {
                 seen.add(url)
                 extra.push({
-                  productId: group.existingProductId,
+                  productId,
                   url,
                   alt: group.name,
                   position: position++,
@@ -1045,6 +1285,7 @@ export async function applyProductImport(
           if (extra.length > 0) await tx.productImage.createMany({ data: extra })
         }
 
+        // Variantes y niveles de inventario web (storeLocationId = null)
         for (const v of group.variants) {
           if (v.kind === "update" && v.existingVariantId) {
             await tx.variant.update({
@@ -1058,9 +1299,22 @@ export async function applyProductImport(
                 sizeEUR: v.row.sizeEUR ?? null,
               },
             })
+            await tx.inventoryLevel.deleteMany({
+              where: {
+                variantId: v.existingVariantId,
+                storeLocationId: null,
+              },
+            })
+            await tx.inventoryLevel.create({
+              data: {
+                variantId: v.existingVariantId,
+                storeLocationId: null,
+                stock: v.row.stock,
+              },
+            })
             updatedVariants++
           } else {
-            await tx.variant.create({
+            const createdVar = await tx.variant.create({
               data: {
                 productId,
                 sku: v.row.sku,
@@ -1070,6 +1324,13 @@ export async function applyProductImport(
                 sizeUS: v.row.sizeUS ?? null,
                 sizeCM: v.row.sizeCM ?? null,
                 sizeEUR: v.row.sizeEUR ?? null,
+              },
+            })
+            await tx.inventoryLevel.create({
+              data: {
+                variantId: createdVar.id,
+                storeLocationId: null,
+                stock: v.row.stock,
               },
             })
             newVariants++

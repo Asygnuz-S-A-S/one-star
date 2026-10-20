@@ -38,11 +38,19 @@ export type ProductVariantUpdatePlan =
       }
     }
 
-/** Planea el guardado sin recrear variantes sincronizadas por Loggro. */
+export interface ProductVariantUpdatePlanOptions {
+  isErpCatalogOwner?: boolean
+}
+
+/** Planea el guardado sin recrear variantes sincronizadas por el ERP cuando el ERP es dueño. */
 export function buildProductVariantUpdatePlan(
   existing: ExistingProductVariant[],
-  submitted: SubmittedProductVariant[]
+  submitted: SubmittedProductVariant[],
+  options?: ProductVariantUpdatePlanOptions | boolean
 ): ProductVariantUpdatePlan {
+  const isErpCatalogOwner =
+    typeof options === "boolean" ? options : Boolean(options?.isErpCatalogOwner)
+
   const submittedSkus = submitted.map((variant) => variant.sku)
   if (new Set(submittedSkus).size !== submittedSkus.length) {
     return {
@@ -62,24 +70,28 @@ export function buildProductVariantUpdatePlan(
       continue
     }
 
+    const preserveErpFields = Boolean(current.erpId && isErpCatalogOwner)
+
     updates.push({
       ...variant,
       id: current.id,
-      // Loggro sigue siendo dueño de estos dos campos.
-      size: current.erpId ? current.size : variant.size,
-      stock: current.erpId ? current.stock : variant.stock,
+      // Solo el ERP es dueño de estos campos si isErpCatalogOwner es true
+      size: preserveErpFields ? current.size : variant.size,
+      stock: preserveErpFields ? current.stock : variant.stock,
     })
   }
 
   const missing = existing.filter((variant) => !submittedSkus.includes(variant.sku))
-  const missingErpVariant = missing.find((variant) => variant.erpId)
-  if (missingErpVariant) {
-    return {
-      success: false,
-      error: {
-        code: "ERP_VARIANT_MISSING",
-        message: `La variante ${missingErpVariant.sku} pertenece a Loggro y no se puede eliminar desde el panel.`,
-      },
+  if (isErpCatalogOwner) {
+    const missingErpVariant = missing.find((variant) => variant.erpId)
+    if (missingErpVariant) {
+      return {
+        success: false,
+        error: {
+          code: "ERP_VARIANT_MISSING",
+          message: `La variante ${missingErpVariant.sku} pertenece a Loggro y no se puede eliminar desde el panel.`,
+        },
+      }
     }
   }
 

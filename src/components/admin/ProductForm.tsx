@@ -62,6 +62,7 @@ interface Props {
   stores?: StoreLocation[]
   /** Paleta activa (administrable en /admin/colores). Vacía = paleta de respaldo. */
   colorPalette?: ColorPalette
+  isErpCatalogOwner?: boolean
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -103,6 +104,7 @@ export default function ProductForm({
   brands = [],
   stores = [],
   colorPalette,
+  isErpCatalogOwner = false,
 }: Props) {
   const palette = colorPalette && Object.keys(colorPalette).length > 0 ? colorPalette : PRODUCT_COLORS
   const colorGroups = useMemo(() => buildColorSelectGroups(palette), [palette])
@@ -128,11 +130,10 @@ export default function ProductForm({
   const [faqsText, setFaqsText] = useState(faqsToText(parseProductFaqs(product?.faqs)))
 
   // Pricing
-  // El precio llega de Loggro y es de solo lectura: un producto a $0 (p. ej. bolsas
-  // de obsequio) debe poder guardarse igual, así que el cero no se trata como vacío.
-  const [basePrice] = useState(product?.basePrice != null ? String(Number(product.basePrice)) : "")
-  const [isOnSale] = useState(product?.isOnSale ?? false)
-  const [salePrice] = useState(product?.salePrice != null ? String(Number(product.salePrice)) : "")
+  const isPriceReadOnly = Boolean(isErpCatalogOwner && product?.erpId)
+  const [basePrice, setBasePrice] = useState(product?.basePrice != null ? String(Number(product.basePrice)) : "")
+  const [isOnSale, setIsOnSale] = useState(product?.isOnSale ?? false)
+  const [salePrice, setSalePrice] = useState(product?.salePrice != null ? String(Number(product.salePrice)) : "")
 
   // SEO
   const [metaTitle, setMetaTitle] = useState(product?.metaTitle ?? "")
@@ -496,18 +497,24 @@ export default function ProductForm({
     formData.set("faqs", faqsText)
     
     // Ensure all variants map their 'inventory' objects correctly with numbers.
-    // Las sedes vinculadas al ERP no se envían: su stock lo escribe la sincronización.
-    const erpStoreIds = new Set(stores.filter((store) => store.erpId).map((store) => store.id))
-    const cleanVariants = variants.map(v => ({
-      ...v,
-      stock: Number(v.stock) || 0,
-      inventory: v.inventory
-        .filter((inv) => inv.storeLocationId === null || !erpStoreIds.has(inv.storeLocationId))
-        .map(inv => ({
-          storeLocationId: inv.storeLocationId,
-          stock: Number(inv.stock) || 0
-        }))
-    }))
+    // Las sedes vinculadas al ERP no se envían si el ERP es dueño: su stock lo escribe la sincronización.
+    const erpStoreIds = new Set(
+      isErpCatalogOwner ? stores.filter((store) => store.erpId).map((store) => store.id) : []
+    )
+    const cleanVariants = variants.map(v => {
+      const webInventory = v.inventory.find((inv) => inv.storeLocationId === null)
+      const webStock = webInventory ? Number(webInventory.stock) || 0 : (Number(v.stock) || 0)
+      return {
+        ...v,
+        stock: webStock,
+        inventory: v.inventory
+          .filter((inv) => inv.storeLocationId === null || !erpStoreIds.has(inv.storeLocationId))
+          .map(inv => ({
+            storeLocationId: inv.storeLocationId,
+            stock: Number(inv.stock) || 0
+          }))
+      }
+    })
     
     formData.set("variants", JSON.stringify(cleanVariants))
     formData.set("images", JSON.stringify(images))
@@ -583,7 +590,7 @@ export default function ProductForm({
           </Field>
           <Field
             label="Marca"
-            hint="Es la «Categoría» de Loggro (Converse, Nike, Vans…). Al sincronizar se asigna sola a partir del código del ERP."
+            hint="Es la «Categoría» del ERP (Converse, Nike, Vans…). Al sincronizar se asigna sola a partir del código del ERP."
           >
             <select
               value={brandId}
@@ -611,7 +618,7 @@ export default function ProductForm({
           <Field
             label="Categoría web"
             required
-            hint="Tipo de producto en la tienda (tenis, chanclas, accesorios…). No es la «Categoría» de Loggro: esa corresponde al campo Marca."
+            hint="Tipo de producto en la tienda (tenis, chanclas, accesorios…). No es la «Categoría» del ERP: esa corresponde al campo Marca."
           >
             <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className={inputClass}>
               <option value="">Seleccionar categoría…</option>
@@ -684,12 +691,14 @@ export default function ProductForm({
 
       {/* B. Precios */}
       <Section title="Precios">
-        <div className="mb-4 bg-blue-50 border border-blue-200 text-blue-800 text-sm p-3 rounded-lg flex items-start gap-2">
-          <span className="mt-0.5">ℹ️</span>
-          <p>
-            <strong>Solo lectura:</strong> Los precios (base y oferta) se gestionan exclusivamente desde tu sistema ERP (Loggro) para mantener consistencia contable.
-          </p>
-        </div>
+        {isPriceReadOnly && (
+          <div className="mb-4 bg-blue-50 border border-blue-200 text-blue-800 text-sm p-3 rounded-lg flex items-start gap-2">
+            <span className="mt-0.5">ℹ️</span>
+            <p>
+              <strong>Solo lectura:</strong> Los precios (base y oferta) se gestionan exclusivamente desde tu sistema ERP para mantener consistencia contable.
+            </p>
+          </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
           <Field label="Precio base" required>
             <div className="relative">
@@ -697,8 +706,11 @@ export default function ProductForm({
               <input
                 type="number"
                 value={basePrice}
-                disabled
-                className={`${inputClass} pl-7 bg-gray-50 text-gray-500 cursor-not-allowed`}
+                onChange={(e) => setBasePrice(e.target.value)}
+                disabled={isPriceReadOnly}
+                className={`${inputClass} pl-7 ${isPriceReadOnly ? "bg-gray-50 text-gray-500 cursor-not-allowed" : ""}`}
+                min="0"
+                step="any"
               />
             </div>
           </Field>
@@ -706,14 +718,19 @@ export default function ProductForm({
         <div className="flex items-center gap-3 mb-4">
           <button
             type="button"
-            disabled
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-not-allowed opacity-70 ${isOnSale ? "bg-[#E31C23]" : "bg-gray-200"}`}
+            onClick={() => !isPriceReadOnly && setIsOnSale((v) => !v)}
+            disabled={isPriceReadOnly}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+              isPriceReadOnly ? "cursor-not-allowed opacity-70" : "cursor-pointer"
+            } ${isOnSale ? "bg-[#E31C23]" : "bg-gray-200"}`}
           >
             <span
               className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm ${isOnSale ? "translate-x-6" : "translate-x-1"}`}
             />
           </button>
-          <span className="text-sm font-medium text-gray-500 cursor-not-allowed">¿Está en SALE?</span>
+          <span className={`text-sm font-medium ${isPriceReadOnly ? "text-gray-500 cursor-not-allowed" : "text-[#1C1C1C]"}`}>
+            ¿Está en SALE?
+          </span>
         </div>
         {isOnSale && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
@@ -723,8 +740,11 @@ export default function ProductForm({
                 <input
                   type="number"
                   value={salePrice}
-                  disabled
-                  className={`${inputClass} pl-7 bg-gray-50 text-gray-500 cursor-not-allowed`}
+                  onChange={(e) => setSalePrice(e.target.value)}
+                  disabled={isPriceReadOnly}
+                  className={`${inputClass} pl-7 ${isPriceReadOnly ? "bg-gray-50 text-gray-500 cursor-not-allowed" : ""}`}
+                  min="0"
+                  step="any"
                 />
               </div>
             </Field>
@@ -799,15 +819,17 @@ export default function ProductForm({
 
       {/* D. Variantes */}
       <Section title="Variantes (Color × Talla)">
-        <div className="mb-4 bg-blue-50 border border-blue-200 text-blue-800 text-sm p-3 rounded-lg flex items-start gap-2">
-          <span className="mt-0.5">ℹ️</span>
-          <p>
-            <strong>Inventario:</strong> El Stock Web, SKU y talla vienen de Loggro (solo lectura). El color se
-            detecta automáticamente cuando el código y la descripción son confiables; puedes corregir cada
-            variante individualmente como respaldo. El stock de las sedes vinculadas a Loggro (marcadas con ⟳)
-            también es de solo lectura; solo puedes editar el de tiendas sin vínculo.
-          </p>
-        </div>
+        {isErpCatalogOwner && (
+          <div className="mb-4 bg-blue-50 border border-blue-200 text-blue-800 text-sm p-3 rounded-lg flex items-start gap-2">
+            <span className="mt-0.5">ℹ️</span>
+            <p>
+              <strong>Inventario:</strong> El Stock Web, SKU y talla vienen del ERP (solo lectura). El color se
+              detecta automáticamente cuando el código y la descripción son confiables; puedes corregir cada
+              variante individualmente como respaldo. El stock de las sedes vinculadas al ERP (marcadas con ⟳)
+              también es de solo lectura; solo puedes editar el de tiendas sin vínculo.
+            </p>
+          </div>
+        )}
         <div className="overflow-x-auto">
           <table className="w-full text-xs mb-3">
             <thead>
@@ -820,9 +842,9 @@ export default function ProductForm({
                   <th
                     key={store.id}
                     className="text-left py-2 pr-2 text-[#4A4A4A] font-semibold min-w-[70px] truncate max-w-[100px]"
-                    title={store.erpId ? `${store.name} — sincronizada desde Loggro` : store.name}
+                    title={store.erpId && isErpCatalogOwner ? `${store.name} — sincronizada desde ERP` : store.name}
                   >
-                    {store.erpId ? "⟳ " : ""}{store.name}
+                    {store.erpId && isErpCatalogOwner ? "⟳ " : ""}{store.name}
                   </th>
                 ))}
                 <th className="text-left py-2 pr-2 text-[#4A4A4A] font-semibold min-w-[60px]">US</th>
@@ -883,14 +905,20 @@ export default function ProductForm({
                       <input 
                         type="number" 
                         value={webInv?.stock || "0"} 
-                        disabled
-                        className={`${inputClass} text-xs border-blue-200 bg-blue-50/50 text-gray-500 cursor-not-allowed`} 
+                        onChange={(e) => updateVariantInventory(idx, null, e.target.value)}
+                        disabled={isErpCatalogOwner}
+                        className={`${inputClass} text-xs ${
+                          isErpCatalogOwner
+                            ? "border-blue-200 bg-blue-50/50 text-gray-500 cursor-not-allowed"
+                            : ""
+                        }`} 
                         title="Stock Bodega Web"
+                        min="0"
                       />
                     </td>
                     {stores.map(store => {
                       const storeInv = v.inventory.find(i => i.storeLocationId === store.id)
-                      const syncedFromErp = Boolean(store.erpId)
+                      const syncedFromErp = Boolean(store.erpId && isErpCatalogOwner)
                       return (
                         <td key={store.id} className="py-1 pr-2">
                           <input 
@@ -902,7 +930,7 @@ export default function ProductForm({
                             className={`${inputClass} text-xs ${
                               syncedFromErp ? "border-blue-200 bg-blue-50/50 text-gray-500 cursor-not-allowed" : ""
                             }`} 
-                            title={syncedFromErp ? `Stock ${store.name} (sincronizado desde Loggro)` : `Stock ${store.name}`}
+                            title={syncedFromErp ? `Stock ${store.name} (sincronizado desde ERP)` : `Stock ${store.name}`}
                           />
                         </td>
                       )
@@ -950,7 +978,7 @@ export default function ProductForm({
       {/* F. Colores del mismo modelo */}
             <Section title="Colores del mismo modelo">
         <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
-          Los formatos de código Loggro reconocidos se agrupan automáticamente. Usa esta sección
+          Los formatos de código del ERP reconocidos se agrupan automáticamente. Usa esta sección
           solo para excepciones: cada producto conservará sus propias tallas, SKU, precio, stock y fotos.
         </div>
         <div className="relative mb-3">

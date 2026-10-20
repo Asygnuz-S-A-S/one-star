@@ -5,5 +5,6 @@ export {
   type ExistingProductVariant,
   type PersistedProductVariant,
   type ProductVariantUpdatePlan,
+  type ProductVariantUpdatePlanOptions,
   type SubmittedProductVariant,
 } from "@/server/domain/product-variant-update.plan"

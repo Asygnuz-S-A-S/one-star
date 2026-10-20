@@ -5,7 +5,11 @@ import {
   findStoreSettingsReadOnly,
   updateStoreSettingsRecord,
 } from "@/server/repositories/store-settings.repository"
-import type { MetaPixelInput, StoreInfoInput } from "@/server/validators/store-settings.validator"
+import { normalizeCatalogSource, type CatalogSource } from "@/lib/catalog-source"
+import type {
+  MetaPixelInput,
+  StoreInfoInput,
+} from "@/server/validators/store-settings.validator"
 
 /** Vista segura para el admin: nunca incluye el token, solo una pista. */
 export interface StoreSettingsDTO {
@@ -18,6 +22,7 @@ export interface StoreSettingsDTO {
   hasMetaAccessToken: boolean
   /** Últimos 4 caracteres del token para que el admin sepa cuál está cargado. */
   metaAccessTokenHint: string | null
+  catalogSource: CatalogSource
 }
 
 /** Lo único del píxel que puede viajar al navegador. */
@@ -42,6 +47,7 @@ function toDTO(raw: {
   metaAccessToken: string | null
   metaTestEventCode: string | null
   metaPixelEnabled: boolean
+  catalogSource?: string | null
 }): StoreSettingsDTO {
   return {
     storeName: raw.storeName,
@@ -54,6 +60,7 @@ function toDTO(raw: {
     metaAccessTokenHint: raw.metaAccessToken
       ? raw.metaAccessToken.slice(-TOKEN_HINT_LENGTH)
       : null,
+    catalogSource: normalizeCatalogSource(raw.catalogSource),
   }
 }
 
@@ -94,6 +101,14 @@ export async function updateMetaPixelSettings(input: MetaPixelInput): Promise<St
       metaPixelId: input.pixelId,
       metaTestEventCode: input.testEventCode,
       ...tokenPatch,
+    }),
+  )
+}
+
+export async function updateCatalogSource(source: CatalogSource): Promise<StoreSettingsDTO> {
+  return toDTO(
+    await updateStoreSettingsRecord({
+      catalogSource: source,
     }),
   )
 }
