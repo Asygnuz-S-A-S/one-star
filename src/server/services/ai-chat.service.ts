@@ -3,6 +3,7 @@ import "server-only"
 import Anthropic from "@anthropic-ai/sdk"
 import { getProducts } from "./product.service"
 import { findVariantForCartDisplay } from "@/server/repositories/variant.repository"
+import { STORE_KNOWLEDGE } from "@/lib/store-knowledge"
 
 const DEFAULT_MODEL = "claude-sonnet-5"
 const MAX_TOOL_ROUNDS = 4
@@ -47,7 +48,11 @@ Reglas estrictas:
 - Los precios están en pesos colombianos (COP).
 - Sé breve, cordial y directo — no insistas ni presiones la venta.
 - Cuando agregues algo al carrito, dilo explícitamente e invita a revisar el carrito para pagar.
-- No inventes políticas de envío, devoluciones ni promociones que no te haya dado una herramienta.`
+- Para envíos, pagos, cambios, devoluciones, garantías, tiendas físicas y horarios responde SOLO con la base de conocimiento de abajo. Si la pregunta no está cubierta ahí, no supongas: invita a escribir al WhatsApp de One Star.
+- No inventes promociones ni descuentos.
+
+BASE DE CONOCIMIENTO DE ONE STAR
+${STORE_KNOWLEDGE}`
 
 const TOOLS: Anthropic.Tool[] = [
   {
