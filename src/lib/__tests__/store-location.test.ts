@@ -69,47 +69,17 @@ describe("resolveStoreCoordinates", () => {
     expect(coords).toEqual({ lat: 6.2001, lng: -75.5701 })
   })
 
-  it("resuelve coordenadas exactas para One Star Unicentro", () => {
-    const coords = resolveStoreCoordinates({
-      name: "One Star Unicentro",
-      address: "Cra. 66B #34A-76, Local 220",
-      city: "Medellín",
-      latitude: null,
-      longitude: null,
-    })
-    expect(coords).toEqual({ lat: 6.2408625, lng: -75.587071 })
+  it("no adivina coordenadas por nombre de sede ni por ciudad", () => {
+    expect(
+      resolveStoreCoordinates({ name: "One Star Unicentro", address: "C.C. Unicentro, local C-45", city: "Pereira", latitude: null, longitude: null })
+    ).toBeNull()
+    expect(
+      resolveStoreCoordinates({ name: "One Star Fundadores", address: "C.C. Fundadores, local 158", city: "Manizales" })
+    ).toBeNull()
   })
 
-  it("resuelve coordenadas exactas para One Star Fundadores", () => {
-    const coords = resolveStoreCoordinates({
-      name: "One Star Fundadores",
-      address: "Cl. 50 #46-36, Centro Comercial Fundadores",
-      city: "Medellín",
-      latitude: null,
-      longitude: null,
-    })
-    expect(coords).toEqual({ lat: 6.25143, lng: -75.56452 })
-  })
-
-  it("resuelve coordenadas exactas para One Star Centro", () => {
-    const coords = resolveStoreCoordinates({
-      name: "One Star Centro",
-      address: "Cra. 50 #50-20, La Candelaria",
-      city: "Medellín",
-      latitude: null,
-      longitude: null,
-    })
-    expect(coords).toEqual({ lat: 6.25052, lng: -75.56781 })
-  })
-
-  it("usa fallback de ciudad si la sede es desconocida pero la ciudad existe", () => {
-    const coords = resolveStoreCoordinates({
-      name: "One Star Laureles",
-      city: "Medellín",
-      latitude: null,
-      longitude: null,
-    })
-    expect(coords).toEqual({ lat: 6.244203, lng: -75.581212 })
+  it("ignora coordenadas en 0,0", () => {
+    expect(resolveStoreCoordinates({ name: "Sede", latitude: 0, longitude: 0 })).toBeNull()
   })
 
   it("devuelve null si no se puede determinar", () => {
@@ -119,13 +89,24 @@ describe("resolveStoreCoordinates", () => {
 })
 
 describe("getStoreDirectionsUrl", () => {
-  it("genera URL directa con lat/lng cuando las coordenadas se resuelven", () => {
+  it("genera URL directa con lat/lng cuando la tienda tiene coordenadas guardadas", () => {
     const url = getStoreDirectionsUrl({
       name: "One Star Unicentro",
-      address: "Cra. 66B #34A-76",
-      city: "Medellín",
+      address: "C.C. Unicentro, local C-45",
+      city: "Pereira",
+      latitude: 4.81,
+      longitude: -75.74,
     })
-    expect(url).toBe("https://www.google.com/maps/dir/?api=1&destination=6.2408625,-75.587071")
+    expect(url).toBe("https://www.google.com/maps/dir/?api=1&destination=4.81,-75.74")
+  })
+
+  it("busca por nombre, dirección y ciudad cuando la tienda no tiene coordenadas", () => {
+    const url = getStoreDirectionsUrl({
+      name: "One Star Fundadores",
+      address: "C.C. Fundadores, local 158",
+      city: "Manizales",
+    })
+    expect(url).toContain(`destination=${encodeURIComponent("One Star Fundadores, C.C. Fundadores, local 158, Manizales")}`)
   })
 
   it("genera URL con query si no hay coordenadas", () => {
