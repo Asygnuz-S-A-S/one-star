@@ -2,6 +2,7 @@ import React from "react"
 import { prisma } from "@/server/db/prisma"
 import DynamicStoreMap from "@/components/tiendas/DynamicStoreMap"
 import StoreActionButtons from "@/components/tiendas/StoreActionButtons"
+import { resolveStoreCoordinates } from "@/lib/store-location"
 
 export const metadata = {
   title: "Nuestras Tiendas | One Star",
@@ -54,54 +55,66 @@ export default async function TiendasPage() {
                   {city}
                 </h2>
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {cityStores.map((store) => (
-                    <div key={store.id} className="bg-white p-6 rounded-lg shadow-sm border border-[#E0E0E0] hover:shadow-md transition-shadow">
-                      <div className="w-12 h-12 bg-[#1C1C1C] text-white flex items-center justify-center rounded-full mb-4">
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                      </div>
-                      <h3 className="text-xl font-[var(--font-barlow)] font-bold text-[#1C1C1C] mb-3">
-                        {store.name}
-                      </h3>
-                      
-                      <div className="space-y-2 text-sm text-gray-600 font-[var(--font-montserrat)] mb-6">
-                        <p className="flex items-start gap-2">
-                          <span className="font-bold text-[#1C1C1C]">Dir:</span>
-                          <span>{store.address}</span>
-                        </p>
-                        {store.phone && (
-                          <p className="flex items-start gap-2">
-                            <span className="font-bold text-[#1C1C1C]">Tel:</span>
-                            <span>{store.phone}</span>
-                          </p>
-                        )}
-                        {store.schedule && (
-                          <p className="flex items-start gap-2">
-                            <span className="font-bold text-[#1C1C1C]">Horario:</span>
-                            <span>{store.schedule}</span>
-                          </p>
-                        )}
-                      </div>
+                  {cityStores.map((store) => {
+                    const coords = resolveStoreCoordinates(store)
+                    return (
+                      <div
+                        key={store.id}
+                        className="bg-white p-6 rounded-2xl shadow-sm border border-[#E0E0E0] hover:shadow-lg transition-all flex flex-col justify-between"
+                      >
+                        <div>
+                          <div className="w-12 h-12 bg-[#1C1C1C] text-white flex items-center justify-center rounded-xl mb-4 shadow-sm">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                          </div>
+                          <h3 className="text-xl font-[var(--font-barlow)] font-bold text-[#1C1C1C] mb-3">
+                            {store.name}
+                          </h3>
+                          
+                          <div className="space-y-2 text-sm text-gray-600 font-[var(--font-montserrat)] mb-6">
+                            <p className="flex items-start gap-2">
+                              <span className="font-bold text-[#1C1C1C]">Dir:</span>
+                              <span>{store.address}</span>
+                            </p>
+                            {store.phone && (
+                              <p className="flex items-start gap-2">
+                                <span className="font-bold text-[#1C1C1C]">Tel:</span>
+                                <span>{store.phone}</span>
+                              </p>
+                            )}
+                            {store.schedule && (
+                              <p className="flex items-start gap-2">
+                                <span className="font-bold text-[#1C1C1C]">Horario:</span>
+                                <span>{store.schedule}</span>
+                              </p>
+                            )}
+                          </div>
+                        </div>
 
-                      {store.latitude && store.longitude && (
-                        <DynamicStoreMap 
-                          position={{ lat: store.latitude, lng: store.longitude }}
-                          name={store.name}
-                          address={store.address}
-                        />
-                      )}
+                        <div>
+                          {coords && (
+                            <div className="h-52 w-full rounded-xl overflow-hidden border border-[#E0E0E0] mb-4 relative z-0 shadow-inner">
+                              <DynamicStoreMap 
+                                position={coords}
+                                name={store.name}
+                                address={store.address}
+                              />
+                            </div>
+                          )}
 
-                      <StoreActionButtons 
-                        name={store.name}
-                        address={store.address}
-                        city={store.city}
-                        latitude={store.latitude}
-                        longitude={store.longitude}
-                      />
-                    </div>
-                  ))}
+                          <StoreActionButtons 
+                            name={store.name}
+                            address={store.address}
+                            city={store.city}
+                            latitude={coords?.lat ?? store.latitude}
+                            longitude={coords?.lng ?? store.longitude}
+                          />
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             ))}

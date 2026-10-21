@@ -4,6 +4,7 @@ import React, { useState, useTransition } from "react"
 import type { BrandDetailDTO, BrandDTO } from "@/server/services/brand.service"
 import { createBrandAction, updateBrandAction, deleteBrandAction } from "@/app/admin/marcas/actions"
 import { faqsToText } from "@/lib/product-faq"
+import { resolveBrandLogoUrl } from "@/lib/brand-logos"
 import MediaLibraryModal from "./MediaLibraryModal"
 
 function slugify(text: string) {
@@ -567,12 +568,14 @@ export default function BrandManager({ brands: initialBrands }: { brands: (Brand
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {brands.map((brand) => (
+              {brands.map((brand) => {
+                const resolvedLogo = resolveBrandLogoUrl(brand)
+                return (
                 <tr key={brand.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3">
-                    {brand.logoUrl ? (
+                    {resolvedLogo ? (
                       /* eslint-disable-next-line @next/next/no-img-element */
-                      <img src={brand.logoUrl} alt={brand.name} className="h-8 w-16 object-contain" />
+                      <img src={resolvedLogo} alt={brand.name} className="h-8 w-16 object-contain" />
                     ) : (
                       <div className="h-8 w-16 bg-gray-100 rounded flex items-center justify-center">
                         <span className="text-xs text-gray-400">Sin logo</span>
@@ -609,7 +612,8 @@ export default function BrandManager({ brands: initialBrands }: { brands: (Brand
                     </button>
                   </td>
                 </tr>
-              ))}
+                )
+              })}
             </tbody>
           </table>
         )}

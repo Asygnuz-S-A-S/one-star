@@ -63,10 +63,10 @@ export default function ProductGallery({ images, videoUrl }: ProductGalleryProps
               whileTap={{ scale: 0.92 }}
               animate={{ scale: active ? 1.05 : 1 }}
               transition={{ type: "spring", stiffness: 420, damping: 15 }}
-              className={`relative shrink-0 w-16 h-16 md:w-20 md:h-20 bg-[#F0F0F0] dark:bg-white/5 overflow-hidden rounded-xl border-2 ${
+              className={`relative shrink-0 w-16 h-16 md:w-20 md:h-20 bg-transparent overflow-hidden rounded-xl transition-all ${
                 active
-                  ? "border-[#1C1C1C] dark:border-white shadow-md"
-                  : "border-transparent hover:border-[#4A4A4A]/50"
+                  ? "opacity-100"
+                  : "opacity-50 hover:opacity-100"
               }`}
               aria-label={img.alt || `Imagen ${idx + 1}`}
             >
@@ -74,7 +74,7 @@ export default function ProductGallery({ images, videoUrl }: ProductGalleryProps
                 src={img.url}
                 alt={img.alt || `Miniatura ${idx + 1}`}
                 fill
-                className="object-contain object-center p-1"
+                className="object-contain object-center p-1 mix-blend-multiply dark:mix-blend-normal"
                 sizes="80px"
               />
             </motion.button>
@@ -89,7 +89,7 @@ export default function ProductGallery({ images, videoUrl }: ProductGalleryProps
             animate={{ scale: showVideo ? 1.05 : 1 }}
             transition={{ type: "spring", stiffness: 420, damping: 15 }}
             className={`relative shrink-0 w-16 h-16 md:w-20 md:h-20 bg-[#1C1C1C] dark:bg-white/10 overflow-hidden rounded-xl border-2 flex items-center justify-center ${
-              showVideo ? "border-[#1C1C1C] dark:border-white" : "border-transparent hover:border-[#4A4A4A]/50"
+              showVideo ? "border-[#E31C23] dark:border-[#E31C23]" : "border-transparent hover:border-[#4A4A4A]/50"
             }`}
             aria-label="Ver video del producto"
           >
@@ -102,7 +102,7 @@ export default function ProductGallery({ images, videoUrl }: ProductGalleryProps
 
       {/* Imagen principal: rotación 3D al mover el mouse + zoom lúdico al hover */}
       <div
-        className="relative flex-1 aspect-square bg-[#F0F0F0] dark:bg-white/5 overflow-hidden rounded-2xl cursor-crosshair group"
+        className="relative flex-1 aspect-square bg-white bg-[radial-gradient(ellipse_at_center,_#ffffff_50%,_#f2f2f4_100%)] border border-gray-200/80 dark:border-white/10 dark:bg-white/5 overflow-hidden rounded-2xl cursor-crosshair group shadow-sm"
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
       >
