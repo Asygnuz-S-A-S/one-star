@@ -3,6 +3,7 @@
 import React, { useState } from "react"
 import { motion } from "motion/react"
 import Link from "next/link"
+import { resolveBrandLogoUrl } from "@/lib/brand-logos"
 
 export interface BrandItem {
   id?: string
@@ -47,9 +48,15 @@ export default function BrandStrip({
 }) {
   const [isHovered, setIsHovered] = useState(false)
 
-  // Normalizar marcas a formato BrandItem
+  // Normalizar marcas a formato BrandItem y resolver logos por defecto
   const normalizedBrands: BrandItem[] = (brands && brands.length > 0 ? brands : DEFAULT_BRANDS).map(
-    (b) => (typeof b === "string" ? { name: b, slug: b.toLowerCase().replace(/\s+/g, "-") } : b)
+    (b) => {
+      const item: BrandItem = typeof b === "string" ? { name: b, slug: b.toLowerCase().replace(/\s+/g, "-") } : b
+      return {
+        ...item,
+        logoUrl: resolveBrandLogoUrl(item) ?? item.logoUrl,
+      }
+    }
   )
 
   // Customization from config

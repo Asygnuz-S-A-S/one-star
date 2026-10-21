@@ -46,7 +46,7 @@ export function buildContentSecurityPolicy({
     "img-src 'self' blob: data: https:",
     "font-src 'self' data:",
     `connect-src ${connectSources.join(" ")}`,
-    "frame-src 'self' https://*.epayco.co",
+    "frame-src 'self' https://*.epayco.co https://www.google.com https://maps.google.com",
     "form-action 'self' https://*.epayco.co",
     "media-src 'self' blob: https:",
     "worker-src 'self' blob:",

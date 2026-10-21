@@ -152,6 +152,16 @@ describe("sendChatMessage", () => {
     expect(result.actions).toEqual([])
   })
 
+  it("envía al modelo la base de conocimiento de One Star en el prompt de sistema", async () => {
+    mockCreate.mockResolvedValue(textResponse("El envío estándar cuesta $15.000."))
+    await sendChatMessage([], "¿cuánto cuesta el envío?")
+    const { system } = mockCreate.mock.calls[0][0]
+    expect(system).toContain("BASE DE CONOCIMIENTO DE ONE STAR")
+    expect(system).toContain("Envía")
+    expect(system).toContain("C.C. Unicentro, local C-45")
+    expect(system).toContain("contacto@tiendaonestar.com")
+  })
+
   it("responde con un mensaje amigable si la API de IA falla", async () => {
     mockCreate.mockRejectedValue(new Error("network down"))
     const result = await sendChatMessage([], "hola")

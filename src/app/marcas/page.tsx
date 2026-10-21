@@ -1,6 +1,7 @@
 import Image from "next/image"
 import Link from "next/link"
 import { getStorefrontBrands } from "@/server/services/brand.service"
+import { resolveBrandLogoUrl } from "@/lib/brand-logos"
 
 export const metadata = {
   title: "Marcas | One Star",
@@ -34,34 +35,38 @@ export default async function MarcasPage() {
         </p>
       ) : (
         <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 px-4 md:px-8 pb-16">
-          {brands.map((brand) => (
-            <li key={brand.id}>
-              <Link
-                href={`/marcas/${brand.slug}`}
-                className="group flex h-40 flex-col items-center justify-center gap-3 rounded-2xl border border-[#E0E0E0] bg-white px-4 transition-all hover:-translate-y-0.5 hover:border-[#1C1C1C] hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E31C23]"
-              >
-                {brand.logoUrl ? (
-                  <span className="relative block h-12 w-32">
-                    <Image
-                      src={brand.logoUrl}
-                      alt={brand.name}
-                      fill
-                      sizes="128px"
-                      className="object-contain grayscale transition-all group-hover:grayscale-0"
-                    />
+          {brands.map((brand) => {
+            const logoUrl = resolveBrandLogoUrl(brand)
+            return (
+              <li key={brand.id}>
+                <Link
+                  href={`/marcas/${brand.slug}`}
+                  className="group flex h-44 flex-col items-center justify-center gap-3 rounded-2xl border border-[#E0E0E0] bg-white p-4 transition-all hover:-translate-y-1 hover:border-[#1C1C1C] hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E31C23]"
+                >
+                  {logoUrl ? (
+                    <span className="relative block h-16 w-36">
+                      <Image
+                        src={logoUrl}
+                        alt={`Logo de ${brand.name}`}
+                        fill
+                        sizes="144px"
+                        className="object-contain transition-all duration-300 group-hover:scale-105"
+                      />
+                    </span>
+                  ) : (
+                    <span className="font-[var(--font-barlow)] text-2xl font-bold uppercase tracking-wide text-[#1C1C1C]">
+                      {brand.name}
+                    </span>
+                  )}
+                  <span className="font-[var(--font-montserrat)] text-xs text-[#4A4A4A] transition-colors group-hover:text-[#1C1C1C]">
+                    <span className="font-semibold text-[#1C1C1C]">{brand.name}</span>
+                    <span className="mx-1 text-[#D4D4D4]">·</span>
+                    {brand.productCount} {brand.productCount === 1 ? "producto" : "productos"}
                   </span>
-                ) : (
-                  <span className="font-[var(--font-barlow)] text-2xl font-bold uppercase tracking-wide text-[#1C1C1C]">
-                    {brand.name}
-                  </span>
-                )}
-                <span className="font-[var(--font-montserrat)] text-xs text-[#4A4A4A]">
-                  {brand.logoUrl && <span className="font-semibold text-[#1C1C1C]">{brand.name} · </span>}
-                  {brand.productCount} {brand.productCount === 1 ? "producto" : "productos"}
-                </span>
-              </Link>
-            </li>
-          ))}
+                </Link>
+              </li>
+            )
+          })}
         </ul>
       )}
     </main>
