@@ -2,7 +2,7 @@ import React from "react"
 import { prisma } from "@/server/db/prisma"
 import DynamicStoreMap from "@/components/tiendas/DynamicStoreMap"
 import StoreActionButtons from "@/components/tiendas/StoreActionButtons"
-import { resolveStoreCoordinates } from "@/lib/store-location"
+import { getStoreMapQuery, resolveStoreCoordinates } from "@/lib/store-location"
 
 export const metadata = {
   title: "Nuestras Tiendas | One Star",
@@ -94,22 +94,21 @@ export default async function TiendasPage() {
                         </div>
 
                         <div>
-                          {coords && (
-                            <div className="h-52 w-full rounded-xl overflow-hidden border border-[#E0E0E0] mb-4 relative z-0 shadow-inner">
-                              <DynamicStoreMap 
-                                position={coords}
-                                name={store.name}
-                                address={store.address}
-                              />
-                            </div>
-                          )}
+                          <div className="h-52 w-full rounded-xl overflow-hidden border border-[#E0E0E0] mb-4 relative z-0 shadow-inner">
+                            <DynamicStoreMap
+                              position={coords}
+                              query={getStoreMapQuery(store)}
+                              name={store.name}
+                              address={store.address}
+                            />
+                          </div>
 
                           <StoreActionButtons 
                             name={store.name}
                             address={store.address}
                             city={store.city}
-                            latitude={coords?.lat ?? store.latitude}
-                            longitude={coords?.lng ?? store.longitude}
+                            latitude={coords?.lat}
+                            longitude={coords?.lng}
                           />
                         </div>
                       </div>

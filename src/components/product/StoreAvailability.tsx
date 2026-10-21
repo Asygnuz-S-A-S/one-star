@@ -4,6 +4,8 @@ import dynamic from "next/dynamic"
 import Link from "next/link"
 import { motion } from "motion/react"
 
+import { getStoreMapQuery, resolveStoreCoordinates } from "@/lib/store-location"
+
 const ClientStoreMap = dynamic(() => import("@/components/tiendas/ClientStoreMap"), { ssr: false })
 
 interface StoreInfo {
@@ -201,17 +203,12 @@ export default function StoreAvailability({
 
                   {/* Map */}
                   <div className="min-h-[200px] md:min-h-0 relative">
-                    {store.latitude && store.longitude ? (
-                      <ClientStoreMap
-                        position={{ lat: store.latitude, lng: store.longitude }}
-                        name={store.name}
-                        address={store.address}
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-[#E0E0E0] dark:bg-white/5 flex items-center justify-center text-[#4A4A4A] dark:text-gray-500 text-xs font-[var(--font-montserrat)]">
-                        Mapa no disponible
-                      </div>
-                    )}
+                    <ClientStoreMap
+                      position={resolveStoreCoordinates(store)}
+                      query={getStoreMapQuery(store)}
+                      name={store.name}
+                      address={store.address}
+                    />
                   </div>
                 </div>
               </motion.div>
