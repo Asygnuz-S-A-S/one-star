@@ -74,48 +74,11 @@ export interface Coordinates {
   lng: number
 }
 
-// Coordenadas exactas verificadas de sedes One Star
-const KNOWN_STORE_COORDINATES: Array<{
-  matches: (store: StoreLocationData) => boolean
-  coords: Coordinates
-}> = [
-  {
-    // One Star Unicentro (Medellín - Cra. 66B #34A-76)
-    matches: (s) =>
-      /unicentro/i.test(s.name ?? "") || /unicentro/i.test(s.address ?? "") || /66b/i.test(s.address ?? ""),
-    coords: { lat: 6.2408625, lng: -75.587071 },
-  },
-  {
-    // One Star Fundadores (Medellín - Cl. 50 #46-36)
-    matches: (s) =>
-      /fundadores/i.test(s.name ?? "") || /fundadores/i.test(s.address ?? "") || /46-36/i.test(s.address ?? ""),
-    coords: { lat: 6.25143, lng: -75.56452 },
-  },
-  {
-    // One Star Centro (Medellín - Cra. 50 #50-20)
-    matches: (s) =>
-      /centro/i.test(s.name ?? "") || /candelaria/i.test(s.address ?? "") || /50-20/i.test(s.address ?? ""),
-    coords: { lat: 6.25052, lng: -75.56781 },
-  },
-]
-
-// Fallback por ciudad principal en Colombia si es una sede nueva sin coordenadas
-const CITY_FALLBACK_COORDINATES: Record<string, Coordinates> = {
-  medellin: { lat: 6.244203, lng: -75.581212 },
-  bogota: { lat: 4.60971, lng: -74.08175 },
-  cali: { lat: 3.451647, lng: -76.531985 },
-  barranquilla: { lat: 10.96854, lng: -74.78132 },
-  bucaramanga: { lat: 7.12539, lng: -73.1198 },
-  manizales: { lat: 5.06889, lng: -75.51738 },
-  pereira: { lat: 4.81333, lng: -75.69611 },
-}
-
 /**
- * Resuelve las coordenadas exactas de una tienda física.
- * 1. Usa `latitude` y `longitude` si son válidos y distintos de 0.
- * 2. Si no, busca en la lista de sedes oficiales One Star conocidas por nombre o dirección.
- * 3. Si no coincide, busca por ciudad.
- * 4. Si ninguna coincide, devuelve null.
+ * Coordenadas exactas de una tienda física: solo las que se guardaron en el admin.
+ * No se adivinan por nombre ni por ciudad: un punto aproximado con el marcador de One Star
+ * haría creer al cliente que la tienda está donde no está. Sin coordenadas, el mapa
+ * busca la dirección en Google (ver `getStoreMapQuery`).
  */
 export function resolveStoreCoordinates(store: StoreLocationData | null | undefined): Coordinates | null {
   if (!store) return null
@@ -130,24 +93,12 @@ export function resolveStoreCoordinates(store: StoreLocationData | null | undefi
     return { lat: store.latitude, lng: store.longitude }
   }
 
-  for (const entry of KNOWN_STORE_COORDINATES) {
-    if (entry.matches(store)) {
-      return entry.coords
-    }
-  }
-
-  if (store.city) {
-    const normalizedCity = store.city
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .trim()
-    if (CITY_FALLBACK_COORDINATES[normalizedCity]) {
-      return CITY_FALLBACK_COORDINATES[normalizedCity]
-    }
-  }
-
   return null
+}
+
+/** Texto para buscar la tienda en Google Maps cuando no tiene coordenadas guardadas. */
+export function getStoreMapQuery(store: StoreLocationData): string {
+  return [store.name, store.address, store.city].filter(Boolean).join(", ")
 }
 
 /**
@@ -159,6 +110,5 @@ export function getStoreDirectionsUrl(store: StoreLocationData): string {
     return `https://www.google.com/maps/dir/?api=1&destination=${coords.lat},${coords.lng}`
   }
 
-  const queryParts = [store.name, store.address, store.city].filter(Boolean).join(", ")
-  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(queryParts)}`
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(getStoreMapQuery(store))}`
 }

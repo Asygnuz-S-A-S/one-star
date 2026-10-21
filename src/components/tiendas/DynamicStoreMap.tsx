@@ -5,7 +5,8 @@ import dynamic from "next/dynamic"
 const ClientStoreMap = dynamic(() => import("./ClientStoreMap"), { ssr: false })
 
 interface DynamicStoreMapProps {
-  position: { lat: number; lng: number }
+  position: { lat: number; lng: number } | null
+  query: string
   name: string
   address: string
 }
