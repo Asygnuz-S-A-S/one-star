@@ -161,7 +161,7 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
       {href && <Link href={href} className="absolute inset-0 z-20" aria-label={name} />}
       <div 
         ref={imageFrameRef}
-        className={`relative aspect-[3/4] bg-white bg-[radial-gradient(ellipse_at_center,_#ffffff_45%,_#f2f2f4_100%)] border border-gray-200/80 shadow-sm overflow-hidden rounded-xl transition-all duration-300 group-hover:shadow-xl dark:bg-white/5 dark:backdrop-blur-md dark:border-white/10 ${
+        className={`relative aspect-[3/4] bg-white border border-gray-200/80 shadow-sm overflow-hidden rounded-xl transition-all duration-300 group-hover:shadow-xl dark:bg-white/5 dark:backdrop-blur-md dark:border-white/10 ${
           imageColorOptions.length > 0 ? "mb-2" : "mb-4"
         }`}
       >
@@ -169,7 +169,7 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
           {/* Subtle overlay gradient on hover */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10 pointer-events-none rounded-xl" />
           
-          <div className="absolute inset-0 w-full h-full pointer-events-none">
+          <div className="absolute inset-0 w-full h-full pointer-events-none [mask-image:radial-gradient(ellipse_92%_88%_at_50%_50%,black_80%,transparent_100%)] [-webkit-mask-image:radial-gradient(ellipse_92%_88%_at_50%_50%,black_80%,transparent_100%)]">
             {frames.map((src, index) => (
               <Image
                 key={`frame-${index}`}

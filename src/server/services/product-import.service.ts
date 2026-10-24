@@ -351,6 +351,7 @@ export interface ProductImportSummary {
   updatedVariants: number
   errors: number
   skipped?: number
+  deactivatedProducts?: number
 }
 
 export interface ProductImportProductSummary {
@@ -364,6 +365,7 @@ export interface ProductImportProductSummary {
   stockAfter: number
   addedSizesCount: number
   updatedVariantsCount: number
+  isDeactivated?: boolean
 }
 
 export interface ProductImportPreview {
@@ -597,6 +599,7 @@ async function planImport(
   fingerprint: string
   hasReadyColumn: boolean
   existingProductsMap: Map<string, ProductForImport>
+  productsToDeactivateIds: string[]
 }> {
   const { rows: rawRows, hasReadyColumn } = parseWorkbook(buffer)
   const onlyReady = options?.onlyReadyRows ?? (hasReadyColumn ? true : false)
@@ -610,7 +613,13 @@ async function planImport(
     isRecoveredFromDate: boolean
   }
 
+  interface NotReadyCandidate {
+    rawSku: string
+    baseSku: string
+  }
+
   const validCandidates: ValidCandidate[] = []
+  const notReadyCandidates: NotReadyCandidate[] = []
 
   for (const { rowNumber, rowObj, rawSizeCell, cellMetaForSize } of rawRows) {
     const rawSku = String(rowObj.sku ?? "").trim()
@@ -641,6 +650,12 @@ async function planImport(
           action: "skip",
           message: "Fila omitida (no lista)",
         })
+        if (rawSku) {
+          notReadyCandidates.push({
+            rawSku,
+            baseSku: parseSku(rawSku).baseSku.trim(),
+          })
+        }
         continue
       }
     }
@@ -743,11 +758,25 @@ async function planImport(
     ...new Set(preparedRows.map((r) => parseSku(r.row.sku).baseSku.trim()).filter(Boolean)),
   ]
 
+  const notReadySkus = [...new Set(notReadyCandidates.map((c) => c.rawSku).filter(Boolean))]
+  const notReadyBaseSkus = [
+    ...new Set(notReadyCandidates.map((c) => c.baseSku).filter(Boolean)),
+  ]
+
   const isErpOwner = await isErpCatalogOwner()
 
-  const [existingVariants, productsByBase, categories, brands] = await Promise.all([
+  const [
+    existingVariants,
+    productsByBase,
+    notReadyExistingVariants,
+    notReadyProductsByBase,
+    categories,
+    brands,
+  ] = await Promise.all([
     findVariantsBySkus(skus),
     findProductsByBaseSkus(baseSkus),
+    hasReadyColumn && onlyReady && notReadySkus.length > 0 ? findVariantsBySkus(notReadySkus) : Promise.resolve([]),
+    hasReadyColumn && onlyReady && notReadyBaseSkus.length > 0 ? findProductsByBaseSkus(notReadyBaseSkus) : Promise.resolve([]),
     findManyCategories(),
     findManyBrands(),
   ])
@@ -996,6 +1025,54 @@ async function planImport(
     }
   }
 
+  // 10b. Desactivación de productos existentes que en el archivo NO están marcados como listos
+  const plannedExistingProductIds = new Set(
+    [...groups.values()].map((g) => g.existingProductId).filter(Boolean) as string[]
+  )
+
+  const candidateDeactivateIds = new Set<string>()
+  for (const p of notReadyProductsByBase) {
+    if (!plannedExistingProductIds.has(p.id)) {
+      candidateDeactivateIds.add(p.id)
+    }
+  }
+  for (const v of notReadyExistingVariants) {
+    if (!plannedExistingProductIds.has(v.product.id)) {
+      candidateDeactivateIds.add(v.product.id)
+    }
+  }
+
+  const productsToDeactivateIds = [...candidateDeactivateIds]
+  if (productsToDeactivateIds.length > 0) {
+    const missingDeactivateIds = productsToDeactivateIds.filter((id) => !existingProductsMap.has(id))
+    if (missingDeactivateIds.length > 0) {
+      const fetched = await findProductsByIdsForImport(missingDeactivateIds)
+      for (const p of fetched) {
+        existingProductsMap.set(p.id, p)
+      }
+    }
+
+    for (const id of productsToDeactivateIds) {
+      const p = existingProductsMap.get(id)
+      if (!p) continue
+      const totalStock = p.variants.reduce((sum, v) => sum + (v.stock || 0), 0)
+      const price = p.basePrice != null ? Number(p.basePrice) : 0
+      productsSummary.push({
+        productId: p.id,
+        productName: p.name,
+        baseSku: parseSku(p.variants[0]?.sku ?? p.slug).baseSku || p.slug,
+        isExisting: true,
+        priceBefore: price,
+        priceAfter: price,
+        stockBefore: totalStock,
+        stockAfter: totalStock,
+        addedSizesCount: 0,
+        updatedVariantsCount: 0,
+        isDeactivated: true,
+      })
+    }
+  }
+
   // 11. Huella digital del catálogo
   const categoryNames = categories.map((c) => normalizeKey(c.name)).sort()
   const brandNames = brands.map((b) => normalizeKey(b.name)).sort()
@@ -1008,6 +1085,7 @@ async function planImport(
         stock: v.stock,
       }))
       .sort((a, b) => a.id.localeCompare(b.id)),
+    deactivatedProductIds: productsToDeactivateIds.slice().sort(),
     categoryNames,
     brandNames,
     onlyReady,
@@ -1024,6 +1102,7 @@ async function planImport(
     fingerprint,
     hasReadyColumn,
     existingProductsMap,
+    productsToDeactivateIds,
   }
 }
 
@@ -1031,7 +1110,8 @@ export async function previewProductImport(
   buffer: ArrayBuffer,
   options?: ProductImportOptions
 ): Promise<ProductImportPreview> {
-  const { rowResults, productsSummary, fingerprint, hasReadyColumn } = await planImport(buffer, options)
+  const { rowResults, productsSummary, fingerprint, hasReadyColumn, productsToDeactivateIds } =
+    await planImport(buffer, options)
   const rawSummary = rowResults.reduce(
     (acc, r) => {
       if (r.action === "create_product") acc.newProducts++
@@ -1049,6 +1129,7 @@ export async function previewProductImport(
     updatedVariants: rawSummary.updatedVariants,
     errors: rawSummary.errors,
     ...(rawSummary.skipped > 0 ? { skipped: rawSummary.skipped } : {}),
+    ...(productsToDeactivateIds.length > 0 ? { deactivatedProducts: productsToDeactivateIds.length } : {}),
   }
   return {
     fingerprint,
@@ -1122,6 +1203,7 @@ export interface ProductImportApplyResult {
   newProducts: number
   newVariants: number
   updatedVariants: number
+  deactivatedProducts?: number
 }
 
 export async function applyProductImport(
@@ -1129,7 +1211,7 @@ export async function applyProductImport(
   expectedFingerprint: string,
   options?: ProductImportOptions
 ): Promise<ProductImportApplyResult> {
-  const { groups, fingerprint, existingProductsMap } = await planImport(buffer, options)
+  const { groups, fingerprint, existingProductsMap, productsToDeactivateIds } = await planImport(buffer, options)
   if (fingerprint !== expectedFingerprint) {
     throw new Error(
       "El catálogo cambió desde que generaste la vista previa. Vuelve a subir el archivo para revisar los cambios."
@@ -1150,6 +1232,13 @@ export async function applyProductImport(
 
   await prisma.$transaction(
     async (tx) => {
+      if (productsToDeactivateIds.length > 0) {
+        await tx.product.updateMany({
+          where: { id: { in: productsToDeactivateIds } },
+          data: { isPublished: false },
+        })
+      }
+
       for (const group of groups) {
         let productId = group.existingProductId
 
@@ -1341,5 +1430,10 @@ export async function applyProductImport(
     { timeout: 120_000, maxWait: 10_000 }
   )
 
-  return { newProducts, newVariants, updatedVariants }
+  return {
+    newProducts,
+    newVariants,
+    updatedVariants,
+    ...(productsToDeactivateIds.length > 0 ? { deactivatedProducts: productsToDeactivateIds.length } : {}),
+  }
 }

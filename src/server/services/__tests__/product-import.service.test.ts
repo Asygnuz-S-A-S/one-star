@@ -8,6 +8,7 @@ const txMock = {
     create: vi.fn(async (args: { data: Record<string, unknown> }) => ({ id: "new-product-id", ...args.data })),
     findUnique: vi.fn(async () => null),
     update: vi.fn(async (args: { where: { id: string }; data: Record<string, unknown> }) => ({ id: args.where.id, ...args.data })),
+    updateMany: vi.fn(async () => ({ count: 0 })),
   },
   productImage: {
     findMany: vi.fn(async () => [] as { url: string }[]),
@@ -57,9 +58,9 @@ const {
   mockFindProductsByIdsForImport,
 } = vi.hoisted(() => ({
   mockIsErpCatalogOwner: vi.fn(async () => false),
-  mockFindVariantsBySkus: vi.fn(async () => []),
-  mockFindProductsByBaseSkus: vi.fn(async () => []),
-  mockFindProductsByIdsForImport: vi.fn(async () => []),
+  mockFindVariantsBySkus: vi.fn<(skus: string[]) => Promise<unknown[]>>(async () => []),
+  mockFindProductsByBaseSkus: vi.fn<(bases: string[]) => Promise<unknown[]>>(async () => []),
+  mockFindProductsByIdsForImport: vi.fn<(ids: string[]) => Promise<unknown[]>>(async () => []),
 }))
 
 vi.mock("@/server/services/catalog-source.service", () => ({
@@ -285,6 +286,55 @@ describe("previewProductImport", () => {
     expect(preview.rows[2].action).toBe("skip")
     expect(preview.summary.skipped).toBe(2)
     expect(preview.summary.newProducts).toBe(1)
+  })
+
+  it("PRODUCTO LISTO: desactiva productos existentes cuando no están marcados OK", async () => {
+    const existingNotReadyProd = {
+      id: "prod-not-ready",
+      slug: "nr123",
+      name: "Zapato No Listo",
+      erpId: null,
+      basePrice: 300000,
+      salePrice: null,
+      isOnSale: false,
+      description: null,
+      extendedDescription: null,
+      gender: null,
+      isPublished: true,
+      availableOnline: true,
+      availableInStores: true,
+      categoryId: "cat-calzado",
+      category: { id: "cat-calzado", name: "Calzado" },
+      brandId: "brand-nike",
+      brand: { id: "brand-nike", name: "Nike" },
+      images: [],
+      variants: [{ id: "v-nr", sku: "NR123_40", size: "40", stock: 5 }],
+    }
+    mockFindProductsByBaseSkus.mockImplementation(async (bases: string[]) => {
+      if (bases.includes("NR123")) return [existingNotReadyProd]
+      return []
+    })
+    mockFindProductsByIdsForImport.mockImplementation(async (ids: string[]) => {
+      if (ids.includes("prod-not-ready")) return [existingNotReadyProd]
+      return []
+    })
+
+    const rows = [
+      baseRow({ sku: "READY-1", readyFlag: "OK" }),
+      baseRow({ sku: "NR123", readyFlag: "" }),
+    ]
+    const buffer = buildBuffer(rows, COLUMNS, true)
+    const preview = await previewProductImport(buffer, { onlyReadyRows: true })
+    expect(preview.summary.newProducts).toBe(1)
+    expect(preview.summary.deactivatedProducts).toBe(1)
+    expect(preview.products.find((p) => p.productId === "prod-not-ready")?.isDeactivated).toBe(true)
+
+    const applyRes = await applyProductImport(buffer, preview.fingerprint, { onlyReadyRows: true })
+    expect(applyRes.deactivatedProducts).toBe(1)
+    expect(txMock.product.updateMany).toHaveBeenCalledWith({
+      where: { id: { in: ["prod-not-ready"] } },
+      data: { isPublished: false },
+    })
   })
 
   it("producto sin imágenes genera advertencia 'sin fotos'", async () => {
