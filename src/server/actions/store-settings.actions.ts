@@ -2,7 +2,11 @@
 
 import { revalidatePath } from "next/cache"
 import { requireSuperAdmin } from "@/server/auth/require-admin"
+import { getStorageAdapter } from "@/server/storage/storage.container"
+import { parseGiftCardAmounts } from "@/lib/storefront-copy"
+import { syncGiftCardCatalog } from "@/server/services/gift-card.service"
 import {
+  setLegalDocument,
   updateCatalogSource,
   updateMetaPixelSettings,
   updateStoreInfo,
@@ -58,12 +62,30 @@ export async function updateStoreInfoAction(
       clubWelcomeSubject: text(formData, "clubWelcomeSubject"),
       clubWelcomeBody: text(formData, "clubWelcomeBody"),
       footerLinks: text(formData, "footerLinks"),
+      bottomNav: text(formData, "bottomNav"),
+      deliveryMinDays: text(formData, "deliveryMinDays").trim(),
+      deliveryMaxDays: text(formData, "deliveryMaxDays").trim(),
+      expressDeliveryMinDays: text(formData, "expressDeliveryMinDays").trim(),
+      expressDeliveryMaxDays: text(formData, "expressDeliveryMaxDays").trim(),
+      legalCity: text(formData, "legalCity"),
+      commercialRegistry: text(formData, "commercialRegistry"),
+      dataProtectionEmail: text(formData, "dataProtectionEmail").trim(),
+      giftCardAmounts: text(formData, "giftCardAmounts"),
     })
     await updateStoreInfo(input)
+    const amounts = parseGiftCardAmounts(input.giftCardAmounts)
+    if (amounts.length > 0) {
+      await syncGiftCardCatalog(amounts, {
+        minAmount: input.giftCardMinAmount,
+        maxAmount: input.giftCardMaxAmount,
+      })
+    }
     revalidatePath("/admin/configuracion")
     revalidatePath("/", "layout")
     revalidatePath("/terminos")
     revalidatePath("/privacidad")
+    revalidatePath("/cambios")
+    revalidatePath("/tarjeta-regalo")
     return { success: true }
   } catch (error: unknown) {
     console.error("[store-settings] updateStoreInfoAction:", error)
@@ -110,5 +132,47 @@ export async function updateCatalogSourceAction(
   } catch (error: unknown) {
     console.error("[store-settings] updateCatalogSourceAction:", error)
     return { success: false, error: firstIssueMessage(error, "No se pudo actualizar la fuente del catálogo") }
+  }
+}
+
+const DOCUMENT_KINDS = ["terms", "privacy", "returns"] as const
+
+export async function uploadLegalDocumentAction(formData: FormData): Promise<StoreSettingsActionResult> {
+  try {
+    await requireSuperAdmin()
+    const kind = String(formData.get("kind") ?? "")
+    if (!DOCUMENT_KINDS.includes(kind as (typeof DOCUMENT_KINDS)[number])) {
+      return { success: false, error: "Documento no reconocido." }
+    }
+    if (formData.get("clear") === "on") {
+      await setLegalDocument(kind as (typeof DOCUMENT_KINDS)[number], null)
+      revalidatePath("/terminos")
+      revalidatePath("/privacidad")
+      revalidatePath("/cambios")
+      revalidatePath("/admin/configuracion")
+      return { success: true }
+    }
+    const file = formData.get("file")
+    if (!(file instanceof File) || file.size === 0) {
+      return { success: false, error: "Selecciona un PDF." }
+    }
+    if (file.type !== "application/pdf") {
+      return { success: false, error: "El archivo debe ser un PDF." }
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      return { success: false, error: "El PDF no puede superar 15 MB." }
+    }
+    const buffer = Buffer.from(await file.arrayBuffer())
+    const base64 = `data:application/pdf;base64,${buffer.toString("base64")}`
+    const uploaded = await getStorageAdapter().uploadImage(base64, { folder: "one-star/legal" })
+    await setLegalDocument(kind as (typeof DOCUMENT_KINDS)[number], uploaded.url)
+    revalidatePath("/terminos")
+    revalidatePath("/privacidad")
+    revalidatePath("/cambios")
+    revalidatePath("/admin/configuracion")
+    return { success: true }
+  } catch (error: unknown) {
+    console.error("[store-settings] uploadLegalDocumentAction:", error)
+    return { success: false, error: firstIssueMessage(error, "No se pudo subir el documento") }
   }
 }

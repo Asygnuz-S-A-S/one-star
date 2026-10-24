@@ -76,9 +76,26 @@ export const StoreInfoInputSchema = z.object({
   clubWelcomeSubject: optionalText(120),
   clubWelcomeBody: optionalText(800),
   footerLinks: optionalText(2000),
+  bottomNav: optionalText(1000),
+  deliveryMinDays: z.coerce.number().int().min(1, "El plazo mínimo es 1 día").max(30),
+  deliveryMaxDays: z.coerce.number().int().min(1).max(60),
+  expressDeliveryMinDays: z.coerce.number().int().min(1).max(15),
+  expressDeliveryMaxDays: z.coerce.number().int().min(1).max(30),
+  legalCity: optionalText(80),
+  commercialRegistry: optionalText(120),
+  dataProtectionEmail: z
+    .union([z.literal(""), z.email("El correo de habeas data no es válido").max(120)])
+    .transform(emptyToNull),
+  giftCardAmounts: optionalText(500),
 }).refine((input) => input.giftCardMinAmount <= input.giftCardMaxAmount, {
   message: "El monto mínimo no puede ser mayor que el máximo",
   path: ["giftCardMinAmount"],
+}).refine((input) => input.deliveryMinDays <= input.deliveryMaxDays, {
+  message: "El plazo mínimo no puede ser mayor que el máximo",
+  path: ["deliveryMinDays"],
+}).refine((input) => input.expressDeliveryMinDays <= input.expressDeliveryMaxDays, {
+  message: "El plazo express mínimo no puede ser mayor que el máximo",
+  path: ["expressDeliveryMinDays"],
 })
 
 export type StoreInfoInput = z.infer<typeof StoreInfoInputSchema>

@@ -40,6 +40,7 @@ export interface ConversionSignalsInput {
   isDigital?: boolean
   /** Umbral de envío gratis vigente. Si no llega, se usa el valor de respaldo. */
   freeThreshold?: number
+  delivery?: { min: number; max: number }
 }
 
 export function getConversionSignals(input: ConversionSignalsInput): ConversionSignal[] {
@@ -51,9 +52,10 @@ export function getConversionSignals(input: ConversionSignalsInput): ConversionS
   if (scarcity) signals.push(scarcity)
 
   signals.push(getShippingSignal(input.price, input.freeThreshold ?? STANDARD_SHIPPING_THRESHOLD))
+  const delivery = input.delivery ?? DELIVERY_BUSINESS_DAYS
   signals.push({
     kind: "delivery",
-    text: `Entrega en ${DELIVERY_BUSINESS_DAYS.min} a ${DELIVERY_BUSINESS_DAYS.max} días hábiles en toda Colombia`,
+    text: `Entrega en ${delivery.min} a ${delivery.max} días hábiles en toda Colombia`,
     tone: "info",
   })
 

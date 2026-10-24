@@ -132,7 +132,7 @@ export default function StoreAvailability({
                         </p>
                       </div>
                       <span
-                        className="text-[10px] font-bold bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 px-2 py-1 rounded-full uppercase tracking-wider"
+                        className="text-xs font-bold bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 px-2 py-1 rounded-full uppercase tracking-wider"
                         title="Existencias en tienda según el ERP. Sin reserva por la web."
                       >
                         {store.stock} en tienda
@@ -177,7 +177,7 @@ export default function StoreAvailability({
                           href={store.googleMapsUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest border border-[#1C1C1C] dark:border-white text-[#1C1C1C] dark:text-white px-3 py-2 hover:bg-[#1C1C1C] hover:text-white dark:hover:bg-white dark:hover:text-black transition-colors"
+                          className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest border border-[#1C1C1C] dark:border-white text-[#1C1C1C] dark:text-white px-3 py-2 hover:bg-[#1C1C1C] hover:text-white dark:hover:bg-white dark:hover:text-black transition-colors"
                         >
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
@@ -190,7 +190,7 @@ export default function StoreAvailability({
                           href={`https://www.google.com/maps/dir/?api=1&destination=${store.latitude},${store.longitude}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest bg-[#1C1C1C] dark:bg-white text-white dark:text-black px-3 py-2 hover:bg-[#E31C23] dark:hover:bg-gray-200 transition-colors"
+                          className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest bg-[#1C1C1C] dark:bg-white text-white dark:text-black px-3 py-2 hover:bg-[#E31C23] dark:hover:bg-gray-200 transition-colors"
                         >
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <polygon points="3 11 22 2 13 21 11 13 3 11"/>

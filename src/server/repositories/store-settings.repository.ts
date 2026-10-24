@@ -33,6 +33,18 @@ export interface StoreSettingsPatch {
   clubWelcomeSubject?: string | null
   clubWelcomeBody?: string | null
   footerLinks?: string | null
+  bottomNav?: string | null
+  deliveryMinDays?: number
+  deliveryMaxDays?: number
+  expressDeliveryMinDays?: number
+  expressDeliveryMaxDays?: number
+  legalCity?: string | null
+  commercialRegistry?: string | null
+  dataProtectionEmail?: string | null
+  termsDocumentUrl?: string | null
+  privacyDocumentUrl?: string | null
+  returnsDocumentUrl?: string | null
+  giftCardAmounts?: string | null
 }
 
 /** Devuelve el registro único; lo crea con los defaults del schema si no existe. */

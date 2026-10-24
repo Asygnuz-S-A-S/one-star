@@ -1,7 +1,7 @@
 "use client"
 
 import { useActionState } from "react"
-import { updateStoreInfoAction } from "@/server/actions/store-settings.actions"
+import { updateStoreInfoAction, uploadLegalDocumentAction } from "@/server/actions/store-settings.actions"
 import type { StoreSettingsDTO } from "@/server/services/store-settings.service"
 
 interface StoreInfoFormProps {
@@ -21,6 +21,7 @@ export default function StoreInfoForm({ settings }: StoreInfoFormProps) {
   )
 
   return (
+    <div className="space-y-8">
     <form action={formAction} className="space-y-8">
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <h2 className="font-['Barlow',sans-serif] text-lg font-bold text-[#1C1C1C] mb-1">
@@ -119,6 +120,22 @@ export default function StoreInfoForm({ settings }: StoreInfoFormProps) {
               className={inputClass}
             />
           </div>
+          <div>
+            <label htmlFor="delivery-min" className={labelClass}>Entrega estándar, mínimo de días hábiles</label>
+            <input id="delivery-min" name="deliveryMinDays" inputMode="numeric" defaultValue={settings.deliveryMinDays} className={inputClass} />
+          </div>
+          <div>
+            <label htmlFor="delivery-max" className={labelClass}>Entrega estándar, máximo de días hábiles</label>
+            <input id="delivery-max" name="deliveryMaxDays" inputMode="numeric" defaultValue={settings.deliveryMaxDays} className={inputClass} />
+          </div>
+          <div>
+            <label htmlFor="express-min" className={labelClass}>Entrega express, mínimo de días hábiles</label>
+            <input id="express-min" name="expressDeliveryMinDays" inputMode="numeric" defaultValue={settings.expressDeliveryMinDays} className={inputClass} />
+          </div>
+          <div>
+            <label htmlFor="express-max" className={labelClass}>Entrega express, máximo de días hábiles</label>
+            <input id="express-max" name="expressDeliveryMaxDays" inputMode="numeric" defaultValue={settings.expressDeliveryMaxDays} className={inputClass} />
+          </div>
         </div>
       </div>
 
@@ -127,7 +144,7 @@ export default function StoreInfoForm({ settings }: StoreInfoFormProps) {
           Datos legales
         </h2>
         <p className="text-xs text-[#4A4A4A] mb-4">
-          Aparecen en Términos y Privacidad. Si falta la razón social, el NIT, el domicilio o el correo, esas páginas muestran un aviso.
+          Aparecen en Términos, Privacidad y Cambios. Si falta la razón social, el NIT, el domicilio o el correo, esas páginas muestran un aviso.
         </p>
         <div className="space-y-4">
           <div>
@@ -180,6 +197,18 @@ export default function StoreInfoForm({ settings }: StoreInfoFormProps) {
               className={inputClass}
             />
           </div>
+          <div>
+            <label htmlFor="legal-city" className={labelClass}>Ciudad</label>
+            <input id="legal-city" name="legalCity" defaultValue={settings.legalCity ?? ""} className={inputClass} />
+          </div>
+          <div>
+            <label htmlFor="legal-registry" className={labelClass}>Matrícula mercantil</label>
+            <input id="legal-registry" name="commercialRegistry" defaultValue={settings.commercialRegistry ?? ""} className={inputClass} />
+          </div>
+          <div>
+            <label htmlFor="data-email" className={labelClass}>Correo de protección de datos</label>
+            <input id="data-email" type="email" name="dataProtectionEmail" defaultValue={settings.dataProtectionEmail ?? ""} className={inputClass} />
+          </div>
         </div>
       </div>
 
@@ -208,7 +237,7 @@ export default function StoreInfoForm({ settings }: StoreInfoFormProps) {
 
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <h2 className="font-['Barlow',sans-serif] text-lg font-bold text-[#1C1C1C] mb-1">Tarjeta de regalo</h2>
-        <p className="text-xs text-[#4A4A4A] mb-4">Los montos que se pueden comprar son los productos activos de la categoría. Aquí defines el rango permitido y la vigencia de las tarjetas nuevas.</p>
+        <p className="text-xs text-[#4A4A4A] mb-4">Escribe los montos que se ofrecen, uno por línea. Al guardar se publican esos valores y se ocultan los demás. El mínimo y el máximo limitan lo que se acepta.</p>
         <div className="space-y-4">
           <div>
             <label htmlFor="gift-min" className={labelClass}>Monto mínimo</label>
@@ -221,6 +250,10 @@ export default function StoreInfoForm({ settings }: StoreInfoFormProps) {
           <div>
             <label htmlFor="gift-months" className={labelClass}>Vigencia (meses)</label>
             <input id="gift-months" name="giftCardValidityMonths" inputMode="numeric" defaultValue={settings.giftCardValidityMonths} className={inputClass} />
+          </div>
+          <div>
+            <label htmlFor="gift-amounts" className={labelClass}>Montos publicados, uno por línea</label>
+            <textarea id="gift-amounts" name="giftCardAmounts" rows={5} defaultValue={settings.giftCardAmounts} placeholder={"50000\n100000\n200000"} className={inputClass} />
           </div>
         </div>
       </div>
@@ -257,6 +290,12 @@ export default function StoreInfoForm({ settings }: StoreInfoFormProps) {
         <textarea id="footer-links" name="footerLinks" rows={6} defaultValue={settings.footerLinks} placeholder={"Tienda | /productos\nTérminos | /terminos"} className={inputClass} />
       </div>
 
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h2 className="font-['Barlow',sans-serif] text-lg font-bold text-[#1C1C1C] mb-1">Barra inferior del celular</h2>
+        <p className="text-xs text-[#4A4A4A] mb-4">Hasta cinco líneas: Etiqueta | /ruta | icono. Iconos: home, shop, search, bag, user. Usa #bolsa para abrir el carrito. Vacío = Inicio, Tienda, Buscar, Bolsa y Cuenta.</p>
+        <textarea id="bottom-nav" name="bottomNav" rows={5} defaultValue={settings.bottomNav} placeholder={"Inicio | / | home\nBolsa | #bolsa | bag"} className={inputClass} />
+      </div>
+
       <div className="sticky bottom-4 z-10 flex flex-wrap items-center justify-end gap-3 rounded-xl border border-gray-200 bg-white/95 p-3 shadow-sm backdrop-blur">
         {state && (
           <p
@@ -277,5 +316,52 @@ export default function StoreInfoForm({ settings }: StoreInfoFormProps) {
         </button>
       </div>
     </form>
+    <LegalDocuments
+      terms={settings.termsDocumentUrl}
+      privacy={settings.privacyDocumentUrl}
+      returns={settings.returnsDocumentUrl}
+    />
+    </div>
+  )
+}
+
+function LegalDocuments({
+  terms,
+  privacy,
+  returns,
+}: {
+  terms: string | null
+  privacy: string | null
+  returns: string | null
+}) {
+  const [state, formAction, pending] = useActionState(
+    async (_previous: FormState, formData: FormData) => uploadLegalDocumentAction(formData),
+    null,
+  )
+  const documents = [
+    { kind: "terms", label: "Términos y condiciones", url: terms, page: "/terminos" },
+    { kind: "privacy", label: "Política de datos", url: privacy, page: "/privacidad" },
+    { kind: "returns", label: "Cambios y devoluciones", url: returns, page: "/cambios" },
+  ]
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <h2 className="font-['Barlow',sans-serif] text-lg font-bold text-[#1C1C1C] mb-1">Documentos legales</h2>
+      <p className="mb-4 text-xs text-[#4A4A4A]">Sube un PDF. Mientras haya archivo, la página pública lo muestra. Si lo quitas, vuelve el texto de la tienda.</p>
+      {state && <p role="status" className={`mb-3 rounded-lg px-3 py-2 text-sm ${state.success ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>{state.success ? "Documento actualizado." : state.error}</p>}
+      <div className="space-y-4">
+        {documents.map((document) => (
+          <form key={document.kind} action={formAction} className="flex flex-wrap items-end gap-3 border-t border-gray-100 pt-4">
+            <input type="hidden" name="kind" value={document.kind} />
+            <div className="min-w-48 flex-1">
+              <p className="text-sm font-semibold text-[#1C1C1C]">{document.label}</p>
+              <p className="text-xs text-[#4A4A4A]">{document.url ? "Hay un PDF publicado." : "Sin archivo: se muestra el texto de la página."}</p>
+            </div>
+            <input name="file" type="file" accept="application/pdf" className="text-sm" />
+            <button type="submit" disabled={pending} className="rounded-lg bg-[#1C1C1C] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60">Subir</button>
+            {document.url && <button type="submit" name="clear" value="on" disabled={pending} className="rounded-lg border border-gray-300 px-3 py-2 text-sm">Quitar</button>}
+          </form>
+        ))}
+      </div>
+    </div>
   )
 }

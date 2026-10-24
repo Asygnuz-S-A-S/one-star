@@ -31,6 +31,7 @@ export interface ResolveProductContentInput {
   global?: GlobalContentSource | null
   hasWhatsapp?: boolean
   shipping?: ShippingRates
+  delivery?: { min: number; max: number }
 }
 
 export interface ResolvedProductContent {
@@ -94,6 +95,7 @@ export function resolveProductContent(input: ResolveProductContentInput): Resolv
     returnWindowDays,
     customPromises: global?.promises,
     freeThreshold: input.shipping?.freeThreshold,
+    delivery: input.delivery,
   })
 
   return {

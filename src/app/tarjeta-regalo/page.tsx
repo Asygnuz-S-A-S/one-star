@@ -19,6 +19,7 @@ export default async function TarjetaRegaloPage() {
       <GiftCardPurchase
         options={options}
         validityMonths={limits.validityMonths}
+        limits={limits}
         intro={
           <div>
             <p className="store-eyebrow mb-3">Regala One Star</p>

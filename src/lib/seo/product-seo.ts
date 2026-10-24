@@ -41,6 +41,7 @@ export interface SeoContext {
   returnWindowDays?: number
   /** Tarifas vigentes. Si no llegan, se usan los valores de respaldo. */
   shipping?: ShippingRates
+  delivery?: { min: number; max: number }
   /** Para fijar `priceValidUntil` de forma determinista en pruebas. */
   now?: Date
 }
@@ -155,8 +156,8 @@ export function buildProductJsonLd(product: SeoProduct, ctx: SeoContext): Record
         handlingTime: { "@type": "QuantitativeValue", minValue: 0, maxValue: 1, unitCode: "DAY" },
         transitTime: {
           "@type": "QuantitativeValue",
-          minValue: DELIVERY_BUSINESS_DAYS.min,
-          maxValue: DELIVERY_BUSINESS_DAYS.max,
+          minValue: (ctx.delivery ?? DELIVERY_BUSINESS_DAYS).min,
+          maxValue: (ctx.delivery ?? DELIVERY_BUSINESS_DAYS).max,
           unitCode: "DAY",
         },
       },

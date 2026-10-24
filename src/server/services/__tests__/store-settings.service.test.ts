@@ -54,6 +54,18 @@ const rawSettings = {
   clubWelcomeSubject: null,
   clubWelcomeBody: null,
   footerLinks: null,
+  bottomNav: null,
+  deliveryMinDays: 3,
+  deliveryMaxDays: 5,
+  expressDeliveryMinDays: 1,
+  expressDeliveryMaxDays: 2,
+  legalCity: null,
+  commercialRegistry: null,
+  dataProtectionEmail: null,
+  termsDocumentUrl: null,
+  privacyDocumentUrl: null,
+  returnsDocumentUrl: null,
+  giftCardAmounts: null,
   updatedAt: new Date("2026-09-04T00:00:00Z"),
 }
 

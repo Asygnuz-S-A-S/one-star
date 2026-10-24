@@ -6,6 +6,7 @@ interface LegalDocumentProps {
   intro: string
   lastUpdated: string
   company?: LegalCompanyInfo
+  documentUrl?: string | null
   children: ReactNode
 }
 
@@ -18,6 +19,7 @@ export default function LegalDocument({
   intro,
   lastUpdated,
   company = LEGAL_COMPANY,
+  documentUrl,
   children,
 }: LegalDocumentProps) {
   return (
@@ -48,9 +50,27 @@ export default function LegalDocument({
           </p>
         )}
 
-        <div className="px-6 md:px-12 py-10 font-montserrat text-[#4A4A4A] dark:text-white/70 leading-relaxed space-y-8">
-          {children}
-        </div>
+        {(company.legalName || company.city || company.commercialRegistry || company.dataProtectionEmail) && (
+          <p className="mx-6 md:mx-12 mt-8 font-montserrat text-sm text-[#4A4A4A] dark:text-white/70">
+            {[company.legalName, company.taxId ? `NIT ${company.taxId}` : null, company.address, company.city, company.commercialRegistry ? `Matrícula ${company.commercialRegistry}` : null]
+              .filter(Boolean)
+              .join(" · ")}
+            {company.dataProtectionEmail ? ` · Datos personales: ${company.dataProtectionEmail}` : ""}
+          </p>
+        )}
+
+        {documentUrl ? (
+          <div className="space-y-4 px-6 py-10 md:px-12">
+            <iframe title={title} src={documentUrl} className="h-[70vh] w-full rounded-lg border border-[#E0E0E0] bg-white" />
+            <a href={documentUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center text-sm font-semibold text-[#E31C23] underline underline-offset-2">
+              Abrir el documento
+            </a>
+          </div>
+        ) : (
+          <div className="px-6 md:px-12 py-10 font-montserrat text-[#4A4A4A] dark:text-white/70 leading-relaxed space-y-8">
+            {children}
+          </div>
+        )}
       </article>
     </main>
   )

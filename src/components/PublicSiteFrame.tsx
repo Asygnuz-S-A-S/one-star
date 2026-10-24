@@ -8,13 +8,14 @@ import ChatWidget from "@/components/chat/ChatWidget"
 import StoreFooter from "@/components/storefront/StoreFooter"
 import MobileBottomNav, { shouldShowMobileBottomNav } from "@/components/MobileBottomNav"
 import { isAdminPathname } from "@/lib/public-site-route"
-import type { FooterLink } from "@/lib/storefront-copy"
+import type { BottomNavItem, FooterLink } from "@/lib/storefront-copy"
 
 type PublicSiteFrameProps = ComponentProps<typeof Header> & {
   children: ReactNode
   chatEnabled?: boolean
   chatWelcome?: string
   footerLinks?: FooterLink[]
+  bottomNav?: BottomNavItem[]
   storeName?: string
   contactEmail?: string | null
   whatsapp?: string | null
@@ -25,6 +26,7 @@ export default function PublicSiteFrame({
   chatEnabled = true,
   chatWelcome,
   footerLinks,
+  bottomNav,
   storeName,
   contactEmail,
   whatsapp,
@@ -53,7 +55,7 @@ export default function PublicSiteFrame({
         whatsapp={whatsapp}
       />
       {chatEnabled && <ChatWidget welcome={chatWelcome} />}
-      <MobileBottomNav />
+      <MobileBottomNav items={bottomNav} />
     </div>
   )
 }

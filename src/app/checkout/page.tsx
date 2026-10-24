@@ -8,7 +8,7 @@ import { formatCOP } from "@/lib/shop-utils"
 import { buildMetaCommerceParams, trackMetaEvent } from "@/lib/tracking/meta-pixel"
 import { COLOMBIA_DEPARTMENTS } from "@/lib/colombia-departments"
 import { getShippingCost } from "@/lib/shipping"
-import { useShippingRates } from "@/components/storefront/ShippingRatesProvider"
+import { useDeliveryDays, useShippingRates } from "@/components/storefront/ShippingRatesProvider"
 import {
   clearCheckoutDraft,
   getCheckoutSessionStorage,
@@ -181,6 +181,7 @@ function CheckoutForm({
 }: CheckoutFormProps) {
   const { items, subtotal } = useCart()
   const shippingRates = useShippingRates()
+  const deliveryDays = useDeliveryDays()
   const hasEditedForm = useRef(false)
 
   // InitiateCheckout una sola vez por visita al checkout, con el carrito inicial.
@@ -529,7 +530,7 @@ function CheckoutForm({
                       <input type="radio" name="shippingMethod" value="standard" checked={values.shippingMethod === "standard"}
                         onChange={() => set("shippingMethod", "standard")} className="h-4 w-4 accent-[#E31C23]" />
                       <div>
-                        <p className="text-sm font-montserrat font-medium text-[#1C1C1C]">Envío estándar (3-5 días hábiles)</p>
+                        <p className="text-sm font-montserrat font-medium text-[#1C1C1C]">Envío estándar ({deliveryDays.min}-{deliveryDays.max} días hábiles)</p>
                         {subtotal >= shippingRates.freeThreshold ? (
                           <p className="text-xs text-green-600 font-montserrat mt-0.5">
                             ¡Envío gratis por compras mayores a {formatCOP(shippingRates.freeThreshold)}!
@@ -553,7 +554,7 @@ function CheckoutForm({
                     <div className="flex items-center gap-3">
                       <input type="radio" name="shippingMethod" value="express" checked={values.shippingMethod === "express"}
                         onChange={() => set("shippingMethod", "express")} className="h-4 w-4 accent-[#E31C23]" />
-                      <p className="text-sm font-montserrat font-medium text-[#1C1C1C]">Envío express (1-2 días hábiles)</p>
+                      <p className="text-sm font-montserrat font-medium text-[#1C1C1C]">Envío express ({deliveryDays.expressMin}-{deliveryDays.expressMax} días hábiles)</p>
                     </div>
                     <span className="text-sm font-montserrat font-medium text-[#1C1C1C]">{formatCOP(shippingRates.expressCost)}</span>
                   </label>

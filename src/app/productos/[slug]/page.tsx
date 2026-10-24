@@ -4,7 +4,7 @@ import Link from "next/link"
 import Image from "next/image"
 import type { Metadata } from "next"
 import { getProductBySlug, type InventoryStoreDTO } from "@/server/services/product.service"
-import { getPublicStoreInfo, getShippingRates } from "@/server/services/store-settings.service"
+import { getDeliveryWindow, getPublicStoreInfo, getShippingRates } from "@/server/services/store-settings.service"
 import { DEFAULT_SHIPPING_RATES } from "@/lib/shipping"
 import { getPublicSiteContent } from "@/server/services/site-content.service"
 import { getBrandDetailById } from "@/server/services/brand.service"
@@ -75,13 +75,14 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
   if (!product) notFound()
 
   // Consulta secuencial: primero producto, luego dependencias en paralelo
-  const [brandDetail, globalContent, productReviews, productReviewStats, settings, shippingRates] = await Promise.all([
+  const [brandDetail, globalContent, productReviews, productReviewStats, settings, shippingRates, delivery] = await Promise.all([
     product.brandId ? getBrandDetailById(product.brandId) : null,
     getPublicSiteContent(),
     getProductReviews(product.id),
     getProductReviewStats(product.id),
     getPublicStoreInfo().catch(() => null),
     getShippingRates().catch(() => DEFAULT_SHIPPING_RATES),
+    getDeliveryWindow().catch(() => ({ min: 3, max: 5 })),
   ])
 
   const hasWhatsapp = Boolean(settings?.whatsapp)
@@ -91,6 +92,7 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
     global: globalContent,
     hasWhatsapp,
     shipping: shippingRates,
+    delivery,
   })
 
   const displayPrice = getDisplayPrice(product)
@@ -108,6 +110,7 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
       reviewStats: productReviewStats,
       returnWindowDays: resolvedContent.returnWindowDays,
       shipping: shippingRates,
+      delivery,
     }
   )
 

@@ -71,7 +71,17 @@ const SHADOW_DEPTH: CSSProperties = { transform: "translate3d(calc(var(--px, 0) 
 
 /** Producto recortado (PNG sin fondo) flotando sobre una palabra gigante: el "key visual" de lanzamientos. */
 function ProductStage({ slide }: { slide: CampaignHeroSlide }) {
-  const media = slide.foregroundMedia!
+  const frames = [slide.foregroundMedia, ...(slide.angles ?? [])].filter((item): item is NonNullable<typeof slide.foregroundMedia> => Boolean(item))
+  const unique = frames.filter((frame, index) => frames.findIndex((item) => item.src === frame.src) === index)
+  const frameKey = unique.map((frame) => frame.src).join("|")
+  const [frameIndex, setFrameIndex] = useState(0)
+  useEffect(() => {
+    setFrameIndex(0)
+    if (unique.length < 2 || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return
+    const timer = window.setInterval(() => setFrameIndex((current) => (current + 1) % unique.length), 1400)
+    return () => window.clearInterval(timer)
+  }, [frameKey, unique.length])
+  const media = unique[frameIndex] ?? slide.foregroundMedia!
   const watermark = slide.headline.split(/\s+/)[0] ?? slide.headline
   const isLight = slide.accent === "light"
 
@@ -84,7 +94,7 @@ function ProductStage({ slide }: { slide: CampaignHeroSlide }) {
     <span aria-hidden="true" style={WATERMARK_DEPTH} className={`pointer-events-none absolute inset-x-0 top-1/2 select-none text-center font-barlow text-[clamp(5rem,30vw,16rem)] font-black uppercase leading-none tracking-[-0.06em] ${isLight ? "text-store-ink/[0.07]" : "text-white/[0.08]"}`}>{watermark}</span>
     <div style={PRODUCT_DEPTH} className="relative flex w-full items-center justify-center">
       <div className="flex w-full items-center justify-center motion-safe:animate-[hero-levitate_6s_ease-in-out_infinite]">
-        <Image src={media.src} alt={media.alt} width={1120} height={720} priority sizes="(max-width: 1024px) 88vw, 560px" unoptimized={!canUseNextImageOptimization(media.src)} className="h-auto max-h-[min(26svh,240px)] w-auto max-w-[min(88%,560px)] -rotate-12 object-contain lg:max-h-[min(46svh,420px)] drop-shadow-[0_28px_22px_rgba(0,0,0,0.22)] motion-safe:animate-[hero-product-enter_900ms_cubic-bezier(.22,1,.36,1)_both]" />
+        <Image key={media.src} src={media.src} alt={media.alt} width={1120} height={720} priority sizes="(max-width: 1024px) 88vw, 560px" unoptimized={!canUseNextImageOptimization(media.src)} className="h-auto max-h-[min(26svh,240px)] w-auto max-w-[min(88%,560px)] object-contain lg:max-h-[min(46svh,420px)] drop-shadow-[0_28px_22px_rgba(0,0,0,0.22)] motion-safe:animate-[hero-product-enter_900ms_cubic-bezier(.22,1,.36,1)_both]" />
       </div>
     </div>
     <div aria-hidden="true" style={SHADOW_DEPTH} className="-mt-2 h-6 w-[42%] max-w-sm shrink-0 blur-xl">

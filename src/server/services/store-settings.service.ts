@@ -15,8 +15,10 @@ import {
   DEFAULT_CLUB_INTRO,
   DEFAULT_CLUB_WELCOME_BODY,
   DEFAULT_CLUB_WELCOME_SUBJECT,
+  parseBottomNav,
   parseClubBenefits,
   parseFooterLinks,
+  type BottomNavItem,
   type ClubBenefit,
   type FooterLink,
 } from "@/lib/storefront-copy"
@@ -57,6 +59,18 @@ export interface StoreSettingsDTO {
   clubWelcomeSubject: string
   clubWelcomeBody: string
   footerLinks: string
+  bottomNav: string
+  deliveryMinDays: number
+  deliveryMaxDays: number
+  expressDeliveryMinDays: number
+  expressDeliveryMaxDays: number
+  legalCity: string | null
+  commercialRegistry: string | null
+  dataProtectionEmail: string | null
+  termsDocumentUrl: string | null
+  privacyDocumentUrl: string | null
+  returnsDocumentUrl: string | null
+  giftCardAmounts: string
 }
 
 /** Lo único del píxel que puede viajar al navegador. */
@@ -102,6 +116,18 @@ function toDTO(raw: {
   clubWelcomeSubject?: string | null
   clubWelcomeBody?: string | null
   footerLinks?: string | null
+  bottomNav?: string | null
+  deliveryMinDays?: number | null
+  deliveryMaxDays?: number | null
+  expressDeliveryMinDays?: number | null
+  expressDeliveryMaxDays?: number | null
+  legalCity?: string | null
+  commercialRegistry?: string | null
+  dataProtectionEmail?: string | null
+  termsDocumentUrl?: string | null
+  privacyDocumentUrl?: string | null
+  returnsDocumentUrl?: string | null
+  giftCardAmounts?: string | null
 }): StoreSettingsDTO {
   return {
     storeName: raw.storeName,
@@ -135,6 +161,18 @@ function toDTO(raw: {
     clubWelcomeSubject: raw.clubWelcomeSubject?.trim() || DEFAULT_CLUB_WELCOME_SUBJECT,
     clubWelcomeBody: raw.clubWelcomeBody?.trim() || DEFAULT_CLUB_WELCOME_BODY,
     footerLinks: raw.footerLinks ?? "",
+    bottomNav: raw.bottomNav ?? "",
+    deliveryMinDays: raw.deliveryMinDays ?? 3,
+    deliveryMaxDays: raw.deliveryMaxDays ?? 5,
+    expressDeliveryMinDays: raw.expressDeliveryMinDays ?? 1,
+    expressDeliveryMaxDays: raw.expressDeliveryMaxDays ?? 2,
+    legalCity: raw.legalCity ?? null,
+    commercialRegistry: raw.commercialRegistry ?? null,
+    dataProtectionEmail: raw.dataProtectionEmail ?? null,
+    termsDocumentUrl: raw.termsDocumentUrl ?? null,
+    privacyDocumentUrl: raw.privacyDocumentUrl ?? null,
+    returnsDocumentUrl: raw.returnsDocumentUrl ?? null,
+    giftCardAmounts: raw.giftCardAmounts ?? "",
   }
 }
 
@@ -186,8 +224,27 @@ export async function updateStoreInfo(input: StoreInfoInput): Promise<StoreSetti
       clubWelcomeSubject: input.clubWelcomeSubject,
       clubWelcomeBody: input.clubWelcomeBody,
       footerLinks: input.footerLinks,
+      bottomNav: input.bottomNav,
+      deliveryMinDays: input.deliveryMinDays,
+      deliveryMaxDays: input.deliveryMaxDays,
+      expressDeliveryMinDays: input.expressDeliveryMinDays,
+      expressDeliveryMaxDays: input.expressDeliveryMaxDays,
+      legalCity: input.legalCity,
+      commercialRegistry: input.commercialRegistry,
+      dataProtectionEmail: input.dataProtectionEmail,
+      giftCardAmounts: input.giftCardAmounts,
     }),
   )
+}
+
+const DOCUMENT_FIELDS = {
+  terms: "termsDocumentUrl",
+  privacy: "privacyDocumentUrl",
+  returns: "returnsDocumentUrl",
+} as const
+
+export async function setLegalDocument(kind: keyof typeof DOCUMENT_FIELDS, url: string | null) {
+  return toDTO(await updateStoreSettingsRecord({ [DOCUMENT_FIELDS[kind]]: url }))
 }
 
 export interface PublicStorefrontConfig {
@@ -196,6 +253,11 @@ export interface PublicStorefrontConfig {
   chatWelcome: string
   giftCardValidityMonths: number
   footerLinks: FooterLink[]
+  bottomNav: BottomNavItem[]
+  deliveryMinDays: number
+  deliveryMaxDays: number
+  expressDeliveryMinDays: number
+  expressDeliveryMaxDays: number
   storeName: string
   contactEmail: string | null
   whatsapp: string | null
@@ -220,6 +282,11 @@ export async function getPublicStorefrontConfig(): Promise<PublicStorefrontConfi
     chatWelcome: dto.chatWelcome,
     giftCardValidityMonths: dto.giftCardValidityMonths,
     footerLinks: parseFooterLinks(dto.footerLinks),
+    bottomNav: parseBottomNav(dto.bottomNav),
+    deliveryMinDays: dto.deliveryMinDays,
+    deliveryMaxDays: dto.deliveryMaxDays,
+    expressDeliveryMinDays: dto.expressDeliveryMinDays,
+    expressDeliveryMaxDays: dto.expressDeliveryMaxDays,
     storeName: dto.storeName,
     contactEmail: dto.contactEmail,
     whatsapp: dto.whatsapp,
@@ -289,6 +356,26 @@ export async function getLegalCompany(): Promise<LegalCompanyInfo> {
     address: settings.legalAddress,
     contactEmail: settings.contactEmail,
     contactPhone: settings.contactPhone,
+    city: settings.legalCity,
+    commercialRegistry: settings.commercialRegistry,
+    dataProtectionEmail: settings.dataProtectionEmail,
+  }
+}
+
+export async function getLegalDocuments() {
+  const settings = await findStoreSettingsReadOnly()
+  return {
+    terms: settings?.termsDocumentUrl ?? null,
+    privacy: settings?.privacyDocumentUrl ?? null,
+    returns: settings?.returnsDocumentUrl ?? null,
+  }
+}
+
+export async function getDeliveryWindow(): Promise<{ min: number; max: number }> {
+  const settings = await findStoreSettingsReadOnly()
+  return {
+    min: settings?.deliveryMinDays ?? 3,
+    max: settings?.deliveryMaxDays ?? 5,
   }
 }
 

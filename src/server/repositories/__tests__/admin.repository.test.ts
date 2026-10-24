@@ -43,19 +43,25 @@ describe("admin.repository", () => {
   })
 
   it("obtiene el rol por id o por email como fallback", async () => {
-    findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce({ role: "INVENTORY_OPERATOR" })
+    findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce({ role: "INVENTORY_OPERATOR", isActive: true })
 
     expect(await findAdminRoleByIdOrEmail("adm_unknown", "op@onestar.com.co")).toBe(
       "INVENTORY_OPERATOR"
     )
     expect(findUnique).toHaveBeenNthCalledWith(1, {
       where: { id: "adm_unknown" },
-      select: { role: true },
+      select: { role: true, isActive: true },
     })
     expect(findUnique).toHaveBeenNthCalledWith(2, {
       where: { email: "op@onestar.com.co" },
-      select: { role: true },
+      select: { role: true, isActive: true },
     })
+  })
+
+  it("no entrega rol si la cuenta está desactivada", async () => {
+    findUnique.mockResolvedValue({ role: "SUPER_ADMIN", isActive: false })
+
+    expect(await findAdminRoleByIdOrEmail("adm_1", "admin@onestar.com.co")).toBeNull()
   })
 
   it("devuelve null si no existe por id ni por email", async () => {

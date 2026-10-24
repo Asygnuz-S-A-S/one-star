@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation"
 import type { ReactNode } from "react"
 
 import { useSession } from "@/lib/auth-client"
+import { DEFAULT_BOTTOM_NAV, type BottomNavItem } from "@/lib/storefront-copy"
 import { useCart } from "@/store"
 
 /** Rutas con su propia barra inferior (compra rápida, checkout) donde la navegación estorbaría. */
@@ -37,7 +38,7 @@ const icons = {
 }
 
 const itemClass =
-  "relative flex min-h-12 min-w-12 flex-1 flex-col items-center justify-center gap-0.5 rounded-full font-barlow text-[10px] font-semibold uppercase tracking-[0.08em] transition-colors"
+  "relative flex min-h-12 min-w-12 flex-1 flex-col items-center justify-center gap-0.5 rounded-full font-barlow text-xs font-semibold uppercase tracking-[0.08em] transition-colors"
 
 function NavLink({ href, label, icon, active }: { href: string; label: string; icon: ReactNode; active: boolean }) {
   return (
@@ -53,7 +54,7 @@ function NavLink({ href, label, icon, active }: { href: string; label: string; i
   )
 }
 
-export default function MobileBottomNav() {
+export default function MobileBottomNav({ items = DEFAULT_BOTTOM_NAV }: { items?: BottomNavItem[] }) {
   const pathname = usePathname()
   const { data: session } = useSession()
   const { totalItems, toggleCart } = useCart()
@@ -70,19 +71,24 @@ export default function MobileBottomNav() {
       data-testid="mobile-bottom-nav"
     >
       <div className="mx-auto flex max-w-md items-center gap-1 rounded-full bg-store-ink/95 px-2 py-1.5 shadow-store-float backdrop-blur-md">
-        <NavLink href="/" label="Inicio" icon={icons.home} active={pathname === "/"} />
-        <NavLink href="/productos" label="Tienda" icon={icons.shop} active={pathname === "/productos" || pathname.startsWith("/c/")} />
-        <NavLink href="/buscar" label="Buscar" icon={icons.search} active={pathname.startsWith("/buscar")} />
-        <button type="button" onClick={toggleCart} aria-label={`Bolsa, ${totalItems} productos`} className={`${itemClass} text-white/60 hover:text-white`}>
-          {icons.bag}
-          <span aria-hidden="true">Bolsa</span>
-          {totalItems > 0 && (
-            <span aria-hidden="true" className="absolute right-[22%] top-1 grid h-4 min-w-4 place-items-center rounded-full bg-[var(--store-action)] px-1 font-montserrat text-[10px] font-semibold text-white">
-              {totalItems}
-            </span>
-          )}
-        </button>
-        <NavLink href={isCustomer ? "/cuenta" : "/login"} label="Cuenta" icon={icons.user} active={pathname.startsWith("/cuenta")} />
+        {items.map((item) => {
+          if (item.href === "#bolsa") {
+            return (
+              <button key={item.label} type="button" onClick={toggleCart} aria-label={`${item.label}, ${totalItems} productos`} className={`${itemClass} text-white/60 hover:text-white`}>
+                {icons[item.icon]}
+                <span aria-hidden="true">{item.label}</span>
+                {totalItems > 0 && (
+                  <span aria-hidden="true" className="absolute right-[22%] top-1 grid h-4 min-w-4 place-items-center rounded-full bg-[var(--store-action)] px-1 font-montserrat text-[10px] font-semibold text-white">
+                    {totalItems}
+                  </span>
+                )}
+              </button>
+            )
+          }
+          const href = item.href === "/cuenta" && !isCustomer ? "/login" : item.href
+          const active = href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`)
+          return <NavLink key={item.label} href={href} label={item.label} icon={icons[item.icon]} active={active} />
+        })}
       </div>
     </nav>
   )

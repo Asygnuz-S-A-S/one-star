@@ -8,8 +8,11 @@ import {
   createAdminUser,
   findAdminByEmail,
   findAdminById,
+  setAdminUserActive,
+  setAdminUserPassword,
   updateAdminUserRole,
 } from "@/server/repositories/admin.repository"
+import { invalidateAdminRoleCache } from "@/server/services/admin-role.service"
 import { z } from "zod"
 
 const createSchema = z.object({
@@ -75,5 +78,43 @@ export async function updateAdminRoleAction(formData: FormData) {
     return { success: true }
   } catch (error: unknown) {
     return { success: false, error: message(error, "No se pudo cambiar el rol.") }
+  }
+}
+
+export async function setAdminActiveAction(formData: FormData) {
+  try {
+    const session = await requireSuperAdmin()
+    const id = String(formData.get("id") ?? "")
+    const active = String(formData.get("active") ?? "") === "true"
+    const current = await findAdminById(id)
+    if (!current) return { success: false, error: "Ese usuario ya no existe." }
+    if (!active && current.role === "SUPER_ADMIN") {
+      const supers = await countSuperAdmins()
+      if (supers <= 1) return { success: false, error: "Tiene que quedar al menos un superadministrador activo." }
+      if (session.user.id === current.id) return { success: false, error: "No puedes desactivar tu propia cuenta." }
+    }
+    await setAdminUserActive(id, active)
+    invalidateAdminRoleCache(current.id)
+    invalidateAdminRoleCache(current.email)
+    revalidatePath("/admin/usuarios")
+    return { success: true }
+  } catch (error: unknown) {
+    return { success: false, error: message(error, "No se pudo actualizar la cuenta.") }
+  }
+}
+
+export async function resetAdminPasswordAction(formData: FormData) {
+  try {
+    await requireSuperAdmin()
+    const id = String(formData.get("id") ?? "")
+    const password = String(formData.get("password") ?? "")
+    if (password.length < 10) return { success: false, error: "La contraseña debe tener al menos 10 caracteres." }
+    const current = await findAdminById(id)
+    if (!current) return { success: false, error: "Ese usuario ya no existe." }
+    await setAdminUserPassword(id, bcrypt.hashSync(password, 10))
+    revalidatePath("/admin/usuarios")
+    return { success: true }
+  } catch (error: unknown) {
+    return { success: false, error: message(error, "No se pudo cambiar la contraseña.") }
   }
 }

@@ -157,7 +157,7 @@ export default function NewArrivalsLayout({ title, subtitle, total, products, th
               Drop <span className="text-[#E31C23]">{pad(active + 1)}</span> / {pad(count)}
             </p>
             {current.videoUrl && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1 font-barlow text-[10px] font-bold uppercase tracking-[0.14em] text-[#1C1C1C] ring-1 ring-black/10 backdrop-blur">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1 font-barlow text-xs font-bold uppercase tracking-[0.14em] text-[#1C1C1C] ring-1 ring-black/10 backdrop-blur">
                 <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
                 En movimiento
               </span>
@@ -216,7 +216,7 @@ export default function NewArrivalsLayout({ title, subtitle, total, products, th
                     <span className="mt-1 line-clamp-2 block font-barlow text-base font-bold uppercase leading-tight text-[#1C1C1C]">{product.name}</span>
                     <span className="mt-1 flex items-center gap-2 font-montserrat text-sm text-[#1C1C1C]/70">
                       {formatPrice(itemPrice)}
-                      {product.videoUrl && <span className="font-barlow text-[10px] font-bold uppercase tracking-[0.14em] text-[#1C1C1C]/45">· Video</span>}
+                      {product.videoUrl && <span className="font-barlow text-xs font-bold uppercase tracking-[0.14em] text-[#1C1C1C]/45">· Video</span>}
                     </span>
                   </span>
                   {/* Progreso del autoplay en el drop activo. */}

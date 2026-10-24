@@ -15,6 +15,7 @@ interface GiftCardPurchaseProps {
   /** Título y texto de la página, junto al selector. */
   intro: ReactNode
   validityMonths?: number
+  limits?: { minAmount: number; maxAmount: number }
 }
 
 function steps(validityMonths: number) {
@@ -103,12 +104,12 @@ function GiftCardVisual({ amount, finish }: { amount: number | null; finish: Gif
                 </div>
                 <span className={`text-right font-barlow text-xs font-semibold uppercase tracking-[0.24em] ${style.muted}`}>
                   Gift card
-                  <span key={finish} className="block text-[10px] tracking-[0.3em] motion-safe:animate-[hero-copy-swap_400ms_cubic-bezier(.22,1,.36,1)]">{style.label}</span>
+                  <span key={finish} className="block text-xs tracking-[0.3em] motion-safe:animate-[hero-copy-swap_400ms_cubic-bezier(.22,1,.36,1)]">{style.label}</span>
                 </span>
               </div>
               <div className="flex items-end justify-between gap-4">
                 <div>
-                  <p className={`font-montserrat text-[10px] uppercase tracking-[0.2em] ${style.muted}`}>Valor</p>
+                  <p className={`font-montserrat text-xs uppercase tracking-[0.2em] ${style.muted}`}>Valor</p>
                   <p key={amount ?? 0} className="font-barlow text-4xl font-extrabold tracking-tight drop-shadow-[0_1px_0_rgba(255,255,255,0.25)] motion-safe:animate-[hero-copy-swap_400ms_cubic-bezier(.22,1,.36,1)] sm:text-5xl">
                     {amount ? formatCOP(amount) : "—"}
                   </p>
@@ -124,7 +125,7 @@ function GiftCardVisual({ amount, finish }: { amount: number | null; finish: Gif
   )
 }
 
-export default function GiftCardPurchase({ options, intro, validityMonths = 12 }: GiftCardPurchaseProps) {
+export default function GiftCardPurchase({ options, intro, validityMonths = 12, limits }: GiftCardPurchaseProps) {
   const addItem = useCart((state) => state.addItem)
   const openCart = useCart((state) => state.openCart)
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(
@@ -143,7 +144,7 @@ export default function GiftCardPurchase({ options, intro, validityMonths = 12 }
 
   function handleAddToCart() {
     if (!selectedOption) return
-    addItem(createGiftCardCartItem(selectedOption))
+    addItem(createGiftCardCartItem(selectedOption, limits))
     setMessage(`Tarjeta de ${formatCOP(selectedOption.amount)} añadida al carrito.`)
     openCart()
   }

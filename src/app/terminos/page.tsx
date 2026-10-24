@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import LegalDocument, { LegalList, LegalSection } from "@/components/legal/LegalDocument"
 import { LEGAL_LAST_UPDATED } from "@/lib/legal"
-import { getLegalCompany } from "@/server/services/store-settings.service"
+import { getLegalCompany, getLegalDocuments } from "@/server/services/store-settings.service"
 
 export const metadata: Metadata = {
   title: "Términos y Condiciones | One Star",
@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 }
 
 export default async function TerminosPage() {
-  const company = await getLegalCompany()
+  const [company, documents] = await Promise.all([getLegalCompany(), getLegalDocuments()])
   const responsable = company.legalName ?? company.tradeName
   const canalContacto = company.contactEmail ?? "los canales de atención publicados en este sitio"
 
@@ -21,14 +21,18 @@ export default async function TerminosPage() {
       intro={`Estos términos regulan el uso de la tienda en línea de ${company.tradeName} y las compras que se realicen a través de ella. Al navegar o comprar en el sitio, aceptas lo aquí descrito.`}
       lastUpdated={LEGAL_LAST_UPDATED}
       company={company}
+      documentUrl={documents.terms}
     >
       <LegalSection id="identificacion" heading="1. Identificación del proveedor">
         <p>
           La tienda en línea es operada por {responsable}
           {company.taxId ? `, NIT ${company.taxId}` : ""}
-          {company.address ? `, con domicilio en ${company.address}` : ""}. Para
+          {company.address ? `, con domicilio en ${company.address}` : ""}
+          {company.city ? `, ${company.city}` : ""}
+          {company.commercialRegistry ? `, matrícula mercantil ${company.commercialRegistry}` : ""}. Para
           cualquier solicitud, petición o reclamo puedes escribir a {canalContacto}
-          {company.contactPhone ? ` o llamar al ${company.contactPhone}` : ""}.
+          {company.contactPhone ? ` o llamar al ${company.contactPhone}` : ""}
+          {company.dataProtectionEmail ? `. Para datos personales: ${company.dataProtectionEmail}` : ""}.
         </p>
       </LegalSection>
 

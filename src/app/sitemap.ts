@@ -25,6 +25,7 @@ const STATIC_ROUTES: StaticRoute[] = [
   { path: "/tiendas", changeFrequency: "monthly", priority: 0.5 },
   { path: "/terminos", changeFrequency: "yearly", priority: 0.3 },
   { path: "/privacidad", changeFrequency: "yearly", priority: 0.3 },
+  { path: "/cambios", changeFrequency: "yearly", priority: 0.3 },
 ]
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {

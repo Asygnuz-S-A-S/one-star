@@ -6,7 +6,6 @@ import { updateSiteContentAction } from "@/app/admin/contenido/actions"
 import { faqsToText } from "@/lib/product-faq"
 import Link from "next/link"
 import { STANDARD_SHIPPING_THRESHOLD } from "@/lib/shipping"
-import { DELIVERY_BUSINESS_DAYS } from "@/lib/conversion-signals"
 import { formatCOP } from "@/lib/shop-utils"
 
 const inputCls =
@@ -15,9 +14,11 @@ const inputCls =
 export default function SiteContentManager({
   initialContent,
   freeShippingThreshold = STANDARD_SHIPPING_THRESHOLD,
+  delivery = { min: 3, max: 5 },
 }: {
   initialContent: SiteContentDTO
   freeShippingThreshold?: number
+  delivery?: { min: number; max: number }
 }) {
   const [highlightsText, setHighlightsText] = useState((initialContent.highlights ?? []).join("\n"))
   const [faqsText, setFaqsText] = useState(faqsToText(initialContent.faqs ?? []))
@@ -178,15 +179,15 @@ export default function SiteContentManager({
               ⏱️ Plazo de Entrega
             </span>
             <span className="text-[11px] font-semibold bg-gray-200 text-gray-700 px-2 py-0.5 rounded">
-              Solo lectura (código)
+              Se edita
             </span>
           </div>
           <p className="text-sm font-semibold text-[#1C1C1C]">
-            Entrega en {DELIVERY_BUSINESS_DAYS.min} a {DELIVERY_BUSINESS_DAYS.max} días hábiles
+            Entrega en {delivery.min} a {delivery.max} días hábiles
           </p>
           <p className="text-xs text-gray-600">Recibes número de guía apenas se despacha.</p>
           <p className="text-[11px] text-gray-400 italic">
-            Proviene de las constantes de logística en <code>src/lib/conversion-signals.ts</code>.
+            El plazo sale de <Link href="/admin/configuracion" className="underline">Configuración → Envíos</Link>.
           </p>
         </div>
 

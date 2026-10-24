@@ -47,6 +47,9 @@ export async function prepareAdminSignIn(
   if (!admin || !compareSync(password, admin.passwordHash)) {
     return { success: false, error: "Credenciales incorrectas." }
   }
+  if (!admin.isActive) {
+    return { success: false, error: "Esta cuenta está desactivada." }
+  }
 
   await upsertAuthRecords({
     id: admin.id,

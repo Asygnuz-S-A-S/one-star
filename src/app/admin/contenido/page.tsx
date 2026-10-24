@@ -1,6 +1,6 @@
 import { requireSuperAdmin } from "@/server/auth/require-admin"
 import { getSiteContentForAdmin } from "@/server/services/site-content.service"
-import { getShippingRates } from "@/server/services/store-settings.service"
+import { getDeliveryWindow, getShippingRates } from "@/server/services/store-settings.service"
 import { DEFAULT_SHIPPING_RATES } from "@/lib/shipping"
 import SiteContentManager from "@/components/admin/SiteContentManager"
 
@@ -9,9 +9,10 @@ export const dynamic = "force-dynamic"
 
 export default async function AdminContenidoPage() {
   await requireSuperAdmin()
-  const [content, shipping] = await Promise.all([
+  const [content, shipping, delivery] = await Promise.all([
     getSiteContentForAdmin(),
     getShippingRates().catch(() => DEFAULT_SHIPPING_RATES),
+    getDeliveryWindow().catch(() => ({ min: 3, max: 5 })),
   ])
 
   return (
@@ -24,7 +25,7 @@ export default async function AdminContenidoPage() {
         Estos contenidos aplican a todos los productos como base, a menos que una marca o producto específico los sobreescriba.
       </p>
 
-      <SiteContentManager initialContent={content} freeShippingThreshold={shipping.freeThreshold} />
+      <SiteContentManager initialContent={content} freeShippingThreshold={shipping.freeThreshold} delivery={delivery} />
     </div>
   )
 }

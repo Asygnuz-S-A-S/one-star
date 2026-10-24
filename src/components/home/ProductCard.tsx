@@ -199,12 +199,12 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
         {/* Top-Left Badges */}
         <div className="absolute top-2 left-2 z-10 flex flex-col gap-1">
           {isNew && (
-            <span className="bg-[#1C1C1C] text-white text-[10px] font-bold px-2 py-1 uppercase tracking-wider w-max rounded-full">
+            <span className="bg-[#1C1C1C] text-white text-xs font-bold px-2 py-1 uppercase tracking-wider w-max rounded-full">
               NUEVO
             </span>
           )}
           {isOnSale && discountPercentage > 0 && (
-            <span className="bg-[#E31C23] text-white text-[10px] font-bold px-2 py-1 uppercase tracking-wider w-max rounded-full">
+            <span className="bg-[#E31C23] text-white text-xs font-bold px-2 py-1 uppercase tracking-wider w-max rounded-full">
               -{discountPercentage}%
             </span>
           )}
@@ -334,7 +334,7 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
                 <span data-testid="product-card-price" className="text-base font-bold tracking-tight text-[var(--store-action)]">
                   {formatPrice(Number(salePrice))}
                 </span>
-                <span className="text-[10px] text-[var(--store-muted)] line-through">
+                <span className="text-xs text-[var(--store-muted)] line-through">
                   {formatPrice(Number(price))}
                 </span>
               </>

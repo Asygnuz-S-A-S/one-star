@@ -22,8 +22,7 @@ import ProductTrust from "./ProductTrust"
 import { splitHighlight } from "@/lib/product-faq"
 import StickyBuyBar from "./StickyBuyBar"
 import { RETURN_WINDOW_DAYS, type StorePromise } from "@/lib/store-promises"
-import { useShippingRates } from "@/components/storefront/ShippingRatesProvider"
-import { DELIVERY_BUSINESS_DAYS } from "@/lib/conversion-signals"
+import { useDeliveryDays, useShippingRates } from "@/components/storefront/ShippingRatesProvider"
 import { getProductAvailability } from "@/lib/product-availability"
 
 interface ProductInfoProps {
@@ -205,6 +204,7 @@ export default function ProductInfo({
 
   // Mensajes de confianza y urgencia (HU-12), calculados con datos reales.
   const shippingRates = useShippingRates()
+  const deliveryDays = useDeliveryDays()
   const conversionSignals = getConversionSignals({
     price: salePrice ?? basePrice,
     selectedVariantStock: selectedVariant ? selectedVariant.stock : null,
@@ -214,6 +214,7 @@ export default function ProductInfo({
       .reduce((sum, v) => sum + Math.max(0, v.stock), 0),
     isDigital: product.category?.slug === GIFT_CARD_CATEGORY_SLUG,
     freeThreshold: shippingRates.freeThreshold,
+    delivery: deliveryDays,
   })
 
   return (
@@ -242,17 +243,17 @@ export default function ProductInfo({
             {product.name}
           </h1>
           {product.isOnSale && (
-            <span className="flex-shrink-0 mt-1 bg-[#E31C23] text-white font-barlow font-bold text-[10px] uppercase tracking-widest px-2 py-1 rounded-sm">
+            <span className="flex-shrink-0 mt-1 bg-[#E31C23] text-white font-barlow font-bold text-xs uppercase tracking-widest px-2 py-1 rounded-sm">
               SALE
             </span>
           )}
           {!product.isOnSale && product.isNew && (
-            <span className="flex-shrink-0 mt-1 bg-[#1C1C1C] dark:bg-white text-white dark:text-black font-barlow font-bold text-[10px] uppercase tracking-widest px-2 py-1 rounded-sm">
+            <span className="flex-shrink-0 mt-1 bg-[#1C1C1C] dark:bg-white text-white dark:text-black font-barlow font-bold text-xs uppercase tracking-widest px-2 py-1 rounded-sm">
               NUEVO
             </span>
           )}
           {product.availableOnline === false && (
-            <span className="flex-shrink-0 mt-1 bg-[#F5C518] text-[#1C1C1C] font-barlow font-bold text-[10px] uppercase tracking-widest px-2 py-1 rounded-sm">
+            <span className="flex-shrink-0 mt-1 bg-[#F5C518] text-[#1C1C1C] font-barlow font-bold text-xs uppercase tracking-widest px-2 py-1 rounded-sm">
               SÓLO EN TIENDAS
             </span>
           )}
@@ -367,7 +368,7 @@ export default function ProductInfo({
                       className="block h-8 w-8 rounded-full border border-black/10 shadow-inner"
                       style={getColorSwatchStyle(option.name)}
                     />
-                    <span aria-hidden="true" className="pointer-events-none absolute -bottom-7 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded bg-[#1C1C1C] px-2 py-0.5 text-[10px] capitalize text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+                    <span aria-hidden="true" className="pointer-events-none absolute -bottom-7 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded bg-[#1C1C1C] px-2 py-0.5 text-xs capitalize text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
                       {option.name.toLowerCase()}
                     </span>
                   </>
@@ -600,7 +601,7 @@ export default function ProductInfo({
           <AccordionItem title="Envío y devoluciones">
             <p className="font-montserrat text-sm text-[#4A4A4A] dark:text-gray-300 leading-relaxed">
               Envío gratis en compras desde {formatCOP(shippingRates.freeThreshold)}. Entregas en todo Colombia de{" "}
-              {DELIVERY_BUSINESS_DAYS.min} a {DELIVERY_BUSINESS_DAYS.max} días hábiles. Devoluciones gratuitas dentro de los{" "}
+              {deliveryDays.min} a {deliveryDays.max} días hábiles. Devoluciones gratuitas dentro de los{" "}
               {RETURN_WINDOW_DAYS} días siguientes a la compra, siempre que el producto esté en su estado original y sin uso.
             </p>
           </AccordionItem>

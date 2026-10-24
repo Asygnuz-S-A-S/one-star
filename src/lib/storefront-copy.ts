@@ -36,6 +36,7 @@ export const DEFAULT_FOOTER_LINKS: FooterLink[] = [
   { label: "Tiendas", href: "/tiendas" },
   { label: "Términos", href: "/terminos" },
   { label: "Privacidad", href: "/privacidad" },
+  { label: "Cambios", href: "/cambios" },
 ]
 
 /** Una línea "título | detalle". Las líneas vacías se ignoran. */
@@ -71,6 +72,49 @@ export function parseFooterLinks(raw: string | null | undefined): FooterLink[] {
     return [{ label, href }]
   })
   return links.length > 0 ? links : DEFAULT_FOOTER_LINKS
+}
+
+export type BottomNavIcon = "home" | "shop" | "search" | "bag" | "user"
+
+export interface BottomNavItem {
+  label: string
+  href: string
+  icon: BottomNavIcon
+}
+
+export const DEFAULT_BOTTOM_NAV: BottomNavItem[] = [
+  { label: "Inicio", href: "/", icon: "home" },
+  { label: "Tienda", href: "/productos", icon: "shop" },
+  { label: "Buscar", href: "/buscar", icon: "search" },
+  { label: "Bolsa", href: "#bolsa", icon: "bag" },
+  { label: "Cuenta", href: "/cuenta", icon: "user" },
+]
+
+const BOTTOM_ICONS = new Set<BottomNavIcon>(["home", "shop", "search", "bag", "user"])
+
+/** Líneas "Etiqueta | /ruta | icono". `#bolsa` abre el carrito. */
+export function parseBottomNav(raw: string | null | undefined): BottomNavItem[] {
+  const lines = (raw ?? "").split("\n").map((line) => line.trim()).filter(Boolean)
+  if (lines.length === 0) return DEFAULT_BOTTOM_NAV
+  const items = lines.flatMap((line) => {
+    const [label, href, icon] = line.split("|").map((part) => part.trim())
+    if (!label || !href) return []
+    const safeHref = href === "#bolsa" || (href.startsWith("/") && !href.startsWith("//"))
+    if (!safeHref) return []
+    const parsedIcon = BOTTOM_ICONS.has(icon as BottomNavIcon) ? (icon as BottomNavIcon) : "shop"
+    return [{ label, href, icon: parsedIcon }]
+  })
+  return items.length > 0 ? items.slice(0, 5) : DEFAULT_BOTTOM_NAV
+}
+
+/** Montos en pesos, uno por línea o separados por coma. */
+export function parseGiftCardAmounts(raw: string | null | undefined): number[] {
+  const values = (raw ?? "")
+    .split(/[\n,]/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => Number(part))
+  return [...new Set(values.filter((amount) => Number.isInteger(amount) && amount > 0))].sort((a, b) => a - b)
 }
 
 export function giftCardExpiry(from: Date, months: number): Date {

@@ -1,13 +1,14 @@
 "use client"
 
 import { useActionState } from "react"
-import { createAdminUserAction, updateAdminRoleAction } from "./actions"
+import { createAdminUserAction, resetAdminPasswordAction, setAdminActiveAction, updateAdminRoleAction } from "./actions"
 
 interface AdminRow {
   id: string
   email: string
   name: string
   role: "SUPER_ADMIN" | "INVENTORY_OPERATOR"
+  isActive: boolean
 }
 
 const inputClass =
@@ -33,6 +34,38 @@ function RoleForm({ admin }: { admin: AdminRow }) {
   )
 }
 
+function AccountForms({ admin }: { admin: AdminRow }) {
+  const [activeState, activeAction, activePending] = useActionState(
+    async (_previous: { success: boolean; error?: string } | null, formData: FormData) => setAdminActiveAction(formData),
+    null,
+  )
+  const [passwordState, passwordAction, passwordPending] = useActionState(
+    async (_previous: { success: boolean; error?: string } | null, formData: FormData) => resetAdminPasswordAction(formData),
+    null,
+  )
+  return (
+    <div className="space-y-2">
+      <form action={activeAction} className="flex flex-wrap items-center gap-2">
+        <input type="hidden" name="id" value={admin.id} />
+        <input type="hidden" name="active" value={admin.isActive ? "false" : "true"} />
+        <button type="submit" disabled={activePending} className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold">
+          {admin.isActive ? "Desactivar" : "Activar"}
+        </button>
+        <span className={`text-xs ${admin.isActive ? "text-emerald-700" : "text-red-700"}`}>{admin.isActive ? "Activa" : "Desactivada"}</span>
+        {activeState?.error && <span className="text-xs text-red-700">{activeState.error}</span>}
+      </form>
+      <form action={passwordAction} className="flex flex-wrap items-center gap-2">
+        <input type="hidden" name="id" value={admin.id} />
+        <input name="password" type="password" minLength={10} autoComplete="new-password" placeholder="Nueva contraseña" className={`${inputClass} max-w-[220px]`} />
+        <button type="submit" disabled={passwordPending} className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold">
+          Cambiar clave
+        </button>
+        {passwordState && <span className={`text-xs ${passwordState.success ? "text-emerald-700" : "text-red-700"}`}>{passwordState.success ? "Clave actualizada." : passwordState.error}</span>}
+      </form>
+    </div>
+  )
+}
+
 export default function UsuariosManager({ admins }: { admins: AdminRow[] }) {
   const [created, createAction, creating] = useActionState(
     async (_previous: { success: boolean; error?: string } | null, formData: FormData) => createAdminUserAction(formData),
@@ -48,6 +81,7 @@ export default function UsuariosManager({ admins }: { admins: AdminRow[] }) {
               <th className="px-4 py-3">Nombre</th>
               <th className="px-4 py-3">Correo</th>
               <th className="px-4 py-3">Rol</th>
+              <th className="px-4 py-3">Cuenta</th>
             </tr>
           </thead>
           <tbody>
@@ -57,6 +91,9 @@ export default function UsuariosManager({ admins }: { admins: AdminRow[] }) {
                 <td className="px-4 py-3 text-[#4A4A4A]">{admin.email}</td>
                 <td className="px-4 py-3">
                   <RoleForm admin={admin} />
+                </td>
+                <td className="px-4 py-3">
+                  <AccountForms admin={admin} />
                 </td>
               </tr>
             ))}

@@ -66,8 +66,11 @@ export function isValidGiftCardAmount(
  * Construye el ítem de carrito de una tarjeta de regalo. `id` es el id de la
  * variante real porque el checkout envía `variantId: item.id`.
  */
-export function createGiftCardCartItem(option: GiftCardOption) {
-  if (!isValidGiftCardAmount(option.amount)) {
+export function createGiftCardCartItem(
+  option: GiftCardOption,
+  limits?: Pick<GiftCardLimits, "minAmount" | "maxAmount">,
+) {
+  if (!isValidGiftCardAmount(option.amount, limits)) {
     throw new Error(
       `El monto de la tarjeta debe estar entre $${formatGiftCardAmount(GIFT_CARD_MIN_AMOUNT)} y $${formatGiftCardAmount(GIFT_CARD_MAX_AMOUNT)}`,
     )

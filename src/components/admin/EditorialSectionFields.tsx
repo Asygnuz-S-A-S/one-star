@@ -105,7 +105,20 @@ export function CampaignHeroSlideFields({ config, onChange, onPickMedia }: Props
     <div className="grid gap-3 sm:grid-cols-2"><div><label className={label}>CTA principal *</label><input required value={cta.label} onChange={(event) => onChange({ ...config, primaryCta: { ...cta, label: event.target.value } })} className={input} placeholder="Comprar colección" /></div><div><Destination id="campaign-primary-destination" value={cta.href} onChange={(href) => onChange({ ...config, primaryCta: { ...cta, href } })} /></div></div>
     <div className="border-t pt-3"><label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={Boolean(secondary)} onChange={(event) => onChange({ ...config, ...(event.target.checked ? { secondaryCta: { label: "Ver más", href: "/productos" } } : { secondaryCta: undefined }) })} />Añadir CTA secundario</label>{secondary && <div className="mt-3 grid gap-3 sm:grid-cols-2"><div><label className={label}>CTA secundario</label><input value={secondary.label} onChange={(event) => onChange({ ...config, secondaryCta: { ...secondary, label: event.target.value } })} className={input} /></div><div><Destination id="campaign-secondary-destination" value={secondary.href} onChange={(href) => onChange({ ...config, secondaryCta: { ...secondary, href } })} /></div></div>}</div>
     <Media label="Producto en primer plano (PNG sin fondo, opcional; sin imágenes de fondo se muestra como escenario de producto)" media={config.foregroundMedia} onChange={(foregroundMedia) => onChange({ ...config, foregroundMedia })} onPickMedia={onPickMedia} />
-    <p className="-mt-2 text-xs text-gray-500">Usa un PNG/WebP recortado del tenis para una composición editorial. Se anima suavemente sin ocultar el contenido.</p>
+    <div>
+      <label className={label}>Tomas del giro, una URL por línea</label>
+      <textarea
+        value={Array.isArray(config.angles) ? config.angles.map((item: { src?: string }) => item.src ?? "").filter(Boolean).join("\n") : ""}
+        onChange={(event) => {
+          const angles = event.target.value.split("\n").map((line) => line.trim()).filter(Boolean).slice(0, 12).map((src) => ({ src, alt: config.headline || "Producto" }))
+          onChange({ ...config, angles: angles.length ? angles : undefined })
+        }}
+        rows={4}
+        className={input}
+        placeholder="https://.../frente.png"
+      />
+      <p className="mt-1 text-xs text-gray-500">Con dos o más fotos del mismo zapato, en orden, el escenario las recorre. Una sola foto no se convierte en un video 3D.</p>
+    </div>
   </div>
 }
 

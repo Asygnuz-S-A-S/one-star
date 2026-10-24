@@ -16,6 +16,9 @@ describe("datos legales de la empresa", () => {
         address: "Cra. 50 #50-20, Medellín",
         contactEmail: "contacto@onestar.com.co",
         contactPhone: null,
+        city: "Medellín",
+        commercialRegistry: null,
+        dataProtectionEmail: null,
       })
     ).toBe(false)
   })

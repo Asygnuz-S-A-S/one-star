@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import LegalDocument, { LegalList, LegalSection } from "@/components/legal/LegalDocument"
 import { LEGAL_LAST_UPDATED } from "@/lib/legal"
-import { getLegalCompany } from "@/server/services/store-settings.service"
+import { getLegalCompany, getLegalDocuments } from "@/server/services/store-settings.service"
 
 export const metadata: Metadata = {
   title: "Política de Privacidad | One Star",
@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 }
 
 export default async function PrivacidadPage() {
-  const company = await getLegalCompany()
+  const [company, documents] = await Promise.all([getLegalCompany(), getLegalDocuments()])
   const responsable = company.legalName ?? company.tradeName
   const canalContacto = company.contactEmail ?? "los canales de atención publicados en este sitio"
 
@@ -21,13 +21,16 @@ export default async function PrivacidadPage() {
       intro={`Esta política describe cómo ${company.tradeName} recolecta, usa, almacena y protege tus datos personales, conforme a la Ley 1581 de 2012, el Decreto 1074 de 2015 y demás normas concordantes.`}
       lastUpdated={LEGAL_LAST_UPDATED}
       company={company}
+      documentUrl={documents.privacy}
     >
       <LegalSection id="responsable" heading="1. Responsable del tratamiento">
         <p>
           El responsable del tratamiento de tus datos personales es {responsable}
           {company.taxId ? `, NIT ${company.taxId}` : ""}
-          {company.address ? `, con domicilio en ${company.address}` : ""}. Puedes
-          comunicarte con nosotros en {canalContacto}
+          {company.address ? `, con domicilio en ${company.address}` : ""}
+          {company.city ? `, ${company.city}` : ""}
+          {company.commercialRegistry ? `, matrícula mercantil ${company.commercialRegistry}` : ""}. Puedes
+          comunicarte con nosotros en {company.dataProtectionEmail ?? canalContacto}
           {company.contactPhone ? ` o al ${company.contactPhone}` : ""}.
         </p>
       </LegalSection>

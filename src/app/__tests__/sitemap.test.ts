@@ -40,6 +40,7 @@ describe("sitemap", () => {
     expect(urls).toContain("https://onestar.com.co/")
     expect(urls).toContain("https://onestar.com.co/terminos")
     expect(urls).toContain("https://onestar.com.co/privacidad")
+    expect(urls).toContain("https://onestar.com.co/cambios")
     expect(urls).toContain("https://onestar.com.co/c/hombre")
     expect(urls).toContain("https://onestar.com.co/productos/nike-air-force-1-07")
     const product = entries.find((entry) => entry.url.endsWith("/productos/nike-air-force-1-07"))

@@ -10,13 +10,16 @@ import { DEFAULT_SHIPPING_RATES, type ShippingRates } from "./shipping"
 
 const cop = (value: number) => `$${value.toLocaleString("es-CO")}`
 
-export function buildStoreKnowledge(rates: ShippingRates = DEFAULT_SHIPPING_RATES): string {
+export function buildStoreKnowledge(
+  rates: ShippingRates = DEFAULT_SHIPPING_RATES,
+  delivery: { min: number; max: number } = { min: 3, max: 5 },
+): string {
   return `ENVÍOS
 - Transportadora: Envía es el aliado logístico de One Star.
 - Cobertura: nacional en la mayoría de municipios de primera y segunda categoría. En municipios de tercera categoría en adelante, el costo y la cobertura pueden variar: el valor exacto se ve en el checkout con la dirección.
 - Envío estándar: ${cop(rates.standardCost)}. Es gratis en compras desde ${cop(rates.freeThreshold)}.
 - Envío express: ${cop(rates.expressCost)}.
-- Tiempo de entrega estimado: 3 a 5 días hábiles, contados desde la confirmación del pago. El costo y el tiempo exactos se muestran en el checkout antes de pagar.
+- Tiempo de entrega estimado: ${delivery.min} a ${delivery.max} días hábiles, contados desde la confirmación del pago. El costo y el tiempo exactos se muestran en el checkout antes de pagar.
 - Las tarjetas de regalo son digitales y no tienen envío.
 
 PAGOS

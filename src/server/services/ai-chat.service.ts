@@ -4,7 +4,7 @@ import Anthropic from "@anthropic-ai/sdk"
 import { getProducts } from "./product.service"
 import { findVariantForCartDisplay } from "@/server/repositories/variant.repository"
 import { buildStoreKnowledge, STORE_KNOWLEDGE } from "@/lib/store-knowledge"
-import { getShippingRates } from "@/server/services/store-settings.service"
+import { getDeliveryWindow, getShippingRates } from "@/server/services/store-settings.service"
 
 const DEFAULT_MODEL = "claude-sonnet-5"
 const MAX_TOOL_ROUNDS = 4
@@ -168,8 +168,8 @@ export async function sendChatMessage(history: ChatMessage[], message: string): 
   }
 
   const model = process.env.ANTHROPIC_MODEL || DEFAULT_MODEL
-  const knowledge = await getShippingRates()
-    .then((rates) => buildStoreKnowledge(rates))
+  const knowledge = await Promise.all([getShippingRates(), getDeliveryWindow()])
+    .then(([rates, delivery]) => buildStoreKnowledge(rates, delivery))
     .catch(() => STORE_KNOWLEDGE)
   const messages: Anthropic.MessageParam[] = [
     ...history.map((m) => ({ role: m.role, content: m.content }) as Anthropic.MessageParam),

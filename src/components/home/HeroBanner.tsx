@@ -211,7 +211,7 @@ export default function HeroBanner({
           <div
             className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center text-white/50"
           >
-            <span className="text-[10px] uppercase tracking-widest mb-2 font-bold">Scroll</span>
+            <span className="text-xs uppercase tracking-widest mb-2 font-bold">Scroll</span>
             <div className="w-[1px] h-12 bg-gradient-to-b from-white/50 to-transparent" />
           </div>
         )}

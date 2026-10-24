@@ -214,6 +214,7 @@ model AdminUser {
   passwordHash String
   name         String
   role         AdminRole @default(INVENTORY_OPERATOR)
+  isActive     Boolean   @default(true)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 }
@@ -614,6 +615,21 @@ model StoreSettings {
   clubWelcomeBody       String?
   /// Líneas "etiqueta | /ruta" del pie de página. Vacío = enlaces de respaldo.
   footerLinks           String?
+  /// Líneas "Etiqueta | /ruta | icono". Iconos: home, shop, search, bag, user. Vacío = la barra actual.
+  bottomNav             String?
+  deliveryMinDays       Int      @default(3)
+  deliveryMaxDays       Int      @default(5)
+  expressDeliveryMinDays Int     @default(1)
+  expressDeliveryMaxDays Int     @default(2)
+  legalCity             String?
+  /// Matrícula mercantil u otro dato de registro.
+  commercialRegistry    String?
+  dataProtectionEmail   String?
+  termsDocumentUrl      String?
+  privacyDocumentUrl    String?
+  returnsDocumentUrl    String?
+  /// Montos de tarjeta de regalo, uno por línea, en pesos. Vacío = no cambia el catálogo.
+  giftCardAmounts       String?
   updatedAt         DateTime @updatedAt
 }
 

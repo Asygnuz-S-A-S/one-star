@@ -11,6 +11,8 @@ export type CampaignHeroSlide = {
   desktopMedia?: EditorialMedia
   eyebrow?: string
   foregroundMedia?: EditorialMedia
+  /** Tomas en orden para recorrer el producto. Hacen falta al menos dos. */
+  angles?: EditorialMedia[]
   headline: string
   id: string
   mobileMedia?: EditorialMedia
@@ -25,6 +27,7 @@ export type CampaignHeroConfig = {
   desktopMedia?: EditorialMedia
   eyebrow?: string
   foregroundMedia?: EditorialMedia
+  angles?: EditorialMedia[]
   headline: string
   kind: "campaignHero"
   mobileMedia?: EditorialMedia
@@ -67,6 +70,17 @@ function appearance(value: unknown): EditorialAppearance {
   return typeof value === "string" && appearances.has(value as EditorialAppearance) ? value as EditorialAppearance : "carbon"
 }
 
+function angleList(value: unknown, fallbackAlt: string): EditorialMedia[] | undefined {
+  if (!Array.isArray(value)) return undefined
+  const items = value.flatMap((item) => {
+    const parsed = media(item)
+    if (parsed) return [parsed]
+    const src = typeof item === "string" ? text(item) : undefined
+    return src && isSafePublicUrl(src) ? [{ src, alt: fallbackAlt }] : []
+  })
+  return items.length > 0 ? items.slice(0, 12) : undefined
+}
+
 function media(value: unknown): EditorialMedia | undefined {
   const item = record(value)
   const src = text(item?.src)
@@ -107,6 +121,7 @@ export function parseEditorialConfig(value: unknown): EditorialConfig {
         ...(media(slide?.mobileMedia) ? { mobileMedia: media(slide?.mobileMedia) } : {}),
         ...(media(slide?.tabletMedia) ? { tabletMedia: media(slide?.tabletMedia) } : {}),
         ...(media(slide?.foregroundMedia) ? { foregroundMedia: media(slide?.foregroundMedia) } : {}),
+        ...(angleList(slide?.angles, headline) ? { angles: angleList(slide?.angles, headline) } : {}),
       }
     }
     const slides = Array.isArray(config.slides) ? config.slides.flatMap((slide, index) => {
@@ -177,5 +192,6 @@ export function resolveCampaignSlides(campaign: CampaignHeroConfig): CampaignHer
     ...(campaign.tabletMedia ? { tabletMedia: campaign.tabletMedia } : {}),
     ...(campaign.mobileMedia ? { mobileMedia: campaign.mobileMedia } : {}),
     ...(campaign.foregroundMedia ? { foregroundMedia: campaign.foregroundMedia } : {}),
+    ...(campaign.angles?.length ? { angles: campaign.angles } : {}),
   }]
 }

@@ -18,7 +18,7 @@ import { getPrimaryLogos } from "@/server/repositories/site-logo.repository";
 import { getHeaderConfig } from "@/server/repositories/header-config.repository";
 import { getMetaPixelPublicConfig, getPublicStorefrontConfig } from "@/server/services/store-settings.service";
 import { DEFAULT_SHIPPING_RATES } from "@/lib/shipping";
-import { DEFAULT_CHAT_WELCOME, DEFAULT_FOOTER_LINKS } from "@/lib/storefront-copy";
+import { DEFAULT_BOTTOM_NAV, DEFAULT_CHAT_WELCOME, DEFAULT_FOOTER_LINKS } from "@/lib/storefront-copy";
 import { DEFAULT_GIFT_CARD_LIMITS } from "@/lib/gift-card";
 import { ShippingRatesProvider } from "@/components/storefront/ShippingRatesProvider";
 
@@ -62,6 +62,11 @@ export default async function RootLayout({
         chatWelcome: DEFAULT_CHAT_WELCOME,
         giftCardValidityMonths: DEFAULT_GIFT_CARD_LIMITS.validityMonths,
         footerLinks: DEFAULT_FOOTER_LINKS,
+        bottomNav: DEFAULT_BOTTOM_NAV,
+        deliveryMinDays: 3,
+        deliveryMaxDays: 5,
+        expressDeliveryMinDays: 1,
+        expressDeliveryMaxDays: 2,
         storeName: "One Star",
         contactEmail: null,
         whatsapp: null,
@@ -78,7 +83,14 @@ export default async function RootLayout({
           Saltar al contenido principal
         </a>
         <Providers nonce={nonce}>
-          <ShippingRatesProvider rates={storefront.shipping} giftCardValidityMonths={storefront.giftCardValidityMonths}>
+          <ShippingRatesProvider
+            rates={storefront.shipping}
+            giftCardValidityMonths={storefront.giftCardValidityMonths}
+            deliveryMinDays={storefront.deliveryMinDays}
+            deliveryMaxDays={storefront.deliveryMaxDays}
+            expressDeliveryMinDays={storefront.expressDeliveryMinDays}
+            expressDeliveryMaxDays={storefront.expressDeliveryMaxDays}
+          >
           {metaPixel && <MetaPixel pixelId={metaPixel.pixelId} />}
           <PublicSiteFrame
             items={navigationItems}
@@ -88,6 +100,7 @@ export default async function RootLayout({
             chatEnabled={storefront.chatEnabled}
             chatWelcome={storefront.chatWelcome}
             footerLinks={storefront.footerLinks}
+            bottomNav={storefront.bottomNav}
             storeName={storefront.storeName}
             contactEmail={storefront.contactEmail}
             whatsapp={storefront.whatsapp}

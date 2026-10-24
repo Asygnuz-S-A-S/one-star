@@ -175,7 +175,7 @@ export default function ProductReviews({ productId, initialReviews, stats }: Pro
                         ✓ Verificado
                       </span>
                     )}
-                    <span className="text-[10px] text-[#4A4A4A] dark:text-gray-500 font-montserrat">
+                    <span className="text-xs text-[#4A4A4A] dark:text-gray-500 font-montserrat">
                       {new Date(review.createdAt).toLocaleDateString("es-CO", { year: "numeric", month: "short", day: "numeric" })}
                     </span>
                   </div>
