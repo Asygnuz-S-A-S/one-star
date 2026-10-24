@@ -86,9 +86,9 @@ test.describe("Acceso a la búsqueda desde el header", () => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto("/")
 
-    await page.getByRole("link", { name: "Buscar", exact: true }).first().click()
-
-    await expect(page).toHaveURL(/\/buscar$/)
+    // Con JavaScript la lupa abre la barra de búsqueda (HU-10); el href queda como respaldo sin JS.
+    const lupa = page.getByRole("link", { name: "Buscar", exact: true }).filter({ visible: true })
+    await expect(lupa).toHaveAttribute("href", "/buscar")
   })
 })
 
@@ -118,7 +118,7 @@ test.describe("Filtro de género (HU-8)", () => {
   test("el catálogo filtra por género desde el lateral y muestra el chip activo", async ({ page }) => {
     await page.goto("/productos")
 
-    await page.getByRole("radio", { name: /^mujer$/i }).check()
+    await page.getByRole("radio", { name: /^mujer$/i }).click()
 
     await expect(page).toHaveURL(/genero=mujer/)
     await expect(page.getByRole("link", { name: /Género: Mujer/ })).toBeVisible()
@@ -144,7 +144,7 @@ test.describe("Filtros y orden en móvil (HU-9)", () => {
 
     const panel = page.getByRole("heading", { name: "Filtros", exact: true })
     await expect(panel).toBeVisible()
-    await page.locator("aside").getByRole("radio", { name: "Mujer", exact: true }).check()
+    await page.locator("aside").getByRole("radio", { name: "Mujer", exact: true }).click()
     await expect(page).toHaveURL(/genero=mujer/)
     await expect(page).toHaveURL(/orden=az/)
   })
@@ -159,7 +159,7 @@ test.describe("Búsqueda en el menú superior (HU-10)", () => {
       await page.setViewportSize(viewport)
       await page.goto("/")
 
-      const lupa = page.getByLabel("Buscar", { exact: true })
+      const lupa = page.getByLabel("Buscar", { exact: true }).filter({ visible: true })
       await expect(lupa).toBeVisible()
       await lupa.click()
 
@@ -176,7 +176,7 @@ test.describe("Búsqueda en el menú superior (HU-10)", () => {
   test("la barra se cierra con Escape", async ({ page }) => {
     await page.goto("/")
 
-    await page.getByLabel("Buscar", { exact: true }).click()
+    await page.getByLabel("Buscar", { exact: true }).filter({ visible: true }).click()
     await expect(page.locator("#header-search-q")).toBeVisible()
 
     await page.keyboard.press("Escape")
@@ -192,13 +192,14 @@ test.describe("Encabezado unificado (HU-11)", () => {
 
     const medidas = await page.evaluate(() => {
       const header = document.querySelector("header")!
-      const anuncio = header.children[0].getBoundingClientRect()
-      const barra = header.children[1]
+      // El anuncio se puede desactivar desde el admin; sin él la barra queda arriba del todo.
+      const barra = header.lastElementChild!
+      const anuncio = barra.previousElementSibling
       const rect = barra.getBoundingClientRect()
       const cs = getComputedStyle(barra)
       return {
         headerTop: header.getBoundingClientRect().top,
-        hueco: rect.top - anuncio.bottom,
+        hueco: rect.top - (anuncio ? anuncio.getBoundingClientRect().bottom : header.getBoundingClientRect().top),
         margin: cs.margin,
         radius: cs.borderRadius,
         anchoCompleto: Math.round(rect.width) === window.innerWidth,

@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, useRef } from "react"
-import { getMediaAssetsAction, deleteMediaAssetAction, syncMediaAssetsAction } from "@/server/actions/media-asset.actions"
+import { getMediaAssetsAction, deleteMediaAssetAction, getMediaAssetDeletionInfoAction, syncMediaAssetsAction } from "@/server/actions/media-asset.actions"
 import type { MediaAssetDTO } from "@/server/services/media-asset.service"
 
 interface MediaLibraryModalProps {
@@ -24,6 +24,7 @@ export default function MediaLibraryModal({
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const [notice, setNotice] = useState("")
   const [search, setSearch] = useState("")
   const [filterType, setFilterType] = useState<string>(acceptedType === "all" ? "all" : acceptedType)
   const [uploading, setUploading] = useState(false)
@@ -31,6 +32,8 @@ export default function MediaLibraryModal({
   const [selectedAsset, setSelectedAsset] = useState<MediaAssetDTO | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const closeButtonRef = useRef<HTMLButtonElement>(null)
+  const previousFocusRef = useRef<HTMLElement | null>(null)
 
   const loadAssets = async (typeToFilter = filterType, searchQuery = search) => {
     setLoading(true)
@@ -86,6 +89,24 @@ export default function MediaLibraryModal({
     }
   }, [isOpen, filterType, search])
 
+  useEffect(() => {
+    if (!isOpen) return
+    previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    const timeout = window.setTimeout(() => closeButtonRef.current?.focus(), 0)
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault()
+        onClose()
+      }
+    }
+    document.addEventListener("keydown", onKeyDown)
+    return () => {
+      window.clearTimeout(timeout)
+      document.removeEventListener("keydown", onKeyDown)
+      previousFocusRef.current?.focus()
+    }
+  }, [isOpen, onClose])
+
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     loadAssets(filterType, search)
@@ -126,7 +147,17 @@ export default function MediaLibraryModal({
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    if (!confirm("¿Eliminar este archivo de la biblioteca? No se podrá recuperar.")) return
+    setError("")
+    setNotice("")
+    const info = await getMediaAssetDeletionInfoAction(id)
+    if (!info.success || !info.data?.exists) {
+      setError(info.error || "No se pudo verificar el archivo antes de eliminarlo.")
+      return
+    }
+    const referenceWarning = info.data.referenceCount
+      ? `\n\nAdvertencia: este archivo está referenciado en ${info.data.referenceCount} contenido(s). Esos contenidos seguirán apuntando a su URL.`
+      : ""
+    if (!confirm(`¿Retirar este archivo de la biblioteca?\n\nEsto elimina solo su índice local; no borra el archivo remoto de Cloudinary.${referenceWarning}`)) return
     setDeletingId(id)
     try {
       const res = await deleteMediaAssetAction(id)
@@ -134,11 +165,12 @@ export default function MediaLibraryModal({
         setAssets((prev) => prev.filter((a) => a.id !== id))
         setTotal((prev) => Math.max(0, prev - 1))
         if (selectedAsset?.id === id) setSelectedAsset(null)
+        setNotice("El archivo se retiró de la biblioteca. El archivo remoto no fue eliminado.")
       } else {
-        alert(res.error || "Error al eliminar el archivo")
+        setError(res.error || "Error al retirar el archivo de la biblioteca.")
       }
     } catch {
-      alert("Error de red al eliminar el archivo")
+      setError("Error de red al retirar el archivo de la biblioteca.")
     } finally {
       setDeletingId(null)
     }
@@ -168,8 +200,13 @@ export default function MediaLibraryModal({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[88vh] flex flex-col overflow-hidden border border-gray-200">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[88vh] flex flex-col overflow-hidden border border-gray-200"
+      >
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
           <div className="flex items-center gap-3">
@@ -181,6 +218,7 @@ export default function MediaLibraryModal({
             <div>
               <h3 className="font-bold text-[#1C1C1C] text-base">{title}</h3>
               <p className="text-xs text-gray-500">{total} archivos en total</p>
+              <p className="text-xs text-amber-700">Retirar de biblioteca no elimina el archivo remoto.</p>
             </div>
           </div>
 
@@ -212,8 +250,9 @@ export default function MediaLibraryModal({
 
             <button
               type="button"
+              ref={closeButtonRef}
               onClick={onClose}
-              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors ml-2"
+              className="min-h-11 min-w-11 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors ml-2"
               aria-label="Cerrar modal"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -226,6 +265,8 @@ export default function MediaLibraryModal({
         {/* Tab 1: Explorar */}
         {activeTab === "browse" && (
           <div className="flex-1 flex flex-col min-h-0">
+            {error && <div role="alert" className="mx-4 mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700">{error}</div>}
+            {notice && <div role="status" className="mx-4 mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800">{notice}</div>}
             {/* Barra de Filtros y Búsqueda */}
             <div className="p-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3 bg-white">
               <form onSubmit={handleSearchSubmit} className="flex-1 min-w-[240px] max-w-md relative">
@@ -322,9 +363,19 @@ export default function MediaLibraryModal({
                     return (
                       <div
                         key={asset.id}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`Seleccionar ${asset.fileName}`}
+                        aria-pressed={isSelected}
                         onClick={() => setSelectedAsset(asset)}
                         onDoubleClick={() => handleConfirmSelect(asset)}
-                        className={`group relative bg-white rounded-xl border overflow-hidden cursor-pointer transition-all duration-200 ${
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault()
+                            setSelectedAsset(asset)
+                          }
+                        }}
+                        className={`group relative bg-white rounded-xl border overflow-hidden cursor-pointer transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1C1C1C] ${
                           isSelected
                             ? "ring-2 ring-[#1C1C1C] border-[#1C1C1C] shadow-md scale-[1.02]"
                             : "border-gray-200 hover:border-gray-300 hover:shadow-sm"
@@ -406,6 +457,15 @@ export default function MediaLibraryModal({
               </div>
 
               <div className="flex gap-2">
+                {selectedAsset && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedAsset(null)}
+                    className="px-4 py-2 border border-gray-200 text-gray-600 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-gray-50 transition-colors"
+                  >
+                    Limpiar selección
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={onClose}

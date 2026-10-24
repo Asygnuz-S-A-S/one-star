@@ -177,6 +177,8 @@ function RegistroForm() {
   const [gender, setGender] = useState("")
   const [terms, setTerms] = useState(false)
   const [newsletter, setNewsletter] = useState(false)
+  // Llegar desde /club (o con ?club=1) deja marcada la membresía; el newsletter siempre es opt-in.
+  const [joinClub, setJoinClub] = useState(() => searchParams.get("club") === "1" || callbackUrl === "/club")
 
   const [errors, setErrors] = useState<FormErrors>({})
   const [submitError, setSubmitError] = useState("")
@@ -265,6 +267,8 @@ function RegistroForm() {
       birthDate,
       preferredBrand,
       gender,
+      joinClub,
+      newsletter,
     })
 
     if (!result.success) {
@@ -528,6 +532,21 @@ function RegistroForm() {
             )}
           </div>
 
+          {/* One Star Club */}
+          <label className="flex cursor-pointer items-start gap-3 rounded-[var(--store-radius-md)] border border-[#1C1C1C]/15 bg-[#F2F2F0] p-3 dark:border-white/15 dark:bg-white/5">
+            <input
+              type="checkbox"
+              checked={joinClub}
+              onChange={(e) => setJoinClub(e.target.checked)}
+              className="mt-0.5 shrink-0 accent-[#E31C23]"
+            />
+            <span className="font-montserrat text-xs text-[var(--text-secondary)]">
+              <span className="block font-barlow text-sm font-bold uppercase tracking-[0.06em] text-[#1C1C1C] dark:text-white">Unirme a One Star Club</span>
+              Gratis. Accede a promociones exclusivas para miembros desde tu cuenta.{" "}
+              <Link href="/club" className="underline underline-offset-2 hover:text-[#1C1C1C] dark:hover:text-white">Conoce el club</Link>
+            </span>
+          </label>
+
           {/* Newsletter */}
           <label className="flex items-start gap-3 cursor-pointer">
             <input
@@ -540,7 +559,7 @@ function RegistroForm() {
               className="mt-0.5 accent-[#E31C23] shrink-0"
             />
             <span className="font-montserrat text-xs text-[var(--text-secondary)]">
-              Quiero recibir ofertas y novedades
+              Quiero recibir ofertas, lanzamientos y novedades por correo
             </span>
           </label>
 

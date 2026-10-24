@@ -153,7 +153,7 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Breadcrumb */}
-        <nav className="font-[var(--font-montserrat)] text-xs text-[#4A4A4A] dark:text-gray-400 mb-6 flex gap-2 items-center">
+        <nav className="font-montserrat text-xs text-[#4A4A4A] dark:text-gray-400 mb-6 flex gap-2 items-center">
           <Link href="/" className="hover:text-[#1C1C1C] dark:hover:text-white transition-colors">Inicio</Link>
           <span>/</span>
           <Link href="/productos" className="hover:text-[#1C1C1C] dark:hover:text-white transition-colors">Productos</Link>
@@ -193,18 +193,18 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
 
         {/* ── Extended description hero (Nike-style) ── */}
         {(product.extendedDescription || product.description) && (
-          <Reveal from="scale" className="relative bg-[#F5F5F5] dark:bg-white/5 rounded-3xl overflow-hidden mb-16 min-h-[280px]">
+          <Reveal className="relative bg-[#F5F5F5] dark:bg-white/5 rounded-3xl overflow-hidden mb-16 min-h-[280px]">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center p-10 md:p-16">
               <div>
-                <h2 className="font-[var(--font-barlow)] font-black text-3xl md:text-4xl uppercase text-[#1C1C1C] dark:text-white mb-2 leading-tight">
+                <h2 className="font-barlow font-black text-3xl md:text-4xl uppercase text-[#1C1C1C] dark:text-white mb-2 leading-tight">
                   {product.name}
                 </h2>
                 {product.brand && (
-                  <p className="font-[var(--font-montserrat)] text-xs uppercase tracking-widest text-[#4A4A4A] dark:text-gray-400 mb-6">
+                  <p className="font-montserrat text-xs uppercase tracking-widest text-[#4A4A4A] dark:text-gray-400 mb-6">
                     {product.brand}
                   </p>
                 )}
-                <p className="font-[var(--font-montserrat)] text-sm text-[#4A4A4A] dark:text-gray-300 leading-relaxed">
+                <p className="font-montserrat text-sm text-[#4A4A4A] dark:text-gray-300 leading-relaxed">
                   {product.extendedDescription ?? product.description}
                 </p>
               </div>

@@ -12,6 +12,8 @@ import BannerForm from "@/components/admin/BannerForm"
 import HomeGridClient from "@/components/admin/HomeGridClient"
 import LogoManager from "@/components/admin/LogoManager"
 import MediaLibraryModal from "@/components/admin/MediaLibraryModal"
+import { CampaignHeroFields, CollectionTileFields } from "@/components/admin/EditorialSectionFields"
+import { campaignHeroDefaults, collectionTileDefaults } from "@/lib/editorial-builder-form"
 
 const Editor = dynamic(() => import("@monaco-editor/react"), { ssr: false })
 import { LandingSection, LandingSectionType, TopBanner, NavigationItem, StoreLogo, HomeGridBlock } from "@prisma/client"
@@ -77,6 +79,13 @@ const SECTION_LABELS: Record<string, string> = {
   MEDIA_CAROUSEL: "Carrusel Multimedia / Promos (Imagen/Video)",
 }
 
+function sectionDestination(config: Record<string, any>): string | null {
+  return typeof config.href === "string" ? config.href
+    : typeof config.ctaLink === "string" ? config.ctaLink
+    : typeof config.primaryCta?.href === "string" ? config.primaryCta.href
+    : null
+}
+
 export default function LandingBuilderList({ actions, initialSections, initialGlobals, initialBanners, initialGridBlocks = [], categories, unavailableAreas = [], onRefresh }: LandingBuilderListProps) {
   const {
     createLandingSectionAction,
@@ -102,6 +111,7 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
   const [showBannerForm, setShowBannerForm] = useState(false)
   const [editingBanner, setEditingBanner] = useState<BannerDTO | null>(null)
   const banners = initialBanners || []
+  const primaryHero = sections.find((section) => section.type === "HERO")
   const isUnavailable = (area: string) => unavailableAreas.includes(area)
 
   const closeBannerForm = () => {
@@ -213,6 +223,10 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
   
   // Config form state
   const [configInput, setConfigInput] = useState<Record<string, any>>({})
+  const [configSaveStatus, setConfigSaveStatus] = useState<{ tone: "success" | "error"; message: string } | null>(null)
+  const editorHeadingRef = React.useRef<HTMLHeadingElement>(null)
+  const configStatusRef = React.useRef<HTMLParagraphElement>(null)
+  const returnFocusRef = React.useRef<HTMLElement | null>(null)
 
   // Media Library Picker state
   const [mediaPickerTarget, setMediaPickerTarget] = useState<{
@@ -279,6 +293,13 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
       sectionMutationLockRef.current = false
       setIsSaving(false)
     }
+  }
+
+  // Alternativa a arrastrar (táctil, teclado): mueve una posición reutilizando el mismo guardado.
+  const moveSection = (index: number, delta: -1 | 1) => {
+    const target = index + delta
+    if (target < 0 || target >= sections.length) return
+    void onDragEnd({ source: { index }, destination: { index: target } } as DropResult)
   }
 
   const onDragEnd = async (result: DropResult) => {
@@ -352,12 +373,23 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
   }
 
   const startEditingConfig = (section: LandingSection) => {
+    returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    setConfigSaveStatus(null)
     setEditingSection(section)
     const config = typeof section.config === 'object' && section.config !== null 
       ? section.config as Record<string, any> 
       : {}
     setConfigInput(config)
   }
+
+  const closeSectionEditor = () => {
+    setEditingSection(null)
+    setTimeout(() => returnFocusRef.current?.focus(), 0)
+  }
+
+  React.useEffect(() => {
+    if (editingSection) setTimeout(() => editorHeadingRef.current?.focus(), 0)
+  }, [editingSection])
 
   // Save global banner
   const handleSaveGlobalBanner = async () => {
@@ -553,6 +585,7 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
   const saveConfig = async () => {
     if (!editingSection) return
     setIsSaving(true)
+    setConfigSaveStatus(null)
 
     // Snapshot para poder revertir si el guardado falla
     const prevSections = sections
@@ -562,18 +595,26 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
         : s
     ))
 
-    const res = await updateLandingSectionConfigAction(editingSection.id, configInput)
-    setIsSaving(false)
+    try {
+      const res = await updateLandingSectionConfigAction(editingSection.id, configInput)
+      if (!res?.success) {
+        // Revierte el cambio optimista y mantiene el editor abierto para corregirlo.
+        setSections(prevSections)
+        setConfigSaveStatus({ tone: "error", message: "No se pudo guardar: " + (res?.error ?? "error desconocido") })
+        setTimeout(() => configStatusRef.current?.focus(), 0)
+        return
+      }
 
-    if (!res?.success) {
-      // Revierte el cambio optimista y mantiene el modal abierto con el error
+      setConfigSaveStatus({ tone: "success", message: "Cambios guardados." })
+      closeSectionEditor()
+      triggerRefresh()
+    } catch {
       setSections(prevSections)
-      alert("Error al guardar la configuración: " + (res?.error ?? "desconocido"))
-      return
+      setConfigSaveStatus({ tone: "error", message: "No se pudo guardar la configuración. Inténtalo de nuevo." })
+      setTimeout(() => configStatusRef.current?.focus(), 0)
+    } finally {
+      setIsSaving(false)
     }
-
-    setEditingSection(null)
-    triggerRefresh()
   }
   const renderModals = () => (
     <AnimatePresence>
@@ -593,7 +634,7 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
           >
             <div className="flex justify-between items-center mb-5">
-              <h2 className="font-[var(--font-barlow)] text-lg font-bold text-[#1C1C1C]">
+              <h2 className="font-barlow text-lg font-bold text-[#1C1C1C]">
                 {editingBanner ? "Editar Slide" : "Nuevo Slide"}
               </h2>
               <button onClick={closeBannerForm} className="text-gray-400 hover:text-gray-800 transition-colors">
@@ -665,7 +706,8 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
     return (
       <div className="flex flex-col h-full bg-white relative">
         <div className="p-4 overflow-y-auto flex-1">
-          <h3 className="font-bold text-lg mb-4 font-[var(--font-barlow)] uppercase tracking-wide">
+          <nav aria-label="Navegación del editor" className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-gray-500">Contenido de inicio <span aria-hidden="true">/</span> Editar</nav>
+          <h3 className="font-bold text-lg mb-4 font-barlow uppercase tracking-wide">
             Top Banner Promocional
           </h3>
           
@@ -826,7 +868,7 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
             disabled={isSaving}
             className="px-4 py-3 bg-gray-200 text-gray-800 rounded text-sm font-bold uppercase hover:bg-gray-300 disabled:opacity-50"
           >
-            Atrás
+            Volver a contenido
           </button>
         </div>
       </div>
@@ -839,12 +881,24 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
         <div className="flex-1 overflow-y-auto p-4">
           <div className="mb-4 flex items-start justify-between gap-3">
             <div>
-              <h3 className="font-[var(--font-barlow)] text-lg font-bold uppercase tracking-wide">
-                Banners del Hero
+              <h3 className="font-barlow text-lg font-bold uppercase tracking-wide">
+                Banners heredados (respaldo)
               </h3>
-              <p className="mt-1 text-xs text-gray-500">
-                Administra los slides aunque la página no tenga actualmente un bloque HERO.
+              <p className="mt-1 text-xs leading-5 text-gray-500">
+                Son el carrusel anterior. Solo se muestra si el Hero principal no tiene una campaña editorial guardada; la campaña con imágenes Web, Tablet y Móvil tiene prioridad.
               </p>
+              {primaryHero && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingGlobal(null)
+                    startEditingConfig(primaryHero)
+                  }}
+                  className="mt-3 min-h-11 rounded border border-[#1C1C1C] px-3 text-xs font-bold text-[#1C1C1C] hover:bg-gray-100"
+                >
+                  Configurar Hero principal
+                </button>
+              )}
             </div>
             <button
               type="button"
@@ -852,7 +906,7 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
               disabled={isSaving || isUnavailable("banners")}
               className="rounded bg-[#1C1C1C] px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              + Añadir banner
+              + Añadir banner heredado
             </button>
           </div>
 
@@ -913,7 +967,7 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
               ))}
               {banners.length === 0 && (
                 <p className="rounded border border-dashed border-gray-300 py-6 text-center text-xs text-gray-500">
-                  No hay banners. Puedes crear el primero desde aquí.
+                  No hay banners heredados. Puedes crear uno para conservar la versión anterior del carrusel.
                 </p>
               )}
             </div>
@@ -926,7 +980,7 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
             disabled={isSaving}
             className="w-full rounded bg-gray-200 px-4 py-3 text-sm font-bold uppercase text-gray-800 hover:bg-gray-300 disabled:opacity-50"
           >
-            Atrás
+            Volver a contenido
           </button>
         </div>
         {renderModals()}
@@ -938,7 +992,7 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
     return (
       <div className="flex flex-col h-full bg-white overflow-y-auto">
         <div className="p-4">
-          <h3 className="font-bold text-lg mb-2 font-[var(--font-barlow)] uppercase tracking-wide">
+          <h3 className="font-bold text-lg mb-2 font-barlow uppercase tracking-wide">
             Logos (Header / Footer)
           </h3>
           <p className="text-xs text-gray-500 mb-4">
@@ -959,7 +1013,7 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
             onClick={() => setEditingGlobal(null)}
             className="w-full px-4 py-3 bg-gray-100 text-gray-800 rounded text-sm font-bold uppercase hover:bg-gray-200"
           >
-            Atrás
+            Volver a contenido
           </button>
         </div>
       </div>
@@ -982,7 +1036,7 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
             onClick={() => setEditingGlobal(null)}
             className="w-full px-4 py-3 bg-gray-100 text-gray-800 rounded text-sm font-bold uppercase hover:bg-gray-200"
           >
-            Atrás
+            Volver a contenido
           </button>
         </div>
       </div>
@@ -992,7 +1046,7 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
   if (editingGlobal === "NAVIGATION") {
     return (
       <div className="flex flex-col h-full bg-white p-4 overflow-y-auto">
-        <h3 className="font-bold text-lg mb-4 font-[var(--font-barlow)] uppercase tracking-wide">
+        <h3 className="font-bold text-lg mb-4 font-barlow uppercase tracking-wide">
           Configuración y Navegación
         </h3>
         
@@ -1350,7 +1404,7 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
             onClick={() => setEditingGlobal(null)}
             className="w-full px-4 py-3 bg-gray-100 text-gray-800 rounded text-sm font-bold uppercase hover:bg-gray-200"
           >
-            Atrás
+            Volver a contenido
           </button>
         </div>
       </div>
@@ -1359,10 +1413,19 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
 
   if (editingSection) {
     return (
-      <div className="flex flex-col h-full bg-white p-4 overflow-y-auto">
-        <h3 className="font-bold text-lg mb-4 font-[var(--font-barlow)] uppercase tracking-wide">
-          Editar: {SECTION_LABELS[editingSection.type]}
-        </h3>
+      <div className="flex h-full flex-col bg-white">
+        <div className="border-b border-gray-200 bg-white px-4 py-3">
+          <nav aria-label="Navegación del editor" className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-gray-500">Secciones de la página <span aria-hidden="true">/</span> Editar</nav>
+          <h3 ref={editorHeadingRef} tabIndex={-1} className="font-barlow text-lg font-black uppercase tracking-wide text-[#1C1C1C]">
+            {SECTION_LABELS[editingSection.type]}
+          </h3>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto p-4">
+        {configSaveStatus?.tone === "error" && (
+          <p ref={configStatusRef} tabIndex={-1} role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900">
+            {configSaveStatus.message}
+          </p>
+        )}
         
         <div className="flex-1 flex flex-col gap-4">
           {/* Universal config fields depending on type */}
@@ -1382,8 +1445,21 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
             </div>
           )}
 
-          {editingSection.type === "HERO" && (
+          {editingSection.type === "HERO" && configInput.kind === "campaignHero" && (
+            <CampaignHeroFields
+              config={configInput}
+              onChange={setConfigInput}
+              onPickMedia={(apply, title) => setMediaPickerTarget({ acceptedType: "image", title, onSelect: (url) => apply(url) })}
+            />
+          )}
+
+          {editingSection.type === "HERO" && configInput.kind !== "campaignHero" && (
             <>
+              <div className="rounded-lg border border-[#E31C23]/30 bg-red-50 p-4 text-sm text-red-950">
+                <h4 className="font-bold">Carrusel editorial responsive</h4>
+                <p className="mt-1 text-xs leading-5">Este Hero usa la configuración anterior. Crea uno o varios slides con imágenes Web, Tablet y Móvil, copy y CTA. El banner actual no cambia hasta guardar.</p>
+                <button type="button" onClick={() => setConfigInput(campaignHeroDefaults())} className="mt-3 min-h-11 w-full rounded bg-[#1C1C1C] px-3 text-xs font-bold uppercase text-white hover:bg-[#343434] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[#E31C23]">Configurar carrusel editorial</button>
+              </div>
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wider">Altura del Banner</label>
                 <select
@@ -1548,8 +1624,21 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
             </div>
           )}
 
-          {editingSection.type === "CATEGORY_GRID" && (
+          {editingSection.type === "CATEGORY_GRID" && configInput.kind === "collectionTile" && (
+            <CollectionTileFields
+              config={configInput}
+              onChange={setConfigInput}
+              onPickMedia={(apply, title) => setMediaPickerTarget({ acceptedType: "image", title, onSelect: (url) => apply(url) })}
+              collectionTargets={initialGridBlocks.map((block) => ({ id: block.id, label: block.label, href: block.href }))}
+            />
+          )}
+
+          {editingSection.type === "CATEGORY_GRID" && configInput.kind !== "collectionTile" && (
             <>
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+                <strong>Configuración avanzada heredada.</strong> Conserva este formato para la grilla actual.
+                <button type="button" onClick={() => setConfigInput({ ...collectionTileDefaults(), tiles: [{ ...collectionTileDefaults().tiles[0], id: initialGridBlocks[0]?.id ?? "coleccion" } ] })} className="mt-2 block font-bold underline">Crear tile de colección guiado</button>
+              </div>
               <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-lg text-xs text-blue-900 flex items-start gap-2">
                 <svg className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -2005,12 +2094,18 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
                       onChange={(e) => setConfigInput({...configInput, height: e.target.value})}
                       className="w-full p-2 border border-gray-300 rounded text-sm bg-white"
                     >
+                      <option value="fit">Ajustada a la imagen (recomendada)</option>
                       <option value="small">Pequeño (340px - 400px)</option>
                       <option value="medium">Mediano (440px - 540px)</option>
                       <option value="large">Grande (550px - 700px)</option>
                       <option value="screen">Pantalla Completa (90vh)</option>
                       <option value="auto">Proporción Panorámica (16:9 / 21:9)</option>
                     </select>
+                    <p className="mt-1 text-[11px] text-gray-500">
+                      {configInput.height === "fit"
+                        ? "Muestra la foto completa: sube 1920×600 px para escritorio y 1080×1080 px para móvil."
+                        : "Con altura fija la foto se recorta; usa el encuadre de cada diapositiva para elegir qué parte se ve."}
+                    </p>
                   </div>
                 </div>
 
@@ -2245,7 +2340,7 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
                     {(slide.mediaType || "image") === "image" ? (
                       <div className="space-y-2">
                         <div>
-                          <label className="block text-[11px] font-bold text-gray-600 mb-1 uppercase tracking-wider">URL de Imagen (Desktop)</label>
+                          <label className="block text-[11px] font-bold text-gray-600 mb-1 uppercase tracking-wider">URL de Imagen (Desktop · 1920×600 px)</label>
                           <input
                             type="text"
                             value={slide.imageUrl || ""}
@@ -2259,7 +2354,8 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
                           />
                         </div>
                         <div>
-                          <label className="block text-[11px] font-bold text-gray-600 mb-1 uppercase tracking-wider">URL de Imagen Móvil (Opcional)</label>
+                          <label className="block text-[11px] font-bold text-gray-600 mb-1 uppercase tracking-wider">URL de Imagen Móvil (Opcional · 1080×1080 px)</label>
+                          <p className="mb-1 text-[11px] text-gray-500">Se muestra en celulares (menos de 768 px). Si la dejas vacía se usa la de escritorio recortada.</p>
                           <input
                             type="text"
                             value={slide.mobileImageUrl || ""}
@@ -2271,6 +2367,46 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
                             className="w-full p-2 border border-gray-300 rounded text-xs bg-white"
                             placeholder="https://ejemplo.com/foto-mobile.jpg"
                           />
+                          <button
+                            type="button"
+                            onClick={() => setMediaPickerTarget({
+                              acceptedType: "image",
+                              title: `Seleccionar imagen móvil para Diapositiva #${sIdx + 1}`,
+                              onSelect: (url) => {
+                                const items = [...configInput.items]
+                                items[sIdx] = { ...items[sIdx], mobileImageUrl: url }
+                                setConfigInput({ ...configInput, items })
+                              },
+                            })}
+                            className="mt-1.5 min-h-9 rounded border border-gray-300 bg-white px-3 text-xs font-bold uppercase tracking-wider text-gray-800 hover:bg-gray-100"
+                          >
+                            Elegir móvil de biblioteca
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          {([
+                            ["focalPoint", "Encuadre escritorio"],
+                            ["mobileFocalPoint", "Encuadre móvil"],
+                          ] as const).map(([field, label]) => (
+                            <div key={field}>
+                              <label className="block text-[11px] font-bold text-gray-600 mb-1 uppercase tracking-wider">{label}</label>
+                              <select
+                                value={slide[field] || "center"}
+                                onChange={(e) => {
+                                  const items = [...configInput.items]
+                                  items[sIdx] = { ...items[sIdx], [field]: e.target.value }
+                                  setConfigInput({ ...configInput, items })
+                                }}
+                                className="w-full p-2 border border-gray-300 rounded text-xs bg-white"
+                              >
+                                <option value="center">Centro</option>
+                                <option value="left">Izquierda</option>
+                                <option value="right">Derecha</option>
+                                <option value="top">Arriba</option>
+                                <option value="bottom">Abajo</option>
+                              </select>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     ) : (
@@ -2384,7 +2520,7 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
                       </div>
 
                       <div>
-                        <label className="block text-[11px] font-bold text-gray-600 mb-1 uppercase tracking-wider">Posición del Texto</label>
+                        <label className="block text-[11px] font-bold text-gray-600 mb-1 uppercase tracking-wider">Posición del Texto (tablet y escritorio)</label>
                         <select
                           value={slide.contentPosition || "bottom-left"}
                           onChange={(e) => {
@@ -2394,6 +2530,25 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
                           }}
                           className="w-full p-2 border border-gray-300 rounded text-xs bg-white"
                         >
+                          <option value="bottom-left">Abajo Izquierda</option>
+                          <option value="left">Centro Izquierda</option>
+                          <option value="center">Centro</option>
+                          <option value="bottom-center">Abajo Centro</option>
+                          <option value="right">Centro Derecha</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-600 mb-1 uppercase tracking-wider">Posición del Texto (móvil)</label>
+                        <select
+                          value={slide.mobileContentPosition || ""}
+                          onChange={(e) => {
+                            const items = [...configInput.items]
+                            items[sIdx] = { ...items[sIdx], mobileContentPosition: e.target.value || undefined }
+                            setConfigInput({...configInput, items})
+                          }}
+                          className="w-full p-2 border border-gray-300 rounded text-xs bg-white"
+                        >
+                          <option value="">Igual que escritorio</option>
                           <option value="bottom-left">Abajo Izquierda</option>
                           <option value="left">Centro Izquierda</option>
                           <option value="center">Centro</option>
@@ -2525,7 +2680,8 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
 
         </div>
 
-        <div className="flex justify-between mt-6 pt-4 border-t">
+        </div>
+        <div className="flex shrink-0 justify-between border-t border-gray-200 bg-white p-4 shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
           <button
             onClick={() => setDeleteConfirm({ id: editingSection.id, label: SECTION_LABELS[editingSection.type] ?? editingSection.type })}
             className="px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 rounded uppercase"
@@ -2534,17 +2690,17 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
           </button>
           <div className="flex gap-2">
             <button
-              onClick={() => setEditingSection(null)}
+              onClick={closeSectionEditor}
               className="px-3 py-2 text-xs font-bold text-gray-600 hover:bg-gray-100 rounded uppercase"
             >
-              Volver
+              Volver a secciones
             </button>
             <button
               onClick={saveConfig}
               disabled={isSaving}
               className="px-4 py-2 bg-[#1C1C1C] text-white rounded text-xs font-bold uppercase hover:bg-gray-800 disabled:opacity-50"
             >
-              {isSaving ? "Guardando..." : "Aplicar"}
+              {isSaving ? "Guardando..." : "Guardar cambios"}
             </button>
           </div>
         </div>
@@ -2556,8 +2712,9 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
   if (isAddingBlock) {
     return (
       <div className="flex flex-col h-full bg-white p-4">
-        <h3 className="font-bold text-lg mb-4 font-[var(--font-barlow)] uppercase tracking-wide">
-          Añadir Nuevo Bloque
+        <nav aria-label="Navegación del editor" className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-gray-500">Secciones de la página <span aria-hidden="true">/</span> Añadir</nav>
+        <h3 className="font-bold text-lg mb-4 font-barlow uppercase tracking-wide">
+          Añadir una sección
         </h3>
         
         <div className="flex-1 flex flex-col gap-2 overflow-y-auto">
@@ -2570,6 +2727,7 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
             >
               <div className="font-bold text-[#1C1C1C]">{label}</div>
               <div className="text-xs text-gray-500 font-mono mt-1">{type}</div>
+              {type === "CUSTOM_HTML" && <div className="mt-1 text-xs text-amber-700">Avanzado: requiere HTML/CSS; no es necesario para campañas.</div>}
             </button>
           ))}
         </div>
@@ -2579,7 +2737,7 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
             onClick={() => setIsAddingBlock(false)}
             className="w-full px-4 py-3 bg-gray-100 text-gray-800 rounded text-sm font-bold uppercase hover:bg-gray-200"
           >
-            Cancelar
+            Volver a secciones
           </button>
         </div>
       </div>
@@ -2588,6 +2746,11 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
 
   return (
     <div className="flex flex-col h-full relative">
+      {configSaveStatus?.tone === "success" && (
+        <p role="status" aria-live="polite" className="m-4 mb-0 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-900">
+          {configSaveStatus.message}
+        </p>
+      )}
       {unavailableAreas.length > 0 && (
         <div className="m-4 mb-0 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
           Parte del contenido no pudo cargarse. Las áreas afectadas están bloqueadas hasta que recargues.
@@ -2595,14 +2758,24 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
       )}
       {/* Elementos Globales (No arrastrables) */}
       <div className="p-4 border-b border-gray-200 bg-white">
-        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Elementos Globales</h3>
+        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">1. Campaña y tienda</h3>
+        <p className="mb-3 text-xs text-gray-500">Primero configura el Hero editorial. Sus imágenes Web, Tablet y Móvil son la campaña principal de Inicio.</p>
         <div className="flex flex-col gap-2">
-          <button onClick={() => setEditingGlobal("TOP_BANNER")} disabled={isUnavailable("topBanner")} className="w-full flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded hover:border-[#1C1C1C] transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed">
-            <span className="text-sm font-medium text-gray-800">Top Banner (Promocional)</span>
-            <span className="text-xs text-blue-600 font-bold">Editar ↗</span>
+          <button onClick={() => primaryHero && startEditingConfig(primaryHero)} disabled={!primaryHero} className="w-full flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded hover:border-[#1C1C1C] transition-colors text-left disabled:cursor-not-allowed disabled:opacity-40">
+            <span className="text-sm font-medium text-gray-800">Campaña principal (Hero)</span>
+            <span className="text-xs text-blue-600 font-bold">Configurar ↗</span>
           </button>
           <button onClick={() => setEditingGlobal("BANNERS")} disabled={isUnavailable("banners")} className="w-full flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded hover:border-[#1C1C1C] transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed">
-            <span className="text-sm font-medium text-gray-800">Banners del Hero</span>
+            <span className="text-sm font-medium text-gray-800">Banners heredados (respaldo)</span>
+            <span className="text-xs text-gray-500 font-bold">Ver ↗</span>
+          </button>
+          <button onClick={() => setEditingGlobal("HOME_GRID")} disabled={isUnavailable("grid")} className="w-full flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded hover:border-[#1C1C1C] transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed">
+            <span className="text-sm font-medium text-gray-800">Colecciones rápidas</span>
+            <span className="text-xs text-blue-600 font-bold">Editar ↗</span>
+          </button>
+          <p className="pt-2 text-xs font-bold uppercase tracking-wider text-gray-500">Globales</p>
+          <button onClick={() => setEditingGlobal("TOP_BANNER")} disabled={isUnavailable("topBanner")} className="w-full flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded hover:border-[#1C1C1C] transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed">
+            <span className="text-sm font-medium text-gray-800">Top Banner (Promocional)</span>
             <span className="text-xs text-blue-600 font-bold">Editar ↗</span>
           </button>
           <button onClick={() => setEditingGlobal("LOGOS")} disabled={isUnavailable("logos")} className="w-full flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded hover:border-[#1C1C1C] transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed">
@@ -2613,21 +2786,17 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
             <span className="text-sm font-medium text-gray-800">Menú de Navegación</span>
             <span className="text-xs text-blue-600 font-bold">Editar ↗</span>
           </button>
-          <button onClick={() => setEditingGlobal("HOME_GRID")} disabled={isUnavailable("grid")} className="w-full flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded hover:border-[#1C1C1C] transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed">
-            <span className="text-sm font-medium text-gray-800">Tarjetas de la Grilla de Inicio</span>
-            <span className="text-xs text-blue-600 font-bold">Editar ↗</span>
-          </button>
         </div>
       </div>
 
       <div className="p-4 border-b border-gray-200 bg-white flex justify-between items-center">
-        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Bloques de la Página</h3>
+        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">2. Secciones de la página</h3>
         <button 
           onClick={() => setIsAddingBlock(true)}
           disabled={isUnavailable("sections")}
           className="text-xs bg-[#1C1C1C] text-white px-3 py-1.5 rounded font-bold hover:bg-gray-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          + Agregar Bloque
+          + Añadir sección
         </button>
       </div>
 
@@ -2669,6 +2838,28 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
                           <div className="text-[10px] text-gray-400 font-mono uppercase tracking-widest mt-0.5">
                             {section.type}
                           </div>
+                          {(() => {
+                            const config = typeof section.config === "object" && section.config !== null ? section.config as Record<string, any> : {}
+                            const destination = sectionDestination(config)
+                            return destination ? <p className="mt-1 truncate text-xs text-gray-500">Destino: {destination}</p> : null
+                          })()}
+                        </div>
+
+                        <div className="flex shrink-0 gap-1">
+                          <button
+                            type="button"
+                            onClick={() => moveSection(index, -1)}
+                            disabled={isSaving || index === 0}
+                            aria-label={`Subir ${SECTION_LABELS[section.type] ?? section.type}`}
+                            className="grid h-9 w-9 place-items-center rounded-md border border-gray-200 text-gray-600 hover:border-[#1C1C1C] hover:text-[#1C1C1C] disabled:opacity-30"
+                          >↑</button>
+                          <button
+                            type="button"
+                            onClick={() => moveSection(index, 1)}
+                            disabled={isSaving || index === sections.length - 1}
+                            aria-label={`Bajar ${SECTION_LABELS[section.type] ?? section.type}`}
+                            className="grid h-9 w-9 place-items-center rounded-md border border-gray-200 text-gray-600 hover:border-[#1C1C1C] hover:text-[#1C1C1C] disabled:opacity-30"
+                          >↓</button>
                         </div>
 
                         <button

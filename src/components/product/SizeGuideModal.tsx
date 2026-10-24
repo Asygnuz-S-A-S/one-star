@@ -83,7 +83,7 @@ export default function SizeGuideModal({ isOpen, onClose, brand }: SizeGuideModa
         <div className="sticky top-0 z-20 bg-white/95 dark:bg-[#1C1C1C]/95 backdrop-blur-sm flex items-center justify-between px-5 sm:px-6 py-4 border-b border-[#E0E0E0] dark:border-white/10">
           <h2
             id="size-guide-title"
-            className="font-[var(--font-barlow)] font-bold text-base sm:text-lg uppercase tracking-wider text-[#1C1C1C] dark:text-white truncate pr-2"
+            className="font-barlow font-bold text-base sm:text-lg uppercase tracking-wider text-[#1C1C1C] dark:text-white truncate pr-2"
           >
             {title}
           </h2>
@@ -125,7 +125,7 @@ export default function SizeGuideModal({ isOpen, onClose, brand }: SizeGuideModa
             </div>
           ) : (
             <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-white/10">
-              <table className="w-full text-sm font-[var(--font-montserrat)] text-left">
+              <table className="w-full text-sm font-montserrat text-left">
                 <thead>
                   <tr className="bg-[#1C1C1C] text-white">
                     <th className="py-2.5 px-3 font-semibold">EU</th>
@@ -157,7 +157,7 @@ export default function SizeGuideModal({ isOpen, onClose, brand }: SizeGuideModa
 
           {/* Dynamic Brand Note */}
           {brand?.sizeGuideNote ? (
-            <div className="p-3.5 bg-[#FFF3F3] dark:bg-red-950/20 border border-[#E31C23]/20 dark:border-[#E31C23]/30 text-xs font-[var(--font-montserrat)] text-[#4A4A4A] dark:text-red-200 rounded-xl">
+            <div className="p-3.5 bg-[#FFF3F3] dark:bg-red-950/20 border border-[#E31C23]/20 dark:border-[#E31C23]/30 text-xs font-montserrat text-[#4A4A4A] dark:text-red-200 rounded-xl">
               <span className="font-semibold text-[#E31C23]">
                 {brand.name ? `Nota ${brand.name}:` : "Nota de tallas:"}
               </span>{" "}

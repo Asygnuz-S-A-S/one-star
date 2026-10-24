@@ -12,7 +12,7 @@ const STEPS = [
 
 export default function CheckoutStepper({ currentStep }: CheckoutStepperProps) {
   return (
-    <div className="flex items-center justify-center gap-0 mb-8">
+    <div className="flex items-center justify-center gap-0">
       {STEPS.map((step, idx) => {
         const isCompleted = step.number < currentStep
         const isActive = step.number === currentStep
@@ -52,7 +52,7 @@ export default function CheckoutStepper({ currentStep }: CheckoutStepperProps) {
             {idx < STEPS.length - 1 && (
               <div
                 className={`
-                  h-px w-16 mx-2 mb-5 transition-colors
+                  h-px w-8 mx-1.5 mb-5 transition-colors sm:w-12
                   ${isCompleted ? "bg-[#1C1C1C]" : "bg-[#E0E0E0]"}
                 `}
               />

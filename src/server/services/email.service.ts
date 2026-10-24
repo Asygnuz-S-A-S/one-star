@@ -4,6 +4,7 @@ import {
   loginAlertEmail,
   orderConfirmationEmail,
   giftCardDeliveryEmail,
+  clubWelcomeEmail,
   type OrderEmailItem,
   type GiftCardEmailCard,
 } from "@/server/email/templates"
@@ -56,5 +57,16 @@ export async function sendGiftCardEmail(params: {
     orderId: params.orderId,
     cards: params.cards,
   })
+  return sendEmail({ to: params.email, subject, html })
+}
+
+/** Correo de bienvenida a One Star Club. */
+export async function sendClubWelcomeEmail(params: {
+  email: string
+  name?: string
+  newsletter: boolean
+}): Promise<SendEmailResult> {
+  const baseUrl = (process.env.BETTER_AUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "")
+  const { subject, html } = clubWelcomeEmail({ name: params.name, newsletter: params.newsletter, clubUrl: `${baseUrl}/club` })
   return sendEmail({ to: params.email, subject, html })
 }

@@ -109,6 +109,14 @@ describe("proxy CSP", () => {
       "frame-ancestors 'none'",
     )
   })
+
+  it("allows the builder to preview campaign landings", async () => {
+    const campaignPreview = await proxy(new NextRequest("https://example.com/campanas/hoka-running?preview=true"))
+    const nestedPath = await proxy(new NextRequest("https://example.com/campanas/hoka/extra?preview=true"))
+
+    expect(campaignPreview.headers.get("content-security-policy")).toContain("frame-ancestors 'self'")
+    expect(nestedPath.headers.get("content-security-policy")).toContain("frame-ancestors 'none'")
+  })
 })
 
 describe("proxy control de acceso por rol de admin", () => {

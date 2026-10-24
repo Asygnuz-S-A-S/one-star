@@ -1,4 +1,9 @@
-import { test, expect } from "@playwright/test"
+import { test, expect, type Page } from "@playwright/test"
+
+/** La portada usa el hero editorial del builder o, sin campaña activa, el carrusel clásico. */
+const homeHero = (page: Page) =>
+  page.locator('[data-testid="editorial-campaign-hero"], [data-testid="home-hero"]').first()
+const HERO_MEDIA = '[data-testid="editorial-hero-media"], [data-testid="editorial-hero-fallback"], [data-testid="hero-media"]'
 
 test.describe("Home", () => {
   test("carga la página principal correctamente", async ({ page }) => {
@@ -12,26 +17,46 @@ test.describe("Home", () => {
     await expect(header).toBeVisible()
   })
 
+  test("mantiene visible el contenido después del hero", async ({ page }) => {
+    await page.goto("/")
+    const hero = homeHero(page)
+    await expect(hero).toBeVisible()
+    await expect(hero.locator(HERO_MEDIA).first()).toHaveCSS("opacity", "1")
+    await expect(hero.getByRole("heading", { level: 1 })).toHaveCSS("opacity", "1")
+
+    await page.getByRole("link", { name: /lanzamientos/i }).last().scrollIntoViewIfNeeded()
+
+    await expect(page.getByRole("link", { name: /lanzamientos/i }).last()).toBeVisible()
+    await expect(page.getByRole("heading", { name: /promos y novedades/i })).toBeVisible()
+  })
+
+  test("mantiene visibles las categorías y la sección posterior al hacer scroll", async ({ page }) => {
+    await page.goto("/")
+
+    const categories = page.getByTestId("home-category-grid")
+    await categories.scrollIntoViewIfNeeded()
+    await expect(categories).toBeVisible()
+    await expect(categories).toHaveCSS("opacity", "1")
+    await expect(categories.getByRole("link").first()).toBeVisible()
+
+    // No hay formulario suelto de newsletter: la suscripción vive en One Star Club (con cuenta y consentimiento).
+    await expect(page.getByRole("heading", { name: /únete a one star/i })).toHaveCount(0)
+  })
+
   test("los links de categorías en el nav navegan correctamente", async ({ page }) => {
     await page.goto("/")
     await page.getByRole("link", { name: /hombre/i }).first().click()
     await expect(page).toHaveURL(/\/hombre/)
   })
 
-  test("mantiene legibles los nombres y precios al activar el tema oscuro", async ({ page }) => {
-    await page.emulateMedia({ colorScheme: "light" })
+  test("mantiene legibles los nombres y precios de las tarjetas de producto", async ({ page }) => {
     await page.goto("/")
-    await page.evaluate(() => window.localStorage.setItem("theme", "light"))
-    await page.reload()
-
-    await page.getByRole("button", { name: "Cambiar tema" }).first().click()
-    await expect(page.locator("html")).toHaveClass(/dark/)
 
     const productCard = page.locator("[data-product-id]:visible").first()
     await expect(productCard).toBeVisible({ timeout: 10_000 })
 
     const productName = productCard.locator("h3")
-    const productPrice = productCard.locator("span.text-sm.font-bold").first()
+    const productPrice = productCard.getByTestId("product-card-price")
 
     for (const productText of [productName, productPrice]) {
       const contrastRatio = await productText.evaluate((element) => {
@@ -76,6 +101,38 @@ test.describe("Home", () => {
 })
 
 test.describe("Catálogo de productos", () => {
+  test("muestra las tarjetas de accesorios sin dejarlas transparentes", async ({ page }) => {
+    await page.goto("/c/accesorios")
+
+    const productCard = page.locator("article[data-product-id]").first()
+    await expect(productCard).toBeVisible({ timeout: 10_000 })
+    await expect(productCard).toHaveCSS("opacity", "1")
+  })
+
+  test("ofrece una ruta de producto explícita desde cada tarjeta visible", async ({ page }) => {
+    await page.goto("/productos")
+    const productCard = page.locator("article[data-product-id]").first()
+
+    await expect(productCard).toBeVisible()
+    await expect(productCard.getByRole("button", { name: /ver .*producto/i })).toBeVisible()
+    await expect(productCard.getByTestId("product-card-stock")).toBeVisible()
+  })
+
+  test("prioriza el producto y el precio sin convertir la CTA en el elemento dominante", async ({ page }) => {
+    await page.goto("/productos")
+    const productCard = page.locator("article[data-product-id]").first()
+    const media = productCard.getByTestId("product-card-media")
+    const productImage = media.locator("img").first()
+    const price = productCard.getByTestId("product-card-price")
+    const cta = productCard.getByRole("button", { name: /ver .*producto/i })
+
+    await expect(media).toBeVisible()
+    await expect(productImage).toHaveCSS("object-fit", "contain")
+    await expect(price).toHaveCSS("font-size", "16px")
+    await expect(cta).toHaveCSS("min-height", "44px")
+    await expect(cta).toHaveCSS("background-color", "rgba(0, 0, 0, 0)")
+  })
+
   test("muestra la grilla de productos en /productos", async ({ page }) => {
     await page.goto("/productos")
     // Espera a que haya al menos un producto o el estado vacío
@@ -301,4 +358,42 @@ test.describe("Rutas de categorías", () => {
       expect(criticalErrors).toHaveLength(0)
     })
   }
+})
+
+test.describe("Filtros móviles", () => {
+  test("el diálogo de filtros conserva el foco y se cierra con Escape", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto("/productos")
+
+    const trigger = page.getByRole("button", { name: "Filtros" })
+    await trigger.click()
+    const dialog = page.getByRole("dialog", { name: "Filtros" })
+    await expect(dialog).toBeVisible()
+    await expect(dialog.getByRole("button", { name: "Cerrar filtros" })).toBeFocused()
+
+    await page.keyboard.press("Escape")
+    await expect(dialog).toHaveCount(0)
+    await expect(trigger).toBeFocused()
+  })
+})
+
+test.describe("Regresiones de base editorial", () => {
+  test("mantiene el contenido de compra visible con movimiento reducido", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" })
+    await page.goto("/")
+
+    await expect(homeHero(page)).toBeVisible()
+    await expect(page.getByTestId("home-category-grid")).toBeVisible()
+    await expect(homeHero(page).getByRole("link").first()).toBeVisible()
+  })
+
+  test("no desborda la cabecera ni sus controles en móvil", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto("/")
+
+    await expect(page.locator("header")).toBeVisible()
+    await expect(page.getByTestId("public-site-spacer")).toBeVisible()
+    await expect(page.getByRole("button", { name: /carrito de compras/i })).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  })
 })

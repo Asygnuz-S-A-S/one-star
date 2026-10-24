@@ -12,7 +12,7 @@ interface ToastContainerProps {
 }
 
 const typeStyles: Record<Toast["type"], string> = {
-  success: "bg-green-600 text-white",
+  success: "bg-[#1C1C1C] text-white",
   error: "bg-[#E31C23] text-white",
   info: "bg-[#1C1C1C] text-white",
 }
@@ -22,7 +22,7 @@ export default function ToastContainer({ toasts, onDismiss }: ToastContainerProp
 
   return (
     <div
-      className="fixed top-24 right-4 z-[100] flex flex-col gap-2 pointer-events-none"
+      className="fixed inset-x-4 bottom-28 z-[100] flex flex-col items-center gap-2 pointer-events-none lg:inset-x-auto lg:bottom-auto lg:top-24 lg:right-4 lg:items-end"
       aria-live="polite"
       aria-atomic="false"
     >

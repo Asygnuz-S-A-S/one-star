@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { motion, AnimatePresence, useScroll, useTransform } from "motion/react"
 
 import type { BannerDTO } from "@/server/services/banner.service"
 import { safePublicUrl } from "@/lib/safe-url"
@@ -41,6 +40,19 @@ const TEXT_ALIGN: Record<string, string> = {
   "bottom-right":  "text-right",
 }
 
+const FALLBACK_BANNER: BannerDTO = {
+  id: "fallback-hero",
+  title: "Nuevos lanzamientos",
+  imageUrl: "",
+  mediaType: "image",
+  linkUrl: "/productos",
+  position: 0,
+  isActive: true,
+  startDate: null,
+  endDate: null,
+  createdAt: "",
+}
+
 export default function HeroBanner({
   banners,
   config = {},
@@ -52,29 +64,12 @@ export default function HeroBanner({
   isFirst?: boolean
   isBannerActive?: boolean
 }) {
+  const heroBanners = banners.length > 0 ? banners : [FALLBACK_BANNER]
   const [current, setCurrent] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
   const isTransitioningRef = useRef(false)
   const transitionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  // El parallax basado en el ref del contenedor solo se activa tras montar:
-  // durante la hidratación el elemento aún no existe y motion lanzaría
-  // "Target ref is defined but not hydrated".
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- motion necesita esperar a que el ref exista en el cliente
-    setMounted(true)
-  }, [])
-
-  const { scrollYProgress } = useScroll({
-    target: mounted ? containerRef : undefined,
-    offset: ["start start", "end start"],
-  })
-
-  // Parallax transforms
-  const yBg = useTransform(scrollYProgress, [0, 1], ["0%", "30%"])
-  const yText = useTransform(scrollYProgress, [0, 1], ["0%", "50%"])
-  const opacityText = useTransform(scrollYProgress, [0, 1], [1, 0])
+  const [failedMedia, setFailedMedia] = useState<Set<string>>(() => new Set())
 
 
   // Config options
@@ -91,7 +86,7 @@ export default function HeroBanner({
   const textAlign   = TEXT_ALIGN[contentPos]          ?? "text-left"
 
   const goTo = useCallback((index: number) => {
-    if (isTransitioningRef.current || banners.length === 0) return
+    if (isTransitioningRef.current) return
     isTransitioningRef.current = true
     setCurrent(index)
     if (transitionTimeoutRef.current) clearTimeout(transitionTimeoutRef.current)
@@ -99,52 +94,47 @@ export default function HeroBanner({
       isTransitioningRef.current = false
       transitionTimeoutRef.current = null
     }, 400)
-  }, [banners.length])
+  }, [])
 
   useEffect(() => {
-    if (banners.length === 0) return
     const timer = setInterval(() => {
-      goTo((current + 1) % banners.length)
+      goTo((current + 1) % heroBanners.length)
     }, autoplayMs)
     return () => clearInterval(timer)
-  }, [autoplayMs, banners.length, current, goTo])
+  }, [autoplayMs, current, goTo, heroBanners.length])
 
   useEffect(() => () => {
     if (transitionTimeoutRef.current) clearTimeout(transitionTimeoutRef.current)
   }, [])
 
-  if (banners.length === 0) return null
-
-  const visibleIndex = Math.min(current, banners.length - 1)
-  const banner = banners[visibleIndex]
+  const visibleIndex = Math.min(current, heroBanners.length - 1)
+  const banner = heroBanners[visibleIndex]
+  const bannerTitle = banner.title.trim() || FALLBACK_BANNER.title
 
   const negativeMargin = isFirst 
-    ? (isBannerActive ? "-mt-[88px] md:-mt-[96px]" : "-mt-[56px] md:-mt-[64px]") 
+    ? (isBannerActive ? "-mt-[88px] lg:-mt-[96px]" : "-mt-[56px] lg:-mt-[64px]") 
     : ""
 
   return (
     <section 
       ref={containerRef}
-      className={`relative w-full ${!isFirst ? "h-[60vh] md:h-[70vh]" : ""} ${negativeMargin} overflow-hidden bg-[#0f0f0f]`}
+      className={`relative w-full ${!isFirst ? "h-[60vh] md:h-[70vh]" : ""} ${negativeMargin} overflow-hidden bg-[#1C1C1C]`}
       style={isFirst ? { height } : undefined}
+      data-testid="home-hero"
     >
       {/* Background Media */}
-      {banners.map((b, i) => {
+      {heroBanners.map((b, i) => {
         const mediaUrl = safePublicUrl(b.imageUrl, "/placeholder-product.svg")
+        const shouldShowMedia = !failedMedia.has(b.id) && b.imageUrl.trim().length > 0
 
         return (
-          <motion.div
+          <div
             key={b.id}
-            initial={{ opacity: 0, scale: 1.05 }}
-            animate={{
-              opacity: i === visibleIndex ? 1 : 0,
-              scale: i === visibleIndex ? 1 : 1.05,
-            }}
-            style={{ y: yBg }}
-            transition={{ duration: 1.2, ease: [0.25, 0.1, 0.25, 1] }}
-            className="absolute inset-0"
+            className="absolute inset-0 bg-[linear-gradient(135deg,#1C1C1C_0%,#373737_55%,#E31C23_180%)] transition-opacity duration-700"
+            style={{ opacity: i === visibleIndex ? 1 : 0 }}
+            data-testid={i === visibleIndex ? "hero-media" : undefined}
           >
-            {b.mediaType === "video" ? (
+            {shouldShowMedia && b.mediaType === "video" ? (
               <video
                 src={mediaUrl}
                 className="w-full h-full object-cover"
@@ -152,8 +142,9 @@ export default function HeroBanner({
                 muted
                 loop
                 playsInline
+                onError={() => setFailedMedia((currentFailed) => new Set(currentFailed).add(b.id))}
               />
-            ) : (
+            ) : shouldShowMedia ? (
               <Image
                 src={mediaUrl}
                 alt={b.title}
@@ -162,9 +153,10 @@ export default function HeroBanner({
                 unoptimized={!canUseNextImageOptimization(mediaUrl)}
                 className="object-cover object-center"
                 sizes="100vw"
+                onError={() => setFailedMedia((currentFailed) => new Set(currentFailed).add(b.id))}
               />
-            )}
-          </motion.div>
+            ) : null}
+          </div>
         )
       })}
 
@@ -174,98 +166,60 @@ export default function HeroBanner({
         style={{ backgroundColor: `rgba(0,0,0,${overlayOpacity})` }}
       />
 
-      {/* Massive Background Text (Parallax) */}
-      <motion.div 
+      {/* Decorative background text stays visible without JavaScript. */}
+      <div
         className="absolute inset-0 flex items-center justify-center z-15 pointer-events-none select-none overflow-hidden mix-blend-overlay"
-        style={{ y: yText, opacity: opacityText }}
       >
-        <span className="text-white/5 font-[var(--font-barlow)] font-black text-[25vw] tracking-tighter whitespace-nowrap">
+        <span className="text-white/5 font-barlow font-black text-[25vw] tracking-tighter whitespace-nowrap">
           ONE STAR
         </span>
-      </motion.div>
+      </div>
 
       {/* Content */}
       <div className={`relative z-20 h-full flex flex-col ${positionCls}`}>
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={`content-${banner.id}`}
-            className={`max-w-2xl ${textAlign}`}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-            variants={{
-              hidden: { opacity: 0 },
-              visible: {
-                opacity: 1,
-                transition: { staggerChildren: 0.1, delayChildren: 0.3 }
-              },
-              exit: {
-                opacity: 0,
-                transition: { staggerChildren: 0.05, staggerDirection: -1 }
-              }
-            }}
-          >
+        <div key={`content-${banner.id}`} className={`max-w-2xl ${textAlign}`}>
             <h1 className="flex flex-col gap-4 mb-8">
-              {banner.title.split("\n").map((line, lineIndex) => (
+              {bannerTitle.split("\n").map((line, lineIndex) => (
                 <div key={lineIndex} className="overflow-hidden">
-                  <motion.span
+                  <span
                     className={`block ${
                       lineIndex === 0 
-                        ? "text-white font-[var(--font-barlow)] font-black uppercase text-5xl md:text-6xl lg:text-7xl leading-[0.9] tracking-tighter" 
-                        : "text-white font-[var(--font-montserrat)] font-medium text-sm md:text-lg tracking-wide"
+                        ? "text-white font-barlow font-black uppercase text-5xl md:text-6xl lg:text-7xl leading-[0.9] tracking-tighter" 
+                        : "text-white font-montserrat font-medium text-sm md:text-lg tracking-wide"
                     }`}
                     style={lineIndex === 0 ? { textShadow: "0 4px 40px rgba(0,0,0,0.5)" } : { textShadow: "0 2px 10px rgba(0,0,0,0.5)" }}
-                    variants={{
-                      hidden: { y: "100%", opacity: 0 },
-                      visible: { y: 0, opacity: 1, transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] } },
-                      exit: { y: "-100%", opacity: 0, transition: { duration: 0.4 } }
-                    }}
                   >
                     {line}
-                  </motion.span>
+                  </span>
                 </div>
               ))}
             </h1>
             
-            <motion.div
-              variants={{
-                hidden: { opacity: 0, y: 20 },
-                visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] } },
-                exit: { opacity: 0, y: -20, transition: { duration: 0.4 } }
-              }}
-            >
+            <div>
               <Link
                 href={safePublicUrl(banner.linkUrl, "/productos")}
-                className={`inline-flex items-center gap-4 font-[var(--font-montserrat)] font-bold text-xs md:text-sm tracking-widest px-8 py-4 transition-colors duration-300 ${ctaCls}`}
+                className={`inline-flex items-center gap-4 font-montserrat font-bold text-xs md:text-sm tracking-widest px-8 py-4 transition-colors duration-300 ${ctaCls}`}
               >
                 {ctaText}
                 <span className="w-1.5 h-1.5 rounded-full bg-white opacity-50" />
               </Link>
-            </motion.div>
-          </motion.div>
-        </AnimatePresence>
+            </div>
+          </div>
 
         {/* Scroll Indicator */}
         {isFirst && (
-          <motion.div 
+          <div
             className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center text-white/50"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 1, duration: 1 }}
           >
             <span className="text-[10px] uppercase tracking-widest mb-2 font-bold">Scroll</span>
-            <motion.div
-              animate={{ y: [0, 8, 0] }}
-              transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
-              className="w-[1px] h-12 bg-gradient-to-b from-white/50 to-transparent"
-            />
-          </motion.div>
+            <div className="w-[1px] h-12 bg-gradient-to-b from-white/50 to-transparent" />
+          </div>
         )}
 
         {/* Dots / Progress Indicator */}
-        {showDots && banners.length > 1 && (
+        {showDots && heroBanners.length > 1 && (
           <div className="absolute bottom-10 left-6 md:left-16 z-30 flex gap-2">
-            {banners.map((_, i) => (
+            {heroBanners.map((_, i) => (
               <button
                 key={i}
                 onClick={() => goTo(i)}

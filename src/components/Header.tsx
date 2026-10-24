@@ -170,7 +170,7 @@ export default function Header({
         }}
       >
         {/* ── MÓVIL ── */}
-        <div className="flex items-center justify-between h-14 px-3 md:hidden">
+        <div className="flex items-center justify-between h-14 px-3 lg:hidden">
           {/* Menú hamburguesa */}
           <button
             onClick={() => {
@@ -185,10 +185,10 @@ export default function Header({
             <IconHamburger open={menuOpen} />
           </button>
 
-          {/* Logo centrado — p-3 = área de protección ≈ altura de "O" */}
-          {logos?.mobile?.url && (
-            <Link href="/" aria-label="One Star — Inicio" className="p-3">
-              <div className="relative w-[80px] h-[57px]">
+          {/* Logo centrado: 40px de alto deja 8px de aire arriba y abajo en la barra de 56px. */}
+          <Link href="/" aria-label="One Star — Inicio" className="flex items-center px-2">
+            {logos?.mobile?.url ? (
+              <div className="relative h-10 w-14">
                 <Image
                   src={logos.mobile.url}
                   alt="One Star"
@@ -198,8 +198,10 @@ export default function Header({
                   unoptimized
                 />
               </div>
-            </Link>
-          )}
+            ) : (
+              <span className="font-barlow text-lg font-bold uppercase tracking-[0.18em]">One Star</span>
+            )}
+          </Link>
 
           {/* Acciones rápidas */}
           <div className="flex items-center gap-1 text-[#1C1C1C] dark:text-[#f5f5f7]">
@@ -215,7 +217,7 @@ export default function Header({
                 aria-label="Buscar"
                 aria-expanded={searchOpen}
                 aria-controls="header-search"
-                className="p-2 rounded-sm hover:text-[#E31C23] transition-colors focus-visible:outline-2 focus-visible:outline-[#E31C23]"
+                className="p-2.5 rounded-sm hover:text-[#E31C23] transition-colors focus-visible:outline-2 focus-visible:outline-[#E31C23]"
               >
                 <IconSearch />
               </Link>
@@ -223,7 +225,7 @@ export default function Header({
             <button
               onClick={toggleCart}
               aria-label="Carrito de compras"
-              className="relative p-2 rounded-sm focus-visible:outline-2 focus-visible:outline-[#E31C23]"
+              className="relative p-2.5 rounded-sm focus-visible:outline-2 focus-visible:outline-[#E31C23]"
             >
               <IconCart />
               {totalItems > 0 && (
@@ -235,7 +237,7 @@ export default function Header({
             <Link
               href={isCustomer ? "/cuenta" : "/login"}
               aria-label="Mi cuenta"
-              className="p-2 rounded-sm focus-visible:outline-2 focus-visible:outline-[#E31C23]"
+              className="p-2.5 rounded-sm focus-visible:outline-2 focus-visible:outline-[#E31C23]"
             >
               {isCustomer ? <UserAvatar initial={userInitial} /> : <IconUser />}
             </Link>
@@ -243,15 +245,15 @@ export default function Header({
         </div>
 
         {/* ── DESKTOP ── */}
-        <div className="hidden md:flex items-center justify-between h-16 px-8 lg:px-12 xl:px-16">
+        <div className="hidden lg:flex items-center justify-between h-16 px-8 lg:px-12 xl:px-16">
           {/* Logo */}
           {logos?.desktop?.url && (
             <Link 
               href="/" 
               aria-label="One Star — Inicio" 
-              className={`p-3 shrink-0 ${config?.layout === "logo-center-nav-left" ? "order-2 absolute left-1/2 -translate-x-1/2" : "order-1"}`}
+              className={`flex shrink-0 items-center px-2 ${config?.layout === "logo-center-nav-left" ? "order-2 absolute left-1/2 -translate-x-1/2" : "order-1"}`}
             >
-              <div className="relative w-[100px] h-[71px]">
+              <div className="relative h-11 w-[62px]">
                 <Image
                   src={logos.desktop.url}
                   alt="One Star"
@@ -275,7 +277,7 @@ export default function Header({
                       <Link
                         href={safePublicUrl(item.href, "/")}
                         className={[
-                          "font-barlow font-semibold text-sm tracking-wide uppercase transition-colors duration-150",
+                          "inline-flex min-h-11 items-center font-barlow font-semibold text-sm tracking-wide uppercase transition-colors duration-150",
                           isActive ? "text-[#E31C23]" : "hover:text-[#E31C23]",
                         ].join(" ")}
                         style={isActive ? { color: "#E31C23" } : { color: "inherit" }}
@@ -301,7 +303,7 @@ export default function Header({
                 aria-label="Buscar"
                 aria-expanded={searchOpen}
                 aria-controls="header-search"
-                className="p-2 rounded-sm hover:text-[#E31C23] transition-colors focus-visible:outline-2 focus-visible:outline-[#E31C23]"
+                className="p-2.5 rounded-sm hover:text-[#E31C23] transition-colors focus-visible:outline-2 focus-visible:outline-[#E31C23]"
               >
                 <IconSearch />
               </Link>
@@ -310,7 +312,7 @@ export default function Header({
               <button
                 onClick={toggleCart}
                 aria-label="Carrito de compras"
-                className="relative p-2 rounded-sm hover:text-[#E31C23] transition-colors focus-visible:outline-2 focus-visible:outline-[#E31C23]"
+                className="relative p-2.5 rounded-sm hover:text-[#E31C23] transition-colors focus-visible:outline-2 focus-visible:outline-[#E31C23]"
               >
                 <IconCart />
                 {totalItems > 0 && (
@@ -324,7 +326,7 @@ export default function Header({
               <Link
                 href={isCustomer ? "/cuenta" : "/login"}
                 aria-label="Mi cuenta"
-                className="p-2 rounded-sm hover:text-[#E31C23] transition-colors focus-visible:outline-2 focus-visible:outline-[#E31C23]"
+                className="p-2.5 rounded-sm hover:text-[#E31C23] transition-colors focus-visible:outline-2 focus-visible:outline-[#E31C23]"
               >
                 {isCustomer ? <UserAvatar initial={userInitial} /> : <IconUser />}
               </Link>
@@ -337,7 +339,7 @@ export default function Header({
 
       {/* ── Menú desplegable móvil ───────────────────────────────────── */}
       {menuOpen && (
-        <div className="md:hidden bg-white border-b border-[#E0E0E0] shadow-lg">
+        <div className="lg:hidden bg-white border-b border-[#E0E0E0] shadow-lg">
           <nav aria-label="Menú móvil">
             <ul>
               {items.map((item) => (

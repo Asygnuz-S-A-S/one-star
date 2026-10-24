@@ -7,6 +7,29 @@ import { motion, AnimatePresence } from "motion/react"
 import { useCart } from "@/store"
 import { formatCOP } from "@/lib/shop-utils"
 import { PLACEHOLDER_IMAGE_URL } from "@/lib/product-image"
+import { STANDARD_SHIPPING_THRESHOLD } from "@/lib/shipping"
+import { getColorSwatchStyle } from "@/lib/colors"
+
+// Misma superficie de la ficha: la foto (fondo blanco) se funde con multiply, sin recuadro gris.
+const THUMB_STAGE = "bg-[radial-gradient(ellipse_at_50%_45%,#ffffff_0%,#f7f7f5_55%,#ececea_100%)]"
+
+/** Progreso hacia el envío gratis: motiva a completar el pedido sin esperar al checkout. */
+function FreeShippingProgress({ subtotal }: { subtotal: number }) {
+  const missing = Math.max(0, STANDARD_SHIPPING_THRESHOLD - subtotal)
+  const progress = Math.min(100, (subtotal / STANDARD_SHIPPING_THRESHOLD) * 100)
+  return (
+    <div className="px-5 pt-4" data-testid="free-shipping-progress">
+      <p className="font-montserrat text-xs text-[#1C1C1C]">
+        {missing === 0
+          ? <><span className="font-semibold text-emerald-700">¡Tienes envío gratis!</span> en envío estándar</>
+          : <>Te faltan <span className="font-semibold">{formatCOP(missing)}</span> para el envío gratis</>}
+      </p>
+      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#ECECEA]" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress)} aria-label="Progreso hacia el envío gratis">
+        <div className={`h-full rounded-full transition-[width] duration-500 ${missing === 0 ? "bg-emerald-600" : "bg-[#E31C23]"}`} style={{ width: `${progress}%` }} />
+      </div>
+    </div>
+  )
+}
 
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
@@ -99,7 +122,7 @@ export default function CartDrawer() {
           <motion.div
             key="cart-overlay"
             onClick={closeCart}
-            className="fixed inset-0 z-40 bg-black/50"
+            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px]"
             aria-hidden="true"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -111,7 +134,7 @@ export default function CartDrawer() {
           <motion.div
             key="cart-drawer"
             ref={drawerRef}
-            className="fixed top-0 right-0 z-50 h-full w-full max-w-md bg-white shadow-2xl flex flex-col"
+            className="fixed top-0 right-0 z-50 flex h-full w-full max-w-md flex-col bg-white shadow-2xl sm:rounded-l-[var(--store-radius-xl)]"
             role="dialog"
             aria-modal="true"
             aria-label="Carrito de compras"
@@ -123,12 +146,12 @@ export default function CartDrawer() {
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#E0E0E0]">
               <div className="flex items-center gap-2">
-                <h2 className="font-barlow font-bold text-base uppercase tracking-widest text-[#1C1C1C]">
-                  Mi Carrito
+                <h2 className="font-barlow text-xl font-extrabold uppercase tracking-[-0.01em] text-[#1C1C1C]">
+                  Tu bolsa
                 </h2>
                 {totalItems > 0 && (
-                  <span className="bg-[#E31C23] text-white font-montserrat font-medium text-xs px-2 py-0.5 rounded-full">
-                    {totalItems}
+                  <span className="font-montserrat text-sm text-[#4A4A4A]">
+                    ({totalItems} {totalItems === 1 ? "producto" : "productos"})
                   </span>
                 )}
               </div>
@@ -136,7 +159,7 @@ export default function CartDrawer() {
                 ref={closeButtonRef}
                 onClick={closeCart}
                 aria-label="Cerrar carrito"
-                className="text-[#4A4A4A] hover:text-[#E31C23] transition-colors p-1 focus-visible:outline-2 focus-visible:outline-[#E31C23]"
+                className="-mr-2 grid h-11 w-11 place-items-center rounded-full text-[#4A4A4A] transition-colors hover:bg-[#F2F2F0] hover:text-[#1C1C1C] focus-visible:outline-2 focus-visible:outline-[#E31C23]"
               >
                 <IconX />
               </button>
@@ -155,15 +178,17 @@ export default function CartDrawer() {
                 <Link
                   href="/productos"
                   onClick={closeCart}
-                  className="mt-2 bg-[#E31C23] text-white font-barlow font-bold uppercase tracking-widest text-sm px-6 py-3 hover:bg-[#C01920] transition-colors"
+                  className="mt-2 inline-flex min-h-12 items-center rounded-[var(--store-radius-md)] bg-[#E31C23] px-6 font-barlow text-sm font-bold uppercase tracking-widest text-white transition-colors hover:bg-[#C01920]"
                 >
                   Explorar productos
                 </Link>
               </div>
             ) : (
               <>
+                {items.some((item) => item.kind !== "gift_card") && <FreeShippingProgress subtotal={subtotal} />}
+
                 {/* Items list */}
-                <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col divide-y divide-[#E0E0E0]">
+                <div className="flex flex-1 flex-col divide-y divide-[#ECECEA] overflow-y-auto px-5 py-2">
                   <AnimatePresence initial={false}>
                     {items.map((item, i) => (
                       <motion.div
@@ -175,62 +200,69 @@ export default function CartDrawer() {
                         transition={{ duration: 0.22, delay: i * 0.04 }}
                       >
                         {/* Image */}
-                        <div className="relative w-20 h-20 bg-[#E0E0E0] shrink-0">
+                        <div className={`relative h-24 w-24 shrink-0 overflow-hidden rounded-[var(--store-radius-md)] ${THUMB_STAGE}`}>
                           <Image
                             src={item.imageUrl || PLACEHOLDER_IMAGE_URL}
                             alt={item.name}
                             fill
-                            className="object-contain"
-                            sizes="80px"
+                            className="scale-[1.25] object-contain mix-blend-multiply"
+                            sizes="96px"
                           />
                         </div>
 
                         {/* Info */}
                         <div className="flex flex-col flex-1 min-w-0 gap-1">
                           <div className="flex items-start justify-between gap-1">
-                            <p className="font-barlow font-semibold text-sm text-[#1C1C1C] leading-tight truncate">
+                            <p className="line-clamp-2 font-barlow text-sm font-semibold uppercase leading-tight text-[#1C1C1C]">
                               {item.name}
                             </p>
                             <button
                               onClick={() => removeItem(item.id)}
                               aria-label={`Eliminar ${item.name}`}
-                              className="text-[#4A4A4A] hover:text-[#E31C23] transition-colors shrink-0 p-0.5"
+                              className="-mr-2 -mt-2 grid h-9 w-9 shrink-0 place-items-center rounded-full text-[#9E9E9E] transition-colors hover:bg-[#F2F2F0] hover:text-[#E31C23]"
                             >
                               <IconX size={14} />
                             </button>
                           </div>
                           {item.brand && (
-                            <p className="font-montserrat text-xs text-[#4A4A4A]">{item.brand}</p>
+                            <p className="font-montserrat text-[11px] uppercase tracking-[0.08em] text-[#4A4A4A]">{item.brand}</p>
                           )}
-                          <p className="font-montserrat text-xs text-[#4A4A4A]">
-                            {item.kind === "gift_card"
-                              ? "Entrega digital · Vigencia de 12 meses"
-                              : `Talla: ${item.size} · Color: ${item.color}`}
+                          <p className="flex items-center gap-1.5 font-montserrat text-xs text-[#4A4A4A]">
+                            {item.kind === "gift_card" ? (
+                              "Entrega digital · Vigencia de 12 meses"
+                            ) : (
+                              <>
+                                <span aria-hidden="true" className="h-3 w-3 shrink-0 rounded-full border border-black/10" style={getColorSwatchStyle(item.color)} />
+                                <span className="capitalize">{item.color.toLowerCase()}</span>
+                                <span aria-hidden="true">·</span>
+                                <span>Talla: {item.size}</span>
+                              </>
+                            )}
                           </p>
 
                           <div className="flex items-center justify-between mt-auto pt-1">
-                            <div className="flex items-center border border-[#E0E0E0]">
+                            <div className="flex items-center rounded-full border border-[#E0E0E0] bg-white">
                               <button
                                 onClick={() => updateQuantity(item.id, item.quantity - 1)}
                                 aria-label="Reducir cantidad"
-                                className="w-7 h-7 flex items-center justify-center text-[#1C1C1C] hover:bg-[#E0E0E0] transition-colors font-montserrat text-sm"
+                                className="grid h-9 w-9 place-items-center rounded-full font-montserrat text-base text-[#1C1C1C] transition-colors hover:bg-[#F2F2F0]"
                               >
                                 −
                               </button>
-                              <span className="w-7 h-7 flex items-center justify-center font-montserrat text-sm text-[#1C1C1C]">
+                              <span className="w-6 text-center font-montserrat text-sm font-semibold tabular-nums text-[#1C1C1C]" aria-live="polite">
                                 {item.quantity}
                               </span>
                               <button
                                 onClick={() => updateQuantity(item.id, item.quantity + 1)}
                                 aria-label="Aumentar cantidad"
-                                className="w-7 h-7 flex items-center justify-center text-[#1C1C1C] hover:bg-[#E0E0E0] transition-colors font-montserrat text-sm"
+                                className="grid h-9 w-9 place-items-center rounded-full font-montserrat text-base text-[#1C1C1C] transition-colors hover:bg-[#F2F2F0]"
                               >
                                 +
                               </button>
                             </div>
 
                             <div className="text-right">
-                              <p className="font-barlow font-bold text-sm text-[#1C1C1C]">
+                              <p className={`font-barlow text-base font-bold ${item.price !== item.originalPrice ? "text-[#E31C23]" : "text-[#1C1C1C]"}`}>
                                 {formatCOP(item.price * item.quantity)}
                               </p>
                               {item.price !== item.originalPrice && (
@@ -247,29 +279,45 @@ export default function CartDrawer() {
                 </div>
 
                 {/* Footer */}
-                <div className="border-t border-[#E0E0E0] px-5 py-5 flex flex-col gap-4">
-                  <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-3 border-t border-[#ECECEA] bg-white px-5 pt-4" style={{ paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))" }}>
+                  {items.some((item) => item.originalPrice > item.price) && (
+                    <div className="flex items-center justify-between font-montserrat text-sm text-emerald-700">
+                      <span>Ahorras</span>
+                      <span className="font-semibold">
+                        −{formatCOP(items.reduce((sum, item) => sum + Math.max(0, item.originalPrice - item.price) * item.quantity, 0))}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex items-baseline justify-between">
                     <span className="font-montserrat text-sm text-[#4A4A4A]">Subtotal</span>
-                    <span className="font-barlow font-bold text-lg text-[#1C1C1C]">
+                    <span className="font-barlow text-2xl font-bold tracking-tight text-[#1C1C1C]">
                       {formatCOP(subtotal)}
                     </span>
                   </div>
-                  <p className="font-montserrat text-xs text-[#4A4A4A]">
-                    Envío calculado en el checkout
+                  <p className="-mt-2 font-montserrat text-xs text-[#4A4A4A]">
+                    Envío y cupones se calculan en el checkout
                   </p>
                   <Link
                     href="/checkout"
                     onClick={closeCart}
-                    className="block w-full text-center bg-[#E31C23] text-white font-barlow font-bold uppercase tracking-widest text-sm py-4 hover:bg-[#C01920] transition-colors"
+                    className="flex min-h-14 w-full items-center justify-between rounded-[var(--store-radius-md)] bg-[#E31C23] px-5 font-barlow text-sm font-bold uppercase tracking-widest text-white transition-colors hover:bg-[#C01920]"
                   >
-                    Ir al checkout
+                    <span>Ir al checkout</span>
+                    <span className="flex items-center gap-2">
+                      {formatCOP(subtotal)}
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+                    </span>
                   </Link>
                   <button
                     onClick={closeCart}
-                    className="w-full text-center border border-[#1C1C1C] text-[#1C1C1C] font-barlow font-bold uppercase tracking-widest text-sm py-3 hover:bg-[#1C1C1C] hover:text-white transition-colors"
+                    className="min-h-11 w-full text-center font-montserrat text-sm font-medium text-[#1C1C1C] underline-offset-4 hover:underline"
                   >
                     Seguir comprando
                   </button>
+                  <p className="flex items-center justify-center gap-1.5 font-montserrat text-[11px] text-[#4A4A4A]">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></svg>
+                    Pago seguro con ePayco · 30 días para cambios
+                  </p>
                 </div>
               </>
             )}

@@ -64,3 +64,37 @@ export async function createMediaAssetRecord(data: Prisma.MediaAssetCreateInput)
 export async function deleteMediaAssetRecord(id: string) {
   return prisma.mediaAsset.delete({ where: { id } })
 }
+
+export async function findMediaAssetReferences(url: string) {
+  const [logos, banners, brands, productImages, landingSections] = await Promise.all([
+    prisma.storeLogo.count({ where: { url } }),
+    prisma.banner.count({ where: { imageUrl: url } }),
+    prisma.brand.count({
+      where: {
+        OR: [{ logoUrl: url }, { bannerUrl: url }, { sizeGuideImageUrl: url }],
+      },
+    }),
+    prisma.productImage.count({ where: { url } }),
+    prisma.landingSection.findMany({ select: { config: true } }),
+  ])
+
+  return {
+    logos,
+    banners,
+    brands,
+    productImages,
+    landingSections: landingSections.filter(({ config }) => JSON.stringify(config).includes(url)).length,
+  }
+}
+
+
+export async function findMediaAssetSources() {
+  const [logos, banners, brands, productImages] = await Promise.all([
+    prisma.storeLogo.findMany(),
+    prisma.banner.findMany(),
+    prisma.brand.findMany({ where: { logoUrl: { not: null } } }),
+    prisma.productImage.findMany({ take: 50, orderBy: { id: "desc" } }),
+  ])
+
+  return { logos, banners, brands, productImages }
+}

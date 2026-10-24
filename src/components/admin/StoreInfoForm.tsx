@@ -72,18 +72,17 @@ export default function StoreInfoForm({ settings }: StoreInfoFormProps) {
         </div>
       </div>
 
-      {state && (
-        <p
-          role="status"
-          className={`rounded-lg px-3 py-2 text-sm ${
-            state.success ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"
-          }`}
-        >
-          {state.success ? "Configuración guardada." : state.error}
-        </p>
-      )}
-
-      <div className="flex justify-end">
+      <div className="sticky bottom-4 z-10 flex flex-wrap items-center justify-end gap-3 rounded-xl border border-gray-200 bg-white/95 p-3 shadow-sm backdrop-blur">
+        {state && (
+          <p
+            role="status"
+            className={`rounded-lg px-3 py-2 text-sm ${
+              state.success ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"
+            }`}
+          >
+            {state.success ? "Configuración guardada." : state.error}
+          </p>
+        )}
         <button
           type="submit"
           disabled={pending}

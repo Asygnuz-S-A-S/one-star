@@ -1,6 +1,5 @@
 "use client"
 
-import { motion } from "motion/react"
 import ProductCard from "@/components/home/ProductCard"
 import { buildProductFamilyCardColorSummary } from "@/lib/product-card-colors"
 import type { ColorPalette } from "@/lib/colors"
@@ -17,9 +16,9 @@ export function AnimatedProductGrid({ products, animationKey, colorPalette }: Pr
   return (
     <div
       key={animationKey}
-      className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 px-4 md:px-8 py-6"
+      className="store-gutter grid grid-cols-2 gap-2 py-4 sm:gap-3 md:grid-cols-3 md:py-6 lg:grid-cols-4"
     >
-      {products.map((product, i) => {
+      {products.map((product) => {
         const image = product.images[0]
         const secondaryImage = product.images[1]
         const gallery = product.images.slice(2).map((img) => img.url)
@@ -28,16 +27,9 @@ export function AnimatedProductGrid({ products, animationKey, colorPalette }: Pr
           ...product.colorSiblings,
         ])
         return (
-          <motion.div
+          <div
             key={product.id}
             className="h-full"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{
-              duration: 0.32,
-              delay: Math.min(i * 0.05, 0.35),
-              ease: "easeOut",
-            }}
           >
             <ProductCard
               id={product.id}
@@ -55,7 +47,7 @@ export function AnimatedProductGrid({ products, animationKey, colorPalette }: Pr
               colorSummary={colorSummary}
               colorPalette={colorPalette}
             />
-          </motion.div>
+          </div>
         )
       })}
     </div>

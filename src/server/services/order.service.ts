@@ -27,6 +27,7 @@ import {
   releaseCouponUsage,
   releaseCouponUsageByCode,
 } from "./coupon.service"
+import { isClubMember } from "./club.service"
 import type { OrderCustomerDataInput } from "../validators/order.validator"
 
 /**
@@ -214,7 +215,8 @@ export async function placeOrder(
   if (data.couponCode) {
     const validation = await validateCouponForOrder(
       data.couponCode,
-      pricedItems.map((i) => ({ categoryId: i.categoryId, unitPrice: i.unitPrice, quantity: i.quantity }))
+      pricedItems.map((i) => ({ categoryId: i.categoryId, unitPrice: i.unitPrice, quantity: i.quantity })),
+      { isClubMember: await isClubMember(userId) }
     )
     if (!validation.valid) {
       throw new Error(`El cupón "${data.couponCode}" ya no es válido: ${validation.reason}`)

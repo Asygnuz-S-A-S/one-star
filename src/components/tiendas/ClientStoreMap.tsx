@@ -63,7 +63,7 @@ export default function ClientStoreMap({ position, query, name, address }: Clien
           </div>
 
           {/* Etiqueta compacta de la sede */}
-          <span className="mt-1 rounded-full bg-[#1C1C1C]/90 px-2.5 py-0.5 font-[var(--font-barlow)] text-[10px] font-bold uppercase tracking-wider text-white shadow-sm backdrop-blur-xs">
+          <span className="mt-1 rounded-full bg-[#1C1C1C]/90 px-2.5 py-0.5 font-barlow text-[10px] font-bold uppercase tracking-wider text-white shadow-sm backdrop-blur-xs">
             {name}
           </span>
         </div>

@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
-import { motion } from "motion/react"
+import { motion, useReducedMotion } from "motion/react"
 import Link from "next/link"
 import { resolveBrandLogoUrl } from "@/lib/brand-logos"
 
@@ -47,6 +47,7 @@ export default function BrandStrip({
   config?: Record<string, unknown>
 }) {
   const [isHovered, setIsHovered] = useState(false)
+  const shouldReduceMotion = useReducedMotion()
 
   // Normalizar marcas a formato BrandItem y resolver logos por defecto
   const normalizedBrands: BrandItem[] = (brands && brands.length > 0 ? brands : DEFAULT_BRANDS).map(
@@ -88,7 +89,7 @@ export default function BrandStrip({
     >
       {title && (
         <div className="text-center mb-6 px-4">
-          <h2 className="font-[var(--font-barlow)] font-bold uppercase tracking-wider text-sm md:text-base text-[#1C1C1C]">
+          <h2 className="font-barlow font-bold uppercase tracking-wider text-sm md:text-base text-[#1C1C1C]">
             {title}
           </h2>
         </div>
@@ -98,12 +99,8 @@ export default function BrandStrip({
       <div className="relative flex whitespace-nowrap overflow-hidden">
         <motion.div
           className="flex whitespace-nowrap items-center"
-          animate={isHovered ? {} : { x: ["0%", "-50%"] }}
-          transition={{
-            repeat: Infinity,
-            ease: "linear",
-            duration: speed,
-          }}
+          animate={isHovered || shouldReduceMotion ? {} : { x: ["0%", "-50%"] }}
+          transition={{ repeat: Infinity, ease: "linear", duration: speed }}
         >
           {displayList.map((brand, i) => {
             const hasLogo = Boolean(brand.logoUrl)
@@ -129,7 +126,7 @@ export default function BrandStrip({
                   </div>
                 ) : (
                   <span
-                    className={`font-[var(--font-barlow)] font-bold uppercase tracking-widest transition-colors duration-200 group-hover:text-[#E31C23] ${fontSizeClass}`}
+                    className={`font-barlow font-bold uppercase tracking-widest transition-colors duration-200 group-hover:text-[#E31C23] ${fontSizeClass}`}
                     style={{ color: textColor }}
                   >
                     {brand.name}
@@ -150,7 +147,12 @@ export default function BrandStrip({
             return (
               <div key={`${brand.name}-${i}`} className="mx-6 shrink-0 flex items-center">
                 {linkToBrand ? (
-                  <Link href={brandHref} title={`Ver productos de ${brand.name}`}>
+                  <Link
+                    href={brandHref}
+                    title={`Ver productos de ${brand.name}`}
+                    tabIndex={i < normalizedBrands.length ? undefined : -1}
+                    aria-hidden={i < normalizedBrands.length ? undefined : true}
+                  >
                     {content}
                   </Link>
                 ) : (

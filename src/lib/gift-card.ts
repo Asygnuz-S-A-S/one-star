@@ -83,3 +83,17 @@ export function createGiftCardCartItem(option: GiftCardOption) {
 export function isLegacyGiftCardCartItemId(id: string): boolean {
   return id.startsWith("gift-card-")
 }
+
+export type GiftCardFinish = "copper" | "silver" | "gold"
+
+/**
+ * Acabado metálico según la posición del monto entre los disponibles: el tercio más bajo
+ * es cobre, el del medio plata y el más alto oro. Se adapta solo si cambian los montos.
+ */
+export function getGiftCardFinish(amount: number, amounts: number[]): GiftCardFinish {
+  const sorted = [...new Set(amounts)].sort((a, b) => a - b)
+  const index = sorted.indexOf(amount)
+  if (index < 0 || sorted.length === 0) return "copper"
+  const tier = Math.min(2, Math.floor((index * 3) / sorted.length))
+  return (["copper", "silver", "gold"] as const)[tier]
+}

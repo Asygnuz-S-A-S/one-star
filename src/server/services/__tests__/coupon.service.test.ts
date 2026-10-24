@@ -117,6 +117,16 @@ const flatItems = (subtotal: number) => [{ categoryId: "cat-any", unitPrice: sub
 describe("validateCouponForOrder", () => {
   beforeEach(() => vi.clearAllMocks())
 
+  it("rechaza un cupón del club para quien no es miembro y lo acepta para miembros", async () => {
+    mockFindByCode.mockResolvedValue({ ...activeCoupon, clubOnly: true } as never)
+
+    const guest = await validateCouponForOrder("PROMO20", flatItems(100000))
+    expect(guest).toEqual({ valid: false, reason: "Este cupón es exclusivo para miembros de One Star Club" })
+
+    const member = await validateCouponForOrder("PROMO20", flatItems(100000), { isClubMember: true })
+    expect(member.valid).toBe(true)
+  })
+
   it("calcula el descuento porcentual sobre el subtotal", async () => {
     mockFindByCode.mockResolvedValue(activeCoupon as never)
     const result = await validateCouponForOrder("PROMO20", flatItems(100000))

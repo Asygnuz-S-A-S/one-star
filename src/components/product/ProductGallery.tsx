@@ -1,8 +1,7 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useRef } from "react"
 import Image from "next/image"
-import { motion } from "motion/react"
 import type { ProductImage } from "@/types/shop"
 import { PLACEHOLDER_IMAGE_URL } from "@/lib/product-image"
 
@@ -11,146 +10,162 @@ interface ProductGalleryProps {
   videoUrl?: string | null
 }
 
+// Superficie única: las fotos (fondo blanco) se funden con multiply y el producto queda
+// "posado" sobre la página, sin el recuadro blanco dentro de una tarjeta gris.
+const STAGE = "bg-[radial-gradient(ellipse_at_50%_45%,#ffffff_0%,#f7f7f5_45%,var(--store-canvas)_100%)]"
+const pad = (value: number) => String(value).padStart(2, "0")
+
 export default function ProductGallery({ images, videoUrl }: ProductGalleryProps) {
   const [activeIndex, setActiveIndex] = useState(0)
   const [showVideo, setShowVideo] = useState(false)
   const [hoverFrame, setHoverFrame] = useState<number | null>(null)
+  const [direction, setDirection] = useState<1 | -1>(1)
+  const touchStart = useRef<number | null>(null)
 
   const hasVideo = Boolean(videoUrl)
-  const allImages = images.map(img => img.url)
+  const total = images.length
+  const visibleIndex = hoverFrame ?? activeIndex
 
+  const select = useCallback((index: number) => {
+    if (total === 0) return
+    const next = (index + total) % total
+    setDirection(next >= activeIndex ? 1 : -1)
+    setActiveIndex(next)
+    setShowVideo(false)
+  }, [activeIndex, total])
+
+  // Con mouse, recorrer la foto de izquierda a derecha la hace "girar" entre ángulos.
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (showVideo || allImages.length <= 1) return
+    if (showVideo || total <= 1) return
     const rect = e.currentTarget.getBoundingClientRect()
     const x = Math.max(0, Math.min(0.9999, (e.clientX - rect.left) / rect.width))
-    setHoverFrame(Math.floor(x * allImages.length))
-  }, [showVideo, allImages.length])
-
-  const handleMouseLeave = useCallback(() => {
-    setHoverFrame(null)
-  }, [])
+    const frame = Math.floor(x * total)
+    if (frame !== visibleIndex) setDirection(frame > visibleIndex ? 1 : -1)
+    setHoverFrame(frame)
+  }, [showVideo, total, visibleIndex])
 
   // Producto sin fotos cargadas: imagen predeterminada de la tienda.
-  if (images.length === 0 && !hasVideo) {
+  if (total === 0 && !hasVideo) {
     return (
-      <div className="relative aspect-square bg-[#F0F0F0] dark:bg-white/5 overflow-hidden rounded-2xl">
+      <div className={`relative aspect-square overflow-hidden rounded-store-xl ${STAGE}`}>
         <Image
           src={PLACEHOLDER_IMAGE_URL}
           alt="Producto sin imagen disponible"
           fill
           priority
           className="object-contain object-center"
-          sizes="(max-width: 768px) 100vw, 55vw"
+          sizes="(max-width: 1024px) 100vw, 55vw"
         />
       </div>
     )
   }
 
-  const activeImage = images[activeIndex]
-
   return (
-    <div className="flex flex-col-reverse md:flex-row gap-3 md:gap-4">
+    <div className="flex min-w-0 flex-col-reverse gap-3 lg:flex-row lg:gap-4">
+      {/* Miniaturas: fila deslizable en móvil, columna pegada a la foto en escritorio. */}
+      <div className="-mx-4 min-w-0 px-4 lg:mx-0 lg:px-0">
+        <div className="flex snap-x gap-2 overflow-x-auto pb-1 scrollbar-hide lg:max-h-[620px] lg:flex-col lg:overflow-y-auto lg:overflow-x-visible" role="tablist" aria-label="Fotos del producto">
+          {images.map((img, idx) => {
+            const active = !showVideo && activeIndex === idx
+            return (
+              <button
+                key={img.id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => select(idx)}
+                // Activo: la miniatura se ilumina y una línea roja la marca; sin marco negro alrededor.
+                className={`relative h-16 w-16 shrink-0 snap-start overflow-hidden rounded-store-md transition-[opacity,box-shadow] duration-200 lg:h-[72px] lg:w-[72px] ${STAGE} ${
+                  active ? "opacity-100 shadow-[0_6px_16px_rgb(28_28_28/0.10)]" : "opacity-45 hover:opacity-100"
+                }`}
+                aria-label={img.alt || `Foto ${idx + 1}`}
+              >
+                <Image
+                  src={img.url}
+                  alt=""
+                  fill
+                  className="object-contain object-center scale-[1.35] mix-blend-multiply"
+                  sizes="72px"
+                />
+                <span aria-hidden="true" className={`absolute bottom-1 left-1/2 h-0.5 -translate-x-1/2 rounded-full bg-store-action transition-[width] duration-200 ${active ? "w-6" : "w-0"}`} />
+              </button>
+            )
+          })}
 
-      {/* Thumbnails verticales (derecha en mobile = abajo; izquierda en desktop) */}
-      <div className="flex flex-row md:flex-col gap-2 overflow-x-auto md:overflow-y-auto md:max-h-[580px] pb-1 scrollbar-hide md:w-20 shrink-0">
-        {images.map((img, idx) => {
-          const active = !showVideo && activeIndex === idx
-          return (
-            <motion.button
-              key={img.id}
-              onClick={() => { setActiveIndex(idx); setShowVideo(false) }}
-              whileHover={{ scale: 1.08, y: -2 }}
-              whileTap={{ scale: 0.92 }}
-              animate={{ scale: active ? 1.05 : 1 }}
-              transition={{ type: "spring", stiffness: 420, damping: 15 }}
-              className={`relative shrink-0 w-16 h-16 md:w-20 md:h-20 bg-transparent overflow-hidden rounded-xl transition-all ${
-                active
-                  ? "opacity-100"
-                  : "opacity-50 hover:opacity-100"
+          {hasVideo && (
+            <button
+              type="button"
+              role="tab"
+              aria-selected={showVideo}
+              onClick={() => setShowVideo(true)}
+              className={`grid h-16 w-16 shrink-0 snap-start place-items-center rounded-store-md bg-store-surface-muted text-store-ink transition-opacity lg:h-[72px] lg:w-[72px] ${
+                showVideo ? "opacity-100 text-store-action" : "opacity-60 hover:opacity-100"
               }`}
-              aria-label={img.alt || `Imagen ${idx + 1}`}
+              aria-label="Ver video del producto"
             >
-              <Image
-                src={img.url}
-                alt={img.alt || `Miniatura ${idx + 1}`}
-                fill
-                className="object-contain object-center p-1 mix-blend-multiply dark:mix-blend-normal"
-                sizes="80px"
-              />
-            </motion.button>
-          )
-        })}
-
-        {hasVideo && (
-          <motion.button
-            onClick={() => setShowVideo(true)}
-            whileHover={{ scale: 1.08, y: -2 }}
-            whileTap={{ scale: 0.92 }}
-            animate={{ scale: showVideo ? 1.05 : 1 }}
-            transition={{ type: "spring", stiffness: 420, damping: 15 }}
-            className={`relative shrink-0 w-16 h-16 md:w-20 md:h-20 bg-[#1C1C1C] dark:bg-white/10 overflow-hidden rounded-xl border-2 flex items-center justify-center ${
-              showVideo ? "border-[#E31C23] dark:border-[#E31C23]" : "border-transparent hover:border-[#4A4A4A]/50"
-            }`}
-            aria-label="Ver video del producto"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" className="w-7 h-7">
-              <path d="M8 5v14l11-7z"/>
-            </svg>
-          </motion.button>
-        )}
+              <svg viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Imagen principal: rotación 3D al mover el mouse + zoom lúdico al hover */}
+      {/* Foto principal */}
       <div
-        className="relative flex-1 aspect-square bg-white bg-[radial-gradient(ellipse_at_center,_#ffffff_50%,_#f2f2f4_100%)] border border-gray-200/80 dark:border-white/10 dark:bg-white/5 overflow-hidden rounded-2xl cursor-crosshair group shadow-sm"
+        className={`group relative aspect-square min-w-0 flex-1 overflow-hidden rounded-store-xl ${STAGE}`}
         onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
+        onMouseLeave={() => setHoverFrame(null)}
+        onTouchStart={(e) => { touchStart.current = e.changedTouches[0]?.clientX ?? null }}
+        onTouchEnd={(e) => {
+          const end = e.changedTouches[0]?.clientX
+          if (touchStart.current !== null && end !== undefined && Math.abs(end - touchStart.current) > 40) select(activeIndex + (end < touchStart.current ? 1 : -1))
+          touchStart.current = null
+        }}
+        style={{ "--frame-dir": direction } as React.CSSProperties}
       >
         {showVideo && videoUrl ? (
-          <video
-            src={videoUrl}
-            autoPlay
-            loop
-            muted
-            playsInline
-            className="w-full h-full object-cover"
-          />
-        ) : activeImage ? (
+          <video src={videoUrl} autoPlay loop muted playsInline className="h-full w-full object-cover" />
+        ) : (
           <>
-            {/* Sin zoom al hover: la foto debe verse completa y centrada, igual que las
-                miniaturas (HU-6). La rotación de vistas al mover el mouse se mantiene. */}
-            <div className="absolute inset-0">
-              {allImages.map((url, idx) => (
-                <Image
-                  key={`main-${idx}`}
-                  src={url}
-                  alt={images[idx]?.alt || `Vista ${idx + 1}`}
-                  fill
-                  priority={idx === 0}
-                  className={`object-contain object-center transition-opacity duration-100 ease-in-out ${
-                    idx === (hoverFrame ?? activeIndex) ? "opacity-100" : "opacity-0"
-                  }`}
-                  sizes="(max-width: 768px) 100vw, 55vw"
-                />
-              ))}
-            </div>
+            {/* Una sola foto visible a la vez; la que entra gira desde el lado del movimiento. */}
+            {images.map((img, idx) => (
+              <Image
+                key={img.id}
+                src={img.url}
+                alt={img.alt || `Vista ${idx + 1}`}
+                fill
+                priority={idx === 0}
+                className={`object-contain object-center scale-[1.3] mix-blend-multiply ${
+                  idx === visibleIndex ? "opacity-100 motion-safe:animate-[card-frame-in_320ms_cubic-bezier(.22,1,.36,1)]" : "opacity-0"
+                }`}
+                sizes="(max-width: 1024px) 100vw, 55vw"
+              />
+            ))}
 
-            {/* Hint sutil de interacción (solo si hay más de 1 imagen) */}
-            {allImages.length > 1 && (
-              <motion.div
-                className="absolute bottom-4 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
-                animate={{ x: [-4, 4, -4] }}
-                transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
-              >
-                <span className="text-[10px] font-[var(--font-montserrat)] tracking-widest text-[#4A4A4A] dark:text-white/50 uppercase">
-                  ← Mover para rotar →
-                </span>
-              </motion.div>
+            {/* Sombra de contacto: el tenis "apoya" sobre la superficie. */}
+            <div aria-hidden="true" className="pointer-events-none absolute inset-x-[24%] bottom-[22%] h-6 rounded-[50%] bg-black/10 blur-xl" />
+
+            {total > 1 && (
+              <div className="absolute inset-x-4 bottom-3 flex items-center justify-between text-store-ink">
+                <div className="flex items-center gap-3 font-barlow text-xs font-semibold tabular-nums tracking-[0.12em]">
+                  <span>{pad(visibleIndex + 1)}</span>
+                  <span aria-hidden="true" className="relative h-0.5 w-16 overflow-hidden rounded-full bg-store-ink/15">
+                    <span className="absolute inset-y-0 left-0 bg-store-ink transition-[width] duration-300" style={{ width: `${((visibleIndex + 1) / total) * 100}%` }} />
+                  </span>
+                  <span className="opacity-50">{pad(total)}</span>
+                </div>
+                <div className="flex items-center">
+                  <button type="button" onClick={() => select(activeIndex - 1)} className="grid h-11 w-11 place-items-center rounded-full opacity-70 transition hover:bg-white/70 hover:opacity-100" aria-label="Foto anterior">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
+                  </button>
+                  <button type="button" onClick={() => select(activeIndex + 1)} className="grid h-11 w-11 place-items-center rounded-full opacity-70 transition hover:bg-white/70 hover:opacity-100" aria-label="Foto siguiente">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+                  </button>
+                </div>
+              </div>
             )}
           </>
-        ) : null}
+        )}
       </div>
-
     </div>
   )
 }

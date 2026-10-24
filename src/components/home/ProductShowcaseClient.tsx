@@ -108,10 +108,10 @@ export default function ProductShowcaseClient({ title, products, theme = "light"
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-16 md:pt-14 md:pb-20">
         {/* Título de sección */}
         <div className="flex items-center justify-between mb-6 md:mb-2">
-          <h2 className="font-[var(--font-barlow)] font-black uppercase text-xl md:text-2xl tracking-tight text-foreground">
+          <h2 className="font-barlow font-black uppercase text-xl md:text-2xl tracking-tight text-foreground">
             {title}
           </h2>
-          <span className="font-[var(--font-montserrat)] text-xs tracking-widest tabular-nums opacity-50">
+          <span className="font-montserrat text-xs tracking-widest tabular-nums opacity-50">
             {String(index + 1).padStart(2, "0")} / {String(count).padStart(2, "0")}
           </span>
         </div>
@@ -208,10 +208,10 @@ export default function ProductShowcaseClient({ title, products, theme = "light"
               exit={reduce ? { opacity: 0 } : { opacity: 0, y: -16 }}
               transition={{ type: "spring", stiffness: 300, damping: 24 }}
             >
-              <h3 className="font-[var(--font-barlow)] font-black uppercase leading-[0.85] tracking-tight text-[13vw] md:text-[6.5rem]">
+              <h3 className="font-barlow font-black uppercase leading-[0.85] tracking-tight text-[13vw] md:text-[6.5rem]">
                 {active.brand || "One Star"}
               </h3>
-              <p className="font-[var(--font-montserrat)] text-xs md:text-sm tracking-widest uppercase mt-2 opacity-70">
+              <p className="font-montserrat text-xs md:text-sm tracking-widest uppercase mt-2 opacity-70">
                 {active.name}
                 <span className="mx-2 opacity-40">|</span>
                 <span className={active.isOnSale ? "text-[#E31C23] font-bold" : "font-semibold"}>
@@ -221,7 +221,7 @@ export default function ProductShowcaseClient({ title, products, theme = "light"
               <Link
                 href={`/productos/${active.slug}`}
                 onClick={(e) => { e.preventDefault(); launchTo(active.slug) }}
-                className="inline-block mt-5 font-[var(--font-montserrat)] text-xs font-bold uppercase tracking-widest px-8 py-3 rounded-full border border-foreground text-foreground transition-colors duration-200 hover:bg-foreground hover:text-background"
+                className="inline-block mt-5 font-montserrat text-xs font-bold uppercase tracking-widest px-8 py-3 rounded-full border border-foreground text-foreground transition-colors duration-200 hover:bg-foreground hover:text-background"
               >
                 Ver más
               </Link>

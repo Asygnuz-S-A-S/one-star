@@ -2,14 +2,21 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react"
 import Link from "next/link"
-import Image from "next/image"
+import { getImageProps } from "next/image"
 import { motion, AnimatePresence } from "motion/react"
+import { canUseNextImageOptimization } from "@/lib/image-optimization"
+
+export type MediaFocalPoint = "center" | "top" | "bottom" | "left" | "right"
 
 export interface MediaSlide {
   id: string
   mediaType: "image" | "video"
   imageUrl?: string
+  /** Se usa por debajo de 768px (celulares). */
   mobileImageUrl?: string
+  /** Qué parte de la foto se conserva cuando el banner la recorta. */
+  focalPoint?: MediaFocalPoint
+  mobileFocalPoint?: MediaFocalPoint
   videoUrl?: string
   posterUrl?: string
   badge?: string
@@ -19,7 +26,9 @@ export interface MediaSlide {
   ctaLink?: string
   secondaryCtaText?: string
   secondaryCtaLink?: string
+  /** Posición del texto desde 768px; en celulares manda `mobileContentPosition` si existe. */
   contentPosition?: "center" | "left" | "right" | "bottom-left" | "bottom-center"
+  mobileContentPosition?: "center" | "left" | "right" | "bottom-left" | "bottom-center"
   overlayOpacity?: number // 0 to 100
   textColor?: "light" | "dark"
 }
@@ -28,7 +37,8 @@ export interface MediaCarouselConfig {
   title?: string
   subtitle?: string
   layout?: "full-width" | "container" | "card"
-  height?: "small" | "medium" | "large" | "screen" | "auto"
+  /** "fit" sigue la proporción recomendada de las fotos: 1920×600 en escritorio y 1080×1080 en móvil. */
+  height?: "fit" | "small" | "medium" | "large" | "screen" | "auto"
   aspectRatio?: "16/9" | "21/9" | "4/3" | "auto"
   marginTop?: "none" | "sm" | "md" | "lg" | "xl"
   marginBottom?: "none" | "sm" | "md" | "lg" | "xl"
@@ -42,6 +52,75 @@ export interface MediaCarouselConfig {
 
 interface MediaCarouselProps {
   config?: Record<string, unknown>
+}
+
+const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1552346154-21d32810aba3?q=80&w=1920&auto=format&fit=crop"
+
+const FOCAL_CLASSES: Record<MediaFocalPoint, string> = {
+  center: "object-center",
+  top: "object-top",
+  bottom: "object-bottom",
+  left: "object-left",
+  right: "object-right",
+}
+
+const DESKTOP_FOCAL_CLASSES: Record<MediaFocalPoint, string> = {
+  center: "md:object-center",
+  top: "md:object-top",
+  bottom: "md:object-bottom",
+  left: "md:object-left",
+  right: "md:object-right",
+}
+
+type ContentPosition = NonNullable<MediaSlide["contentPosition"]>
+
+const toContentPosition = (value: unknown): ContentPosition =>
+  typeof value === "string" && value in POSITION_CLASSES ? (value as ContentPosition) : "bottom-left"
+
+// Clases literales por breakpoint para que Tailwind las detecte. El velo oscuro se coloca del lado del texto.
+const POSITION_CLASSES: Record<ContentPosition, { box: string; cta: string; veil: string }> = {
+  "bottom-left": { box: "items-start justify-end text-left pb-12", cta: "justify-start", veil: "bg-gradient-to-t" },
+  "bottom-center": { box: "items-center justify-end text-center pb-12", cta: "justify-center", veil: "bg-gradient-to-t" },
+  left: { box: "items-start justify-center text-left pb-0", cta: "justify-start", veil: "bg-gradient-to-r" },
+  center: { box: "items-center justify-center text-center pb-0", cta: "justify-center", veil: "bg-gradient-to-t" },
+  right: { box: "items-end justify-center text-right pb-0", cta: "justify-end", veil: "bg-gradient-to-l" },
+}
+
+const MD_POSITION_CLASSES: Record<ContentPosition, { box: string; cta: string; veil: string }> = {
+  "bottom-left": { box: "md:items-start md:justify-end md:text-left md:pb-16", cta: "md:justify-start", veil: "md:bg-gradient-to-t" },
+  "bottom-center": { box: "md:items-center md:justify-end md:text-center md:pb-16", cta: "md:justify-center", veil: "md:bg-gradient-to-t" },
+  left: { box: "md:items-start md:justify-center md:text-left md:pb-0", cta: "md:justify-start", veil: "md:bg-gradient-to-r" },
+  center: { box: "md:items-center md:justify-center md:text-center md:pb-0", cta: "md:justify-center", veil: "md:bg-gradient-to-t" },
+  right: { box: "md:items-end md:justify-center md:text-right md:pb-0", cta: "md:justify-end", veil: "md:bg-gradient-to-l" },
+}
+
+const focal = (value: unknown): MediaFocalPoint =>
+  typeof value === "string" && value in FOCAL_CLASSES ? (value as MediaFocalPoint) : "center"
+
+/** Dirección de arte: el navegador descarga solo la foto que corresponde al ancho de pantalla. */
+function SlideImage({ slide, priority }: { slide: MediaSlide; priority: boolean }) {
+  const desktopSrc = slide.imageUrl || FALLBACK_IMAGE
+  const mobileSrc = slide.mobileImageUrl || desktopSrc
+  const props = (src: string, width: number, height: number) => getImageProps({
+    src, alt: slide.title || "Promoción One Star", width, height, sizes: "100vw",
+    fetchPriority: priority ? "high" : "auto",
+    unoptimized: !canUseNextImageOptimization(src),
+  }).props
+  const desktop = props(desktopSrc, 1920, 600)
+  const mobile = props(mobileSrc, 1080, 1080)
+  const mobileFocal = slide.mobileImageUrl ? focal(slide.mobileFocalPoint) : focal(slide.focalPoint)
+
+  return (
+    <picture>
+      <source media="(min-width: 768px)" srcSet={desktop.srcSet ?? desktop.src} sizes="100vw" />
+      <img
+        {...mobile}
+        alt={mobile.alt}
+        loading={priority ? "eager" : "lazy"}
+        className={`absolute inset-0 h-full w-full select-none object-cover pointer-events-none ${FOCAL_CLASSES[mobileFocal]} ${DESKTOP_FOCAL_CLASSES[focal(slide.focalPoint)]}`}
+      />
+    </picture>
+  )
 }
 
 const DEFAULT_SLIDES: MediaSlide[] = [
@@ -68,8 +147,10 @@ export default function MediaCarousel({ config = {} }: MediaCarouselProps) {
   const items: MediaSlide[] = rawItems.map((item, idx) => ({
     id: item.id || `slide-${idx}`,
     mediaType: item.mediaType || "image",
-    imageUrl: item.imageUrl || "https://images.unsplash.com/photo-1552346154-21d32810aba3?q=80&w=1920&auto=format&fit=crop",
+    imageUrl: item.imageUrl || FALLBACK_IMAGE,
     mobileImageUrl: item.mobileImageUrl,
+    focalPoint: item.focalPoint,
+    mobileFocalPoint: item.mobileFocalPoint,
     videoUrl: item.videoUrl,
     posterUrl: item.posterUrl,
     badge: item.badge,
@@ -80,6 +161,7 @@ export default function MediaCarousel({ config = {} }: MediaCarouselProps) {
     secondaryCtaText: item.secondaryCtaText,
     secondaryCtaLink: item.secondaryCtaLink,
     contentPosition: item.contentPosition || "bottom-left",
+    mobileContentPosition: item.mobileContentPosition,
     overlayOpacity: typeof item.overlayOpacity === "number" ? item.overlayOpacity : 40,
     textColor: item.textColor || "light",
   }))
@@ -102,6 +184,9 @@ export default function MediaCarousel({ config = {} }: MediaCarouselProps) {
   // Altura del banner
   const getHeightClasses = () => {
     switch (heightPreset) {
+      case "fit":
+        // Móvil cuadrado (1080×1080); desde md el panorámico 1920×600 con un mínimo de alto para el texto.
+        return "aspect-square md:aspect-[16/5] md:min-h-[320px] lg:min-h-[380px]"
       case "small":
         return "min-h-[340px] md:min-h-[400px] h-[400px]"
       case "large":
@@ -157,22 +242,8 @@ export default function MediaCarousel({ config = {} }: MediaCarouselProps) {
 
   const currentSlide = items[currentIndex] || items[0]
 
-  // Posición del contenido
-  const getPositionClasses = (pos?: string) => {
-    switch (pos) {
-      case "center":
-        return "items-center justify-center text-center"
-      case "right":
-        return "items-end justify-center text-right"
-      case "bottom-center":
-        return "items-center justify-end text-center pb-12 md:pb-16"
-      case "left":
-        return "items-start justify-center text-left"
-      case "bottom-left":
-      default:
-        return "items-start justify-end text-left pb-12 md:pb-16"
-    }
-  }
+  const mobilePosition = toContentPosition(currentSlide.mobileContentPosition ?? currentSlide.contentPosition)
+  const desktopPosition = toContentPosition(currentSlide.contentPosition)
 
   const marginTop = typeof cfg.marginTop === "string" ? cfg.marginTop : "md"
   const marginBottom = typeof cfg.marginBottom === "string" ? cfg.marginBottom : "none"
@@ -217,7 +288,7 @@ export default function MediaCarousel({ config = {} }: MediaCarouselProps) {
       {(cfg.title || cfg.subtitle) && (
         <div className="mb-6 text-center md:text-left px-4 max-w-7xl mx-auto">
           {cfg.title && (
-            <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-gray-900 dark:text-white font-[var(--font-barlow)]">
+            <h2 className="store-heading">
               {cfg.title}
             </h2>
           )}
@@ -284,29 +355,21 @@ export default function MediaCarousel({ config = {} }: MediaCarouselProps) {
                 className="absolute inset-0 w-full h-full object-cover select-none pointer-events-none"
               />
             ) : (
-              <div className="relative w-full h-full">
-                {/* Imagen de fondo */}
-                <Image
-                  src={currentSlide.imageUrl || "https://images.unsplash.com/photo-1552346154-21d32810aba3?q=80&w=1920&auto=format&fit=crop"}
-                  alt={currentSlide.title || "Promoción One Star"}
-                  fill
-                  priority={currentIndex === 0}
-                  className="object-cover object-center select-none pointer-events-none"
-                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 100vw, 1920px"
-                />
+              <div className="absolute inset-0">
+                <SlideImage slide={currentSlide} priority={currentIndex === 0} />
               </div>
             )}
 
             {/* Capa de Sombreado / Overlay Gradiente */}
             <div 
-              className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/45 to-transparent pointer-events-none z-[5]"
+              className={`absolute inset-0 from-black/90 via-black/45 to-transparent pointer-events-none z-[5] ${POSITION_CLASSES[mobilePosition].veil} ${MD_POSITION_CLASSES[desktopPosition].veil}`}
               style={{
                 opacity: (currentSlide.overlayOpacity ?? 40) / 100,
               }}
             />
 
             {/* Contenido / Textos y Botones */}
-            <div className={`relative z-10 w-full h-full max-w-7xl mx-auto px-6 sm:px-10 lg:px-16 flex flex-col pointer-events-none ${getPositionClasses(currentSlide.contentPosition)}`}>
+            <div className={`relative z-10 w-full h-full max-w-7xl mx-auto px-6 sm:px-10 lg:px-16 flex flex-col pointer-events-none ${POSITION_CLASSES[mobilePosition].box} ${MD_POSITION_CLASSES[desktopPosition].box}`}>
               <motion.div 
                 variants={{
                   enter: { opacity: 0, y: 24 },
@@ -333,7 +396,7 @@ export default function MediaCarousel({ config = {} }: MediaCarouselProps) {
 
                 {/* Título Principal */}
                 {currentSlide.title && (
-                  <h3 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-black uppercase tracking-tight leading-[1.05] font-[var(--font-barlow)] drop-shadow-md">
+                  <h3 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-black uppercase tracking-tight leading-[1.05] font-barlow drop-shadow-md">
                     {currentSlide.title}
                   </h3>
                 )}
@@ -347,7 +410,7 @@ export default function MediaCarousel({ config = {} }: MediaCarouselProps) {
 
                 {/* Botones de Llamada a la Acción (CTAs) */}
                 {(currentSlide.ctaText || currentSlide.secondaryCtaText) && (
-                  <div className="mt-6 flex flex-wrap items-center gap-3">
+                  <div className={`mt-6 flex flex-wrap items-center gap-3 ${POSITION_CLASSES[mobilePosition].cta} ${MD_POSITION_CLASSES[desktopPosition].cta}`}>
                     {currentSlide.ctaText && currentSlide.ctaLink && (
                       <Link
                         href={currentSlide.ctaLink}

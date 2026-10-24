@@ -10,13 +10,14 @@ vi.mock("@/server/services/product.service", () => ({
   updateProductsPublishStatus: vi.fn(),
 }))
 
-import { bulkToggleProductsPublishStatus } from "./actions"
+import { bulkToggleProductsPublishStatus, updateProduct } from "./actions"
 import { revalidatePath } from "next/cache"
 import { requireAdmin } from "@/server/auth/require-admin"
-import { updateProductsPublishStatus } from "@/server/services/product.service"
+import { updateProduct as updateProductService, updateProductsPublishStatus } from "@/server/services/product.service"
 
 const mockRequireAdmin = vi.mocked(requireAdmin)
 const mockUpdateProductsPublishStatus = vi.mocked(updateProductsPublishStatus)
+const mockUpdateProduct = vi.mocked(updateProductService)
 const mockRevalidatePath = vi.mocked(revalidatePath)
 const PRODUCT_ID_1 = "c000000000000000000000001"
 const PRODUCT_ID_2 = "c000000000000000000000002"
@@ -121,5 +122,49 @@ describe("bulkToggleProductsPublishStatus", () => {
     expect(result).toEqual({ success: false, error: "No autorizado." })
     expect(mockUpdateProductsPublishStatus).not.toHaveBeenCalled()
     expect(mockRevalidatePath).not.toHaveBeenCalled()
+  })
+})
+
+
+function validProductFormData(): FormData {
+  const formData = new FormData()
+  formData.set("name", "Producto")
+  formData.set("categoryId", "categoria")
+  formData.set("basePrice", "100000")
+  formData.set("variants", "[]")
+  formData.set("images", "[]")
+  formData.set("colorFamilyProductIds", "[]")
+  formData.set("colorFamilyBaselineProductIds", "[]")
+  formData.set("crossSellIds", "[]")
+  return formData
+}
+
+describe("updateProduct", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockRequireAdmin.mockResolvedValue({} as never)
+  })
+
+  it("autentica antes de procesar el FormData", async () => {
+    mockRequireAdmin.mockRejectedValue(new Error("No autorizado."))
+    const formData = validProductFormData()
+    formData.set("variants", "{")
+
+    await expect(updateProduct(PRODUCT_ID_1, formData)).resolves.toEqual({
+      success: false,
+      error: "No autorizado.",
+    })
+    expect(mockUpdateProduct).not.toHaveBeenCalled()
+  })
+
+  it("devuelve un error controlado para JSON de FormData inválido", async () => {
+    const formData = validProductFormData()
+    formData.set("images", "{")
+
+    await expect(updateProduct(PRODUCT_ID_1, formData)).resolves.toEqual({
+      success: false,
+      error: "El campo images tiene un formato inválido.",
+    })
+    expect(mockUpdateProduct).not.toHaveBeenCalled()
   })
 })

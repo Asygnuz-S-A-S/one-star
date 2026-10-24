@@ -7,6 +7,7 @@ import {
   couponCodeExists,
 } from "@/server/services/coupon.service"
 import { requireSuperAdmin } from "@/server/auth/require-admin"
+import { createCouponSchema } from "@/server/validators/coupon.validator"
 
 export async function createCoupon(
   formData: FormData
@@ -16,37 +17,30 @@ export async function createCoupon(
   } catch {
     return { success: false, error: "No autorizado." }
   }
-  const code = (formData.get("code") as string).toUpperCase().trim()
-  const discountType = formData.get("discountType") as string
-  const discountValue = parseFloat(formData.get("discountValue") as string)
-  const minOrderAmountRaw = formData.get("minOrderAmount") as string
-  const maxUsesRaw = formData.get("maxUses") as string
-  const categoryIdRaw = formData.get("categoryId") as string
-  const validFrom = new Date(formData.get("validFrom") as string)
-  const validUntil = new Date(formData.get("validUntil") as string)
-  const isActive = formData.get("isActive") === "true"
 
-  if (!code || !discountType || isNaN(discountValue)) {
-    return { success: false, error: "Código, tipo y valor son obligatorios." }
+  const parsed = createCouponSchema.safeParse({
+    code: formData.get("code"),
+    discountType: formData.get("discountType"),
+    discountValue: formData.get("discountValue"),
+    minOrderAmount: formData.get("minOrderAmount"),
+    maxUses: formData.get("maxUses"),
+    categoryId: formData.get("categoryId"),
+    validFrom: formData.get("validFrom"),
+    validUntil: formData.get("validUntil"),
+    isActive: formData.get("isActive") === "true",
+    clubOnly: formData.get("clubOnly") === "true",
+  })
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? "Datos del cupón inválidos." }
   }
 
   try {
-    const exists = await couponCodeExists(code)
+    const exists = await couponCodeExists(parsed.data.code)
     if (exists) {
       return { success: false, error: "Ya existe un cupón con ese código." }
     }
 
-    await createCouponService({
-      code,
-      discountType,
-      discountValue,
-      minOrderAmount: minOrderAmountRaw ? parseFloat(minOrderAmountRaw) : null,
-      maxUses: maxUsesRaw ? parseInt(maxUsesRaw) : null,
-      categoryId: categoryIdRaw || null,
-      validFrom,
-      validUntil,
-      isActive,
-    })
+    await createCouponService(parsed.data)
     revalidatePath("/admin/cupones")
     return { success: true }
   } catch (error: unknown) {

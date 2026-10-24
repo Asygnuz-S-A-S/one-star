@@ -7,6 +7,7 @@ import FilterSidebar from "@/components/shop/FilterSidebar"
 import ShopLayout from "@/components/shop/ShopLayout"
 import ProductFaqSection from "@/components/product/ProductFaqSection"
 import { getBrandDetailBySlug } from "@/server/services/brand.service"
+import { getCatalogPriceBounds } from "@/server/services/product.service"
 import { getFeaturedReviewsForBrand } from "@/server/services/review.service"
 import { getPublicSiteContent } from "@/server/services/site-content.service"
 import { getPublicStoreInfo } from "@/server/services/store-settings.service"
@@ -66,13 +67,14 @@ export default async function BrandPage({ params, searchParams }: BrandPageProps
   const brand = await getBrandDetailBySlug(slug)
   if (!brand || !brand.isActive) notFound()
 
-  const [sizes, colors, colorPalette, featuredReviews, globalContent, settings] = await Promise.all([
+  const [sizes, colors, colorPalette, featuredReviews, globalContent, settings, priceBounds] = await Promise.all([
     getUniqueSizes(),
     getUniqueColors(),
     getColorPalette(),
     getFeaturedReviewsForBrand(brand.id, 6),
     getPublicSiteContent(),
     getPublicStoreInfo().catch(() => null),
+    getCatalogPriceBounds(),
   ])
 
   const resolved = resolveProductContent({
@@ -115,7 +117,7 @@ export default async function BrandPage({ params, searchParams }: BrandPageProps
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Breadcrumb */}
-          <nav className="font-[var(--font-montserrat)] text-xs text-[#4A4A4A] dark:text-gray-400 mb-6 flex gap-2 items-center">
+          <nav className="font-montserrat text-xs text-[#4A4A4A] dark:text-gray-400 mb-6 flex gap-2 items-center">
             <Link href="/" className="hover:text-[#1C1C1C] dark:hover:text-white transition-colors">Inicio</Link>
             <span>/</span>
             <Link href="/marcas" className="hover:text-[#1C1C1C] dark:hover:text-white transition-colors">Marcas</Link>
@@ -138,11 +140,11 @@ export default async function BrandPage({ params, searchParams }: BrandPageProps
                   </div>
                 )}
                 <div>
-                  <h1 className="font-[var(--font-barlow)] text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tight text-[#1C1C1C] dark:text-white">
+                  <h1 className="font-barlow text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tight text-[#1C1C1C] dark:text-white">
                     {brand.name}
                   </h1>
                   {brand.description && (
-                    <p className="mt-2 max-w-3xl font-[var(--font-montserrat)] text-sm sm:text-base text-[#4A4A4A] dark:text-gray-300 leading-relaxed">
+                    <p className="mt-2 max-w-3xl font-montserrat text-sm sm:text-base text-[#4A4A4A] dark:text-gray-300 leading-relaxed">
                       {brand.description}
                     </p>
                   )}
@@ -154,10 +156,10 @@ export default async function BrandPage({ params, searchParams }: BrandPageProps
           {/* Historia de la marca (texto plano seguro, no HTML) */}
           {brand.story && (
             <div className="mt-6 rounded-2xl bg-white p-6 shadow-sm dark:bg-white/5 border border-gray-100 dark:border-white/10 max-w-4xl">
-              <h2 className="font-[var(--font-barlow)] text-lg font-bold uppercase text-[#1C1C1C] dark:text-white mb-2">
+              <h2 className="font-barlow text-lg font-bold uppercase text-[#1C1C1C] dark:text-white mb-2">
                 Historia y Filosofía de {brand.name}
               </h2>
-              <p className="font-[var(--font-montserrat)] text-sm text-[#4A4A4A] dark:text-gray-300 whitespace-pre-line leading-relaxed">
+              <p className="font-montserrat text-sm text-[#4A4A4A] dark:text-gray-300 whitespace-pre-line leading-relaxed">
                 {brand.story}
               </p>
             </div>
@@ -169,7 +171,7 @@ export default async function BrandPage({ params, searchParams }: BrandPageProps
       {resolved.highlights.length > 0 && (
         <div className="bg-white dark:bg-[#121212] border-b border-[#E0E0E0] dark:border-white/10 py-8">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="font-[var(--font-barlow)] text-xl font-bold uppercase text-[#1C1C1C] dark:text-white mb-4">
+            <h2 className="font-barlow text-xl font-bold uppercase text-[#1C1C1C] dark:text-white mb-4">
               ¿Por qué elegir {brand.name}?
             </h2>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -177,11 +179,11 @@ export default async function BrandPage({ params, searchParams }: BrandPageProps
                 const { title, detail } = splitHighlight(h)
                 return (
                   <div key={i} className="rounded-xl border border-gray-200 bg-[#F9F9F9] p-4 dark:border-white/10 dark:bg-white/5">
-                    <p className="font-[var(--font-montserrat)] text-sm font-bold text-[#1C1C1C] dark:text-white">
+                    <p className="font-montserrat text-sm font-bold text-[#1C1C1C] dark:text-white">
                       ✓ {title}
                     </p>
                     {detail && (
-                      <p className="mt-1 font-[var(--font-montserrat)] text-xs text-[#4A4A4A] dark:text-gray-400 leading-relaxed">
+                      <p className="mt-1 font-montserrat text-xs text-[#4A4A4A] dark:text-gray-400 leading-relaxed">
                         {detail}
                       </p>
                     )}
@@ -197,10 +199,12 @@ export default async function BrandPage({ params, searchParams }: BrandPageProps
       <ShopLayout
         sidebar={
           <FilterSidebar
+          key={currentParams.toString()}
             brands={[]}
             sizes={sizes}
             colors={colors}
             colorPalette={colorPalette}
+            priceBounds={priceBounds}
             currentParams={currentParams.toString()}
           />
         }
@@ -221,12 +225,12 @@ export default async function BrandPage({ params, searchParams }: BrandPageProps
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8">
               <div>
-                <h2 id="testimonios-marca" className="font-[var(--font-barlow)] text-2xl sm:text-3xl font-black uppercase text-[#1C1C1C] dark:text-white">
+                <h2 id="testimonios-marca" className="font-barlow text-2xl sm:text-3xl font-black uppercase text-[#1C1C1C] dark:text-white">
                   Opiniones sobre {brand.name}
                 </h2>
                 <div className="mt-2 h-1 w-12 bg-[#E31C23]" />
               </div>
-              <p className="mt-2 sm:mt-0 text-xs text-[#4A4A4A] dark:text-gray-400 font-[var(--font-montserrat)]">
+              <p className="mt-2 sm:mt-0 text-xs text-[#4A4A4A] dark:text-gray-400 font-montserrat">
                 Testimonios verificados de clientes
               </p>
             </div>
@@ -244,11 +248,11 @@ export default async function BrandPage({ params, searchParams }: BrandPageProps
                       )}
                     </div>
                     {rev.title && (
-                      <h3 className="font-[var(--font-montserrat)] text-sm font-bold text-[#1C1C1C] dark:text-white mb-1">
+                      <h3 className="font-montserrat text-sm font-bold text-[#1C1C1C] dark:text-white mb-1">
                         {rev.title}
                       </h3>
                     )}
-                    <p className="font-[var(--font-montserrat)] text-sm text-[#4A4A4A] dark:text-gray-300 leading-relaxed italic">
+                    <p className="font-montserrat text-sm text-[#4A4A4A] dark:text-gray-300 leading-relaxed italic">
                       &ldquo;{rev.body}&rdquo;
                     </p>
                   </div>

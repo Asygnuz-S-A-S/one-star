@@ -1,31 +1,18 @@
 "use server"
 
 import { headers } from "next/headers"
+import { consumePublicRateLimit } from "@/server/services/public-rate-limit.service"
 import { auth } from "@/lib/auth"
 import { submitProductReview } from "@/server/services/review.service"
 import { revalidatePath } from "next/cache"
 
-/** Rate limiting en memoria por IP (se reinicia al reiniciar el proceso). */
-const attempts = new Map<string, { count: number; resetAt: number }>()
-const WINDOW_MS = 10 * 60 * 1000 // 10 minutos
-const MAX_REVIEWS = 5
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now()
-  const record = attempts.get(ip)
-  if (record && now < record.resetAt) {
-    if (record.count >= MAX_REVIEWS) return true
-    record.count++
-    return false
-  }
-  attempts.set(ip, { count: 1, resetAt: now + WINDOW_MS })
-  return false
-}
-
 export async function submitReviewAction(formData: FormData) {
   const reqHeaders = await headers()
-  const ip = reqHeaders.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown"
-  if (isRateLimited(ip)) {
+  const rateLimit = await consumePublicRateLimit("product-review", reqHeaders, {
+    max: 5,
+    windowMs: 10 * 60 * 1_000,
+  })
+  if (!rateLimit.allowed) {
     return { ok: false, error: "Demasiadas reseñas. Intenta de nuevo más tarde." }
   }
 

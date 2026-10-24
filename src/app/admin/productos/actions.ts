@@ -31,34 +31,50 @@ function getErrorMessage(error: unknown): string {
   return "Error inesperado"
 }
 
+function formValue(formData: FormData, key: string): string {
+  const value = formData.get(key)
+  return typeof value === "string" ? value : ""
+}
+
+function parseJsonArray(formData: FormData, key: string): unknown[] {
+  const value = formValue(formData, key)
+  if (!value) return []
+
+  try {
+    const parsed: unknown = JSON.parse(value)
+    if (!Array.isArray(parsed)) throw new Error("not an array")
+    return parsed
+  } catch {
+    throw new Error(`El campo ${key} tiene un formato inválido.`)
+  }
+}
+
 function extractFormData(formData: FormData) {
-  const name = (formData.get("name") as string ?? "").trim()
+  const name = formValue(formData, "name").trim()
   return {
     name,
-    slug: ((formData.get("slug") as string) || slugify(name)).trim() || undefined,
-    brandId: (formData.get("brandId") as string)?.trim() || null,
-    gender: (formData.get("gender") as string) || null,
-    categoryId: (formData.get("categoryId") as string ?? "").trim(),
-    description: (formData.get("description") as string)?.trim() || null,
-    extendedDescription: (formData.get("extendedDescription") as string)?.trim() || null,
-    videoUrl: (formData.get("videoUrl") as string)?.trim() || null,
+    slug: (formValue(formData, "slug") || slugify(name)).trim() || undefined,
+    brandId: formValue(formData, "brandId").trim() || null,
+    gender: formValue(formData, "gender") || null,
+    categoryId: formValue(formData, "categoryId").trim(),
+    description: formValue(formData, "description").trim() || null,
+    extendedDescription: formValue(formData, "extendedDescription").trim() || null,
+    videoUrl: formValue(formData, "videoUrl").trim() || null,
     basePrice: formData.get("basePrice"),
-    isOnSale: formData.get("isOnSale") === "true",
-    salePrice: formData.get("isOnSale") === "true" ? formData.get("salePrice") : null,
-    metaTitle: (formData.get("metaTitle") as string)?.trim() || null,
-    metaDescription: (formData.get("metaDescription") as string)?.trim() || null,
-    availableOnline: formData.get("availableOnline") !== "false",
-    availableInStores: formData.get("availableInStores") !== "false",
-    isPublished: formData.get("isPublished") !== "false",
-    highlights: highlightsFromText((formData.get("highlights") as string) ?? ""),
-    faqs: faqsFromText((formData.get("faqs") as string) ?? ""),
-    variants: JSON.parse((formData.get("variants") as string) || "[]"),
-    images: JSON.parse((formData.get("images") as string) || "[]"),
-    colorFamilyProductIds: JSON.parse((formData.get("colorFamilyProductIds") as string) || "[]"),
-    colorFamilyBaselineProductIds: JSON.parse(
-      (formData.get("colorFamilyBaselineProductIds") as string) || "[]"
-    ),
-    crossSellIds: JSON.parse((formData.get("crossSellIds") as string) || "[]"),
+    isOnSale: formValue(formData, "isOnSale") === "true",
+    salePrice: formValue(formData, "isOnSale") === "true" ? formData.get("salePrice") : null,
+    metaTitle: formValue(formData, "metaTitle").trim() || null,
+    metaDescription: formValue(formData, "metaDescription").trim() || null,
+    availableOnline: formValue(formData, "availableOnline") !== "false",
+    availableInStores: formValue(formData, "availableInStores") !== "false",
+    isPublished: formValue(formData, "isPublished") !== "false",
+    highlights: highlightsFromText(formValue(formData, "highlights")),
+    faqs: faqsFromText(formValue(formData, "faqs")),
+    variants: parseJsonArray(formData, "variants"),
+    images: parseJsonArray(formData, "images"),
+    colorFamilyProductIds: parseJsonArray(formData, "colorFamilyProductIds"),
+    colorFamilyBaselineProductIds: parseJsonArray(formData, "colorFamilyBaselineProductIds"),
+    crossSellIds: parseJsonArray(formData, "crossSellIds"),
   }
 }
 
@@ -66,17 +82,18 @@ export async function updateProduct(
   id: string,
   formData: FormData
 ): Promise<ActionResult> {
-  const raw = extractFormData(formData)
-  const parsed = productFormSchema.safeParse(raw)
-  if (!parsed.success) {
-    return { success: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos." }
-  }
-
-  const data = parsed.data
-  const slug = data.slug || slugify(data.name)
-
   try {
     await requireAdmin()
+
+    const raw = extractFormData(formData)
+    const parsed = productFormSchema.safeParse(raw)
+    if (!parsed.success) {
+      return { success: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos." }
+    }
+
+    const data = parsed.data
+    const slug = data.slug || slugify(data.name)
+
     await updateProductService(id, {
       ...data,
       slug,

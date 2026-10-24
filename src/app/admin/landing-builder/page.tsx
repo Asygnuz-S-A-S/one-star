@@ -1,4 +1,4 @@
-import { getAllLandingSections } from "@/server/services/landing-section.service"
+import { getAllLandingSections, getLandingPages } from "@/server/services/landing-section.service"
 import { getTopBanner } from "@/server/services/top-banner.service"
 import { getAllStoreLogos, getPrimaryStoreLogos } from "@/server/services/site-logo.service"
 import { getAllNavigationItems } from "@/server/services/navigation.service"
@@ -41,6 +41,7 @@ import {
   updateStoreLogoThemeAction,
 } from "@/server/actions/site-logo.actions"
 import { updateTopBannerAction } from "@/server/actions/top-banner.actions"
+import type { LandingSectionType } from "@prisma/client"
 import type { LandingBuilderActions } from "@/types/landing-builder-actions"
 
 export const metadata = {
@@ -62,7 +63,11 @@ async function loadEditorData<T>(
   }
 }
 
-export default async function LandingBuilderPage() {
+const LANDING_PAGE_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+
+export default async function LandingBuilderPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
+  const requestedPage = (await searchParams).page?.trim().toLowerCase()
+  const page = requestedPage && requestedPage.length <= 60 && LANDING_PAGE_PATTERN.test(requestedPage) ? requestedPage : "home"
   const unavailableAreas: string[] = []
   const defaultHeaderConfig = {
     layout: "logo-left-nav-center",
@@ -88,8 +93,9 @@ export default async function LandingBuilderPage() {
     headerConfig,
     banners,
     gridBlocks,
+    pages,
   ] = await Promise.all([
-    loadEditorData("sections", getAllLandingSections(), [], unavailableAreas),
+    loadEditorData("sections", getAllLandingSections(page), [], unavailableAreas),
     loadEditorData("topBanner", getTopBanner(), null, unavailableAreas),
     loadEditorData(
       "logos",
@@ -102,8 +108,15 @@ export default async function LandingBuilderPage() {
     loadEditorData("header", getHeaderConfig(), defaultHeaderConfig, unavailableAreas),
     loadEditorData("banners", getAllBanners(), [], unavailableAreas),
     loadEditorData("grid", getAllGridBlocks(), [], unavailableAreas),
+    loadEditorData("pages", getLandingPages(), ["home"], unavailableAreas),
   ])
   const [logos, allLogos] = logoData
+
+  // Las secciones nuevas se crean en la landing que se está editando.
+  async function createSectionInPage(type: LandingSectionType) {
+    "use server"
+    return createLandingSectionAction(type, page)
+  }
   const actions: LandingBuilderActions = {
     createBanner,
     deleteBanner,
@@ -114,7 +127,7 @@ export default async function LandingBuilderPage() {
     deleteGridBlock,
     toggleGridBlockActive,
     updateGridBlock,
-    createLandingSectionAction,
+    createLandingSectionAction: createSectionInPage,
     deleteLandingSectionAction,
     toggleLandingSectionActiveAction,
     updateLandingSectionConfigAction,
@@ -140,7 +153,9 @@ export default async function LandingBuilderPage() {
       initialGridBlocks={gridBlocks}
       categories={categories}
       unavailableAreas={unavailableAreas}
-      dataVersion={new Date().toISOString()}
+      dataVersion={`${page}-${new Date().toISOString()}`}
+      page={page}
+      pages={pages.includes(page) ? pages : [...pages, page]}
     />
   )
 }

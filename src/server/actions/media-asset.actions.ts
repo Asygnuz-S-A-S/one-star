@@ -5,6 +5,7 @@ import { requireSuperAdmin } from "@/server/auth/require-admin"
 import {
   getMediaAssets,
   deleteMediaAsset,
+  getMediaAssetDeletionInfo,
   autoSyncExistingAssets,
   type MediaAssetDTO,
 } from "@/server/services/media-asset.service"
@@ -34,6 +35,20 @@ export async function deleteMediaAssetAction(id: string): Promise<{ success: boo
   } catch (error) {
     console.error("[deleteMediaAssetAction] Error:", error)
     return { success: false, error: "No se pudo eliminar el archivo." }
+  }
+}
+
+export async function getMediaAssetDeletionInfoAction(id: string): Promise<{
+  success: boolean
+  data?: { exists: boolean; referenceCount: number; references: Record<string, number> | null }
+  error?: string
+}> {
+  try {
+    await requireSuperAdmin()
+    return { success: true, data: await getMediaAssetDeletionInfo(id) }
+  } catch (error) {
+    console.error("[getMediaAssetDeletionInfoAction] Error:", error)
+    return { success: false, error: "No se pudo verificar el uso del archivo." }
   }
 }
 

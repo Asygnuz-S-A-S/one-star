@@ -95,6 +95,21 @@
   --color-onestar-asphalt: #4A4A4A;
   --color-onestar-concrete: #E0E0E0;
 
+  /* Tokens de la tienda pública como utilidades: bg-store-canvas, text-store-ink, rounded-store-lg… */
+  --color-store-canvas: var(--store-canvas);
+  --color-store-surface: var(--store-surface);
+  --color-store-surface-muted: var(--store-surface-muted);
+  --color-store-ink: var(--store-ink);
+  --color-store-muted: var(--store-muted);
+  --color-store-line: var(--store-line);
+  --color-store-action: var(--store-action);
+  --radius-store-sm: var(--store-radius-sm);
+  --radius-store-md: var(--store-radius-md);
+  --radius-store-lg: var(--store-radius-lg);
+  --radius-store-xl: var(--store-radius-xl);
+  --shadow-store-raised: var(--store-elevation-raised);
+  --shadow-store-float: var(--store-elevation-float);
+
   /* Exponer tokens como utilidades Tailwind */
   --color-surface-1: var(--surface-1);
   --color-surface-2: var(--surface-2);
@@ -174,4 +189,237 @@ body {
 
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
+}
+
+.skip-link {
+  position: fixed;
+  left: 1rem;
+  top: -4rem;
+  z-index: 100;
+  padding: 0.75rem 1rem;
+  background: #1C1C1C;
+  color: #fff;
+  font: 700 0.75rem var(--font-barlow);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.skip-link:focus { top: 1rem; outline: 3px solid #E31C23; outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Public-storefront layer: deliberately scoped so checkout, auth and admin keep their existing controls. */
+.public-storefront {
+  --store-canvas: #f2f2f0;
+  --store-surface: #ffffff;
+  --store-surface-muted: #e9e9e6;
+  --store-ink: #1c1c1c;
+  --store-muted: #4a4a4a;
+  --store-line: #d6d6d2;
+  --store-line-strong: #a6a6a2;
+  --store-action: #e31c23;
+  --store-action-hover: #c81820;
+  --store-action-ink: #ffffff;
+  --store-focus: #c81820;
+  --store-radius-sm: 0.375rem;
+  --store-radius-md: 0.75rem;
+  --store-radius-lg: 1.25rem;
+  --store-radius-xl: 1.75rem;
+  --store-radius-pill: 999px;
+  --store-elevation-raised: 0 12px 30px rgb(28 28 28 / 0.1);
+  --store-elevation-float: 0 12px 32px rgb(28 28 28 / 0.35);
+  --store-ease-out: cubic-bezier(.22, 1, .36, 1);
+  --store-duration-fast: 160ms;
+  --store-duration-base: 320ms;
+  /* Mobile-first: gutter y ritmo vertical crecen por breakpoint, no por componente. */
+  --store-gutter: 1rem;
+  --store-section-y: 2.5rem;
+  background: var(--store-canvas);
+  color: var(--store-ink);
+}
+
+@media (min-width: 768px) {
+  .public-storefront { --store-gutter: 2rem; --store-section-y: 4rem; }
+}
+
+@media (min-width: 1280px) {
+  .public-storefront { --store-gutter: 4rem; --store-section-y: 5rem; }
+}
+
+/* Primitivas del sistema visual de la tienda (ver docs/architecture.md › Sistema visual). */
+.store-section { padding-block: var(--store-section-y); }
+.store-gutter { padding-inline: var(--store-gutter); }
+.store-eyebrow {
+  font: 700 0.75rem/1 var(--font-barlow);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--store-action);
+}
+.store-heading {
+  font-family: var(--font-barlow);
+  font-weight: 800;
+  font-size: clamp(1.75rem, 7vw, 2.5rem);
+  line-height: 0.95;
+  letter-spacing: -0.03em;
+  text-transform: uppercase;
+  text-wrap: balance;
+  color: var(--store-ink);
+}
+
+.dark .public-storefront .store-heading { color: #f0f0f2; }
+
+.public-storefront :focus-visible {
+  outline: 3px solid var(--store-focus);
+  outline-offset: 3px;
+}
+
+/* Editorial motion is additive: server-rendered content remains visible if JS or motion is unavailable. */
+@keyframes editorial-copy-in {
+  from { transform: translateY(1rem); }
+  to { transform: translateY(0); }
+}
+
+@keyframes editorial-product-in {
+  from { opacity: 0; transform: translate3d(1.5rem, 1rem, 0) scale(0.97); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@keyframes store-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-14px); }
+}
+
+/* Tarjeta: la foto que entra gira un poco desde el lado del cursor; nunca se superponen dos fotos. */
+@keyframes card-frame-in {
+  from { opacity: 0.35; transform: perspective(700px) rotateY(calc(var(--frame-dir, 1) * -22deg)); }
+  to { opacity: 1; transform: perspective(700px) rotateY(0deg); }
+}
+
+/* Tarjeta de regalo: balanceo suave y brillo que recorre el metal cuando no hay puntero. */
+@keyframes gift-card-idle {
+  0%, 100% { transform: translateY(0) rotateX(6deg) rotateY(-14deg); }
+  50% { transform: translateY(-10px) rotateX(2deg) rotateY(10deg); }
+}
+@keyframes gift-card-sheen {
+  0%, 100% { background-position: 15% 0; }
+  50% { background-position: 85% 0; }
+}
+
+/* Balanceo en perspectiva: el tenis gira sobre su eje vertical como en un visor 3D. */
+@keyframes store-sway {
+  0%, 100% { transform: translateY(0) rotateY(-18deg) rotateX(4deg); }
+  50% { transform: translateY(-16px) rotateY(18deg) rotateX(-2deg); }
+}
+
+/*
+ * Hero de producto: una foto plana no puede girar en Y sin verse como cartón que se aplasta,
+ * así que flota (sube, se inclina apenas) y la sombra se encoge en sincronía. 0% es la pose de
+ * reposo para que al entrar un slide no haya salto.
+ */
+@keyframes hero-levitate {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  50% { transform: translate3d(0, -12px, 0) rotate(1.5deg); }
+}
+
+@keyframes hero-levitate-shadow {
+  0%, 100% { transform: scaleX(1); opacity: 1; }
+  50% { transform: scaleX(0.8); opacity: 0.55; }
+}
+
+@keyframes hero-product-enter {
+  from { opacity: 0; transform: translate3d(3rem, 0.5rem, 0) rotate(-6deg) scale(0.94); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes store-float-shadow {
+  0%, 100% { transform: scaleX(1); opacity: 1; }
+  50% { transform: scaleX(0.78); opacity: 0.6; }
+}
+
+.home-scroll-reveal {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .home-scroll-reveal[data-revealed] {
+    animation: editorial-copy-in 560ms cubic-bezier(.22, 1, .36, 1) both;
+  }
+}
+
+/* Intro de marca (primera visita a la home): oculta en línea por defecto; el script de StoreIntro la activa antes de pintar. */
+html[data-intro] .store-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid !important;
+  place-items: center;
+  background: #f2f2f0;
+  pointer-events: none;
+  animation: store-intro-out 550ms var(--store-ease-out, ease) 1750ms forwards;
+}
+/* ~2,3 s en total: entra con rebote, se sostiene y viaja hacia el header mientras la capa se desvanece. */
+html[data-intro] .store-intro__logo {
+  animation: store-intro-logo 2100ms cubic-bezier(.22, 1, .36, 1) both;
+}
+@keyframes store-intro-logo {
+  0% { opacity: 0; transform: scale(0.6); }
+  22% { opacity: 1; transform: scale(1.05); }
+  32% { transform: scale(1); }
+  70% { opacity: 1; transform: scale(1); }
+  100% { opacity: 1; transform: translateY(-38vh) scale(0.45); }
+}
+@keyframes store-intro-out {
+  to { opacity: 0; visibility: hidden; }
+}
+
+/* Hero: cambio de slide y progreso del autoplay. */
+@keyframes hero-copy-swap {
+  from { opacity: 0; transform: translateY(1.25rem); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes hero-progress {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+/*
+ * Animaciones ligadas al scroll (CSS scroll-driven). Mejora progresiva: sin soporte o con
+ * movimiento reducido no se aplican y todo queda estático y visible.
+ */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .hero-parallax {
+      animation: hero-parallax linear both;
+      animation-timeline: scroll(root);
+      animation-range: 0 100svh;
+    }
+    .hero-scroll-out {
+      animation: hero-scroll-out linear both;
+      animation-timeline: scroll(root);
+      animation-range: 0 70svh;
+    }
+    .store-reveal {
+      animation: store-reveal linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 40%;
+    }
+  }
+}
+@keyframes hero-parallax {
+  to { transform: translateY(18%) scale(1.08); }
+}
+@keyframes hero-scroll-out {
+  to { opacity: 0.15; transform: translateY(-2.5rem); }
+}
+@keyframes store-reveal {
+  from { opacity: 0.25; transform: translateY(3rem) scale(0.98); }
+  to { opacity: 1; transform: none; }
 }

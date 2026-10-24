@@ -1,26 +1,10 @@
 "use server"
 
 import { headers } from "next/headers"
+import { consumePublicRateLimit } from "@/server/services/public-rate-limit.service"
 import { z } from "zod"
 import { auth } from "@/lib/auth"
 import { captureAbandonedCart } from "@/server/services/abandoned-cart.service"
-
-/** Rate limiting en memoria por IP (se reinicia al reiniciar el proceso). */
-const attempts = new Map<string, { count: number; resetAt: number }>()
-const WINDOW_MS = 60_000
-const MAX_CAPTURES = 10
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now()
-  const record = attempts.get(ip)
-  if (record && now < record.resetAt) {
-    if (record.count >= MAX_CAPTURES) return true
-    record.count++
-    return false
-  }
-  attempts.set(ip, { count: 1, resetAt: now + WINDOW_MS })
-  return false
-}
 
 const captureSchema = z.object({
   email: z.string().trim().email().max(254),
@@ -55,8 +39,11 @@ export async function captureAbandonedCartAction(
     if (!parsed.success) return
 
     const headerList = await headers()
-    const ip = headerList.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown"
-    if (isRateLimited(ip)) return
+    const rateLimit = await consumePublicRateLimit("abandoned-cart", headerList, {
+      max: 10,
+      windowMs: 60_000,
+    })
+    if (!rateLimit.allowed) return
 
     const session = await auth.api.getSession({ headers: headerList })
     const userId = session?.user?.id ?? null

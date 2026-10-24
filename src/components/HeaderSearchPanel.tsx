@@ -52,11 +52,11 @@ export default function HeaderSearchPanel({ open, onClose }: HeaderSearchPanelPr
           name="q"
           placeholder="Busca por producto, marca o modelo"
           autoComplete="off"
-          className="flex-1 min-w-0 border border-[#E0E0E0] dark:border-white/15 bg-white dark:bg-[#151515] text-[#1C1C1C] dark:text-white placeholder:text-[#4A4A4A]/60 font-[var(--font-montserrat)] text-sm px-4 py-2.5 outline-none focus-visible:border-[#E31C23] focus-visible:ring-2 focus-visible:ring-[#E31C23]/30 transition-colors"
+          className="flex-1 min-w-0 border border-[#E0E0E0] dark:border-white/15 bg-white dark:bg-[#151515] text-[#1C1C1C] dark:text-white placeholder:text-[#4A4A4A]/60 font-montserrat text-sm px-4 py-2.5 outline-none focus-visible:border-[#E31C23] focus-visible:ring-2 focus-visible:ring-[#E31C23]/30 transition-colors"
         />
         <button
           type="submit"
-          className="shrink-0 bg-[#1C1C1C] text-white font-[var(--font-barlow)] font-bold uppercase text-xs tracking-widest px-5 md:px-8 py-2.5 hover:bg-[#E31C23] focus-visible:bg-[#E31C23] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E31C23]/40 transition-colors"
+          className="shrink-0 bg-[#1C1C1C] text-white font-barlow font-bold uppercase text-xs tracking-widest px-5 md:px-8 py-2.5 hover:bg-[#E31C23] focus-visible:bg-[#E31C23] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E31C23]/40 transition-colors"
         >
           Buscar
         </button>

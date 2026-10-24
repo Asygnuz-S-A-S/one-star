@@ -44,7 +44,7 @@ export default function ConversionSignals({ signals }: ConversionSignalsProps) {
         return (
           <li
             key={signal.kind}
-            className={`flex items-center gap-2 font-[var(--font-montserrat)] text-[13px] leading-snug ${
+            className={`flex items-center gap-2 font-montserrat text-[13px] leading-snug ${
               urgent ? "text-[#E31C23] font-semibold" : "text-[#4A4A4A] dark:text-gray-300"
             }`}
           >

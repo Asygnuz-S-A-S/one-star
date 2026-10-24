@@ -39,7 +39,7 @@ export default function StoreAvailability({
   return (
     <section className="py-12 border-t border-[#E0E0E0] dark:border-white/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h2 className="font-[var(--font-barlow)] font-bold text-2xl uppercase tracking-wider text-[#1C1C1C] dark:text-white mb-8">
+        <h2 className="font-barlow font-bold text-2xl uppercase tracking-wider text-[#1C1C1C] dark:text-white mb-8">
           Disponibilidad
         </h2>
 
@@ -58,15 +58,15 @@ export default function StoreAvailability({
               </svg>
             </div>
             <div>
-              <p className="font-[var(--font-barlow)] font-bold text-sm uppercase tracking-wider text-[#1C1C1C] dark:text-white mb-1">
+              <p className="font-barlow font-bold text-sm uppercase tracking-wider text-[#1C1C1C] dark:text-white mb-1">
                 Compra en línea
               </p>
               {availableOnline && webStock > 0 ? (
-                <p className="font-[var(--font-montserrat)] text-xs text-green-600 dark:text-green-400 font-semibold">
+                <p className="font-montserrat text-xs text-green-600 dark:text-green-400 font-semibold">
                   ● Disponible — Envío a todo Colombia
                 </p>
               ) : (
-                <p className="font-[var(--font-montserrat)] text-xs text-[#4A4A4A] dark:text-gray-400">
+                <p className="font-montserrat text-xs text-[#4A4A4A] dark:text-gray-400">
                   No disponible en línea
                 </p>
               )}
@@ -87,20 +87,20 @@ export default function StoreAvailability({
               </svg>
             </div>
             <div>
-              <p className="font-[var(--font-barlow)] font-bold text-sm uppercase tracking-wider text-[#1C1C1C] dark:text-white mb-1">
+              <p className="font-barlow font-bold text-sm uppercase tracking-wider text-[#1C1C1C] dark:text-white mb-1">
                 Tiendas físicas
               </p>
               {availableInStores && physicalStores.length > 0 ? (
                 <>
-                  <p className="font-[var(--font-montserrat)] text-xs text-blue-600 dark:text-blue-400 font-semibold">
+                  <p className="font-montserrat text-xs text-blue-600 dark:text-blue-400 font-semibold">
                     ● Disponible en {physicalStores.length} tienda{physicalStores.length !== 1 ? "s" : ""}
                   </p>
-                  <p className="font-[var(--font-montserrat)] text-xs text-[#4A4A4A] dark:text-gray-400 mt-1">
+                  <p className="font-montserrat text-xs text-[#4A4A4A] dark:text-gray-400 mt-1">
                     Compra presencial. La web no aparta ni reserva unidades de tienda.
                   </p>
                 </>
               ) : (
-                <p className="font-[var(--font-montserrat)] text-xs text-[#4A4A4A] dark:text-gray-400">
+                <p className="font-montserrat text-xs text-[#4A4A4A] dark:text-gray-400">
                   No disponible en tiendas físicas
                 </p>
               )}
@@ -124,10 +124,10 @@ export default function StoreAvailability({
                   <div className="p-6 flex flex-col gap-3">
                     <div className="flex items-start justify-between">
                       <div>
-                        <h3 className="font-[var(--font-barlow)] font-bold text-base uppercase tracking-wide text-[#1C1C1C] dark:text-white">
+                        <h3 className="font-barlow font-bold text-base uppercase tracking-wide text-[#1C1C1C] dark:text-white">
                           {store.name}
                         </h3>
-                        <p className="font-[var(--font-montserrat)] text-xs text-[#4A4A4A] dark:text-gray-400 mt-0.5">
+                        <p className="font-montserrat text-xs text-[#4A4A4A] dark:text-gray-400 mt-0.5">
                           {store.city}
                         </p>
                       </div>
@@ -144,7 +144,7 @@ export default function StoreAvailability({
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[#4A4A4A] dark:text-gray-400 mt-0.5 shrink-0">
                           <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
                         </svg>
-                        <span className="font-[var(--font-montserrat)] text-[#4A4A4A] dark:text-gray-300 text-xs leading-relaxed">
+                        <span className="font-montserrat text-[#4A4A4A] dark:text-gray-300 text-xs leading-relaxed">
                           {store.address}
                         </span>
                       </div>
@@ -153,7 +153,7 @@ export default function StoreAvailability({
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[#4A4A4A] dark:text-gray-400 shrink-0">
                             <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.86 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.77 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 17z"/>
                           </svg>
-                          <a href={`tel:${store.phone}`} className="font-[var(--font-montserrat)] text-xs text-[#4A4A4A] dark:text-gray-300 hover:text-[#1C1C1C] dark:hover:text-white transition-colors">
+                          <a href={`tel:${store.phone}`} className="font-montserrat text-xs text-[#4A4A4A] dark:text-gray-300 hover:text-[#1C1C1C] dark:hover:text-white transition-colors">
                             {store.phone}
                           </a>
                         </div>
@@ -163,7 +163,7 @@ export default function StoreAvailability({
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[#4A4A4A] dark:text-gray-400 mt-0.5 shrink-0">
                             <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
                           </svg>
-                          <span className="font-[var(--font-montserrat)] text-xs text-[#4A4A4A] dark:text-gray-300 leading-relaxed">
+                          <span className="font-montserrat text-xs text-[#4A4A4A] dark:text-gray-300 leading-relaxed">
                             {store.schedule}
                           </span>
                         </div>

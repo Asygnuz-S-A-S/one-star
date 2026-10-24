@@ -3,7 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 vi.mock("server-only", () => ({}))
 vi.mock("next/headers", () => ({ headers: async () => new Headers({ "x-forwarded-for": "1.1.1.1" }) }))
 vi.mock("@/server/services/coupon.service", () => ({ validateCouponForOrder: vi.fn() }))
+vi.mock("@/lib/auth", () => ({ auth: { api: { getSession: vi.fn().mockResolvedValue(null) } } }))
+vi.mock("@/server/services/club.service", () => ({ isClubMember: vi.fn().mockResolvedValue(false) }))
 vi.mock("@/server/repositories/variant.repository", () => ({ findVariantsForPricing: vi.fn() }))
+vi.mock("@/server/services/public-rate-limit.service", () => ({
+  consumePublicRateLimit: vi.fn().mockResolvedValue({ allowed: true }),
+}))
 
 import { validateCouponAction } from "../coupon.actions"
 import { validateCouponForOrder } from "@/server/services/coupon.service"
@@ -37,7 +42,7 @@ describe("validateCouponAction", () => {
     const res = await validateCouponAction("PROMO", [{ variantId: "v1", quantity: 2 }])
     expect(validateCouponForOrder).toHaveBeenCalledWith("PROMO", [
       { categoryId: "cat-1", unitPrice: 100000, quantity: 2 },
-    ])
+    ], { isClubMember: false })
     expect(res).toEqual({ valid: true, code: "PROMO", discountAmount: 10000 })
   })
 })

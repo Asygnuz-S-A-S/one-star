@@ -189,6 +189,25 @@ enum AdminRole {
   INVENTORY_OPERATOR
 }
 
+model RateLimit {
+  id          String   @id
+  key         String   @unique
+  count       Int
+  // Better Auth persists Unix milliseconds and declares this field as bigint.
+  lastRequest BigInt
+
+  @@index([lastRequest])
+}
+
+model RequestRateLimit {
+  key       String   @id
+  count     Int
+  resetAt   DateTime
+  updatedAt DateTime @updatedAt
+
+  @@index([resetAt])
+}
+
 model AdminUser {
   id           String    @id @default(cuid())
   email        String    @unique
@@ -216,6 +235,11 @@ model User {
   birthDate      DateTime?
   preferredBrand String?
   gender         String? // "hombre" | "mujer"
+  /// One Star Club: membresía gratuita que da acceso a promociones exclusivas.
+  clubMember         Boolean   @default(false)
+  clubJoinedAt       DateTime?
+  /// Consentimiento explícito para recibir el newsletter (null = no aceptó o lo retiró).
+  marketingConsentAt DateTime?
   cart           Cart?
   orders         Order[]
   createdAt      DateTime  @default(now())
@@ -373,12 +397,16 @@ enum LandingSectionType {
 
 model LandingSection {
   id        String             @id @default(cuid())
+  /// Landing a la que pertenece: "home" es la página de inicio; cualquier otro slug se publica en /campanas/<slug>.
+  page      String             @default("home")
   type      LandingSectionType
   position  Int                @default(0)
   isActive  Boolean            @default(true)
   config    Json?
   createdAt DateTime           @default(now())
   updatedAt DateTime           @updatedAt
+
+  @@index([page, isActive, position])
 }
 
 enum DiscountType {
@@ -395,6 +423,8 @@ model Coupon {
   maxUses        Int?
   usedCount      Int          @default(0)
   categoryId     String?
+  /// Solo lo pueden usar miembros de One Star Club.
+  clubOnly       Boolean      @default(false)
   validFrom      DateTime
   validUntil     DateTime
   isActive       Boolean      @default(true)

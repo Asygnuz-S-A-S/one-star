@@ -20,6 +20,7 @@ interface CouponRow {
   usedCount: number
   validUntil: string
   isActive: boolean
+  clubOnly: boolean
 }
 
 interface Props {
@@ -104,6 +105,9 @@ export default function CuponesClient({ coupons, categories }: Props) {
                     <tr key={coupon.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-4 py-3 font-mono font-semibold text-[#1C1C1C]">
                         {coupon.code}
+                        {coupon.clubOnly && (
+                          <span className="ml-2 rounded-full bg-[#1C1C1C] px-2 py-0.5 font-sans text-[10px] font-bold uppercase tracking-wider text-white">Club</span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-[#4A4A4A]">
                         {coupon.discountType === "PERCENTAGE" ? "Porcentaje" : "Monto fijo"}

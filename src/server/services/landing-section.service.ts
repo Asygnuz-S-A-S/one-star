@@ -3,13 +3,24 @@ import "server-only"
 import type { Prisma } from "@prisma/client"
 import * as repository from "@/server/repositories/landing-section.repository"
 import {
+  LandingPageSchema,
   LandingSectionConfigSchema,
   LandingSectionPositionsSchema,
   LandingSectionTypeSchema,
 } from "@/server/validators/landing-section.validator"
+import { campaignHeroDefaults, collectionTileDefaults } from "@/lib/editorial-builder-form"
 
-export async function getAllLandingSections() {
-  return repository.getAllLandingSections()
+export async function getAllLandingSections(page: string = repository.HOME_LANDING_PAGE) {
+  return repository.getAllLandingSections(LandingPageSchema.parse(page))
+}
+
+export async function getActiveLandingSections(page: string = repository.HOME_LANDING_PAGE) {
+  return repository.getActiveLandingSections(LandingPageSchema.parse(page))
+}
+
+export async function getLandingPages() {
+  const pages = await repository.getLandingPages()
+  return [repository.HOME_LANDING_PAGE, ...pages.filter((page) => page !== repository.HOME_LANDING_PAGE)]
 }
 
 export async function updateLandingSectionPositions(updates: { id: string; position: number }[]) {
@@ -25,17 +36,24 @@ export async function updateLandingSectionConfig(id: string, config: Prisma.Inpu
   return repository.updateLandingSection(id, { config: validConfig })
 }
 
-export async function createLandingSection(type: string) {
+export async function createLandingSection(type: string, page: string = repository.HOME_LANDING_PAGE) {
   const validType = LandingSectionTypeSchema.parse(type)
-  const position = (await repository.getMaximumLandingSectionPosition()) + 1
+  const validPage = LandingPageSchema.parse(page)
+  const position = (await repository.getMaximumLandingSectionPosition(validPage)) + 1
 
   let defaultConfig: Prisma.InputJsonObject = {}
+  if (validType === "HERO") {
+    defaultConfig = campaignHeroDefaults() as Prisma.InputJsonObject
+  }
+  if (validType === "CATEGORY_GRID") {
+    defaultConfig = collectionTileDefaults() as Prisma.InputJsonObject
+  }
   if (validType === "MEDIA_CAROUSEL") {
     defaultConfig = {
       title: "PROMOS Y NOVEDADES",
       subtitle: "Descubre las últimas tendencias y colecciones exclusivas",
       layout: "full-width",
-      height: "medium",
+      height: "fit",
       animation: "slide",
       autoplay: true,
       autoplayInterval: 6,
@@ -60,6 +78,7 @@ export async function createLandingSection(type: string) {
   }
 
   return repository.createLandingSection({
+    page: validPage,
     type: validType,
     position,
     isActive: true,

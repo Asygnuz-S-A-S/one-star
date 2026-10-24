@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import "./globals.css";
 import PublicSiteFrame from "@/components/PublicSiteFrame";
+import StoreIntro, { STORE_INTRO_SCRIPT } from "@/components/StoreIntro";
 import Providers from "@/app/providers";
 import MetaPixel from "@/components/tracking/MetaPixel";
 
@@ -54,6 +55,11 @@ export default async function RootLayout({
   return (
     <html lang="es" className="h-full antialiased" suppressHydrationWarning>
       <body className="min-h-full flex flex-col bg-white text-[#1C1C1C] dark:bg-[#0f0f0f] dark:text-[#f5f5f7] transition-colors duration-300">
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: STORE_INTRO_SCRIPT }} />
+        <StoreIntro />
+        <a href="#contenido-principal" className="skip-link">
+          Saltar al contenido principal
+        </a>
         <Providers nonce={nonce}>
           {metaPixel && <MetaPixel pixelId={metaPixel.pixelId} />}
           <PublicSiteFrame

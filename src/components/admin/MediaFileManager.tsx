@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useRef } from "react"
-import { getMediaAssetsAction, deleteMediaAssetAction, syncMediaAssetsAction } from "@/server/actions/media-asset.actions"
+import { getMediaAssetsAction, deleteMediaAssetAction, getMediaAssetDeletionInfoAction, syncMediaAssetsAction } from "@/server/actions/media-asset.actions"
 import type { MediaAssetDTO } from "@/server/services/media-asset.service"
 
 export default function MediaFileManager({ initialAssets }: { initialAssets: MediaAssetDTO[] }) {
@@ -12,6 +12,7 @@ export default function MediaFileManager({ initialAssets }: { initialAssets: Med
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState("")
   const [error, setError] = useState("")
+  const [notice, setNotice] = useState("")
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [selectedAsset, setSelectedAsset] = useState<MediaAssetDTO | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -72,17 +73,28 @@ export default function MediaFileManager({ initialAssets }: { initialAssets: Med
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm("¿Eliminar este archivo de la biblioteca de medios?")) return
+    setError("")
+    setNotice("")
+    const info = await getMediaAssetDeletionInfoAction(id)
+    if (!info.success || !info.data?.exists) {
+      setError(info.error || "No se pudo verificar el archivo antes de eliminarlo.")
+      return
+    }
+    const referenceWarning = info.data.referenceCount
+      ? `\n\nAdvertencia: este archivo está referenciado en ${info.data.referenceCount} contenido(s). Esos contenidos seguirán apuntando a su URL.`
+      : ""
+    if (!confirm(`¿Retirar este archivo de la biblioteca?\n\nEsto elimina solo su índice local; no borra el archivo remoto de Cloudinary.${referenceWarning}`)) return
     try {
       const res = await deleteMediaAssetAction(id)
       if (res.success) {
         setAssets((prev) => prev.filter((a) => a.id !== id))
         if (selectedAsset?.id === id) setSelectedAsset(null)
+        setNotice("El archivo se retiró de la biblioteca. El archivo remoto no fue eliminado.")
       } else {
-        alert(res.error || "Error al eliminar.")
+        setError(res.error || "Error al retirar el archivo de la biblioteca.")
       }
     } catch {
-      alert("Error de red al eliminar el archivo.")
+      setError("Error de red al retirar el archivo de la biblioteca.")
     }
   }
 
@@ -112,12 +124,13 @@ export default function MediaFileManager({ initialAssets }: { initialAssets: Med
       {/* Header & Stats */}
       <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
         <div>
-          <h1 className="text-2xl font-black text-[#1C1C1C] uppercase tracking-tight font-[var(--font-barlow)]">
+          <h1 className="text-2xl font-black text-[#1C1C1C] uppercase tracking-tight font-barlow">
             Gestión de Archivos y Medios
           </h1>
           <p className="text-xs text-gray-500 mt-1">
             Administra, sube, explora y elimina imágenes o videos para marcas, banners y catálogo.
           </p>
+          <p className="text-xs text-amber-700 mt-1">Eliminar solo retira el índice de esta biblioteca; no borra el archivo remoto.</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -217,10 +230,12 @@ export default function MediaFileManager({ initialAssets }: { initialAssets: Med
       )}
 
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-xs font-medium text-red-700">
+        <div role="alert" className="p-4 bg-red-50 border border-red-200 rounded-xl text-xs font-medium text-red-700">
           {error}
         </div>
       )}
+
+      {notice && <div role="status" className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-medium text-emerald-800">{notice}</div>}
 
       {/* Barra de Filtros */}
       <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-xl border border-gray-200 shadow-sm">

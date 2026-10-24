@@ -30,6 +30,8 @@ interface ProductGridProps {
   extraGenders?: string[] // para ninos: NINO, NINA, INFANTIL, BEBE
   title: string
   subtitle?: string
+  /** Texto pequeño sobre el título (ej. "Ofertas One Star"). */
+  eyebrow?: string
   isOnSaleOnly?: boolean
   headerClassName?: string
   colorPalette?: ColorPalette
@@ -78,6 +80,7 @@ export default async function ProductGrid({
   extraGenders,
   title,
   subtitle,
+  eyebrow,
   isOnSaleOnly,
   headerClassName,
   colorPalette,
@@ -111,12 +114,14 @@ export default async function ProductGrid({
   return (
     <div>
       {/* Section header */}
-      <div className={`px-4 md:px-8 py-8 ${headerClassName ?? ""}`}>
-        <TitleTag className="font-[var(--font-barlow)] font-bold text-3xl md:text-5xl uppercase tracking-tight text-[#1C1C1C] dark:text-white">
+      <div className={`relative overflow-hidden px-4 py-8 md:px-8 md:py-10 ${headerClassName ?? ""}`}>
+        {eyebrow && <p className="store-eyebrow mb-2">{eyebrow}</p>}
+        <TitleTag className="font-barlow text-4xl font-extrabold uppercase leading-none tracking-[-0.03em] text-[#1C1C1C] md:text-6xl dark:text-white">
           {title}
         </TitleTag>
+        <span aria-hidden="true" className="mt-3 block h-1 w-12 bg-[#E31C23]" />
         {subtitle && (
-          <p className="font-[var(--font-montserrat)] text-[#4A4A4A] dark:text-white/50 mt-1 text-sm">
+          <p className="mt-3 max-w-xl font-montserrat text-sm text-[#4A4A4A] md:text-base dark:text-white/50">
             {subtitle}
           </p>
         )}
@@ -135,7 +140,7 @@ export default async function ProductGrid({
             <Link
               key={f.key}
               href={removeParamUrl(currentSearch, f.key)}
-              className="inline-flex items-center gap-1.5 bg-[#1C1C1C] text-white font-[var(--font-montserrat)] text-xs px-3 py-1.5 hover:bg-[#4A4A4A] transition-colors"
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-[#1C1C1C] px-3.5 font-montserrat text-xs text-white transition-colors hover:bg-[#4A4A4A]"
             >
               {f.label}
               <span className="text-sm leading-none">×</span>
@@ -143,7 +148,7 @@ export default async function ProductGrid({
           ))}
           <Link
             href="?"
-            className="inline-flex items-center gap-1.5 border border-[#E0E0E0] dark:border-white/15 text-[#4A4A4A] dark:text-white/50 font-[var(--font-montserrat)] text-xs px-3 py-1.5 hover:border-[#1C1C1C] dark:hover:border-white/40 hover:text-[#1C1C1C] dark:hover:text-white/80 transition-colors"
+            className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-[#E0E0E0] px-3.5 font-montserrat text-xs text-[#4A4A4A] dark:border-white/15 dark:text-white/50 hover:border-[#1C1C1C] dark:hover:border-white/40 hover:text-[#1C1C1C] dark:hover:text-white/80 transition-colors"
           >
             Limpiar todo
           </Link>
@@ -153,15 +158,15 @@ export default async function ProductGrid({
       {/* Grid */}
       {products.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 px-4 text-center">
-          <p className="font-[var(--font-barlow)] font-bold text-xl text-[#1C1C1C] dark:text-white mb-2">
+          <p className="font-barlow font-bold text-xl text-[#1C1C1C] dark:text-white mb-2">
             Sin resultados
           </p>
-          <p className="font-[var(--font-montserrat)] text-[#4A4A4A] dark:text-white/50 text-sm mb-6">
+          <p className="font-montserrat text-[#4A4A4A] dark:text-white/50 text-sm mb-6">
             No encontramos productos con estos filtros.
           </p>
           <Link
             href="/productos"
-            className="bg-[#1C1C1C] text-white font-[var(--font-barlow)] font-bold uppercase text-xs tracking-widest px-6 py-3 hover:bg-[#4A4A4A] transition-colors"
+            className="bg-[#1C1C1C] text-white font-barlow font-bold uppercase text-xs tracking-widest px-6 py-3 hover:bg-[#4A4A4A] transition-colors"
           >
             Ver todos los productos
           </Link>
@@ -180,29 +185,29 @@ export default async function ProductGrid({
           {page > 1 ? (
             <Link
               href={`?${buildPaginationParams(currentSearch, page - 1)}`}
-              className="font-[var(--font-barlow)] font-bold uppercase text-xs tracking-widest border border-[#1C1C1C] dark:border-white/30 dark:text-white/70 px-6 py-3 hover:bg-[#1C1C1C] hover:text-white dark:hover:bg-white dark:hover:text-black transition-colors"
+              className="font-barlow font-bold uppercase text-xs tracking-widest border border-[#1C1C1C] dark:border-white/30 dark:text-white/70 px-6 py-3 hover:bg-[#1C1C1C] hover:text-white dark:hover:bg-white dark:hover:text-black transition-colors"
             >
               ← Anterior
             </Link>
           ) : (
-            <span className="font-[var(--font-barlow)] font-bold uppercase text-xs tracking-widest border border-[#E0E0E0] dark:border-white/10 px-6 py-3 text-[#E0E0E0] dark:text-white/15 cursor-not-allowed">
+            <span className="font-barlow font-bold uppercase text-xs tracking-widest border border-[#E0E0E0] dark:border-white/10 px-6 py-3 text-[#E0E0E0] dark:text-white/15 cursor-not-allowed">
               ← Anterior
             </span>
           )}
 
-          <span className="font-[var(--font-montserrat)] text-sm text-[#4A4A4A] dark:text-white/40">
+          <span className="font-montserrat text-sm text-[#4A4A4A] dark:text-white/40">
             {page} / {totalPages}
           </span>
 
           {page < totalPages ? (
             <Link
               href={`?${buildPaginationParams(currentSearch, page + 1)}`}
-              className="font-[var(--font-barlow)] font-bold uppercase text-xs tracking-widest border border-[#1C1C1C] dark:border-white/30 dark:text-white/70 px-6 py-3 hover:bg-[#1C1C1C] hover:text-white dark:hover:bg-white dark:hover:text-black transition-colors"
+              className="font-barlow font-bold uppercase text-xs tracking-widest border border-[#1C1C1C] dark:border-white/30 dark:text-white/70 px-6 py-3 hover:bg-[#1C1C1C] hover:text-white dark:hover:bg-white dark:hover:text-black transition-colors"
             >
               Siguiente →
             </Link>
           ) : (
-            <span className="font-[var(--font-barlow)] font-bold uppercase text-xs tracking-widest border border-[#E0E0E0] dark:border-white/10 px-6 py-3 text-[#E0E0E0] dark:text-white/15 cursor-not-allowed">
+            <span className="font-barlow font-bold uppercase text-xs tracking-widest border border-[#E0E0E0] dark:border-white/10 px-6 py-3 text-[#E0E0E0] dark:text-white/15 cursor-not-allowed">
               Siguiente →
             </span>
           )}
