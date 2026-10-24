@@ -275,7 +275,7 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
         {(() => {
           const info = (
             <>
-              <p className="mb-0.5 flex items-baseline justify-between gap-2 text-[10px] font-bold uppercase tracking-wider text-[#4A4A4A] dark:text-gray-400">
+              <p className="mb-0.5 flex items-baseline justify-between gap-2 text-xs font-bold uppercase tracking-wider text-[#4A4A4A] dark:text-gray-400">
                 <span className="truncate">{brand}</span>
                 {colorSummary?.label && colorSummary.total > 1 && (
                   <span className="shrink-0 font-montserrat font-medium normal-case tracking-normal text-[var(--store-muted)] dark:text-white/50">
@@ -288,7 +288,7 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
               </h3>
               <p
                 data-testid="product-card-stock"
-                className={`mb-1 inline-flex items-center gap-1 text-[10px] font-medium ${
+                className={`mb-1 inline-flex items-center gap-1 text-xs font-medium ${
                   hasStock ? "text-[var(--store-muted)] dark:text-white/60" : "text-[var(--store-action)]"
                 }`}
               >

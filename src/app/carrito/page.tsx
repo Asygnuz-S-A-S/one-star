@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { useCart } from "@/store"
 import { formatCOP } from "@/lib/shop-utils"
-import { useShippingRates } from "@/components/storefront/ShippingRatesProvider"
+import { useGiftCardValidityMonths, useShippingRates } from "@/components/storefront/ShippingRatesProvider"
 import { getShippingCost } from "@/lib/shipping"
 import { applyCoupon, type ApplyCouponResult } from "./actions"
 
@@ -51,6 +51,7 @@ function IconCartEmpty() {
 export default function CarritoPage() {
   const { items, removeItem, updateQuantity, subtotal, clearCart } = useCart()
   const shippingRates = useShippingRates()
+  const giftCardValidityMonths = useGiftCardValidityMonths()
   const router = useRouter()
   const [couponCode, setCouponCode] = useState("")
   const [couponResult, setCouponResult] = useState<ApplyCouponResult | null>(null)
@@ -84,15 +85,23 @@ export default function CarritoPage() {
         <h1 className="font-barlow font-bold text-2xl text-[#1C1C1C] uppercase tracking-wide">
           Tu carrito está vacío
         </h1>
-        <p className="font-montserrat text-sm text-[#4A4A4A] max-w-xs">
-          Explora nuestra colección y encuentra el par perfecto.
+        <p className="font-montserrat text-base text-[#4A4A4A] max-w-md">
+          Explora la tienda, los lanzamientos o arma una tarjeta de regalo. El envío estándar es gratis desde {formatCOP(shippingRates.freeThreshold)}.
         </p>
-        <Link
-          href="/productos"
-          className="mt-2 bg-[#E31C23] text-white font-barlow font-bold uppercase tracking-widest text-sm px-8 py-4 hover:bg-[#C01920] transition-colors"
-        >
-          Explorar productos
-        </Link>
+        <div className="mt-2 flex flex-wrap justify-center gap-3">
+          <Link
+            href="/productos"
+            className="inline-flex min-h-12 items-center bg-[#E31C23] px-8 font-barlow text-sm font-bold uppercase tracking-widest text-white hover:bg-[#C01920]"
+          >
+            Explorar productos
+          </Link>
+          <Link
+            href="/lanzamientos"
+            className="inline-flex min-h-12 items-center border border-[#1C1C1C] px-8 font-barlow text-sm font-bold uppercase tracking-widest text-[#1C1C1C]"
+          >
+            Ver lanzamientos
+          </Link>
+        </div>
       </div>
     )
   }
@@ -147,7 +156,7 @@ export default function CarritoPage() {
 
                 {item.kind === "gift_card" ? (
                   <p className="font-montserrat text-sm text-[#4A4A4A]">
-                    Entrega digital · Vigencia de 12 meses
+                    Entrega digital · Vigencia de {giftCardValidityMonths} meses
                   </p>
                 ) : (
                   <p className="font-montserrat text-sm text-[#4A4A4A]">

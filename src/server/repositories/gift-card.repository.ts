@@ -33,7 +33,7 @@ const MAX_CODE_ATTEMPTS = 5
  * `balances` lista el saldo de cada tarjeta esperada, una por unidad.
  */
 export async function issueMissingGiftCardsForOrder(
-  params: { orderId: string; customerEmail: string | null; balances: number[] },
+  params: { orderId: string; customerEmail: string | null; balances: number[]; expiresAt?: Date },
   generateCode: () => string
 ): Promise<{ code: string; balance: number }[]> {
   return prisma.$transaction(async (tx) => {
@@ -47,7 +47,13 @@ export async function issueMissingGiftCardsForOrder(
         code = generateCode()
       }
       await tx.giftCard.create({
-        data: { code, balance, orderId: params.orderId, customerEmail: params.customerEmail },
+        data: {
+          code,
+          balance,
+          orderId: params.orderId,
+          customerEmail: params.customerEmail,
+          expiresAt: params.expiresAt ?? null,
+        },
       })
       issued.push({ code, balance })
     }
@@ -67,7 +73,12 @@ export async function findGiftCardByCode(code: string) {
  */
 export async function redeemGiftCardAmountRecord(code: string, amount: number) {
   const result = await prisma.giftCard.updateMany({
-    where: { code, isActive: true, balance: { gte: amount } },
+    where: {
+      code,
+      isActive: true,
+      balance: { gte: amount },
+      OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+    },
     data: { balance: { decrement: amount } },
   })
   if (result.count === 0) return null

@@ -39,11 +39,26 @@ export interface GiftCardOption {
   amount: number
 }
 
-export function isValidGiftCardAmount(amount: number): boolean {
+export interface GiftCardLimits {
+  minAmount: number
+  maxAmount: number
+  validityMonths: number
+}
+
+export const DEFAULT_GIFT_CARD_LIMITS: GiftCardLimits = {
+  minAmount: GIFT_CARD_MIN_AMOUNT,
+  maxAmount: GIFT_CARD_MAX_AMOUNT,
+  validityMonths: 12,
+}
+
+export function isValidGiftCardAmount(
+  amount: number,
+  limits: Pick<GiftCardLimits, "minAmount" | "maxAmount"> = DEFAULT_GIFT_CARD_LIMITS,
+): boolean {
   return (
     Number.isInteger(amount) &&
-    amount >= GIFT_CARD_MIN_AMOUNT &&
-    amount <= GIFT_CARD_MAX_AMOUNT
+    amount >= limits.minAmount &&
+    amount <= limits.maxAmount
   )
 }
 
@@ -53,7 +68,9 @@ export function isValidGiftCardAmount(amount: number): boolean {
  */
 export function createGiftCardCartItem(option: GiftCardOption) {
   if (!isValidGiftCardAmount(option.amount)) {
-    throw new Error("El monto de la tarjeta debe estar entre $20.000 y $2.000.000")
+    throw new Error(
+      `El monto de la tarjeta debe estar entre $${formatGiftCardAmount(GIFT_CARD_MIN_AMOUNT)} y $${formatGiftCardAmount(GIFT_CARD_MAX_AMOUNT)}`,
+    )
   }
   if (!option.variantId || !option.productId) {
     throw new Error("La tarjeta de regalo no está disponible en este momento.")

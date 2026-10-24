@@ -337,6 +337,8 @@ model GiftCard {
   /** Pedido que originó esta tarjeta; null en la tarjeta de prueba del seed. */
   orderId       String?
   customerEmail String?
+  /// Null en tarjetas emitidas antes de configurar la vigencia: no vencen.
+  expiresAt     DateTime?
   createdAt     DateTime @default(now())
 
   @@index([orderId])
@@ -595,6 +597,23 @@ model StoreSettings {
   taxId        String?
   legalAddress String?
   contactPhone String?
+  /// Oculta del catálogo público los productos que no tienen ninguna foto.
+  hideImagelessProducts Boolean @default(true)
+  /// Cuántos días cuenta un producto como lanzamiento.
+  newArrivalDays        Int     @default(30)
+  chatEnabled           Boolean @default(true)
+  chatWelcome           String?
+  giftCardMinAmount     Int     @default(20000)
+  giftCardMaxAmount     Int     @default(2000000)
+  giftCardValidityMonths Int    @default(12)
+  clubHeadline          String?
+  clubIntro             String?
+  /// Líneas "título | detalle", una por beneficio.
+  clubBenefits          String?
+  clubWelcomeSubject    String?
+  clubWelcomeBody       String?
+  /// Líneas "etiqueta | /ruta" del pie de página. Vacío = enlaces de respaldo.
+  footerLinks           String?
   updatedAt         DateTime @updatedAt
 }
 

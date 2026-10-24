@@ -1,6 +1,8 @@
 import "server-only"
 
-import { isGiftCardSku, isValidGiftCardAmount, type GiftCardOption } from "@/lib/gift-card"
+import { DEFAULT_GIFT_CARD_LIMITS, isGiftCardSku, isValidGiftCardAmount, type GiftCardOption } from "@/lib/gift-card"
+import { giftCardExpiry } from "@/lib/storefront-copy"
+import { getGiftCardLimits } from "@/server/services/store-settings.service"
 import { generateGiftCardCode } from "@/lib/gift-card-code"
 import {
   findPurchasableGiftCardVariants,
@@ -18,11 +20,12 @@ import type { OrderDTO } from "./order.service"
  */
 export async function getGiftCardOptions(): Promise<GiftCardOption[]> {
   const variants = await findPurchasableGiftCardVariants()
+  const limits = await getGiftCardLimits().catch(() => DEFAULT_GIFT_CARD_LIMITS)
 
   return variants
     .flatMap((variant) => {
       const amount = variant.product.basePrice.toNumber()
-      if (variant.stock <= 0 || !isValidGiftCardAmount(amount)) return []
+      if (variant.stock <= 0 || !isValidGiftCardAmount(amount, limits)) return []
       return [
         {
           variantId: variant.id,
@@ -52,9 +55,15 @@ export async function issueGiftCardsForOrder(order: OrderDTO): Promise<IssuedGif
   const balances = giftItems.flatMap((item) =>
     Array.from({ length: item.quantity }, () => item.unitPrice)
   )
+  const limits = await getGiftCardLimits().catch(() => DEFAULT_GIFT_CARD_LIMITS)
   // Idempotente: repetir la llamada para un pedido ya atendido no crea nada.
   return issueMissingGiftCardsForOrder(
-    { orderId: order.id, customerEmail: order.customerEmail, balances },
+    {
+      orderId: order.id,
+      customerEmail: order.customerEmail,
+      balances,
+      expiresAt: giftCardExpiry(new Date(), limits.validityMonths),
+    },
     generateGiftCardCode
   )
 }
@@ -113,6 +122,9 @@ export async function redeemGiftCard(code: string, amount: number): Promise<Gift
   if (!existing) throw new Error("Código no encontrado.")
   if (!existing.isActive || existing.balance.toNumber() <= 0) {
     throw new Error("Esta tarjeta ya no tiene saldo disponible.")
+  }
+  if (existing.expiresAt && existing.expiresAt.getTime() <= Date.now()) {
+    throw new Error("Esta tarjeta ya venció.")
   }
   if (amount > existing.balance.toNumber()) {
     throw new Error("El monto excede el saldo disponible.")

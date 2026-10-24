@@ -414,7 +414,7 @@ export default function ProductInfo({
             </p>
             <button
               onClick={() => setSizeModalOpen(true)}
-              className="font-montserrat text-xs text-[#4A4A4A] dark:text-gray-400 underline hover:text-[#1C1C1C] dark:hover:text-white transition-colors"
+              className="inline-flex min-h-11 items-center font-montserrat text-sm text-[#4A4A4A] underline underline-offset-2 hover:text-[#1C1C1C] dark:text-gray-400 dark:hover:text-white"
             >
               Guía de tallas
             </button>

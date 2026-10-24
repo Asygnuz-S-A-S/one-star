@@ -63,6 +63,22 @@ export const StoreInfoInputSchema = z.object({
       ]),
     )
     .transform(emptyToNull),
+  hideImagelessProducts: z.boolean(),
+  newArrivalDays: z.coerce.number().int().min(1, "Usa al menos 1 día").max(365, "No puede superar 365 días"),
+  chatEnabled: z.boolean(),
+  chatWelcome: optionalText(400),
+  giftCardMinAmount: copAmount,
+  giftCardMaxAmount: copAmount,
+  giftCardValidityMonths: z.coerce.number().int().min(1, "La vigencia mínima es 1 mes").max(36, "La vigencia no puede superar 36 meses"),
+  clubHeadline: optionalText(80),
+  clubIntro: optionalText(400),
+  clubBenefits: optionalText(2000),
+  clubWelcomeSubject: optionalText(120),
+  clubWelcomeBody: optionalText(800),
+  footerLinks: optionalText(2000),
+}).refine((input) => input.giftCardMinAmount <= input.giftCardMaxAmount, {
+  message: "El monto mínimo no puede ser mayor que el máximo",
+  path: ["giftCardMinAmount"],
 })
 
 export type StoreInfoInput = z.infer<typeof StoreInfoInputSchema>

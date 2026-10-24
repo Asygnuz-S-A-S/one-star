@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "motion/react"
 import { useCart } from "@/store"
 import { formatCOP } from "@/lib/shop-utils"
 import { PLACEHOLDER_IMAGE_URL } from "@/lib/product-image"
-import { useShippingRates } from "@/components/storefront/ShippingRatesProvider"
+import { useGiftCardValidityMonths, useShippingRates } from "@/components/storefront/ShippingRatesProvider"
 import { getColorSwatchStyle } from "@/lib/colors"
 
 // Misma superficie de la ficha: la foto (fondo blanco) se funde con multiply, sin recuadro gris.
@@ -77,6 +77,7 @@ const drawerSpring = { type: "spring", stiffness: 380, damping: 36 } as const
 
 export default function CartDrawer() {
   const { items, isOpen, closeCart, removeItem, updateQuantity, subtotal, totalItems } = useCart()
+  const giftCardValidityMonths = useGiftCardValidityMonths()
   const drawerRef = useRef<HTMLDivElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
 
@@ -230,7 +231,7 @@ export default function CartDrawer() {
                           )}
                           <p className="flex items-center gap-1.5 font-montserrat text-xs text-[#4A4A4A]">
                             {item.kind === "gift_card" ? (
-                              "Entrega digital · Vigencia de 12 meses"
+                              `Entrega digital · Vigencia de ${giftCardValidityMonths} meses`
                             ) : (
                               <>
                                 <span aria-hidden="true" className="h-3 w-3 shrink-0 rounded-full border border-black/10" style={getColorSwatchStyle(item.color)} />

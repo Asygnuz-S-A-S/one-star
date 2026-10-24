@@ -198,11 +198,11 @@ describe("searchGiftCard / redeemGiftCard", () => {
   it("código con saldo se puede canjear", async () => {
     vi.mocked(findGiftCardByCode).mockResolvedValue({
       id: "gc-1", code: "OS-AAAA-BBBB-CCCC", balance: decimal(50000) as never, isActive: true,
-      orderId: "order-1", customerEmail: "c@x.com", createdAt: new Date(),
+      orderId: "order-1", customerEmail: "c@x.com", createdAt: new Date(), expiresAt: null,
     })
     vi.mocked(redeemGiftCardAmountRecord).mockResolvedValue({
       id: "gc-1", code: "OS-AAAA-BBBB-CCCC", balance: decimal(20000) as never, isActive: true,
-      orderId: "order-1", customerEmail: "c@x.com", createdAt: new Date(),
+      orderId: "order-1", customerEmail: "c@x.com", createdAt: new Date(), expiresAt: null,
     })
     const result = await redeemGiftCard("os-aaaa-bbbb-cccc", 30000)
     expect(result.balance).toBe(20000)
@@ -212,7 +212,7 @@ describe("searchGiftCard / redeemGiftCard", () => {
   it("rechaza canjear más del saldo disponible", async () => {
     vi.mocked(findGiftCardByCode).mockResolvedValue({
       id: "gc-1", code: "OS-AAAA-BBBB-CCCC", balance: decimal(50000) as never, isActive: true,
-      orderId: null, customerEmail: null, createdAt: new Date(),
+      orderId: null, customerEmail: null, createdAt: new Date(), expiresAt: null,
     })
     await expect(redeemGiftCard("OS-AAAA-BBBB-CCCC", 80000)).rejects.toThrow(/excede el saldo/i)
     expect(redeemGiftCardAmountRecord).not.toHaveBeenCalled()

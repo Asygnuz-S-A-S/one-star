@@ -144,6 +144,10 @@ export interface AppProductFilter {
   isOnSaleOnly?: boolean
   /** Solo productos con video cargado (secciones de lanzamientos en video). */
   withVideo?: boolean
+  /** Excluye productos sin ninguna foto. */
+  requireImage?: boolean
+  /** Solo productos creados en los últimos N días. */
+  createdWithinDays?: number
   extraGenders?: string[]
   status?: "active" | "inactive"
   hasStock?: "yes" | "no"
@@ -375,6 +379,10 @@ function buildPrismaWhere(
   const where: Prisma.ProductWhereInput = {}
 
   if (filter.isOnSaleOnly) where.isOnSale = true
+  if (filter.requireImage) where.images = { some: {} }
+  if (filter.createdWithinDays && filter.createdWithinDays > 0) {
+    where.createdAt = { gte: new Date(Date.now() - filter.createdWithinDays * 24 * 60 * 60 * 1000) }
+  }
   if (filter.withVideo) where.AND = [{ videoUrl: { not: null } }, { videoUrl: { not: "" } }]
   if (filter.categorySlug) where.category = { slug: filter.categorySlug }
   if (filter.categoryId) where.categoryId = filter.categoryId

@@ -6,8 +6,20 @@ import {
   updateStoreSettingsRecord,
 } from "@/server/repositories/store-settings.repository"
 import { normalizeCatalogSource, type CatalogSource } from "@/lib/catalog-source"
+import { DEFAULT_GIFT_CARD_LIMITS, type GiftCardLimits } from "@/lib/gift-card"
 import { LEGAL_COMPANY, type LegalCompanyInfo } from "@/lib/legal"
 import { DEFAULT_SHIPPING_RATES, type ShippingRates } from "@/lib/shipping"
+import {
+  DEFAULT_CHAT_WELCOME,
+  DEFAULT_CLUB_HEADLINE,
+  DEFAULT_CLUB_INTRO,
+  DEFAULT_CLUB_WELCOME_BODY,
+  DEFAULT_CLUB_WELCOME_SUBJECT,
+  parseClubBenefits,
+  parseFooterLinks,
+  type ClubBenefit,
+  type FooterLink,
+} from "@/lib/storefront-copy"
 import type {
   MetaPixelInput,
   StoreInfoInput,
@@ -32,6 +44,19 @@ export interface StoreSettingsDTO {
   taxId: string | null
   legalAddress: string | null
   contactPhone: string | null
+  hideImagelessProducts: boolean
+  newArrivalDays: number
+  chatEnabled: boolean
+  chatWelcome: string
+  giftCardMinAmount: number
+  giftCardMaxAmount: number
+  giftCardValidityMonths: number
+  clubHeadline: string
+  clubIntro: string
+  clubBenefits: string
+  clubWelcomeSubject: string
+  clubWelcomeBody: string
+  footerLinks: string
 }
 
 /** Lo único del píxel que puede viajar al navegador. */
@@ -64,6 +89,19 @@ function toDTO(raw: {
   taxId?: string | null
   legalAddress?: string | null
   contactPhone?: string | null
+  hideImagelessProducts?: boolean | null
+  newArrivalDays?: number | null
+  chatEnabled?: boolean | null
+  chatWelcome?: string | null
+  giftCardMinAmount?: number | null
+  giftCardMaxAmount?: number | null
+  giftCardValidityMonths?: number | null
+  clubHeadline?: string | null
+  clubIntro?: string | null
+  clubBenefits?: string | null
+  clubWelcomeSubject?: string | null
+  clubWelcomeBody?: string | null
+  footerLinks?: string | null
 }): StoreSettingsDTO {
   return {
     storeName: raw.storeName,
@@ -84,6 +122,19 @@ function toDTO(raw: {
     taxId: raw.taxId ?? null,
     legalAddress: raw.legalAddress ?? null,
     contactPhone: raw.contactPhone ?? null,
+    hideImagelessProducts: raw.hideImagelessProducts ?? true,
+    newArrivalDays: raw.newArrivalDays ?? 30,
+    chatEnabled: raw.chatEnabled ?? true,
+    chatWelcome: raw.chatWelcome?.trim() || DEFAULT_CHAT_WELCOME,
+    giftCardMinAmount: raw.giftCardMinAmount ?? DEFAULT_GIFT_CARD_LIMITS.minAmount,
+    giftCardMaxAmount: raw.giftCardMaxAmount ?? DEFAULT_GIFT_CARD_LIMITS.maxAmount,
+    giftCardValidityMonths: raw.giftCardValidityMonths ?? DEFAULT_GIFT_CARD_LIMITS.validityMonths,
+    clubHeadline: raw.clubHeadline?.trim() || DEFAULT_CLUB_HEADLINE,
+    clubIntro: raw.clubIntro?.trim() || DEFAULT_CLUB_INTRO,
+    clubBenefits: raw.clubBenefits ?? "",
+    clubWelcomeSubject: raw.clubWelcomeSubject?.trim() || DEFAULT_CLUB_WELCOME_SUBJECT,
+    clubWelcomeBody: raw.clubWelcomeBody?.trim() || DEFAULT_CLUB_WELCOME_BODY,
+    footerLinks: raw.footerLinks ?? "",
   }
 }
 
@@ -122,8 +173,102 @@ export async function updateStoreInfo(input: StoreInfoInput): Promise<StoreSetti
       taxId: input.taxId,
       legalAddress: input.legalAddress,
       contactPhone: input.contactPhone,
+      hideImagelessProducts: input.hideImagelessProducts,
+      newArrivalDays: input.newArrivalDays,
+      chatEnabled: input.chatEnabled,
+      chatWelcome: input.chatWelcome,
+      giftCardMinAmount: input.giftCardMinAmount,
+      giftCardMaxAmount: input.giftCardMaxAmount,
+      giftCardValidityMonths: input.giftCardValidityMonths,
+      clubHeadline: input.clubHeadline,
+      clubIntro: input.clubIntro,
+      clubBenefits: input.clubBenefits,
+      clubWelcomeSubject: input.clubWelcomeSubject,
+      clubWelcomeBody: input.clubWelcomeBody,
+      footerLinks: input.footerLinks,
     }),
   )
+}
+
+export interface PublicStorefrontConfig {
+  shipping: ShippingRates
+  chatEnabled: boolean
+  chatWelcome: string
+  giftCardValidityMonths: number
+  footerLinks: FooterLink[]
+  storeName: string
+  contactEmail: string | null
+  whatsapp: string | null
+}
+
+export async function getPublicStorefrontConfig(): Promise<PublicStorefrontConfig> {
+  const settings = await findStoreSettingsReadOnly()
+  const dto = settings
+    ? toDTO(settings)
+    : toDTO({
+        storeName: "One Star",
+        contactEmail: null,
+        whatsapp: null,
+        metaPixelId: null,
+        metaAccessToken: null,
+        metaTestEventCode: null,
+        metaPixelEnabled: false,
+      })
+  return {
+    shipping: toShippingRates(dto),
+    chatEnabled: dto.chatEnabled,
+    chatWelcome: dto.chatWelcome,
+    giftCardValidityMonths: dto.giftCardValidityMonths,
+    footerLinks: parseFooterLinks(dto.footerLinks),
+    storeName: dto.storeName,
+    contactEmail: dto.contactEmail,
+    whatsapp: dto.whatsapp,
+  }
+}
+
+export async function getCatalogRules(): Promise<{ hideImagelessProducts: boolean; newArrivalDays: number }> {
+  const settings = await findStoreSettingsReadOnly()
+  return {
+    hideImagelessProducts: settings?.hideImagelessProducts ?? true,
+    newArrivalDays: settings?.newArrivalDays ?? 30,
+  }
+}
+
+export async function getGiftCardLimits(): Promise<GiftCardLimits> {
+  const settings = await findStoreSettingsReadOnly()
+  return {
+    minAmount: settings?.giftCardMinAmount ?? DEFAULT_GIFT_CARD_LIMITS.minAmount,
+    maxAmount: settings?.giftCardMaxAmount ?? DEFAULT_GIFT_CARD_LIMITS.maxAmount,
+    validityMonths: settings?.giftCardValidityMonths ?? DEFAULT_GIFT_CARD_LIMITS.validityMonths,
+  }
+}
+
+export async function getClubCopy(): Promise<{
+  headline: string
+  intro: string
+  benefits: ClubBenefit[]
+  welcomeSubject: string
+  welcomeBody: string
+}> {
+  const settings = await findStoreSettingsReadOnly()
+  const dto = settings
+    ? toDTO(settings)
+    : toDTO({
+        storeName: "One Star",
+        contactEmail: null,
+        whatsapp: null,
+        metaPixelId: null,
+        metaAccessToken: null,
+        metaTestEventCode: null,
+        metaPixelEnabled: false,
+      })
+  return {
+    headline: dto.clubHeadline,
+    intro: dto.clubIntro,
+    benefits: parseClubBenefits(dto.clubBenefits),
+    welcomeSubject: dto.clubWelcomeSubject,
+    welcomeBody: dto.clubWelcomeBody,
+  }
 }
 
 /** Tarifas que cobran carrito, checkout y pedido. Sin registro, usa el respaldo. */

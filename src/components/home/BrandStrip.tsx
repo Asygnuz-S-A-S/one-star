@@ -35,7 +35,7 @@ const FONT_SIZES: Record<string, string> = {
 const LOGO_HEIGHTS: Record<string, { container: string; imgHeight: number }> = {
   xs: { container: "h-6 md:h-7", imgHeight: 28 },
   sm: { container: "h-8 md:h-9", imgHeight: 36 },
-  md: { container: "h-10 md:h-12", imgHeight: 48 },
+  md: { container: "h-14 md:h-16", imgHeight: 64 },
   lg: { container: "h-14 md:h-16", imgHeight: 64 },
 }
 

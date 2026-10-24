@@ -59,6 +59,7 @@ export default async function LanzamientosPage({ searchParams }: LanzamientosPag
         searchParams={params}
         title="LANZAMIENTOS"
         subtitle="Lo último en calzado urbano y deportivo"
+        newArrivals
         colorPalette={colorPalette}
       />
     </ShopLayout>

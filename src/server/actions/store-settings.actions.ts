@@ -45,6 +45,19 @@ export async function updateStoreInfoAction(
       taxId: text(formData, "taxId"),
       legalAddress: text(formData, "legalAddress"),
       contactPhone: text(formData, "contactPhone"),
+      hideImagelessProducts: checkbox(formData, "hideImagelessProducts"),
+      newArrivalDays: text(formData, "newArrivalDays").trim(),
+      chatEnabled: checkbox(formData, "chatEnabled"),
+      chatWelcome: text(formData, "chatWelcome"),
+      giftCardMinAmount: text(formData, "giftCardMinAmount").trim(),
+      giftCardMaxAmount: text(formData, "giftCardMaxAmount").trim(),
+      giftCardValidityMonths: text(formData, "giftCardValidityMonths").trim(),
+      clubHeadline: text(formData, "clubHeadline"),
+      clubIntro: text(formData, "clubIntro"),
+      clubBenefits: text(formData, "clubBenefits"),
+      clubWelcomeSubject: text(formData, "clubWelcomeSubject"),
+      clubWelcomeBody: text(formData, "clubWelcomeBody"),
+      footerLinks: text(formData, "footerLinks"),
     })
     await updateStoreInfo(input)
     revalidatePath("/admin/configuracion")

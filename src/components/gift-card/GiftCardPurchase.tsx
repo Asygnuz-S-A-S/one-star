@@ -14,13 +14,16 @@ interface GiftCardPurchaseProps {
   options: GiftCardOption[]
   /** Título y texto de la página, junto al selector. */
   intro: ReactNode
+  validityMonths?: number
 }
 
-const STEPS = [
-  { title: "Elige el monto", detail: "Desde el valor que prefieras." },
-  { title: "Paga seguro", detail: "Con ePayco: tarjeta, PSE o efectivo." },
-  { title: "Llega al correo", detail: "Con un código digital válido por 12 meses." },
-]
+function steps(validityMonths: number) {
+  return [
+    { title: "Elige el monto", detail: "Desde el valor que prefieras." },
+    { title: "Paga seguro", detail: "Con ePayco: tarjeta, PSE o efectivo." },
+    { title: "Llega al correo", detail: `Con un código digital válido por ${validityMonths} meses.` },
+  ]
+}
 
 const FINISHES: Record<GiftCardFinish, { label: string; base: string; ink: string; muted: string; logo: "light" | "dark"; swatch: string }> = {
   copper: {
@@ -121,7 +124,7 @@ function GiftCardVisual({ amount, finish }: { amount: number | null; finish: Gif
   )
 }
 
-export default function GiftCardPurchase({ options, intro }: GiftCardPurchaseProps) {
+export default function GiftCardPurchase({ options, intro, validityMonths = 12 }: GiftCardPurchaseProps) {
   const addItem = useCart((state) => state.addItem)
   const openCart = useCart((state) => state.openCart)
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(
@@ -206,7 +209,7 @@ export default function GiftCardPurchase({ options, intro }: GiftCardPurchasePro
         )}
 
         <ol className="grid gap-4 border-t border-[#E0E0E0] pt-6 sm:grid-cols-3 dark:border-white/10" aria-label="Cómo funciona">
-          {STEPS.map((step, index) => (
+          {steps(validityMonths).map((step, index) => (
             <li key={step.title} className="flex gap-3 sm:flex-col sm:gap-2">
               <span aria-hidden="true" className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#1C1C1C] font-barlow text-xs font-bold text-white">{index + 1}</span>
               <span>

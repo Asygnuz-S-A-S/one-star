@@ -80,16 +80,16 @@ function PasswordInput({
           type="button"
           onClick={() => setShow(!show)}
           aria-label={show ? "Ocultar contraseña" : "Mostrar contraseña"}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[#E31C23] transition-colors"
+          className="absolute right-1 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center text-[var(--text-secondary)] transition-colors hover:text-[#E31C23]"
         >
           {show ? (
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94" />
               <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19" />
               <line x1="1" y1="1" x2="23" y2="23" />
             </svg>
           ) : (
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
               <circle cx="12" cy="12" r="3" />
             </svg>
@@ -506,9 +506,9 @@ function RegistroForm() {
                 type="checkbox"
                 checked={terms}
                 onChange={(e) => setTerms(e.target.checked)}
-                className="mt-0.5 accent-[#E31C23] shrink-0"
+                className="mt-1 h-5 w-5 shrink-0 accent-[#E31C23]"
               />
-              <span className="font-montserrat text-xs text-[var(--text-secondary)]">
+              <span className="font-montserrat text-sm leading-6 text-[var(--text-secondary)]">
                 Acepto los{" "}
                 <Link
                   href="/terminos"
@@ -538,9 +538,9 @@ function RegistroForm() {
               type="checkbox"
               checked={joinClub}
               onChange={(e) => setJoinClub(e.target.checked)}
-              className="mt-0.5 shrink-0 accent-[#E31C23]"
+              className="mt-1 h-5 w-5 shrink-0 accent-[#E31C23]"
             />
-            <span className="font-montserrat text-xs text-[var(--text-secondary)]">
+            <span className="font-montserrat text-sm leading-6 text-[var(--text-secondary)]">
               <span className="block font-barlow text-sm font-bold uppercase tracking-[0.06em] text-[#1C1C1C] dark:text-white">Unirme a One Star Club</span>
               Gratis. Accede a promociones exclusivas para miembros desde tu cuenta.{" "}
               <Link href="/club" className="underline underline-offset-2 hover:text-[#1C1C1C] dark:hover:text-white">Conoce el club</Link>
@@ -556,9 +556,9 @@ function RegistroForm() {
                 editedPrefillFields.current.add("newsletter")
                 setNewsletter(e.target.checked)
               }}
-              className="mt-0.5 accent-[#E31C23] shrink-0"
+              className="mt-0.5 h-5 w-5 shrink-0 accent-[#E31C23]"
             />
-            <span className="font-montserrat text-xs text-[var(--text-secondary)]">
+            <span className="font-montserrat text-sm text-[var(--text-secondary)]">
               Quiero recibir ofertas, lanzamientos y novedades por correo
             </span>
           </label>

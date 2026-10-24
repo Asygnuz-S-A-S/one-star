@@ -4,6 +4,8 @@ import { auth } from "@/lib/auth"
 import ClubMembershipPanel from "@/components/club/ClubMembershipPanel"
 import ClubPromotionCard from "@/components/club/ClubPromotionCard"
 import { getClubPromotions, getClubStatus } from "@/server/services/club.service"
+import { getClubCopy } from "@/server/services/store-settings.service"
+import { DEFAULT_CLUB_BENEFITS, DEFAULT_CLUB_HEADLINE, DEFAULT_CLUB_INTRO } from "@/lib/storefront-copy"
 
 export const metadata: Metadata = {
   title: "One Star Club | One Star",
@@ -12,13 +14,14 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic"
 
-const BENEFITS = [
-  { title: "Promociones exclusivas", detail: "Cupones solo para miembros. Los ves aquí y los usas en el checkout." },
-  { title: "Primero en enterarte", detail: "Si lo aceptas, lanzamientos y novedades llegan directo a tu correo." },
-  { title: "Gratis, sin compromiso", detail: "Unirte no tiene costo y puedes salir cuando quieras desde tu cuenta." },
-]
-
 export default async function ClubPage() {
+  const copy = await getClubCopy().catch(() => ({
+    headline: DEFAULT_CLUB_HEADLINE,
+    intro: DEFAULT_CLUB_INTRO,
+    benefits: DEFAULT_CLUB_BENEFITS,
+    welcomeSubject: "",
+    welcomeBody: "",
+  }))
   const session = await auth.api.getSession({ headers: await headers() })
   const user = session?.user as { id?: string; userType?: string } | undefined
   const status = user?.id && user.userType === "customer" ? await getClubStatus(user.id) : null
@@ -32,10 +35,10 @@ export default async function ClubPage() {
         <div className="store-gutter store-section relative mx-auto grid max-w-6xl gap-10 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] lg:items-center">
           <div>
             <p className="store-eyebrow mb-4">Comunidad One Star</p>
-            <h1 className="font-barlow text-5xl font-extrabold uppercase leading-[0.9] tracking-[-0.03em] sm:text-7xl">One Star Club</h1>
+            <h1 className="font-barlow text-5xl font-extrabold uppercase leading-[0.9] tracking-[-0.03em] sm:text-7xl">{copy.headline}</h1>
             <span aria-hidden="true" className="mt-4 block h-1 w-14 bg-[#E31C23]" />
             <p className="mt-5 max-w-xl font-montserrat text-base text-white/75 md:text-lg">
-              La comunidad de quienes viven la cultura urbana y el rendimiento. Únete gratis y accede a promociones pensadas solo para miembros.
+              {copy.intro}
             </p>
           </div>
           <div className="rounded-[var(--store-radius-xl)] border border-white/10 bg-white/[0.04] p-6 sm:p-8">
@@ -49,7 +52,7 @@ export default async function ClubPage() {
 
       <section className="store-gutter store-section mx-auto max-w-6xl">
         <ul className="grid gap-4 sm:grid-cols-3">
-          {BENEFITS.map((benefit, index) => (
+          {copy.benefits.map((benefit, index) => (
             <li key={benefit.title} className="rounded-[var(--store-radius-lg)] border border-[#ECECEA] bg-white p-6">
               <span aria-hidden="true" className="grid h-9 w-9 place-items-center rounded-full bg-[#1C1C1C] font-barlow text-sm font-bold text-white">{index + 1}</span>
               <h2 className="mt-4 font-barlow text-xl font-bold uppercase tracking-[0.02em] text-[#1C1C1C]">{benefit.title}</h2>

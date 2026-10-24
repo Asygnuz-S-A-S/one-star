@@ -157,7 +157,7 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Breadcrumb */}
-        <nav className="font-montserrat text-xs text-[#4A4A4A] dark:text-gray-400 mb-6 flex gap-2 items-center">
+        <nav className="mb-6 flex flex-wrap items-center gap-2 font-montserrat text-sm text-[#4A4A4A] dark:text-gray-400">
           <Link href="/" className="hover:text-[#1C1C1C] dark:hover:text-white transition-colors">Inicio</Link>
           <span>/</span>
           <Link href="/productos" className="hover:text-[#1C1C1C] dark:hover:text-white transition-colors">Productos</Link>

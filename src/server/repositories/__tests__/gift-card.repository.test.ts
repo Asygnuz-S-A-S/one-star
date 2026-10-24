@@ -76,7 +76,12 @@ describe("redeemGiftCardAmountRecord", () => {
     giftCard.updateMany.mockResolvedValue({ count: 0 })
     const result = await redeemGiftCardAmountRecord("ABC", 5000)
     expect(giftCard.updateMany).toHaveBeenCalledWith({
-      where: { code: "ABC", isActive: true, balance: { gte: 5000 } },
+      where: {
+        code: "ABC",
+        isActive: true,
+        balance: { gte: 5000 },
+        OR: [{ expiresAt: null }, { expiresAt: { gt: expect.any(Date) } }],
+      },
       data: { balance: { decrement: 5000 } },
     })
     expect(result).toBeNull()

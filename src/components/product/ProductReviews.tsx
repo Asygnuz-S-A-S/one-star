@@ -81,7 +81,7 @@ export default function ProductReviews({ productId, initialReviews, stats }: Pro
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
         {/* Header */}
-        <div className="flex items-center justify-between mb-10">
+        <div className="mb-10 flex flex-wrap items-center justify-between gap-4">
           <div>
             <h2 id="titulo-resenas" className="font-barlow font-bold text-2xl uppercase tracking-wider text-[#1C1C1C] dark:text-white mb-1">
               Reseñas
@@ -100,7 +100,7 @@ export default function ProductReviews({ productId, initialReviews, stats }: Pro
           </div>
           <button
             onClick={() => setIsFormOpen(true)}
-            className="font-montserrat font-semibold text-xs uppercase tracking-widest border border-[#1C1C1C] dark:border-white text-[#1C1C1C] dark:text-white px-6 py-3 hover:bg-[#1C1C1C] hover:text-white dark:hover:bg-white dark:hover:text-black transition-colors duration-200"
+            className="inline-flex min-h-12 items-center border border-[#1C1C1C] px-6 font-montserrat text-sm font-semibold uppercase tracking-widest text-[#1C1C1C] transition-colors duration-200 hover:bg-[#1C1C1C] hover:text-white dark:border-white dark:text-white dark:hover:bg-white dark:hover:text-black"
           >
             Escribir reseña
           </button>

@@ -169,7 +169,7 @@ export default function FilterSidebar({
   const sidebarContent = (
     <div className="flex flex-col gap-4">
       {/* Ordenar por */}
-      <details open>
+      <details open className="lg:hidden">
         <summary className={sectionSummary}>
           Ordenar por
           <span className={chevron}>▾</span>
@@ -403,7 +403,7 @@ export default function FilterSidebar({
           aria-haspopup="dialog"
           aria-expanded={isOpen}
           aria-controls="filter-dialog"
-          className="fixed bottom-[6.5rem] left-4 z-40 inline-flex min-h-12 items-center gap-2 rounded-full bg-[var(--store-action)] px-5 font-barlow text-sm font-bold uppercase tracking-widest text-white shadow-[0_10px_24px_rgb(227_28_35/0.35)]"
+          className="fixed bottom-[4.75rem] left-4 z-40 inline-flex min-h-12 items-center gap-2 rounded-full bg-[var(--store-action)] px-5 font-barlow text-sm font-bold uppercase tracking-widest text-white shadow-[0_10px_24px_rgb(227_28_35/0.35)]"
         >
           Filtros
         </button>

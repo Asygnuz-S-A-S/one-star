@@ -1,5 +1,6 @@
 import "server-only"
 import { sendEmail, type SendEmailResult } from "@/server/email/resend.client"
+import { getClubCopy } from "@/server/services/store-settings.service"
 import {
   loginAlertEmail,
   orderConfirmationEmail,
@@ -67,6 +68,13 @@ export async function sendClubWelcomeEmail(params: {
   newsletter: boolean
 }): Promise<SendEmailResult> {
   const baseUrl = (process.env.BETTER_AUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "")
-  const { subject, html } = clubWelcomeEmail({ name: params.name, newsletter: params.newsletter, clubUrl: `${baseUrl}/club` })
+  const copy = await getClubCopy().catch(() => null)
+  const { subject, html } = clubWelcomeEmail({
+    name: params.name,
+    newsletter: params.newsletter,
+    clubUrl: `${baseUrl}/club`,
+    subject: copy?.welcomeSubject,
+    body: copy?.welcomeBody,
+  })
   return sendEmail({ to: params.email, subject, html })
 }

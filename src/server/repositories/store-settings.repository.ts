@@ -20,6 +20,19 @@ export interface StoreSettingsPatch {
   taxId?: string | null
   legalAddress?: string | null
   contactPhone?: string | null
+  hideImagelessProducts?: boolean
+  newArrivalDays?: number
+  chatEnabled?: boolean
+  chatWelcome?: string | null
+  giftCardMinAmount?: number
+  giftCardMaxAmount?: number
+  giftCardValidityMonths?: number
+  clubHeadline?: string | null
+  clubIntro?: string | null
+  clubBenefits?: string | null
+  clubWelcomeSubject?: string | null
+  clubWelcomeBody?: string | null
+  footerLinks?: string | null
 }
 
 /** Devuelve el registro único; lo crea con los defaults del schema si no existe. */

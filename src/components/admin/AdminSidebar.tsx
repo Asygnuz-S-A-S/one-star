@@ -182,6 +182,15 @@ const navGroups = [
         ),
       },
       {
+        label: "Usuarios",
+        href: "/admin/usuarios",
+        icon: (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a4 4 0 00-4-4h-1M9 20H2v-2a4 4 0 014-4h3m6-4a4 4 0 11-8 0 4 4 0 018 0zm6 0a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        ),
+      },
+      {
         label: "Integraciones",
         href: "/admin/integraciones",
         icon: (
@@ -234,7 +243,7 @@ export default function AdminSidebar({ userName, userRole }: AdminSidebarProps) 
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 overflow-y-auto">
+      <nav className="min-h-0 flex-1 overflow-y-auto px-3 py-4">
         <div className="space-y-6">
           {visibleGroups.map((group) => (
             <div key={group.group}>

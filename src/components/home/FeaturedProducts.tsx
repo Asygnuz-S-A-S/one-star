@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { getProducts } from "@/server/services/product.service"
+import { getCatalogRules } from "@/server/services/store-settings.service"
 import FeaturedProductsGrid from "./FeaturedProductsGrid"
 import { buildProductFamilyCardColorSummary } from "@/lib/product-card-colors"
 
@@ -8,7 +9,8 @@ export default async function FeaturedProducts({ config = {} }: { config?: Recor
   const limit = config.limit ? Number(config.limit) : 8
   const theme = config.theme === "dark" ? "dark" : "light"
 
-  const { products } = await getProducts({ orden: "reciente" }, limit)
+  const rules = await getCatalogRules().catch(() => ({ hideImagelessProducts: true, newArrivalDays: 30 }))
+  const { products } = await getProducts({ orden: "reciente", requireImage: rules.hideImagelessProducts }, limit)
 
   if (products.length === 0) return null
 

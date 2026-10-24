@@ -1,6 +1,7 @@
 import Link from "next/link"
 import SortBar from "@/components/shop/SortBar"
 import { getProducts } from "@/server/services/product.service"
+import { getCatalogRules } from "@/server/services/store-settings.service"
 import { AnimatedProductGrid } from "@/components/shop/AnimatedProductGrid"
 import type { ColorPalette } from "@/lib/colors"
 import { getGenderFilterLabel } from "@/lib/gender-filter"
@@ -33,6 +34,8 @@ interface ProductGridProps {
   /** Texto pequeño sobre el título (ej. "Ofertas One Star"). */
   eyebrow?: string
   isOnSaleOnly?: boolean
+  /** Limita el listado a productos creados dentro de la ventana de lanzamientos. */
+  newArrivals?: boolean
   headerClassName?: string
   colorPalette?: ColorPalette
   titleHeadingLevel?: "h1" | "h2"
@@ -82,12 +85,14 @@ export default async function ProductGrid({
   subtitle,
   eyebrow,
   isOnSaleOnly,
+  newArrivals,
   headerClassName,
   colorPalette,
   titleHeadingLevel = "h1",
 }: ProductGridProps) {
   const page = Math.max(1, Number(searchParams.page ?? 1))
 
+  const catalogRules = await getCatalogRules().catch(() => ({ hideImagelessProducts: true, newArrivalDays: 30 }))
   const filterParams = {
     ...searchParams,
     // La prop categorySlug (rutas /hombre, etc.) tiene prioridad; si no,
@@ -97,6 +102,8 @@ export default async function ProductGrid({
     genderFilter,
     extraGenders,
     isOnSaleOnly,
+    requireImage: catalogRules.hideImagelessProducts,
+    createdWithinDays: newArrivals ? catalogRules.newArrivalDays : undefined,
   }
 
   const { products, total } = await getProducts(filterParams, PAGE_SIZE)
