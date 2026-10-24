@@ -54,6 +54,7 @@ export function getStorePromises(options: {
   hasWhatsapp: boolean
   returnWindowDays?: number
   customPromises?: unknown
+  freeThreshold?: number
 }): StorePromise[] {
   const returnDays = options.returnWindowDays ?? RETURN_WINDOW_DAYS
   const customMap: Record<string, { title?: string; text?: string; icon?: StorePromiseIcon }> = {}
@@ -73,7 +74,7 @@ export function getStorePromises(options: {
       id: "shipping",
       icon: "truck",
       title: "Envío a todo Colombia",
-      text: `Gratis en compras desde ${formatCOP(STANDARD_SHIPPING_THRESHOLD)}.`,
+      text: `Gratis en compras desde ${formatCOP(options.freeThreshold ?? STANDARD_SHIPPING_THRESHOLD)}.`,
     },
     {
       id: "delivery",

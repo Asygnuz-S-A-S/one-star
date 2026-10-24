@@ -7,12 +7,8 @@ import { useCart, useCartStore } from "@/store"
 import { formatCOP } from "@/lib/shop-utils"
 import { buildMetaCommerceParams, trackMetaEvent } from "@/lib/tracking/meta-pixel"
 import { COLOMBIA_DEPARTMENTS } from "@/lib/colombia-departments"
-import {
-  EXPRESS_SHIPPING_COST,
-  STANDARD_SHIPPING_COST,
-  STANDARD_SHIPPING_THRESHOLD,
-  getShippingCost,
-} from "@/lib/shipping"
+import { getShippingCost } from "@/lib/shipping"
+import { useShippingRates } from "@/components/storefront/ShippingRatesProvider"
 import {
   clearCheckoutDraft,
   getCheckoutSessionStorage,
@@ -184,6 +180,7 @@ function CheckoutForm({
   onAuthRequired,
 }: CheckoutFormProps) {
   const { items, subtotal } = useCart()
+  const shippingRates = useShippingRates()
   const hasEditedForm = useRef(false)
 
   // InitiateCheckout una sola vez por visita al checkout, con el carrito inicial.
@@ -246,7 +243,7 @@ function CheckoutForm({
 
   // Un carrito solo de tarjetas de regalo se entrega por correo: sin envío.
   const digitalOnly = items.length > 0 && items.every((item) => item.kind === "gift_card")
-  const shippingCost = getShippingCost(values.shippingMethod, subtotal, { digitalOnly })
+  const shippingCost = getShippingCost(values.shippingMethod, subtotal, { digitalOnly, rates: shippingRates })
   const discount = appliedCoupon?.discountAmount ?? 0
   const total = subtotal - discount + shippingCost
 
@@ -533,21 +530,21 @@ function CheckoutForm({
                         onChange={() => set("shippingMethod", "standard")} className="h-4 w-4 accent-[#E31C23]" />
                       <div>
                         <p className="text-sm font-montserrat font-medium text-[#1C1C1C]">Envío estándar (3-5 días hábiles)</p>
-                        {subtotal >= STANDARD_SHIPPING_THRESHOLD ? (
+                        {subtotal >= shippingRates.freeThreshold ? (
                           <p className="text-xs text-green-600 font-montserrat mt-0.5">
-                            ¡Envío gratis por compras mayores a {formatCOP(STANDARD_SHIPPING_THRESHOLD)}!
+                            ¡Envío gratis por compras mayores a {formatCOP(shippingRates.freeThreshold)}!
                           </p>
                         ) : (
                           <p className="mt-0.5 font-montserrat text-xs text-[#4A4A4A]">
-                            Agrega {formatCOP(STANDARD_SHIPPING_THRESHOLD - subtotal)} más y es gratis
+                            Agrega {formatCOP(shippingRates.freeThreshold - subtotal)} más y es gratis
                           </p>
                         )}
                       </div>
                     </div>
                     <span className="text-sm font-montserrat font-medium text-[#1C1C1C]">
-                      {subtotal >= STANDARD_SHIPPING_THRESHOLD
+                      {subtotal >= shippingRates.freeThreshold
                         ? <span className="text-green-600">Gratis</span>
-                        : formatCOP(STANDARD_SHIPPING_COST)}
+                        : formatCOP(shippingRates.standardCost)}
                     </span>
                   </label>
 
@@ -558,7 +555,7 @@ function CheckoutForm({
                         onChange={() => set("shippingMethod", "express")} className="h-4 w-4 accent-[#E31C23]" />
                       <p className="text-sm font-montserrat font-medium text-[#1C1C1C]">Envío express (1-2 días hábiles)</p>
                     </div>
-                    <span className="text-sm font-montserrat font-medium text-[#1C1C1C]">{formatCOP(EXPRESS_SHIPPING_COST)}</span>
+                    <span className="text-sm font-montserrat font-medium text-[#1C1C1C]">{formatCOP(shippingRates.expressCost)}</span>
                   </label>
                 </div>
                 )}

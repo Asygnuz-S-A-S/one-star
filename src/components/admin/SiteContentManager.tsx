@@ -4,6 +4,7 @@ import React, { useState, useTransition } from "react"
 import type { SiteContentDTO } from "@/server/services/site-content.service"
 import { updateSiteContentAction } from "@/app/admin/contenido/actions"
 import { faqsToText } from "@/lib/product-faq"
+import Link from "next/link"
 import { STANDARD_SHIPPING_THRESHOLD } from "@/lib/shipping"
 import { DELIVERY_BUSINESS_DAYS } from "@/lib/conversion-signals"
 import { formatCOP } from "@/lib/shop-utils"
@@ -11,7 +12,13 @@ import { formatCOP } from "@/lib/shop-utils"
 const inputCls =
   "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-[#1C1C1C] bg-white focus:outline-none focus:ring-2 focus:ring-[#E31C23]"
 
-export default function SiteContentManager({ initialContent }: { initialContent: SiteContentDTO }) {
+export default function SiteContentManager({
+  initialContent,
+  freeShippingThreshold = STANDARD_SHIPPING_THRESHOLD,
+}: {
+  initialContent: SiteContentDTO
+  freeShippingThreshold?: number
+}) {
   const [highlightsText, setHighlightsText] = useState((initialContent.highlights ?? []).join("\n"))
   const [faqsText, setFaqsText] = useState(faqsToText(initialContent.faqs ?? []))
   const [returnWindowDays, setReturnWindowDays] = useState(initialContent.returnWindowDays ?? 30)
@@ -152,15 +159,15 @@ export default function SiteContentManager({ initialContent }: { initialContent:
               🚚 Envío a todo Colombia (Lógica del Checkout)
             </span>
             <span className="text-[11px] font-semibold bg-gray-200 text-gray-700 px-2 py-0.5 rounded">
-              Solo lectura (código)
+              Se edita en Configuración
             </span>
           </div>
           <p className="text-sm font-semibold text-[#1C1C1C]">Envío a todo Colombia</p>
           <p className="text-xs text-gray-600">
-            Gratis en compras desde {formatCOP(STANDARD_SHIPPING_THRESHOLD)}.
+            Gratis en compras desde {formatCOP(freeShippingThreshold)}.
           </p>
           <p className="text-[11px] text-gray-400 italic">
-            El umbral de envío gratis está acoplado al cálculo real del carrito/checkout en <code>src/lib/shipping.ts</code>.
+            El valor sale de <Link href="/admin/configuracion" className="underline">Configuración → Envíos</Link> y es el mismo que cobra el checkout.
           </p>
         </div>
 

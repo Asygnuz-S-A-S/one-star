@@ -72,6 +72,117 @@ export default function StoreInfoForm({ settings }: StoreInfoFormProps) {
         </div>
       </div>
 
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h2 className="font-['Barlow',sans-serif] text-lg font-bold text-[#1C1C1C] mb-1">
+          Envíos
+        </h2>
+        <p className="text-xs text-[#4A4A4A] mb-4">
+          Estos valores son los que cobra el carrito, el checkout y el chat. Escríbelos en pesos, sin puntos.
+        </p>
+        <div className="space-y-4">
+          <div>
+            <label htmlFor="free-shipping" className={labelClass}>
+              Envío estándar gratis desde
+            </label>
+            <input
+              id="free-shipping"
+              type="text"
+              inputMode="numeric"
+              name="freeShippingThreshold"
+              defaultValue={settings.freeShippingThreshold}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label htmlFor="standard-shipping" className={labelClass}>
+              Costo del envío estándar
+            </label>
+            <input
+              id="standard-shipping"
+              type="text"
+              inputMode="numeric"
+              name="standardShippingCost"
+              defaultValue={settings.standardShippingCost}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label htmlFor="express-shipping" className={labelClass}>
+              Costo del envío express
+            </label>
+            <input
+              id="express-shipping"
+              type="text"
+              inputMode="numeric"
+              name="expressShippingCost"
+              defaultValue={settings.expressShippingCost}
+              className={inputClass}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h2 className="font-['Barlow',sans-serif] text-lg font-bold text-[#1C1C1C] mb-1">
+          Datos legales
+        </h2>
+        <p className="text-xs text-[#4A4A4A] mb-4">
+          Aparecen en Términos y Privacidad. Si falta la razón social, el NIT, el domicilio o el correo, esas páginas muestran un aviso.
+        </p>
+        <div className="space-y-4">
+          <div>
+            <label htmlFor="legal-name" className={labelClass}>
+              Razón social
+            </label>
+            <input
+              id="legal-name"
+              type="text"
+              name="legalName"
+              defaultValue={settings.legalName ?? ""}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label htmlFor="tax-id" className={labelClass}>
+              NIT
+            </label>
+            <input
+              id="tax-id"
+              type="text"
+              name="taxId"
+              defaultValue={settings.taxId ?? ""}
+              placeholder="900123456-7"
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label htmlFor="legal-address" className={labelClass}>
+              Domicilio
+            </label>
+            <input
+              id="legal-address"
+              type="text"
+              name="legalAddress"
+              defaultValue={settings.legalAddress ?? ""}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label htmlFor="contact-phone" className={labelClass}>
+              Teléfono de atención
+            </label>
+            <input
+              id="contact-phone"
+              type="tel"
+              name="contactPhone"
+              defaultValue={settings.contactPhone ?? ""}
+              placeholder="+576066666666"
+              className={inputClass}
+            />
+          </div>
+        </div>
+      </div>
+
       <div className="sticky bottom-4 z-10 flex flex-wrap items-center justify-end gap-3 rounded-xl border border-gray-200 bg-white/95 p-3 shadow-sm backdrop-blur">
         {state && (
           <p

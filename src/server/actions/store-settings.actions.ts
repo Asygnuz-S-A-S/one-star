@@ -38,10 +38,19 @@ export async function updateStoreInfoAction(
       storeName: text(formData, "storeName"),
       contactEmail: text(formData, "contactEmail").trim(),
       whatsapp: text(formData, "whatsapp"),
+      freeShippingThreshold: text(formData, "freeShippingThreshold").trim(),
+      standardShippingCost: text(formData, "standardShippingCost").trim(),
+      expressShippingCost: text(formData, "expressShippingCost").trim(),
+      legalName: text(formData, "legalName"),
+      taxId: text(formData, "taxId"),
+      legalAddress: text(formData, "legalAddress"),
+      contactPhone: text(formData, "contactPhone"),
     })
     await updateStoreInfo(input)
     revalidatePath("/admin/configuracion")
     revalidatePath("/", "layout")
+    revalidatePath("/terminos")
+    revalidatePath("/privacidad")
     return { success: true }
   } catch (error: unknown) {
     console.error("[store-settings] updateStoreInfoAction:", error)

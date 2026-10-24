@@ -1,10 +1,11 @@
 import type { ReactNode } from "react"
-import { formatLegalDate, hasPendingCompanyData, LEGAL_COMPANY } from "@/lib/legal"
+import { formatLegalDate, hasPendingCompanyData, LEGAL_COMPANY, type LegalCompanyInfo } from "@/lib/legal"
 
 interface LegalDocumentProps {
   title: string
   intro: string
   lastUpdated: string
+  company?: LegalCompanyInfo
   children: ReactNode
 }
 
@@ -16,6 +17,7 @@ export default function LegalDocument({
   title,
   intro,
   lastUpdated,
+  company = LEGAL_COMPANY,
   children,
 }: LegalDocumentProps) {
   return (
@@ -23,7 +25,7 @@ export default function LegalDocument({
       <article className="max-w-3xl mx-auto bg-white dark:bg-[#151515] rounded-lg shadow-xl overflow-hidden transition-colors">
         <header className="border-b border-[#E0E0E0] dark:border-white/10 px-6 md:px-12 py-10">
           <p className="font-barlow uppercase tracking-widest text-xs text-[#E31C23] mb-3">
-            {LEGAL_COMPANY.tradeName}
+            {company.tradeName}
           </p>
           <h1 className="font-barlow font-bold uppercase tracking-tight text-3xl md:text-4xl text-[#1C1C1C] dark:text-white">
             {title}
@@ -36,7 +38,7 @@ export default function LegalDocument({
           </p>
         </header>
 
-        {hasPendingCompanyData() && (
+        {hasPendingCompanyData(company) && (
           <p
             role="note"
             className="mx-6 md:mx-12 mt-8 border-l-4 border-[#E31C23] bg-[#E31C23]/5 px-4 py-3 font-montserrat text-sm text-[#4A4A4A] dark:text-white/70"

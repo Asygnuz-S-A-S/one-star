@@ -1,3 +1,4 @@
+import type { ShippingRates } from "@/lib/shipping"
 import { parseProductFaqs, type ProductFaq } from "@/lib/product-faq"
 import {
   DEFAULT_SITE_FAQS,
@@ -29,6 +30,7 @@ export interface ResolveProductContentInput {
   brand?: BrandContentSource | null
   global?: GlobalContentSource | null
   hasWhatsapp?: boolean
+  shipping?: ShippingRates
 }
 
 export interface ResolvedProductContent {
@@ -91,6 +93,7 @@ export function resolveProductContent(input: ResolveProductContentInput): Resolv
     hasWhatsapp,
     returnWindowDays,
     customPromises: global?.promises,
+    freeThreshold: input.shipping?.freeThreshold,
   })
 
   return {

@@ -3,7 +3,8 @@ import "server-only"
 import Anthropic from "@anthropic-ai/sdk"
 import { getProducts } from "./product.service"
 import { findVariantForCartDisplay } from "@/server/repositories/variant.repository"
-import { STORE_KNOWLEDGE } from "@/lib/store-knowledge"
+import { buildStoreKnowledge, STORE_KNOWLEDGE } from "@/lib/store-knowledge"
+import { getShippingRates } from "@/server/services/store-settings.service"
 
 const DEFAULT_MODEL = "claude-sonnet-5"
 const MAX_TOOL_ROUNDS = 4
@@ -39,7 +40,8 @@ function getClient(): Anthropic | null {
   return new Anthropic({ apiKey })
 }
 
-const SYSTEM_PROMPT = `Eres el asistente de ventas de One Star, una tienda de ropa y calzado deportivo/urbano en Colombia.
+function systemPrompt(knowledge: string) {
+  return `Eres el asistente de ventas de One Star, una tienda de ropa y calzado deportivo/urbano en Colombia.
 Ayudas a los visitantes a encontrar productos y armar su compra directamente en el chat.
 
 Reglas estrictas:
@@ -52,7 +54,8 @@ Reglas estrictas:
 - No inventes promociones ni descuentos.
 
 BASE DE CONOCIMIENTO DE ONE STAR
-${STORE_KNOWLEDGE}`
+${knowledge}`
+}
 
 const TOOLS: Anthropic.Tool[] = [
   {
@@ -165,6 +168,9 @@ export async function sendChatMessage(history: ChatMessage[], message: string): 
   }
 
   const model = process.env.ANTHROPIC_MODEL || DEFAULT_MODEL
+  const knowledge = await getShippingRates()
+    .then((rates) => buildStoreKnowledge(rates))
+    .catch(() => STORE_KNOWLEDGE)
   const messages: Anthropic.MessageParam[] = [
     ...history.map((m) => ({ role: m.role, content: m.content }) as Anthropic.MessageParam),
     { role: "user", content: message },
@@ -177,7 +183,7 @@ export async function sendChatMessage(history: ChatMessage[], message: string): 
       const response = await client.messages.create({
         model,
         max_tokens: 1024,
-        system: SYSTEM_PROMPT,
+        system: systemPrompt(knowledge),
         tools: TOOLS,
         messages,
       })

@@ -6,10 +6,9 @@ import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { useCart } from "@/store"
 import { formatCOP } from "@/lib/shop-utils"
+import { useShippingRates } from "@/components/storefront/ShippingRatesProvider"
+import { getShippingCost } from "@/lib/shipping"
 import { applyCoupon, type ApplyCouponResult } from "./actions"
-
-const FREE_SHIPPING_THRESHOLD = 200_000
-const SHIPPING_COST = 15_000
 
 function IconX({ size = 18 }: { size?: number }) {
   return (
@@ -51,6 +50,7 @@ function IconCartEmpty() {
 
 export default function CarritoPage() {
   const { items, removeItem, updateQuantity, subtotal, clearCart } = useCart()
+  const shippingRates = useShippingRates()
   const router = useRouter()
   const [couponCode, setCouponCode] = useState("")
   const [couponResult, setCouponResult] = useState<ApplyCouponResult | null>(null)
@@ -62,7 +62,7 @@ export default function CarritoPage() {
       : Math.min(couponResult.discountValue!, subtotal)
     : 0
 
-  const shipping = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_COST
+  const shipping = getShippingCost("standard", subtotal, { rates: shippingRates })
   const total = subtotal + shipping - discount
 
   async function handleApplyCoupon() {
@@ -237,7 +237,7 @@ export default function CarritoPage() {
               </div>
               {shipping > 0 && (
                 <p className="text-xs text-[#4A4A4A]">
-                  Envío gratis en compras mayores a {formatCOP(FREE_SHIPPING_THRESHOLD)}
+                  Envío gratis en compras mayores a {formatCOP(shippingRates.freeThreshold)}
                 </p>
               )}
             </div>

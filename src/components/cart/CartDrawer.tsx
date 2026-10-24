@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "motion/react"
 import { useCart } from "@/store"
 import { formatCOP } from "@/lib/shop-utils"
 import { PLACEHOLDER_IMAGE_URL } from "@/lib/product-image"
-import { STANDARD_SHIPPING_THRESHOLD } from "@/lib/shipping"
+import { useShippingRates } from "@/components/storefront/ShippingRatesProvider"
 import { getColorSwatchStyle } from "@/lib/colors"
 
 // Misma superficie de la ficha: la foto (fondo blanco) se funde con multiply, sin recuadro gris.
@@ -15,8 +15,9 @@ const THUMB_STAGE = "bg-[radial-gradient(ellipse_at_50%_45%,#ffffff_0%,#f7f7f5_5
 
 /** Progreso hacia el envío gratis: motiva a completar el pedido sin esperar al checkout. */
 function FreeShippingProgress({ subtotal }: { subtotal: number }) {
-  const missing = Math.max(0, STANDARD_SHIPPING_THRESHOLD - subtotal)
-  const progress = Math.min(100, (subtotal / STANDARD_SHIPPING_THRESHOLD) * 100)
+  const { freeThreshold } = useShippingRates()
+  const missing = Math.max(0, freeThreshold - subtotal)
+  const progress = Math.min(100, (subtotal / Math.max(freeThreshold, 1)) * 100)
   return (
     <div className="px-5 pt-4" data-testid="free-shipping-progress">
       <p className="font-montserrat text-xs text-[#1C1C1C]">

@@ -16,7 +16,9 @@ import { getActiveNavigationItems } from "@/server/repositories/navigation.repos
 import { getTopBanner } from "@/server/repositories/top-banner.repository";
 import { getPrimaryLogos } from "@/server/repositories/site-logo.repository";
 import { getHeaderConfig } from "@/server/repositories/header-config.repository";
-import { getMetaPixelPublicConfig } from "@/server/services/store-settings.service";
+import { getMetaPixelPublicConfig, getShippingRates } from "@/server/services/store-settings.service";
+import { DEFAULT_SHIPPING_RATES } from "@/lib/shipping";
+import { ShippingRatesProvider } from "@/components/storefront/ShippingRatesProvider";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +31,7 @@ export default async function RootLayout({
 
   // Queries independientes en paralelo; si la BD falla, la página
   // se renderiza con fallbacks en lugar de caerse entera.
-  const [navigationItems, topBanner, primaryLogos, headerConfig, metaPixel] = await Promise.all([
+  const [navigationItems, topBanner, primaryLogos, headerConfig, metaPixel, shippingRates] = await Promise.all([
     getActiveNavigationItems().catch((error: unknown) => {
       console.error("[layout] getActiveNavigationItems falló:", error);
       return [];
@@ -50,6 +52,10 @@ export default async function RootLayout({
       console.error("[layout] getMetaPixelPublicConfig falló:", error);
       return null;
     }),
+    getShippingRates().catch((error: unknown) => {
+      console.error("[layout] getShippingRates falló:", error);
+      return DEFAULT_SHIPPING_RATES;
+    }),
   ]);
 
   return (
@@ -61,6 +67,7 @@ export default async function RootLayout({
           Saltar al contenido principal
         </a>
         <Providers nonce={nonce}>
+          <ShippingRatesProvider rates={shippingRates}>
           {metaPixel && <MetaPixel pixelId={metaPixel.pixelId} />}
           <PublicSiteFrame
             items={navigationItems}
@@ -70,6 +77,7 @@ export default async function RootLayout({
           >
             {children}
           </PublicSiteFrame>
+          </ShippingRatesProvider>
         </Providers>
       </body>
 

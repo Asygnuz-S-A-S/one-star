@@ -1,7 +1,8 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import LegalDocument, { LegalList, LegalSection } from "@/components/legal/LegalDocument"
-import { LEGAL_COMPANY, LEGAL_LAST_UPDATED } from "@/lib/legal"
+import { LEGAL_LAST_UPDATED } from "@/lib/legal"
+import { getLegalCompany } from "@/server/services/store-settings.service"
 
 export const metadata: Metadata = {
   title: "Política de Privacidad | One Star",
@@ -9,24 +10,25 @@ export const metadata: Metadata = {
     "Política de tratamiento de datos personales de One Star conforme a la Ley 1581 de 2012 y el Decreto 1074 de 2015.",
 }
 
-const responsable = LEGAL_COMPANY.legalName ?? LEGAL_COMPANY.tradeName
-const canalContacto =
-  LEGAL_COMPANY.contactEmail ?? "los canales de atención publicados en este sitio"
+export default async function PrivacidadPage() {
+  const company = await getLegalCompany()
+  const responsable = company.legalName ?? company.tradeName
+  const canalContacto = company.contactEmail ?? "los canales de atención publicados en este sitio"
 
-export default function PrivacidadPage() {
   return (
     <LegalDocument
       title="Política de Privacidad"
-      intro={`Esta política describe cómo ${LEGAL_COMPANY.tradeName} recolecta, usa, almacena y protege tus datos personales, conforme a la Ley 1581 de 2012, el Decreto 1074 de 2015 y demás normas concordantes.`}
+      intro={`Esta política describe cómo ${company.tradeName} recolecta, usa, almacena y protege tus datos personales, conforme a la Ley 1581 de 2012, el Decreto 1074 de 2015 y demás normas concordantes.`}
       lastUpdated={LEGAL_LAST_UPDATED}
+      company={company}
     >
       <LegalSection id="responsable" heading="1. Responsable del tratamiento">
         <p>
           El responsable del tratamiento de tus datos personales es {responsable}
-          {LEGAL_COMPANY.taxId ? `, NIT ${LEGAL_COMPANY.taxId}` : ""}
-          {LEGAL_COMPANY.address ? `, con domicilio en ${LEGAL_COMPANY.address}` : ""}. Puedes
+          {company.taxId ? `, NIT ${company.taxId}` : ""}
+          {company.address ? `, con domicilio en ${company.address}` : ""}. Puedes
           comunicarte con nosotros en {canalContacto}
-          {LEGAL_COMPANY.contactPhone ? ` o al ${LEGAL_COMPANY.contactPhone}` : ""}.
+          {company.contactPhone ? ` o al ${company.contactPhone}` : ""}.
         </p>
       </LegalSection>
 

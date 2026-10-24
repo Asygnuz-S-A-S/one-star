@@ -34,6 +34,13 @@ const rawSettings = {
   metaTestEventCode: "TEST1",
   metaPixelEnabled: true,
   catalogSource: "ARCHIVO",
+  freeShippingThreshold: 200_000,
+  standardShippingCost: 15_000,
+  expressShippingCost: 25_000,
+  legalName: null,
+  taxId: null,
+  legalAddress: null,
+  contactPhone: null,
   updatedAt: new Date("2026-09-04T00:00:00Z"),
 }
 

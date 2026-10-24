@@ -1,4 +1,4 @@
-import { EXPRESS_SHIPPING_COST, STANDARD_SHIPPING_COST, STANDARD_SHIPPING_THRESHOLD } from "./shipping"
+import { DEFAULT_SHIPPING_RATES, type ShippingRates } from "./shipping"
 
 /**
  * Base de conocimiento de One Star para el chat de ventas de la web.
@@ -10,11 +10,12 @@ import { EXPRESS_SHIPPING_COST, STANDARD_SHIPPING_COST, STANDARD_SHIPPING_THRESH
 
 const cop = (value: number) => `$${value.toLocaleString("es-CO")}`
 
-export const STORE_KNOWLEDGE = `ENVÍOS
+export function buildStoreKnowledge(rates: ShippingRates = DEFAULT_SHIPPING_RATES): string {
+  return `ENVÍOS
 - Transportadora: Envía es el aliado logístico de One Star.
 - Cobertura: nacional en la mayoría de municipios de primera y segunda categoría. En municipios de tercera categoría en adelante, el costo y la cobertura pueden variar: el valor exacto se ve en el checkout con la dirección.
-- Envío estándar: ${cop(STANDARD_SHIPPING_COST)}. Es gratis en compras desde ${cop(STANDARD_SHIPPING_THRESHOLD)}.
-- Envío express: ${cop(EXPRESS_SHIPPING_COST)}.
+- Envío estándar: ${cop(rates.standardCost)}. Es gratis en compras desde ${cop(rates.freeThreshold)}.
+- Envío express: ${cop(rates.expressCost)}.
 - Tiempo de entrega estimado: 3 a 5 días hábiles, contados desde la confirmación del pago. El costo y el tiempo exactos se muestran en el checkout antes de pagar.
 - Las tarjetas de regalo son digitales y no tienen envío.
 
@@ -42,3 +43,7 @@ ATENCIÓN HUMANA
 
 TALLAS
 - Las tallas del catálogo están en sistema US. Cada producto tiene su guía de tallas en la ficha ("Guía de tallas"). No conviertas tallas de memoria.`
+}
+
+/** Base con las tarifas de respaldo. El chat en vivo usa `buildStoreKnowledge` con Configuración. */
+export const STORE_KNOWLEDGE = buildStoreKnowledge()

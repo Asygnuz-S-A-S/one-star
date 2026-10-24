@@ -13,6 +13,13 @@ export interface StoreSettingsPatch {
   metaTestEventCode?: string | null
   metaPixelEnabled?: boolean
   catalogSource?: string
+  freeShippingThreshold?: number
+  standardShippingCost?: number
+  expressShippingCost?: number
+  legalName?: string | null
+  taxId?: string | null
+  legalAddress?: string | null
+  contactPhone?: string | null
 }
 
 /** Devuelve el registro único; lo crea con los defaults del schema si no existe. */

@@ -12,6 +12,20 @@ const WHATSAPP_PATTERN = /^\+?\d{7,15}$/
 /** "" → null para campos opcionales que llegan vacíos desde un formulario. */
 const emptyToNull = (value: string) => (value.length === 0 ? null : value)
 
+const copAmount = z
+  .string()
+  .trim()
+  .regex(/^\d{1,8}$/, "Escribe el valor en pesos, sin puntos ni decimales")
+  .transform((value) => Number(value))
+  .pipe(z.number().int().min(0).max(50_000_000, "El valor no puede superar $50.000.000"))
+
+const optionalText = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max, `No puede superar ${max} caracteres`)
+    .transform(emptyToNull)
+
 export const StoreInfoInputSchema = z.object({
   storeName: z
     .string()
@@ -29,6 +43,23 @@ export const StoreInfoInputSchema = z.object({
       z.union([
         z.literal(""),
         z.string().regex(WHATSAPP_PATTERN, "Usa el formato internacional, ej. +573001234567"),
+      ]),
+    )
+    .transform(emptyToNull),
+  freeShippingThreshold: copAmount,
+  standardShippingCost: copAmount,
+  expressShippingCost: copAmount,
+  legalName: optionalText(160),
+  taxId: optionalText(40),
+  legalAddress: optionalText(200),
+  contactPhone: z
+    .string()
+    .trim()
+    .transform((value) => value.replace(/[\s()-]/g, ""))
+    .pipe(
+      z.union([
+        z.literal(""),
+        z.string().regex(WHATSAPP_PATTERN, "Usa el formato internacional, ej. +576066666666"),
       ]),
     )
     .transform(emptyToNull),

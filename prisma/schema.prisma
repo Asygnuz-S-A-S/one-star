@@ -586,6 +586,15 @@ model StoreSettings {
   metaTestEventCode String?
   metaPixelEnabled  Boolean  @default(false)
   catalogSource     String   @default("ARCHIVO")
+  /// Umbral de envío estándar gratis, en pesos.
+  freeShippingThreshold Int @default(200000)
+  standardShippingCost  Int @default(15000)
+  expressShippingCost   Int @default(25000)
+  /// Razón social. Vacío hasta que el admin la confirme.
+  legalName    String?
+  taxId        String?
+  legalAddress String?
+  contactPhone String?
   updatedAt         DateTime @updatedAt
 }
 

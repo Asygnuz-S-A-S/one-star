@@ -19,7 +19,8 @@ import type { Prisma, OrderStatus, PaymentStatus } from "@prisma/client"
 import { getERPAdapter } from "../erp"
 import { sendOrderConfirmationEmail } from "./email.service"
 import { issueAndSendGiftCardsForOrder } from "./gift-card.service"
-import { getShippingCost, type ShippingMethod } from "@/lib/shipping"
+import { DEFAULT_SHIPPING_RATES, getShippingCost, type ShippingMethod } from "@/lib/shipping"
+import { getShippingRates } from "./store-settings.service"
 import { isGiftCardSku } from "@/lib/gift-card"
 import {
   validateCouponForOrder,
@@ -208,7 +209,11 @@ export async function placeOrder(
   // El envío gratis se decide sobre el subtotal antes del descuento. Un pedido
   // solo de tarjetas de regalo es digital: se entrega por correo, sin envío.
   const digitalOnly = pricedItems.every((i) => isGiftCardSku(i.sku))
-  const shippingCost = getShippingCost(data.shippingMethod, subtotal, { digitalOnly })
+  const shippingRates = await getShippingRates().catch((error: unknown) => {
+    console.error("[order] no se pudieron leer las tarifas de envío:", error)
+    return DEFAULT_SHIPPING_RATES
+  })
+  const shippingCost = getShippingCost(data.shippingMethod, subtotal, { digitalOnly, rates: shippingRates })
 
   // 0.2 Cupón: se revalida en servidor y el descuento se recalcula desde la BD.
   let appliedCoupon: { id: string; code: string; discountAmount: number } | null = null

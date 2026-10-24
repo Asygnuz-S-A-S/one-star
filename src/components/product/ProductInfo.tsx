@@ -22,7 +22,7 @@ import ProductTrust from "./ProductTrust"
 import { splitHighlight } from "@/lib/product-faq"
 import StickyBuyBar from "./StickyBuyBar"
 import { RETURN_WINDOW_DAYS, type StorePromise } from "@/lib/store-promises"
-import { STANDARD_SHIPPING_THRESHOLD } from "@/lib/shipping"
+import { useShippingRates } from "@/components/storefront/ShippingRatesProvider"
 import { DELIVERY_BUSINESS_DAYS } from "@/lib/conversion-signals"
 import { getProductAvailability } from "@/lib/product-availability"
 
@@ -204,6 +204,7 @@ export default function ProductInfo({
   const storeStock = selectedVariant ? getVariantStoreStock(selectedVariant.inventory) : []
 
   // Mensajes de confianza y urgencia (HU-12), calculados con datos reales.
+  const shippingRates = useShippingRates()
   const conversionSignals = getConversionSignals({
     price: salePrice ?? basePrice,
     selectedVariantStock: selectedVariant ? selectedVariant.stock : null,
@@ -212,6 +213,7 @@ export default function ProductInfo({
       .filter((v) => v.color === selectedColor)
       .reduce((sum, v) => sum + Math.max(0, v.stock), 0),
     isDigital: product.category?.slug === GIFT_CARD_CATEGORY_SLUG,
+    freeThreshold: shippingRates.freeThreshold,
   })
 
   return (
@@ -597,7 +599,7 @@ export default function ProductInfo({
 
           <AccordionItem title="Envío y devoluciones">
             <p className="font-montserrat text-sm text-[#4A4A4A] dark:text-gray-300 leading-relaxed">
-              Envío gratis en compras desde {formatCOP(STANDARD_SHIPPING_THRESHOLD)}. Entregas en todo Colombia de{" "}
+              Envío gratis en compras desde {formatCOP(shippingRates.freeThreshold)}. Entregas en todo Colombia de{" "}
               {DELIVERY_BUSINESS_DAYS.min} a {DELIVERY_BUSINESS_DAYS.max} días hábiles. Devoluciones gratuitas dentro de los{" "}
               {RETURN_WINDOW_DAYS} días siguientes a la compra, siempre que el producto esté en su estado original y sin uso.
             </p>
