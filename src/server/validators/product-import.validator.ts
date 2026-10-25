@@ -225,6 +225,7 @@ export const productImportRowSchema = z
     videoUrl: optionalUrl,
     photosFolderUrl: optionalString,
     readyFlag: optionalString,
+    colorGroup: optionalString,
     isPublished: yesNo,
     availableOnline: yesNo,
     availableInStores: yesNo,

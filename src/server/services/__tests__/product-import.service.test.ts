@@ -7,8 +7,12 @@ const txMock = {
   product: {
     create: vi.fn(async (args: { data: Record<string, unknown> }) => ({ id: "new-product-id", ...args.data })),
     findUnique: vi.fn(async () => null),
+    findMany: vi.fn(async () => [] as { id: string; colorFamilyId: string | null }[]),
     update: vi.fn(async (args: { where: { id: string }; data: Record<string, unknown> }) => ({ id: args.where.id, ...args.data })),
     updateMany: vi.fn(async () => ({ count: 0 })),
+  },
+  productColorFamily: {
+    create: vi.fn(async () => ({ id: "new-family-id" })),
   },
   productImage: {
     findMany: vi.fn(async () => [] as { url: string }[]),
@@ -88,7 +92,7 @@ const COLUMNS = [
   "sku", "name", "brandName", "categoryName", "gender", "price", "isOnSale", "salePrice",
   "description", "extendedDescription", "size", "sizeUS", "sizeCM", "sizeEUR", "color", "stock",
   "image1", "image2", "image3", "image4", "image5", "image6", "image7", "image8",
-  "videoUrl", "photosFolderUrl", "readyFlag", "isPublished", "availableOnline", "availableInStores",
+  "videoUrl", "photosFolderUrl", "readyFlag", "colorGroup", "isPublished", "availableOnline", "availableInStores",
 ]
 
 function baseRow(overrides: Record<string, unknown> = {}): (string | number | Date)[] {
@@ -334,6 +338,30 @@ describe("previewProductImport", () => {
     expect(txMock.product.updateMany).toHaveBeenCalledWith({
       where: { id: { in: ["prod-not-ready"] } },
       data: { isPublished: false },
+    })
+  })
+
+  it("GRUPO COLOR: vincula productos con el mismo grupo de color a una ProductColorFamily", async () => {
+    let callCount = 0
+    txMock.product.create.mockImplementation(async (args) => {
+      callCount++
+      return { id: `prod-color-${callCount}`, ...args.data }
+    })
+    txMock.productColorFamily.create.mockResolvedValue({ id: "family-vans-lowpro" })
+
+    const rows = [
+      baseRow({ sku: "VN000D83BLA", name: "Vans Super Lowpro Negro", colorGroup: "VANS SUPER LOWPRO", readyFlag: "OK" }),
+      baseRow({ sku: "VN000D83CCZ", name: "Vans Super Lowpro Beige", colorGroup: "VANS SUPER LOWPRO", readyFlag: "OK" }),
+    ]
+    const buffer = buildBuffer(rows, COLUMNS, true)
+    const preview = await previewProductImport(buffer, { onlyReadyRows: true })
+    expect(preview.summary.newProducts).toBe(2)
+
+    await applyProductImport(buffer, preview.fingerprint, { onlyReadyRows: true })
+    expect(txMock.productColorFamily.create).toHaveBeenCalled()
+    expect(txMock.product.updateMany).toHaveBeenCalledWith({
+      where: { id: { in: expect.arrayContaining(["prod-color-1", "prod-color-2"]) } },
+      data: { colorFamilyId: "family-vans-lowpro" },
     })
   })
 

@@ -66,7 +66,7 @@ export const TEMPLATE_COLUMNS = [
   "sku", "name", "brandName", "categoryName", "gender", "price", "isOnSale", "salePrice",
   "description", "extendedDescription", "size", "sizeUS", "sizeCM", "sizeEUR", "color", "stock",
   "image1", "image2", "image3", "image4", "image5", "image6", "image7", "image8", "videoUrl",
-  "photosFolderUrl", "readyFlag", "isPublished", "availableOnline", "availableInStores",
+  "photosFolderUrl", "readyFlag", "colorGroup", "isPublished", "availableOnline", "availableInStores",
 ] as const
 
 /**
@@ -277,6 +277,14 @@ export const COLUMN_HEADER_ALIASES: Record<string, string> = {
   IMAGE7: "image7",
   "URL IMAGEN 8": "image8",
   IMAGE8: "image8",
+  // Grupo de color / Modelo
+  "GRUPO COLOR": "colorGroup",
+  "GRUPO DE COLOR": "colorGroup",
+  "COLOR GROUP": "colorGroup",
+  COLORGROUP: "colorGroup",
+  "MODELO BASE": "colorGroup",
+  "REFERENCIA COLOR": "colorGroup",
+  "FAMILIA COLOR": "colorGroup",
 }
 
 export function matchHeader(rawHeader: unknown): string | null {
@@ -325,6 +333,7 @@ export function matchHeader(rawHeader: unknown): string | null {
     videourl: "videoUrl",
     photosfolderurl: "photosFolderUrl",
     readyflag: "readyFlag",
+    colorgroup: "colorGroup",
     ispublished: "isPublished",
     availableonline: "availableOnline",
     availableinstores: "availableInStores",
@@ -397,6 +406,7 @@ interface PlannedGroup {
   brandName: string
   categoryName: string
   baseSku?: string
+  colorGroup?: string
   existingProductId: string | null
   variants: PlannedVariant[]
 }
@@ -900,10 +910,13 @@ async function planImport(
         brandName: row.brandName,
         categoryName: row.categoryName,
         baseSku: rowBaseSku || undefined,
+        colorGroup: row.colorGroup?.trim() || undefined,
         existingProductId: existingProduct ? existingProduct.id : null,
         variants: [],
       }
       groups.set(groupKey, group)
+    } else if (!group.colorGroup && row.colorGroup?.trim()) {
+      group.colorGroup = row.colorGroup.trim()
     }
 
     const plannedVariant: PlannedVariant = matchedVariant
@@ -1239,6 +1252,8 @@ export async function applyProductImport(
         })
       }
 
+      const colorGroupMap = new Map<string, string[]>()
+
       for (const group of groups) {
         let productId = group.existingProductId
 
@@ -1425,6 +1440,33 @@ export async function applyProductImport(
             newVariants++
           }
         }
+
+        if (group.colorGroup && productId) {
+          const key = normalizeKey(group.colorGroup)
+          if (!colorGroupMap.has(key)) colorGroupMap.set(key, [])
+          colorGroupMap.get(key)!.push(productId)
+        }
+      }
+
+      // Vincular familias de color para productos con el mismo GRUPO COLOR
+      for (const productIds of colorGroupMap.values()) {
+        const uniqueIds = [...new Set(productIds)]
+        if (uniqueIds.length < 2) continue
+
+        const existingProds = await tx.product.findMany({
+          where: { id: { in: uniqueIds } },
+          select: { id: true, colorFamilyId: true },
+        })
+        const existingFamilyId = existingProds.find((p) => p.colorFamilyId)?.colorFamilyId
+        let targetFamilyId = existingFamilyId
+        if (!targetFamilyId) {
+          const newFamily = await tx.productColorFamily.create({ data: {} })
+          targetFamilyId = newFamily.id
+        }
+        await tx.product.updateMany({
+          where: { id: { in: uniqueIds } },
+          data: { colorFamilyId: targetFamilyId },
+        })
       }
     },
     { timeout: 120_000, maxWait: 10_000 }
