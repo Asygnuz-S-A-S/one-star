@@ -193,6 +193,10 @@ const productImportSelect = {
   isPublished: true,
   availableOnline: true,
   availableInStores: true,
+  isFeatured: true,
+  isLaunch: true,
+  highlights: true,
+  faqs: true,
   variants: {
     select: {
       id: true,

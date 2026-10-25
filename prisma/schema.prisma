@@ -48,6 +48,9 @@ model Brand {
   logoUrl           String?
   bannerUrl         String?
   sizeGuideImageUrl String?
+  sizeGuideMenUrl   String?
+  sizeGuideWomenUrl String?
+  sizeGuideKidsUrl  String?
   sizeGuideNote     String?
   description       String?
   story             String?
@@ -87,6 +90,8 @@ model Product {
   availableOnline     Boolean             @default(true)
   availableInStores   Boolean             @default(true)
   isPublished         Boolean             @default(true)
+  isFeatured          Boolean             @default(false)
+  isLaunch            Boolean             @default(false)
   images              ProductImage[]
   variants            Variant[]
   cartItems           CartItem[]
@@ -487,9 +492,10 @@ model StoreLocation {
   googleMapsUrl  String?
   latitude       Float?
   longitude      Float?
-  isWebWarehouse Boolean @default(false)
+  isWebWarehouse Boolean  @default(false)
+  photos         String[] @default([])
   // Establecimiento del ERP cuyo inventario alimenta esta sede. Null = solo manual.
-  erpId          String? @unique
+  erpId          String?  @unique
 
   isActive  Boolean          @default(true)
   createdAt DateTime         @default(now())
