@@ -4,6 +4,7 @@ import type { ComponentProps, ReactNode } from "react"
 import { usePathname } from "next/navigation"
 
 import Header from "@/components/Header"
+import Footer from "@/components/Footer"
 import ChatWidget from "@/components/chat/ChatWidget"
 import { isAdminPathname } from "@/lib/public-site-route"
 
@@ -28,6 +29,7 @@ export default function PublicSiteFrame({ children, ...headerProps }: PublicSite
       <Header {...headerProps} />
       <div aria-hidden="true" className={spacerClass} data-testid="public-site-spacer" />
       <main className="flex-1">{children}</main>
+      <Footer />
       <ChatWidget />
     </>
   )
