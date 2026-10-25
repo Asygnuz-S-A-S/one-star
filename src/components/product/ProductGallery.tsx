@@ -102,7 +102,7 @@ export default function ProductGallery({ images, videoUrl }: ProductGalleryProps
 
       {/* Imagen principal: rotación 3D al mover el mouse + zoom lúdico al hover */}
       <div
-        className="relative flex-1 aspect-square bg-white bg-[radial-gradient(ellipse_at_center,_#ffffff_50%,_#f2f2f4_100%)] border border-gray-200/80 dark:border-white/10 dark:bg-white/5 overflow-hidden rounded-2xl cursor-crosshair group shadow-sm"
+        className="relative flex-1 aspect-square bg-white border border-gray-200/80 dark:border-white/10 dark:bg-white/5 overflow-hidden rounded-2xl cursor-crosshair group shadow-sm"
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
       >
@@ -119,7 +119,7 @@ export default function ProductGallery({ images, videoUrl }: ProductGalleryProps
           <>
             {/* Sin zoom al hover: la foto debe verse completa y centrada, igual que las
                 miniaturas (HU-6). La rotación de vistas al mover el mouse se mantiene. */}
-            <div className="absolute inset-0">
+            <div className="absolute inset-0 [mask-image:radial-gradient(ellipse_92%_88%_at_50%_50%,black_80%,transparent_100%)] [-webkit-mask-image:radial-gradient(ellipse_92%_88%_at_50%_50%,black_80%,transparent_100%)]">
               {allImages.map((url, idx) => (
                 <Image
                   key={`main-${idx}`}
