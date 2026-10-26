@@ -12,6 +12,7 @@ export interface StoreLocationInput {
   latitude?: number | null
   longitude?: number | null
   isActive: boolean
+  photos?: string[]
   /** Establecimiento del ERP vinculado; null desvincula la sede. */
   erpId?: string | null
 }

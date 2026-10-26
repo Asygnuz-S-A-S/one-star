@@ -53,4 +53,21 @@ describe("brandInputSchema", () => {
     const result = brandInputSchema.safeParse(data)
     expect(result.success).toBe(false)
   })
+
+  it("acepta URLs de guía de tallas específicas por género", () => {
+    const data = {
+      name: "Hoka",
+      sizeGuideMenUrl: "https://res.cloudinary.com/onestar/image/upload/v123/hoka-men.jpg",
+      sizeGuideWomenUrl: "https://res.cloudinary.com/onestar/image/upload/v123/hoka-women.jpg",
+      sizeGuideKidsUrl: "https://res.cloudinary.com/onestar/image/upload/v123/hoka-kids.jpg",
+    }
+
+    const result = brandInputSchema.safeParse(data)
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.sizeGuideMenUrl).toBe(data.sizeGuideMenUrl)
+      expect(result.data.sizeGuideWomenUrl).toBe(data.sizeGuideWomenUrl)
+      expect(result.data.sizeGuideKidsUrl).toBe(data.sizeGuideKidsUrl)
+    }
+  })
 })
