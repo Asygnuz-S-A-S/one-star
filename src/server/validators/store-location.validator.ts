@@ -25,8 +25,10 @@ export const storeLocationSchema = z.object({
   latitude: z.number().finite().min(-90).max(90).nullable().optional(),
   longitude: z.number().finite().min(-180).max(180).nullable().optional(),
   isActive: z.boolean(),
+  photos: z.array(z.string().trim().min(1)).optional().default([]),
   /** UUID del establecimiento en el ERP; vacío o null = sede sin vínculo. */
   erpId: optionalText(120),
 })
 
-export type StoreLocationInput = z.infer<typeof storeLocationSchema>
+export type StoreLocationInput = z.input<typeof storeLocationSchema>
+export type StoreLocationOutput = z.infer<typeof storeLocationSchema>
