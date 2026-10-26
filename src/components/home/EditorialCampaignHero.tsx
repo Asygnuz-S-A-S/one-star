@@ -76,7 +76,6 @@ function ProductStage({ slide }: { slide: CampaignHeroSlide }) {
   const frameKey = unique.map((frame) => frame.src).join("|")
   const [frameIndex, setFrameIndex] = useState(0)
   useEffect(() => {
-    setFrameIndex(0)
     if (unique.length < 2 || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return
     const timer = window.setInterval(() => setFrameIndex((current) => (current + 1) % unique.length), 1400)
     return () => window.clearInterval(timer)
