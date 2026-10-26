@@ -7,7 +7,12 @@ const txMock = {
   product: {
     create: vi.fn(async (args: { data: Record<string, unknown> }) => ({ id: "new-product-id", ...args.data })),
     findUnique: vi.fn(async () => null),
+    findMany: vi.fn(async () => [] as { id: string; colorFamilyId: string | null }[]),
     update: vi.fn(async (args: { where: { id: string }; data: Record<string, unknown> }) => ({ id: args.where.id, ...args.data })),
+    updateMany: vi.fn(async () => ({ count: 0 })),
+  },
+  productColorFamily: {
+    create: vi.fn(async () => ({ id: "new-family-id" })),
   },
   productImage: {
     findMany: vi.fn(async () => [] as { url: string }[]),
@@ -57,9 +62,9 @@ const {
   mockFindProductsByIdsForImport,
 } = vi.hoisted(() => ({
   mockIsErpCatalogOwner: vi.fn(async () => false),
-  mockFindVariantsBySkus: vi.fn(async () => []),
-  mockFindProductsByBaseSkus: vi.fn(async () => []),
-  mockFindProductsByIdsForImport: vi.fn(async () => []),
+  mockFindVariantsBySkus: vi.fn<(skus: string[]) => Promise<unknown[]>>(async () => []),
+  mockFindProductsByBaseSkus: vi.fn<(bases: string[]) => Promise<unknown[]>>(async () => []),
+  mockFindProductsByIdsForImport: vi.fn<(ids: string[]) => Promise<unknown[]>>(async () => []),
 }))
 
 vi.mock("@/server/services/catalog-source.service", () => ({
@@ -87,7 +92,7 @@ const COLUMNS = [
   "sku", "name", "brandName", "categoryName", "gender", "price", "isOnSale", "salePrice",
   "description", "extendedDescription", "size", "sizeUS", "sizeCM", "sizeEUR", "color", "stock",
   "image1", "image2", "image3", "image4", "image5", "image6", "image7", "image8",
-  "videoUrl", "photosFolderUrl", "readyFlag", "isPublished", "availableOnline", "availableInStores",
+  "videoUrl", "photosFolderUrl", "readyFlag", "colorGroup", "isPublished", "availableOnline", "availableInStores",
 ]
 
 function baseRow(overrides: Record<string, unknown> = {}): (string | number | Date)[] {
@@ -285,6 +290,79 @@ describe("previewProductImport", () => {
     expect(preview.rows[2].action).toBe("skip")
     expect(preview.summary.skipped).toBe(2)
     expect(preview.summary.newProducts).toBe(1)
+  })
+
+  it("PRODUCTO LISTO: desactiva productos existentes cuando no están marcados OK", async () => {
+    const existingNotReadyProd = {
+      id: "prod-not-ready",
+      slug: "nr123",
+      name: "Zapato No Listo",
+      erpId: null,
+      basePrice: 300000,
+      salePrice: null,
+      isOnSale: false,
+      description: null,
+      extendedDescription: null,
+      gender: null,
+      isPublished: true,
+      availableOnline: true,
+      availableInStores: true,
+      categoryId: "cat-calzado",
+      category: { id: "cat-calzado", name: "Calzado" },
+      brandId: "brand-nike",
+      brand: { id: "brand-nike", name: "Nike" },
+      images: [],
+      variants: [{ id: "v-nr", sku: "NR123_40", size: "40", stock: 5 }],
+    }
+    mockFindProductsByBaseSkus.mockImplementation(async (bases: string[]) => {
+      if (bases.includes("NR123")) return [existingNotReadyProd]
+      return []
+    })
+    mockFindProductsByIdsForImport.mockImplementation(async (ids: string[]) => {
+      if (ids.includes("prod-not-ready")) return [existingNotReadyProd]
+      return []
+    })
+
+    const rows = [
+      baseRow({ sku: "READY-1", readyFlag: "OK" }),
+      baseRow({ sku: "NR123", readyFlag: "" }),
+    ]
+    const buffer = buildBuffer(rows, COLUMNS, true)
+    const preview = await previewProductImport(buffer, { onlyReadyRows: true })
+    expect(preview.summary.newProducts).toBe(1)
+    expect(preview.summary.deactivatedProducts).toBe(1)
+    expect(preview.products.find((p) => p.productId === "prod-not-ready")?.isDeactivated).toBe(true)
+
+    const applyRes = await applyProductImport(buffer, preview.fingerprint, { onlyReadyRows: true })
+    expect(applyRes.deactivatedProducts).toBe(1)
+    expect(txMock.product.updateMany).toHaveBeenCalledWith({
+      where: { id: { in: ["prod-not-ready"] } },
+      data: { isPublished: false },
+    })
+  })
+
+  it("GRUPO COLOR: vincula productos con el mismo grupo de color a una ProductColorFamily", async () => {
+    let callCount = 0
+    txMock.product.create.mockImplementation(async (args) => {
+      callCount++
+      return { id: `prod-color-${callCount}`, ...args.data }
+    })
+    txMock.productColorFamily.create.mockResolvedValue({ id: "family-vans-lowpro" })
+
+    const rows = [
+      baseRow({ sku: "VN000D83BLA", name: "Vans Super Lowpro Negro", colorGroup: "VANS SUPER LOWPRO", readyFlag: "OK" }),
+      baseRow({ sku: "VN000D83CCZ", name: "Vans Super Lowpro Beige", colorGroup: "VANS SUPER LOWPRO", readyFlag: "OK" }),
+    ]
+    const buffer = buildBuffer(rows, COLUMNS, true)
+    const preview = await previewProductImport(buffer, { onlyReadyRows: true })
+    expect(preview.summary.newProducts).toBe(2)
+
+    await applyProductImport(buffer, preview.fingerprint, { onlyReadyRows: true })
+    expect(txMock.productColorFamily.create).toHaveBeenCalled()
+    expect(txMock.product.updateMany).toHaveBeenCalledWith({
+      where: { id: { in: expect.arrayContaining(["prod-color-1", "prod-color-2"]) } },
+      data: { colorFamilyId: "family-vans-lowpro" },
+    })
   })
 
   it("producto sin imágenes genera advertencia 'sin fotos'", async () => {
@@ -729,6 +807,32 @@ describe("applyProductImport", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           brand: { connect: { id: "brand-on" } },
+        }),
+      })
+    )
+  })
+
+  it("guarda isFeatured, isLaunch, highlights y faqs al crear producto", async () => {
+    const customHeaders = [...COLUMNS, "DESTACADO", "LANZAMIENTO", "BENEFICIOS", "FAQS"]
+    const row = [
+      ...baseRow(),
+      "SI",
+      "SI",
+      "Amortiguación reactiva; Material transpirable",
+      "¿Es original? | Sí, 100% original garantizado",
+    ]
+    const buffer = buildBuffer([row], customHeaders, false)
+    const preview = await previewProductImport(buffer)
+    expect(preview.rows[0].action).toBe("create_product")
+
+    await applyProductImport(buffer, preview.fingerprint)
+    expect(txMock.product.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          isFeatured: true,
+          isLaunch: true,
+          highlights: ["Amortiguación reactiva", "Material transpirable"],
+          faqs: [{ q: "¿Es original?", a: "Sí, 100% original garantizado" }],
         }),
       })
     )

@@ -121,7 +121,7 @@ export default function ImportarProductosPage() {
               onChange={(e) => setOnlyReadyRows(e.target.checked)}
               className="rounded border-gray-300 text-gray-900 focus:ring-gray-900"
             />
-            Importar solo filas marcadas como listas (&quot;PRODUCTO LISTO = OK&quot; si la columna existe)
+            Importar solo filas marcadas como listas (&quot;PRODUCTO LISTO = OK&quot; si la columna existe; los no listos se desactivan)
           </label>
 
           <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50/70 p-3">
@@ -187,6 +187,11 @@ export default function ImportarProductosPage() {
                 {preview.summary.skipped} fila(s) omitida(s)
               </span>
             )}
+            {(preview.summary.deactivatedProducts ?? 0) > 0 && (
+              <span className="rounded-full bg-red-100 px-3 py-1 text-red-800 font-medium">
+                {preview.summary.deactivatedProducts} producto(s) a desactivar
+              </span>
+            )}
             <span className="rounded-full bg-red-100 px-3 py-1 text-red-800">
               {preview.summary.errors} error(es)
             </span>
@@ -218,12 +223,14 @@ export default function ImportarProductosPage() {
                         <td className="px-3 py-2">
                           <span
                             className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                              p.isExisting
-                                ? "bg-amber-50 text-amber-800 border border-amber-200"
-                                : "bg-green-50 text-green-800 border border-green-200"
+                              p.isDeactivated
+                                ? "bg-red-50 text-red-800 border border-red-200"
+                                : p.isExisting
+                                  ? "bg-amber-50 text-amber-800 border border-amber-200"
+                                  : "bg-green-50 text-green-800 border border-green-200"
                             }`}
                           >
-                            {p.isExisting ? "Existente" : "Nuevo"}
+                            {p.isDeactivated ? "Se desactiva" : p.isExisting ? "Existente" : "Nuevo"}
                           </span>
                         </td>
                         <td className="px-3 py-2">
@@ -249,13 +256,19 @@ export default function ImportarProductosPage() {
                           )}
                         </td>
                         <td className="px-3 py-2 text-gray-600">
-                          {p.addedSizesCount > 0 && (
-                            <span className="text-blue-700 font-medium mr-2">+{p.addedSizesCount} nueva(s)</span>
+                          {p.isDeactivated ? (
+                            <span className="text-red-700 font-medium">No listo en archivo</span>
+                          ) : (
+                            <>
+                              {p.addedSizesCount > 0 && (
+                                <span className="text-blue-700 font-medium mr-2">+{p.addedSizesCount} nueva(s)</span>
+                              )}
+                              {p.updatedVariantsCount > 0 && (
+                                <span className="text-amber-700 font-medium">{p.updatedVariantsCount} actualiz.</span>
+                              )}
+                              {p.addedSizesCount === 0 && p.updatedVariantsCount === 0 && "Sin cambios"}
+                            </>
                           )}
-                          {p.updatedVariantsCount > 0 && (
-                            <span className="text-amber-700 font-medium">{p.updatedVariantsCount} actualiz.</span>
-                          )}
-                          {p.addedSizesCount === 0 && p.updatedVariantsCount === 0 && "Sin cambios"}
                         </td>
                       </tr>
                     ))}

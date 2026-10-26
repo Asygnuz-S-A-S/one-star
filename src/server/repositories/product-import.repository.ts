@@ -1,5 +1,6 @@
 import "server-only"
 
+import { faqsFromText, highlightsFromText } from "@/lib/product-faq"
 import { slugify } from "@/lib/utils"
 import type { Gender, Prisma } from "@prisma/client"
 import { prisma } from "@/server/db/prisma"
@@ -13,6 +14,7 @@ export interface ProductImportPersistenceResult {
   newProducts: number
   newVariants: number
   updatedVariants: number
+  deactivatedProducts?: number
 }
 
 async function resolveCategoryId(
@@ -85,7 +87,8 @@ export async function persistProductImport(
   existingProductsMap: Map<string, ProductForImport>,
   categories: { id: string; name: string }[],
   brands: { id: string; name: string }[],
-  isOverwrite: boolean
+  isOverwrite: boolean,
+  productsToDeactivateIds: string[] = [],
 ): Promise<ProductImportPersistenceResult> {
   const categoryCache = new Map<string, string>()
   const brandCache = new Map<string, string>()
@@ -96,6 +99,15 @@ export async function persistProductImport(
 
   await prisma.$transaction(
     async (tx) => {
+      if (productsToDeactivateIds.length > 0) {
+        await tx.product.updateMany({
+          where: { id: { in: productsToDeactivateIds } },
+          data: { isPublished: false },
+        })
+      }
+
+      const colorGroupMap = new Map<string, string[]>()
+
       for (const group of groups) {
         let productId = group.existingProductId
 
@@ -129,6 +141,8 @@ export async function persistProductImport(
 
           // Si el producto no tiene fotos, se crea como no publicado (isPublished = false)
           const isPublished = images.length === 0 ? false : (first.isPublished ?? true)
+          const parsedHighlights = first.highlights ? highlightsFromText(first.highlights.replace(/;/g, "\n")) : []
+          const parsedFaqs = first.faqs ? faqsFromText(first.faqs) : []
 
           const created = await tx.product.create({
             data: {
@@ -147,6 +161,10 @@ export async function persistProductImport(
               isPublished,
               availableOnline: first.availableOnline ?? true,
               availableInStores: first.availableInStores ?? true,
+              isFeatured: first.isFeatured ?? false,
+              isLaunch: first.isLaunch ?? false,
+              highlights: parsedHighlights,
+              ...(parsedFaqs.length > 0 ? { faqs: parsedFaqs as unknown as Prisma.InputJsonValue } : {}),
               images: { create: images },
             },
           })
@@ -177,6 +195,14 @@ export async function persistProductImport(
               availableOnline: first.availableOnline ?? true,
               availableInStores: first.availableInStores ?? true,
               isPublished: first.isPublished ?? true,
+              ...(first.isFeatured !== undefined ? { isFeatured: first.isFeatured } : {}),
+              ...(first.isLaunch !== undefined ? { isLaunch: first.isLaunch } : {}),
+              ...(first.highlights !== undefined && first.highlights !== ""
+                ? { highlights: highlightsFromText(first.highlights.replace(/;/g, "\n")) }
+                : {}),
+              ...(first.faqs !== undefined && first.faqs !== ""
+                ? { faqs: faqsFromText(first.faqs) as unknown as Prisma.InputJsonValue }
+                : {}),
               // Campos de texto: según textUpdateMode ("fill_empty" vs "overwrite")
               ...(isOverwrite || !existingProduct?.name ? { name: group.name } : {}),
               ...(isOverwrite || !existingProduct?.description
@@ -282,10 +308,42 @@ export async function persistProductImport(
             newVariants++
           }
         }
+
+        if (group.colorGroup && productId) {
+          const key = normalizeKey(group.colorGroup)
+          const current = colorGroupMap.get(key) ?? []
+          current.push(productId)
+          colorGroupMap.set(key, current)
+        }
+      }
+
+      for (const productIds of colorGroupMap.values()) {
+        const uniqueIds = [...new Set(productIds)]
+        if (uniqueIds.length < 2) continue
+
+        const existingProds = await tx.product.findMany({
+          where: { id: { in: uniqueIds } },
+          select: { id: true, colorFamilyId: true },
+        })
+        const existingFamilyId = existingProds.find((product) => product.colorFamilyId)?.colorFamilyId
+        let targetFamilyId = existingFamilyId
+        if (!targetFamilyId) {
+          const newFamily = await tx.productColorFamily.create({ data: {} })
+          targetFamilyId = newFamily.id
+        }
+        await tx.product.updateMany({
+          where: { id: { in: uniqueIds } },
+          data: { colorFamilyId: targetFamilyId },
+        })
       }
     },
     { timeout: 120_000, maxWait: 10_000 }
   )
 
-  return { newProducts, newVariants, updatedVariants }
+  return {
+    newProducts,
+    newVariants,
+    updatedVariants,
+    ...(productsToDeactivateIds.length > 0 ? { deactivatedProducts: productsToDeactivateIds.length } : {}),
+  }
 }

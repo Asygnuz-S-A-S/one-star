@@ -6,13 +6,14 @@ import ProductGallery from "./ProductGallery"
 import ProductInfo from "./ProductInfo"
 import { filterImagesByColor } from "@/lib/product-image"
 import type { StorePromise } from "@/lib/store-promises"
+import type { BrandSizeGuide } from "./SizeGuideModal"
 
 interface ProductDetailProps {
   product: ProductWithRelations
   reviewStats?: { avg: number; count: number; distribution: number[] }
   promises?: StorePromise[]
   whatsappUrl?: string | null
-  brand?: { name?: string | null; sizeGuideImageUrl?: string | null; sizeGuideNote?: string | null } | null
+  brand?: BrandSizeGuide | null
   /**
    * Color con el que abrir la ficha, tomado de `?color=` en la URL. Permite
    * que una miniatura del catálogo lleve directo a ese color. Si no coincide

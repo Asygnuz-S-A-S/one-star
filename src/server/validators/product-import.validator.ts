@@ -225,9 +225,14 @@ export const productImportRowSchema = z
     videoUrl: optionalUrl,
     photosFolderUrl: optionalString,
     readyFlag: optionalString,
+    colorGroup: optionalString,
     isPublished: yesNo,
     availableOnline: yesNo,
     availableInStores: yesNo,
+    isFeatured: yesNo,
+    isLaunch: yesNo,
+    highlights: optionalString,
+    faqs: optionalString,
   })
   .refine((data) => !data.isOnSale || data.salePrice !== undefined, {
     message: "Precio de oferta requerido cuando ¿En oferta? = SI",

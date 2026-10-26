@@ -6,7 +6,7 @@ import { getColorSwatchStyle } from "@/lib/colors"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence, MotionConfig, type Transition, type Variants } from "motion/react"
 import type { ProductWithRelations, Variant } from "@/types/shop"
-import SizeGuideModal from "./SizeGuideModal"
+import SizeGuideModal, { type BrandSizeGuide } from "./SizeGuideModal"
 import { formatCOP } from "@/lib/shop-utils"
 import { filterImagesByColor, getPrimaryImageUrl } from "@/lib/product-image"
 import { useCart } from "@/store"
@@ -31,7 +31,7 @@ interface ProductInfoProps {
   /** Garantías reales de la tienda (envío, entrega, cambios, pago) que se muestran junto al botón. */
   promises?: StorePromise[]
   whatsappUrl?: string | null
-  brand?: { name?: string | null; sizeGuideImageUrl?: string | null; sizeGuideNote?: string | null } | null
+  brand?: BrandSizeGuide | null
   /** Color controlado desde el padre para sincronizar la galería. */
   selectedColor?: string
   onColorChange?: (color: string) => void
@@ -626,6 +626,7 @@ export default function ProductInfo({
         isOpen={sizeModalOpen}
         onClose={() => setSizeModalOpen(false)}
         brand={brand ?? (product.brand ? { name: product.brand } : null)}
+        initialGender={product.gender}
       />
     </MotionConfig>
   )
