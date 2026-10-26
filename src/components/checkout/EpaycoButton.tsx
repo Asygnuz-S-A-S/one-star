@@ -15,6 +15,7 @@ export interface EpaycoCheckoutData {
   address: string
   city: string
   department: string
+  cedula?: string
 }
 
 /** Handler que devuelve `ePayco.checkout.configure`. */
@@ -44,6 +45,7 @@ export default function EpaycoButton({
   address,
   city,
   department,
+  cedula,
 }: EpaycoCheckoutData) {
   const nonce = useCspNonce()
   const [isReady, setIsReady] = useState(false)
@@ -97,6 +99,9 @@ export default function EpaycoButton({
         name_billing: `${customerName} ${customerLastName}`.trim(),
         address_billing: address,
         mobilephone_billing: phone,
+        number_doc_billing: cedula ?? "",
+        doc_number: cedula ?? "",
+        type_doc_billing: "CC",
         city_billing: city,
         state_billing: department,
         country_billing: "CO",
@@ -107,7 +112,7 @@ export default function EpaycoButton({
     }
   }, [
     publicKey, isTest, reference, orderId, amount, baseUrl,
-    customerEmail, customerName, customerLastName, address, phone, city, department,
+    customerEmail, customerName, customerLastName, address, phone, city, department, cedula,
   ])
 
   return (

@@ -3,6 +3,7 @@
 import "server-only"
 import { headers } from "next/headers"
 import { auth } from "@/lib/auth"
+import { prisma } from "@/server/db/prisma"
 import { placeOrder } from "@/server/services/order.service"
 import { markCartsRecoveredForEmail } from "@/server/services/abandoned-cart.service"
 import { checkoutSchema } from "@/server/validators/checkout.validator"
@@ -20,6 +21,7 @@ interface CheckoutItem {
 
 export interface CheckoutData {
   email: string
+  cedula: string
   name: string
   lastName: string
   phone: string
@@ -80,6 +82,7 @@ export async function createOrder(data: CheckoutData): Promise<CreateOrderResult
       shippingMethod: input.shippingMethod,
       couponCode: input.couponCode,
       shippingAddress: {
+        cedula: input.cedula,
         phone: input.phone,
         address: input.address,
         apartment: input.apartment ?? null,
@@ -96,6 +99,18 @@ export async function createOrder(data: CheckoutData): Promise<CreateOrderResult
       })),
     })
 
+    // Actualiza cédula en el perfil del usuario si no la tenía registrada
+    if (session.user.id && input.cedula) {
+      prisma.user
+        .updateMany({
+          where: { id: session.user.id, cedula: null },
+          data: { cedula: input.cedula },
+        })
+        .catch((error: unknown) => {
+          console.error("[createOrder] No se pudo guardar la cédula en el perfil:", error)
+        })
+    }
+
     // El pedido se creó: los carritos abandonados de este email quedan cerrados.
     // Fire-and-forget: un fallo aquí no debe afectar la compra.
     markCartsRecoveredForEmail(input.email).catch((err) => {
@@ -109,6 +124,7 @@ export async function createOrder(data: CheckoutData): Promise<CreateOrderResult
       customerEmail: input.email,
       customerName: input.name,
       customerLastName: input.lastName,
+      cedula: input.cedula,
       phone: input.phone,
       address: input.address,
       city: input.city,

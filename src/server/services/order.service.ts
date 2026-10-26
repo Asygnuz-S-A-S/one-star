@@ -570,6 +570,7 @@ export async function updateOrderCustomerData(
 
   const shippingAddress = {
     ...current,
+    ...(input.cedula !== undefined ? { cedula: input.cedula } : {}),
     phone: input.phone,
     address: input.address,
     apartment: input.apartment ?? null,

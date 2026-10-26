@@ -60,6 +60,11 @@ describe("sendChatMessage", () => {
     const result = await sendChatMessage([], "hola")
     expect(result.reply).toBe("¡Hola! ¿En qué te ayudo?")
     expect(result.actions).toEqual([])
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: "claude-3-5-haiku-latest",
+      })
+    )
   })
 
   it("ejecuta buscar_productos con datos reales y responde con el resultado final", async () => {

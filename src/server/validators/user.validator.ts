@@ -6,7 +6,10 @@ export const createUserSchema = z.object({
   name: z.string().min(2),
   lastName: z.string().min(2),
   phone: z.string().min(7),
-  cedula: z.string().min(5),
+  cedula: z
+    .string()
+    .trim()
+    .regex(/^[0-9]{6,12}$/, "La cédula debe tener entre 6 y 12 dígitos numéricos"),
   birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Formato de fecha inválido (YYYY-MM-DD)").optional(),
   preferredBrand: z.string().optional(),
   gender: z.string().optional(),

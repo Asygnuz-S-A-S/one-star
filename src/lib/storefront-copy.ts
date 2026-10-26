@@ -37,6 +37,7 @@ export const DEFAULT_FOOTER_LINKS: FooterLink[] = [
   { label: "Términos", href: "/terminos" },
   { label: "Privacidad", href: "/privacidad" },
   { label: "Cambios", href: "/cambios" },
+  { label: "Envíos y devoluciones", href: "/envios-y-devoluciones" },
 ]
 
 /** Una línea "título | detalle". Las líneas vacías se ignoran. */

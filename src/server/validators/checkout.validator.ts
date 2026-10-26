@@ -22,6 +22,10 @@ export const checkoutSchema = z.object({
     .string()
     .transform((v) => v.replace(/\s/g, ""))
     .pipe(z.string().regex(/^[0-9]{7,15}$/, "Ingresa un teléfono válido (solo números)")),
+  cedula: z
+    .string()
+    .transform((v) => v.replace(/\s/g, ""))
+    .pipe(z.string().regex(/^[0-9]{6,12}$/, "Ingresa un documento o cédula válido (6 a 12 dígitos)")),
   address: z.string().trim().min(1, "La dirección es requerida").max(300),
   apartment: z.string().trim().max(120).optional(),
   city: z.string().trim().min(1, "La ciudad es requerida").max(120),
