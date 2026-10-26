@@ -22,6 +22,7 @@ const STATIC_ROUTES: StaticRoute[] = [
   { path: "/sale", changeFrequency: "daily", priority: 0.8 },
   { path: "/tarjeta-regalo", changeFrequency: "monthly", priority: 0.5 },
   { path: "/tiendas", changeFrequency: "monthly", priority: 0.5 },
+  { path: "/envios-y-devoluciones", changeFrequency: "monthly", priority: 0.4 },
   { path: "/terminos", changeFrequency: "yearly", priority: 0.3 },
   { path: "/privacidad", changeFrequency: "yearly", priority: 0.3 },
 ]
