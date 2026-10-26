@@ -192,6 +192,7 @@ function RegistroForm() {
 
     if (!editedPrefillFields.current.has("name")) setName(prefill.name)
     if (!editedPrefillFields.current.has("lastName")) setLastName(prefill.lastName)
+    if (prefill.cedula && !editedPrefillFields.current.has("cedula")) setCedula(prefill.cedula)
     if (!editedPrefillFields.current.has("phone")) setPhone(prefill.phone)
     if (!editedPrefillFields.current.has("email")) setEmail(prefill.email)
     if (!editedPrefillFields.current.has("newsletter")) setNewsletter(prefill.newsletter)
@@ -229,8 +230,8 @@ function RegistroForm() {
 
     if (!name.trim()) newErrors.name = "El nombre es requerido."
     if (!lastName.trim()) newErrors.lastName = "El apellido es requerido."
-    if (!cedula.trim() || !/^\d+$/.test(cedula))
-      newErrors.cedula = "Ingresa un número de cédula válido."
+    if (!cedula.trim() || !/^\d{6,12}$/.test(cedula.trim()))
+      newErrors.cedula = "Ingresa un número de cédula válido (6 a 12 dígitos)."
     if (!phone.trim() || !/^\d{10}$/.test(phone))
       newErrors.phone = "El teléfono debe tener 10 dígitos."
     if (!birthDate) newErrors.birthDate = "La fecha de nacimiento es requerida."
