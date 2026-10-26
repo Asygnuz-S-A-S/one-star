@@ -48,6 +48,7 @@ type FormErrors = Partial<Record<keyof FormValues, string>>
 
 const INITIAL_FORM_VALUES: FormValues = {
   email: "",
+  cedula: "",
   newsletter: false,
   name: "",
   lastName: "",
@@ -71,12 +72,18 @@ function validatePhone(phone: string): boolean {
   return /^[0-9]{7,15}$/.test(phone.replace(/\s/g, ""))
 }
 
+function validateCedula(cedula: string): boolean {
+  return /^[0-9]{6,12}$/.test(cedula.replace(/\s/g, ""))
+}
+
 function validateForm(values: FormValues): FormErrors {
   const errors: FormErrors = {}
   if (!values.email.trim()) errors.email = "El email es requerido"
   else if (!validateEmail(values.email)) errors.email = "Ingresa un email válido"
   if (!values.name.trim()) errors.name = "El nombre es requerido"
   if (!values.lastName.trim()) errors.lastName = "El apellido es requerido"
+  if (!values.cedula.trim()) errors.cedula = "La cédula o NIT es requerida para facturación"
+  else if (!validateCedula(values.cedula)) errors.cedula = "Ingresa un documento válido (6 a 12 dígitos)"
   if (!values.phone.trim()) errors.phone = "El teléfono es requerido"
   else if (!validatePhone(values.phone)) errors.phone = "Ingresa un teléfono válido (solo números)"
   if (!values.address.trim()) errors.address = "La dirección es requerida"
@@ -304,6 +311,7 @@ function CheckoutForm({
 
     const result = await createOrder({
       email: values.email,
+      cedula: values.cedula,
       name: values.name,
       lastName: values.lastName,
       phone: values.phone,
@@ -450,7 +458,20 @@ function CheckoutForm({
                         placeholder="Pérez" className={errors.lastName ? inputErrorClass : inputClass} autoComplete="family-name" />
                     </Field>
                   </div>
-                  <div data-field="phone" className="sm:col-span-2">
+                  <div data-field="cedula">
+                    <Field label="Cédula / NIT (Facturación)" required error={errors.cedula}>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={values.cedula}
+                        onChange={(e) => set("cedula", e.target.value.replace(/\D/g, ""))}
+                        placeholder="123456789"
+                        className={errors.cedula ? inputErrorClass : inputClass}
+                        autoComplete="off"
+                      />
+                    </Field>
+                  </div>
+                  <div data-field="phone">
                     <Field label="Teléfono" required error={errors.phone}>
                       <input type="tel" value={values.phone} onChange={(e) => set("phone", e.target.value)}
                         placeholder="3001234567" className={errors.phone ? inputErrorClass : inputClass} autoComplete="tel" />

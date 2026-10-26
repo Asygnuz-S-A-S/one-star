@@ -17,6 +17,7 @@ import { markCartsRecoveredForEmail } from "@/server/services/abandoned-cart.ser
 
 const validCheckoutData: CheckoutData = {
   email: "cliente@example.com",
+  cedula: "1020304050",
   name: "Ana",
   lastName: "Pérez",
   phone: "3001234567",

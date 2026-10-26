@@ -17,6 +17,7 @@ interface Props {
 }
 
 interface ShippingInfo {
+  cedula: string
   phone: string
   address: string
   apartment: string
@@ -34,6 +35,7 @@ function readShipping(raw: unknown): ShippingInfo {
   const text = (key: string) => (typeof source[key] === "string" ? (source[key] as string) : "")
   const num = (key: string) => (typeof source[key] === "number" ? (source[key] as number) : null)
   return {
+    cedula: text("cedula"),
     phone: text("phone"),
     address: text("address"),
     apartment: text("apartment"),
@@ -159,6 +161,7 @@ export default async function PedidoDetailPage({ params }: Props) {
             <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
               <Row label="Nombre" value={order.customerName ?? order.userEmail} />
               <Row label="Email" value={order.customerEmail ?? order.userEmail} />
+              <Row label="Cédula / NIT" value={shipping.cedula || "No registrada"} />
               <Row label="Teléfono" value={shipping.phone} />
               <Row label="Cuenta" value={order.userEmail} />
               <Row
@@ -181,6 +184,7 @@ export default async function PedidoDetailPage({ params }: Props) {
               initial={{
                 customerName: order.customerName ?? "",
                 customerEmail: order.customerEmail ?? order.userEmail ?? "",
+                cedula: shipping.cedula,
                 phone: shipping.phone,
                 address: shipping.address,
                 apartment: shipping.apartment,
