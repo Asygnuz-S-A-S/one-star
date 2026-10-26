@@ -1,25 +1,10 @@
 "use server"
 
+import { isIP } from "node:net"
 import { headers } from "next/headers"
 import { z } from "zod"
 import { sendChatMessage, type ChatMessage, type CartAction } from "@/server/services/ai-chat.service"
-
-/** Rate limiting en memoria por IP (se reinicia al reiniciar el proceso). */
-const attempts = new Map<string, { count: number; resetAt: number }>()
-const WINDOW_MS = 60_000
-const MAX_MESSAGES = 20
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now()
-  const record = attempts.get(ip)
-  if (record && now < record.resetAt) {
-    if (record.count >= MAX_MESSAGES) return true
-    record.count++
-    return false
-  }
-  attempts.set(ip, { count: 1, resetAt: now + WINDOW_MS })
-  return false
-}
+import { isChatRateLimited } from "@/server/services/chat-rate-limit"
 
 const inputSchema = z.object({
   message: z.string().trim().min(1).max(1000),
@@ -49,9 +34,15 @@ export async function sendChatMessageAction(
   }
 
   const headerList = await headers()
-  const ip = headerList.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown"
-  if (isRateLimited(ip)) {
-    return { reply: "", actions: [], error: "Muchos mensajes seguidos. Espera un minuto." }
+  const trustedIp = headerList.get("x-real-ip")?.trim() ?? ""
+  const ip = isIP(trustedIp) ? trustedIp : "unknown"
+  if (isChatRateLimited(ip)) {
+    return {
+      reply: "",
+      actions: [],
+      error:
+        "Has alcanzado el límite de 20 mensajes. Para continuar tu compra o recibir atención personalizada, escríbenos a nuestro WhatsApp oficial.",
+    }
   }
 
   const result = await sendChatMessage(parsed.data.history, parsed.data.message)
