@@ -72,6 +72,27 @@ export default async function TiendasPage() {
                           <h3 className="text-xl font-[var(--font-barlow)] font-bold text-[#1C1C1C] mb-3">
                             {store.name}
                           </h3>
+
+                          {store.photos && store.photos.length > 0 && (
+                            <div className={`grid gap-2 mb-4 ${
+                              store.photos.length === 1 ? "grid-cols-1" : store.photos.length === 2 ? "grid-cols-2" : "grid-cols-3"
+                            }`}>
+                              {store.photos.slice(0, 3).map((photoUrl, idx) => (
+                                <div
+                                  key={idx}
+                                  className="relative aspect-[4/3] rounded-xl overflow-hidden bg-gray-100 border border-[#E0E0E0] shadow-xs group"
+                                >
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img
+                                    src={photoUrl}
+                                    alt={`${store.name} - Foto ${idx + 1}`}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                    loading="lazy"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          )}
                           
                           <div className="space-y-2 text-sm text-gray-600 font-[var(--font-montserrat)] mb-6">
                             <p className="flex items-start gap-2">

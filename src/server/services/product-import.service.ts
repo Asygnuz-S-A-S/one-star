@@ -17,6 +17,7 @@ import {
   type ProductForImport,
 } from "@/server/repositories/product.repository"
 import { isErpCatalogOwner } from "@/server/services/catalog-source.service"
+import { faqsFromText, highlightsFromText } from "@/lib/product-faq"
 import {
   isSkippedBrand,
   normalizeKey,
@@ -67,6 +68,7 @@ export const TEMPLATE_COLUMNS = [
   "description", "extendedDescription", "size", "sizeUS", "sizeCM", "sizeEUR", "color", "stock",
   "image1", "image2", "image3", "image4", "image5", "image6", "image7", "image8", "videoUrl",
   "photosFolderUrl", "readyFlag", "colorGroup", "isPublished", "availableOnline", "availableInStores",
+  "isFeatured", "isLaunch", "highlights", "faqs",
 ] as const
 
 /**
@@ -285,6 +287,27 @@ export const COLUMN_HEADER_ALIASES: Record<string, string> = {
   "MODELO BASE": "colorGroup",
   "REFERENCIA COLOR": "colorGroup",
   "FAMILIA COLOR": "colorGroup",
+  // Lanzamiento
+  LANZAMIENTO: "isLaunch",
+  "¿LANZAMIENTO?": "isLaunch",
+  "ES LANZAMIENTO": "isLaunch",
+  ISLAUNCH: "isLaunch",
+  LAUNCH: "isLaunch",
+  // Destacado
+  DESTACADO: "isFeatured",
+  "¿DESTACADO?": "isFeatured",
+  "ES DESTACADO": "isFeatured",
+  ISFEATURED: "isFeatured",
+  FEATURED: "isFeatured",
+  // Beneficios
+  BENEFICIOS: "highlights",
+  "POR QUE COMPRARLO": "highlights",
+  "¿POR QUÉ COMPRARLO?": "highlights",
+  HIGHLIGHTS: "highlights",
+  // FAQs
+  FAQS: "faqs",
+  FAQ: "faqs",
+  "PREGUNTAS FRECUENTES": "faqs",
 }
 
 export function matchHeader(rawHeader: unknown): string | null {
@@ -337,6 +360,10 @@ export function matchHeader(rawHeader: unknown): string | null {
     ispublished: "isPublished",
     availableonline: "availableOnline",
     availableinstores: "availableInStores",
+    isfeatured: "isFeatured",
+    islaunch: "isLaunch",
+    highlights: "highlights",
+    faqs: "faqs",
   }
   if (Object.prototype.hasOwnProperty.call(directMap, lowerKey)) {
     return directMap[lowerKey]
@@ -1287,6 +1314,8 @@ export async function applyProductImport(
 
           // Si el producto no tiene fotos, se crea como no publicado (isPublished = false)
           const isPublished = images.length === 0 ? false : (first.isPublished ?? true)
+          const parsedHighlights = first.highlights ? highlightsFromText(first.highlights.replace(/;/g, "\n")) : []
+          const parsedFaqs = first.faqs ? faqsFromText(first.faqs) : []
 
           const created = await tx.product.create({
             data: {
@@ -1305,6 +1334,10 @@ export async function applyProductImport(
               isPublished,
               availableOnline: first.availableOnline ?? true,
               availableInStores: first.availableInStores ?? true,
+              isFeatured: first.isFeatured ?? false,
+              isLaunch: first.isLaunch ?? false,
+              highlights: parsedHighlights,
+              ...(parsedFaqs.length > 0 ? { faqs: parsedFaqs as unknown as Prisma.InputJsonValue } : {}),
               images: { create: images },
             },
           })
@@ -1335,6 +1368,14 @@ export async function applyProductImport(
               availableOnline: first.availableOnline ?? true,
               availableInStores: first.availableInStores ?? true,
               isPublished: first.isPublished ?? true,
+              ...(first.isFeatured !== undefined ? { isFeatured: first.isFeatured } : {}),
+              ...(first.isLaunch !== undefined ? { isLaunch: first.isLaunch } : {}),
+              ...(first.highlights !== undefined && first.highlights !== ""
+                ? { highlights: highlightsFromText(first.highlights.replace(/;/g, "\n")) }
+                : {}),
+              ...(first.faqs !== undefined && first.faqs !== ""
+                ? { faqs: faqsFromText(first.faqs) as unknown as Prisma.InputJsonValue }
+                : {}),
               // Campos de texto: según textUpdateMode ("fill_empty" vs "overwrite")
               ...(isOverwrite || !existingProduct?.name ? { name: group.name } : {}),
               ...(isOverwrite || !existingProduct?.description

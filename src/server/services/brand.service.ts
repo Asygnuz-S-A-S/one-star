@@ -24,6 +24,9 @@ export interface BrandDTO {
 export interface BrandDetailDTO extends BrandDTO {
   bannerUrl: string | null
   sizeGuideImageUrl: string | null
+  sizeGuideMenUrl: string | null
+  sizeGuideWomenUrl: string | null
+  sizeGuideKidsUrl: string | null
   sizeGuideNote: string | null
   description: string | null
   story: string | null
@@ -49,6 +52,9 @@ function mapToDetailDTO(brand: Brand): BrandDetailDTO {
     ...mapToDTO(brand),
     bannerUrl: brand.bannerUrl,
     sizeGuideImageUrl: brand.sizeGuideImageUrl,
+    sizeGuideMenUrl: brand.sizeGuideMenUrl,
+    sizeGuideWomenUrl: brand.sizeGuideWomenUrl,
+    sizeGuideKidsUrl: brand.sizeGuideKidsUrl,
     sizeGuideNote: brand.sizeGuideNote,
     description: brand.description,
     story: brand.story,
@@ -106,6 +112,9 @@ export async function createBrand(input: {
   logoUrl?: string | null
   bannerUrl?: string | null
   sizeGuideImageUrl?: string | null
+  sizeGuideMenUrl?: string | null
+  sizeGuideWomenUrl?: string | null
+  sizeGuideKidsUrl?: string | null
   sizeGuideNote?: string | null
   description?: string | null
   story?: string | null
@@ -124,6 +133,9 @@ export async function createBrand(input: {
   }
   if (input.bannerUrl !== undefined) dataToCreate.bannerUrl = input.bannerUrl
   if (input.sizeGuideImageUrl !== undefined) dataToCreate.sizeGuideImageUrl = input.sizeGuideImageUrl
+  if (input.sizeGuideMenUrl !== undefined) dataToCreate.sizeGuideMenUrl = input.sizeGuideMenUrl
+  if (input.sizeGuideWomenUrl !== undefined) dataToCreate.sizeGuideWomenUrl = input.sizeGuideWomenUrl
+  if (input.sizeGuideKidsUrl !== undefined) dataToCreate.sizeGuideKidsUrl = input.sizeGuideKidsUrl
   if (input.sizeGuideNote !== undefined) dataToCreate.sizeGuideNote = input.sizeGuideNote
   if (input.description !== undefined) dataToCreate.description = input.description
   if (input.story !== undefined) dataToCreate.story = input.story
@@ -144,6 +156,9 @@ export async function updateBrand(
     logoUrl?: string | null
     bannerUrl?: string | null
     sizeGuideImageUrl?: string | null
+    sizeGuideMenUrl?: string | null
+    sizeGuideWomenUrl?: string | null
+    sizeGuideKidsUrl?: string | null
     sizeGuideNote?: string | null
     description?: string | null
     story?: string | null
@@ -161,6 +176,9 @@ export async function updateBrand(
   if (input.logoUrl !== undefined) dataToUpdate.logoUrl = input.logoUrl
   if (input.bannerUrl !== undefined) dataToUpdate.bannerUrl = input.bannerUrl
   if (input.sizeGuideImageUrl !== undefined) dataToUpdate.sizeGuideImageUrl = input.sizeGuideImageUrl
+  if (input.sizeGuideMenUrl !== undefined) dataToUpdate.sizeGuideMenUrl = input.sizeGuideMenUrl
+  if (input.sizeGuideWomenUrl !== undefined) dataToUpdate.sizeGuideWomenUrl = input.sizeGuideWomenUrl
+  if (input.sizeGuideKidsUrl !== undefined) dataToUpdate.sizeGuideKidsUrl = input.sizeGuideKidsUrl
   if (input.sizeGuideNote !== undefined) dataToUpdate.sizeGuideNote = input.sizeGuideNote
   if (input.description !== undefined) dataToUpdate.description = input.description
   if (input.story !== undefined) dataToUpdate.story = input.story

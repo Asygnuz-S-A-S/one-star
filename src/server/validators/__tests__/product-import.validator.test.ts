@@ -170,4 +170,23 @@ describe("productImportRowSchema y alias de género", () => {
       expect(res.data.readyFlag).toBe("OK")
     }
   })
+
+  it("parsea campos isFeatured, isLaunch, highlights y faqs", () => {
+    const res = productImportRowSchema.safeParse({
+      ...validBase,
+      isFeatured: "SI",
+      isLaunch: "SI",
+      highlights: "Amortiguación suave; Suela antideslizante",
+      faqs: "¿Es original? | Sí, 100% original",
+      colorGroup: "HOKA-BONDI-9",
+    })
+    expect(res.success).toBe(true)
+    if (res.success) {
+      expect(res.data.isFeatured).toBe(true)
+      expect(res.data.isLaunch).toBe(true)
+      expect(res.data.highlights).toBe("Amortiguación suave; Suela antideslizante")
+      expect(res.data.faqs).toBe("¿Es original? | Sí, 100% original")
+      expect(res.data.colorGroup).toBe("HOKA-BONDI-9")
+    }
+  })
 })
