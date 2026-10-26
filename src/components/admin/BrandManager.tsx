@@ -28,6 +28,9 @@ export default function BrandManager({ brands: initialBrands }: { brands: (Brand
   const [logoUrl, setLogoUrl] = useState("")
   const [bannerUrl, setBannerUrl] = useState("")
   const [sizeGuideImageUrl, setSizeGuideImageUrl] = useState("")
+  const [sizeGuideMenUrl, setSizeGuideMenUrl] = useState("")
+  const [sizeGuideWomenUrl, setSizeGuideWomenUrl] = useState("")
+  const [sizeGuideKidsUrl, setSizeGuideKidsUrl] = useState("")
   const [sizeGuideNote, setSizeGuideNote] = useState("")
   const [description, setDescription] = useState("")
   const [story, setStory] = useState("")
@@ -42,13 +45,19 @@ export default function BrandManager({ brands: initialBrands }: { brands: (Brand
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const [uploadingBanner, setUploadingBanner] = useState(false)
   const [uploadingSizeGuide, setUploadingSizeGuide] = useState(false)
-  const [mediaTarget, setMediaTarget] = useState<"logo" | "banner" | "sizeGuide" | null>(null)
+  const [uploadingSizeGuideMen, setUploadingSizeGuideMen] = useState(false)
+  const [uploadingSizeGuideWomen, setUploadingSizeGuideWomen] = useState(false)
+  const [uploadingSizeGuideKids, setUploadingSizeGuideKids] = useState(false)
+  const [mediaTarget, setMediaTarget] = useState<"logo" | "banner" | "sizeGuide" | "sizeGuideMen" | "sizeGuideWomen" | "sizeGuideKids" | null>(null)
 
   const resetForm = () => {
     setName("")
     setLogoUrl("")
     setBannerUrl("")
     setSizeGuideImageUrl("")
+    setSizeGuideMenUrl("")
+    setSizeGuideWomenUrl("")
+    setSizeGuideKidsUrl("")
     setSizeGuideNote("")
     setDescription("")
     setStory("")
@@ -74,6 +83,9 @@ export default function BrandManager({ brands: initialBrands }: { brands: (Brand
     setLogoUrl(brand.logoUrl ?? "")
     setBannerUrl(detail.bannerUrl ?? "")
     setSizeGuideImageUrl(detail.sizeGuideImageUrl ?? "")
+    setSizeGuideMenUrl(detail.sizeGuideMenUrl ?? "")
+    setSizeGuideWomenUrl(detail.sizeGuideWomenUrl ?? "")
+    setSizeGuideKidsUrl(detail.sizeGuideKidsUrl ?? "")
     setSizeGuideNote(detail.sizeGuideNote ?? "")
     setDescription(detail.description ?? "")
     setStory(detail.story ?? "")
@@ -86,10 +98,13 @@ export default function BrandManager({ brands: initialBrands }: { brands: (Brand
     setError("")
   }
 
-  async function handleFileUpload(file: File, target: "logo" | "banner" | "sizeGuide") {
+  async function handleFileUpload(file: File, target: "logo" | "banner" | "sizeGuide" | "sizeGuideMen" | "sizeGuideWomen" | "sizeGuideKids") {
     if (target === "logo") setUploadingLogo(true)
     else if (target === "banner") setUploadingBanner(true)
-    else setUploadingSizeGuide(true)
+    else if (target === "sizeGuide") setUploadingSizeGuide(true)
+    else if (target === "sizeGuideMen") setUploadingSizeGuideMen(true)
+    else if (target === "sizeGuideWomen") setUploadingSizeGuideWomen(true)
+    else if (target === "sizeGuideKids") setUploadingSizeGuideKids(true)
 
     const fd = new FormData()
     fd.append("file", file)
@@ -99,7 +114,10 @@ export default function BrandManager({ brands: initialBrands }: { brands: (Brand
       if (res.ok) {
         if (target === "logo") setLogoUrl(data.url)
         else if (target === "banner") setBannerUrl(data.url)
-        else setSizeGuideImageUrl(data.url)
+        else if (target === "sizeGuide") setSizeGuideImageUrl(data.url)
+        else if (target === "sizeGuideMen") setSizeGuideMenUrl(data.url)
+        else if (target === "sizeGuideWomen") setSizeGuideWomenUrl(data.url)
+        else if (target === "sizeGuideKids") setSizeGuideKidsUrl(data.url)
       } else {
         setError(data.error ?? "Error al subir archivo")
       }
@@ -108,7 +126,10 @@ export default function BrandManager({ brands: initialBrands }: { brands: (Brand
     } finally {
       if (target === "logo") setUploadingLogo(false)
       else if (target === "banner") setUploadingBanner(false)
-      else setUploadingSizeGuide(false)
+      else if (target === "sizeGuide") setUploadingSizeGuide(false)
+      else if (target === "sizeGuideMen") setUploadingSizeGuideMen(false)
+      else if (target === "sizeGuideWomen") setUploadingSizeGuideWomen(false)
+      else if (target === "sizeGuideKids") setUploadingSizeGuideKids(false)
     }
   }
 
@@ -124,6 +145,9 @@ export default function BrandManager({ brands: initialBrands }: { brands: (Brand
     fd.set("logoUrl", logoUrl.trim())
     fd.set("bannerUrl", bannerUrl.trim())
     fd.set("sizeGuideImageUrl", sizeGuideImageUrl.trim())
+    fd.set("sizeGuideMenUrl", sizeGuideMenUrl.trim())
+    fd.set("sizeGuideWomenUrl", sizeGuideWomenUrl.trim())
+    fd.set("sizeGuideKidsUrl", sizeGuideKidsUrl.trim())
     fd.set("sizeGuideNote", sizeGuideNote.trim())
     fd.set("description", description.trim())
     fd.set("story", story.trim())
@@ -366,62 +390,224 @@ export default function BrandManager({ brands: initialBrands }: { brands: (Brand
           </div>
 
           {/* Guía de Tallas */}
-          <div className="grid gap-6 md:grid-cols-2 p-4 bg-gray-50 border border-gray-200 rounded-xl">
-            {/* Imagen de la guía */}
+          <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl space-y-4">
             <div>
-              <label className="block text-sm font-medium text-[#1C1C1C] mb-1">
-                Guía de Tallas (Imagen)
+              <label className="block text-sm font-bold text-[#1C1C1C]">
+                Guías de Tallas Oficiales por Género
               </label>
-              <p className="text-xs text-gray-500 mb-3">
-                Sube la tabla oficial de la marca (ej. tabla de medidas Converse / Nike). Si no se carga ninguna, se mostrará la tabla genérica del sitio.
+              <p className="text-xs text-gray-500 mt-0.5">
+                Sube la tabla oficial de la marca para cada género. En la tienda los clientes podrán cambiar entre las pestañas &ldquo;Hombre&rdquo;, &ldquo;Mujer&rdquo; y &ldquo;Niños&rdquo;. Si no se sube imagen, se mostrará la tabla de conversión estándar (EU / US / CM / UK).
               </p>
-              {sizeGuideImageUrl ? (
-                <div className="p-3 bg-white border border-gray-200 rounded-xl flex items-center gap-4">
-                  <div className="w-20 h-16 bg-gray-50 border border-gray-200 rounded-lg p-1 flex items-center justify-center overflow-hidden">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={sizeGuideImageUrl} alt="Guía de tallas" className="max-h-full max-w-full object-contain" />
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              {/* Guía Hombre */}
+              <div className="p-3 bg-white border border-gray-200 rounded-lg">
+                <span className="block text-xs font-bold text-gray-700 uppercase mb-2">Guía Hombre</span>
+                {sizeGuideMenUrl ? (
+                  <div className="flex items-center gap-3">
+                    <div className="w-16 h-12 bg-gray-50 border border-gray-200 rounded p-1 flex items-center justify-center overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={sizeGuideMenUrl} alt="Guía Hombre" className="max-h-full max-w-full object-contain" />
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setMediaTarget("sizeGuideMen")}
+                        className="px-2 py-1 bg-white border border-gray-300 hover:bg-gray-100 text-[11px] font-bold rounded"
+                      >
+                        Cambiar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSizeGuideMenUrl("")}
+                        className="px-2 py-1 text-[11px] font-bold text-red-600 hover:bg-red-50 rounded"
+                      >
+                        Quitar
+                      </button>
+                    </div>
                   </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setMediaTarget("sizeGuideMen")}
+                      className="px-2.5 py-1.5 bg-[#1C1C1C] text-white hover:bg-gray-800 rounded text-xs font-bold uppercase"
+                    >
+                      Elegir
+                    </button>
+                    <label className="px-2.5 py-1.5 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded text-xs font-bold uppercase cursor-pointer">
+                      <span>{uploadingSizeGuideMen ? "Subiendo…" : "Subir"}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) handleFileUpload(file, "sizeGuideMen")
+                        }}
+                        disabled={uploadingSizeGuideMen}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                )}
+              </div>
+
+              {/* Guía Mujer */}
+              <div className="p-3 bg-white border border-gray-200 rounded-lg">
+                <span className="block text-xs font-bold text-gray-700 uppercase mb-2">Guía Mujer</span>
+                {sizeGuideWomenUrl ? (
+                  <div className="flex items-center gap-3">
+                    <div className="w-16 h-12 bg-gray-50 border border-gray-200 rounded p-1 flex items-center justify-center overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={sizeGuideWomenUrl} alt="Guía Mujer" className="max-h-full max-w-full object-contain" />
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setMediaTarget("sizeGuideWomen")}
+                        className="px-2 py-1 bg-white border border-gray-300 hover:bg-gray-100 text-[11px] font-bold rounded"
+                      >
+                        Cambiar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSizeGuideWomenUrl("")}
+                        className="px-2 py-1 text-[11px] font-bold text-red-600 hover:bg-red-50 rounded"
+                      >
+                        Quitar
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setMediaTarget("sizeGuideWomen")}
+                      className="px-2.5 py-1.5 bg-[#1C1C1C] text-white hover:bg-gray-800 rounded text-xs font-bold uppercase"
+                    >
+                      Elegir
+                    </button>
+                    <label className="px-2.5 py-1.5 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded text-xs font-bold uppercase cursor-pointer">
+                      <span>{uploadingSizeGuideWomen ? "Subiendo…" : "Subir"}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) handleFileUpload(file, "sizeGuideWomen")
+                        }}
+                        disabled={uploadingSizeGuideWomen}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                )}
+              </div>
+
+              {/* Guía Niños / Junior */}
+              <div className="p-3 bg-white border border-gray-200 rounded-lg">
+                <span className="block text-xs font-bold text-gray-700 uppercase mb-2">Guía Niños / Junior</span>
+                {sizeGuideKidsUrl ? (
+                  <div className="flex items-center gap-3">
+                    <div className="w-16 h-12 bg-gray-50 border border-gray-200 rounded p-1 flex items-center justify-center overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={sizeGuideKidsUrl} alt="Guía Niños" className="max-h-full max-w-full object-contain" />
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setMediaTarget("sizeGuideKids")}
+                        className="px-2 py-1 bg-white border border-gray-300 hover:bg-gray-100 text-[11px] font-bold rounded"
+                      >
+                        Cambiar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSizeGuideKidsUrl("")}
+                        className="px-2 py-1 text-[11px] font-bold text-red-600 hover:bg-red-50 rounded"
+                      >
+                        Quitar
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setMediaTarget("sizeGuideKids")}
+                      className="px-2.5 py-1.5 bg-[#1C1C1C] text-white hover:bg-gray-800 rounded text-xs font-bold uppercase"
+                    >
+                      Elegir
+                    </button>
+                    <label className="px-2.5 py-1.5 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded text-xs font-bold uppercase cursor-pointer">
+                      <span>{uploadingSizeGuideKids ? "Subiendo…" : "Subir"}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) handleFileUpload(file, "sizeGuideKids")
+                        }}
+                        disabled={uploadingSizeGuideKids}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                )}
+              </div>
+
+              {/* Guía General (Fallback) */}
+              <div className="p-3 bg-white border border-gray-200 rounded-lg">
+                <span className="block text-xs font-bold text-gray-700 uppercase mb-2">Guía General / Unisex</span>
+                {sizeGuideImageUrl ? (
+                  <div className="flex items-center gap-3">
+                    <div className="w-16 h-12 bg-gray-50 border border-gray-200 rounded p-1 flex items-center justify-center overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={sizeGuideImageUrl} alt="Guía General" className="max-h-full max-w-full object-contain" />
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setMediaTarget("sizeGuide")}
+                        className="px-2 py-1 bg-white border border-gray-300 hover:bg-gray-100 text-[11px] font-bold rounded"
+                      >
+                        Cambiar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSizeGuideImageUrl("")}
+                        className="px-2 py-1 text-[11px] font-bold text-red-600 hover:bg-red-50 rounded"
+                      >
+                        Quitar
+                      </button>
+                    </div>
+                  </div>
+                ) : (
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => setMediaTarget("sizeGuide")}
-                      className="px-3 py-1.5 bg-white border border-gray-300 hover:bg-gray-100 text-xs font-bold text-[#1C1C1C] rounded-lg transition-colors"
+                      className="px-2.5 py-1.5 bg-[#1C1C1C] text-white hover:bg-gray-800 rounded text-xs font-bold uppercase"
                     >
-                      Biblioteca
+                      Elegir
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setSizeGuideImageUrl("")}
-                      className="px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    >
-                      Quitar guía
-                    </button>
+                    <label className="px-2.5 py-1.5 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded text-xs font-bold uppercase cursor-pointer">
+                      <span>{uploadingSizeGuide ? "Subiendo…" : "Subir"}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) handleFileUpload(file, "sizeGuide")
+                        }}
+                        disabled={uploadingSizeGuide}
+                        className="hidden"
+                      />
+                    </label>
                   </div>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setMediaTarget("sizeGuide")}
-                    className="px-3 py-2 bg-[#1C1C1C] text-white hover:bg-gray-800 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors"
-                  >
-                    Elegir Guía
-                  </button>
-                  <label className="px-3 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors">
-                    <span>{uploadingSizeGuide ? "Subiendo…" : "Subir archivo"}</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0]
-                        if (file) handleFileUpload(file, "sizeGuide")
-                      }}
-                      disabled={uploadingSizeGuide}
-                      className="hidden"
-                    />
-                  </label>
-                </div>
-              )}
+                )}
+              </div>
             </div>
 
             {/* Nota de la guía */}
@@ -629,12 +815,21 @@ export default function BrandManager({ brands: initialBrands }: { brands: (Brand
             ? "Seleccionar Logo de Marca"
             : mediaTarget === "banner"
             ? "Seleccionar Banner de Marca"
-            : "Seleccionar Guía de Tallas"
+            : mediaTarget === "sizeGuideMen"
+            ? "Seleccionar Guía de Tallas (Hombre)"
+            : mediaTarget === "sizeGuideWomen"
+            ? "Seleccionar Guía de Tallas (Mujer)"
+            : mediaTarget === "sizeGuideKids"
+            ? "Seleccionar Guía de Tallas (Niños / Junior)"
+            : "Seleccionar Guía de Tallas (General)"
         }
         onSelect={(media) => {
           if (mediaTarget === "logo") setLogoUrl(media.url)
           else if (mediaTarget === "banner") setBannerUrl(media.url)
           else if (mediaTarget === "sizeGuide") setSizeGuideImageUrl(media.url)
+          else if (mediaTarget === "sizeGuideMen") setSizeGuideMenUrl(media.url)
+          else if (mediaTarget === "sizeGuideWomen") setSizeGuideWomenUrl(media.url)
+          else if (mediaTarget === "sizeGuideKids") setSizeGuideKidsUrl(media.url)
           setMediaTarget(null)
         }}
       />

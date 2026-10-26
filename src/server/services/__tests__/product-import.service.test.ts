@@ -812,6 +812,32 @@ describe("applyProductImport", () => {
     )
   })
 
+  it("guarda isFeatured, isLaunch, highlights y faqs al crear producto", async () => {
+    const customHeaders = [...COLUMNS, "DESTACADO", "LANZAMIENTO", "BENEFICIOS", "FAQS"]
+    const row = [
+      ...baseRow(),
+      "SI",
+      "SI",
+      "Amortiguación reactiva; Material transpirable",
+      "¿Es original? | Sí, 100% original garantizado",
+    ]
+    const buffer = buildBuffer([row], customHeaders, false)
+    const preview = await previewProductImport(buffer)
+    expect(preview.rows[0].action).toBe("create_product")
+
+    await applyProductImport(buffer, preview.fingerprint)
+    expect(txMock.product.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          isFeatured: true,
+          isLaunch: true,
+          highlights: ["Amortiguación reactiva", "Material transpirable"],
+          faqs: [{ q: "¿Es original?", a: "Sí, 100% original garantizado" }],
+        }),
+      })
+    )
+  })
+
   it("falla sin escribir si el catálogo cambió desde la vista previa", async () => {
     const buffer = buildBuffer([baseRow()])
     await previewProductImport(buffer)
