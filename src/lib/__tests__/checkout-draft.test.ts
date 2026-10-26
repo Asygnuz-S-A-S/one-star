@@ -30,6 +30,7 @@ describe("checkout draft", () => {
     const draft: CheckoutDraft = {
       form: {
         email: "  Cliente@Example.com ",
+        cedula: "1020304050",
         newsletter: true,
         name: "Ana",
         lastName: "Pérez",
@@ -50,6 +51,7 @@ describe("checkout draft", () => {
 
     expect(peekCheckoutRegistrationPrefill(storage, savedAt + 60_000)).toEqual({
       email: "cliente@example.com",
+      cedula: "1020304050",
       newsletter: true,
       name: "Ana",
       lastName: "Pérez",
@@ -98,6 +100,7 @@ describe("checkout draft", () => {
     const draft: CheckoutDraft = {
       form: {
         email: "cliente@example.com",
+        cedula: "1020304050",
         newsletter: false,
         name: "Ana",
         lastName: "Pérez",
@@ -128,6 +131,7 @@ describe("checkout draft", () => {
     const draft: CheckoutDraft = {
       form: {
         email: "cliente@example.com",
+        cedula: "1020304050",
         newsletter: false,
         name: "Ana",
         lastName: "Pérez",
@@ -153,6 +157,7 @@ describe("checkout draft", () => {
     const draft: CheckoutDraft = {
       form: {
         email: "cliente@example.com",
+        cedula: "1020304050",
         newsletter: false,
         name: "Ana",
         lastName: "Pérez",
@@ -186,6 +191,7 @@ describe("checkout draft", () => {
     const draft: CheckoutDraft = {
       form: {
         email: "cliente@example.com",
+        cedula: "1020304050",
         newsletter: true,
         name: "Ana",
         lastName: "Pérez",
@@ -223,6 +229,7 @@ describe("checkout draft", () => {
     const draft: CheckoutDraft = {
       form: {
         email: "cliente@example.com",
+        cedula: "1020304050",
         newsletter: false,
         name: "Ana",
         lastName: "Pérez",
@@ -265,6 +272,7 @@ describe("checkout draft", () => {
     const draft: CheckoutDraft = {
       form: {
         email: "cliente@example.com",
+        cedula: "1020304050",
         newsletter: false,
         name: "Ana",
         lastName: "Pérez",
