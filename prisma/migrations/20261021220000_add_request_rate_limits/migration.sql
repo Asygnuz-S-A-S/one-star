@@ -11,11 +11,13 @@ CREATE INDEX "RequestRateLimit_resetAt_idx" ON "RequestRateLimit"("resetAt");
 
 
 CREATE TABLE "RateLimit" (
+    "id" TEXT NOT NULL,
     "key" TEXT NOT NULL,
     "count" INTEGER NOT NULL,
-    "lastRequest" TIMESTAMP(3) NOT NULL,
+    "lastRequest" BIGINT NOT NULL,
 
-    CONSTRAINT "RateLimit_pkey" PRIMARY KEY ("key")
+    CONSTRAINT "RateLimit_pkey" PRIMARY KEY ("id")
 );
 
+CREATE UNIQUE INDEX "RateLimit_key_key" ON "RateLimit"("key");
 CREATE INDEX "RateLimit_lastRequest_idx" ON "RateLimit"("lastRequest");
