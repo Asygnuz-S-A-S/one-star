@@ -106,7 +106,9 @@ export async function createOrder(data: CheckoutData): Promise<CreateOrderResult
           where: { id: session.user.id, cedula: null },
           data: { cedula: input.cedula },
         })
-        .catch(() => {})
+        .catch((error: unknown) => {
+          console.error("[createOrder] No se pudo guardar la cédula en el perfil:", error)
+        })
     }
 
     // El pedido se creó: los carritos abandonados de este email quedan cerrados.
