@@ -4,14 +4,14 @@ export default function Footer() {
   const currentYear = new Date().getFullYear()
 
   return (
-    <footer className="bg-[#111111] text-gray-300 border-t border-white/10 mt-auto font-[var(--font-montserrat)] text-sm">
+    <footer className="mt-auto border-t border-white/10 bg-[#111111] font-montserrat text-sm text-gray-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
           
           {/* Col 1: Marca & Eslogan */}
           <div className="space-y-4">
             <Link href="/" className="inline-block">
-              <span className="font-[var(--font-barlow)] font-bold text-2xl tracking-wider text-white uppercase">
+              <span className="font-barlow font-bold text-2xl tracking-wider text-white uppercase">
                 ONE STAR
               </span>
               <span className="block text-[11px] font-semibold text-[#E31C23] tracking-widest uppercase">
@@ -29,7 +29,7 @@ export default function Footer() {
 
           {/* Col 2: Catálogo & Colecciones */}
           <div>
-            <h3 className="font-[var(--font-barlow)] font-bold text-sm uppercase tracking-widest text-white mb-4">
+            <h3 className="font-barlow font-bold text-sm uppercase tracking-widest text-white mb-4">
               Colecciones
             </h3>
             <ul className="space-y-2 text-xs">
@@ -68,7 +68,7 @@ export default function Footer() {
 
           {/* Col 3: Políticas & Ayuda */}
           <div>
-            <h3 className="font-[var(--font-barlow)] font-bold text-sm uppercase tracking-widest text-white mb-4">
+            <h3 className="font-barlow font-bold text-sm uppercase tracking-widest text-white mb-4">
               Ayuda & Políticas
             </h3>
             <ul className="space-y-2 text-xs">
@@ -97,7 +97,7 @@ export default function Footer() {
 
           {/* Col 4: Contacto & Métodos */}
           <div>
-            <h3 className="font-[var(--font-barlow)] font-bold text-sm uppercase tracking-widest text-white mb-4">
+            <h3 className="font-barlow font-bold text-sm uppercase tracking-widest text-white mb-4">
               Atención al Cliente
             </h3>
             <ul className="space-y-2.5 text-xs text-gray-400">
@@ -113,7 +113,7 @@ export default function Footer() {
               </li>
               <li>
                 <span className="block text-gray-200 font-medium">Envíos nacionales:</span>
-                Envía · Servientrega (3 a 5 días hábiles)
+                Envía (3 a 5 días hábiles)
               </li>
             </ul>
           </div>
@@ -130,9 +130,7 @@ export default function Footer() {
             <span>·</span>
             <span>PSE</span>
             <span>·</span>
-            <span>Tarjetas Débito / Crédito</span>
-            <span>·</span>
-            <span>Addi</span>
+            <span>Tarjetas débito / crédito</span>
           </div>
         </div>
       </div>

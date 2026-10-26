@@ -22,7 +22,7 @@ export default function EnviosYDevolucionesPage() {
       <LegalSection id="cobertura-y-tiempos" heading="1. Cobertura y plazos de entrega">
         <p>
           Realizamos envíos a toda Colombia a través de transportadoras nacionales reconocidas
-          (como Envía y Servientrega).
+          (Envía).
         </p>
         <LegalList
           items={[
