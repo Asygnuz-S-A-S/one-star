@@ -6,7 +6,7 @@ import {
   isChatRateLimited,
   resetChatRateLimitForTesting,
   CHAT_MAX_MESSAGES_PER_IP,
-} from "../chat.actions"
+} from "../../services/chat-rate-limit"
 
 describe("chat.actions rate limit", () => {
   beforeEach(() => {

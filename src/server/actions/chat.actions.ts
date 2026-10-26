@@ -1,29 +1,10 @@
 "use server"
 
+import { isIP } from "node:net"
 import { headers } from "next/headers"
 import { z } from "zod"
 import { sendChatMessage, type ChatMessage, type CartAction } from "@/server/services/ai-chat.service"
-
-/** Rate limiting en memoria por IP (máximo 20 mensajes por IP cada 24 horas). */
-const attempts = new Map<string, { count: number; resetAt: number }>()
-export const CHAT_RATE_LIMIT_WINDOW_MS = 24 * 60 * 60 * 1000
-export const CHAT_MAX_MESSAGES_PER_IP = 20
-
-export function isChatRateLimited(ip: string): boolean {
-  const now = Date.now()
-  const record = attempts.get(ip)
-  if (record && now < record.resetAt) {
-    if (record.count >= CHAT_MAX_MESSAGES_PER_IP) return true
-    record.count++
-    return false
-  }
-  attempts.set(ip, { count: 1, resetAt: now + CHAT_RATE_LIMIT_WINDOW_MS })
-  return false
-}
-
-export function resetChatRateLimitForTesting() {
-  attempts.clear()
-}
+import { isChatRateLimited } from "@/server/services/chat-rate-limit"
 
 const inputSchema = z.object({
   message: z.string().trim().min(1).max(1000),
@@ -53,7 +34,8 @@ export async function sendChatMessageAction(
   }
 
   const headerList = await headers()
-  const ip = headerList.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown"
+  const trustedIp = headerList.get("x-real-ip")?.trim() ?? ""
+  const ip = isIP(trustedIp) ? trustedIp : "unknown"
   if (isChatRateLimited(ip)) {
     return {
       reply: "",
