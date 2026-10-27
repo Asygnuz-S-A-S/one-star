@@ -17,6 +17,13 @@ describe("getShippingCost", () => {
     expect(getShippingCost("express", STANDARD_SHIPPING_THRESHOLD * 2)).toBe(EXPRESS_SHIPPING_COST)
   })
 
+  it("usa las tarifas que lleguen en vez de las de respaldo", () => {
+    const rates = { freeThreshold: 100_000, standardCost: 9_000, expressCost: 18_000 }
+    expect(getShippingCost("standard", 99_999, { rates })).toBe(9_000)
+    expect(getShippingCost("standard", 100_000, { rates })).toBe(0)
+    expect(getShippingCost("express", 500_000, { rates })).toBe(18_000)
+  })
+
   it("un pedido solo digital nunca paga envío, sea cual sea el método", () => {
     expect(getShippingCost("standard", 50_000, { digitalOnly: true })).toBe(0)
     expect(getShippingCost("express", 50_000, { digitalOnly: true })).toBe(0)

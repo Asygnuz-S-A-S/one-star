@@ -42,6 +42,7 @@ vi.mock("@/server/services/coupon.service", () => ({
   releaseCouponUsageByCode: vi.fn(),
 }))
 
+vi.mock("@/server/services/club.service", () => ({ isClubMember: vi.fn().mockResolvedValue(false) }))
 vi.mock("@/server/services/gift-card.service", () => ({
   issueAndSendGiftCardsForOrder: vi.fn(async () => undefined),
 }))
@@ -316,7 +317,7 @@ describe("placeOrder — cupones", () => {
     await placeOrder("user-1", { ...orderInput, couponCode: "PROMO20" })
     expect(mockValidateCoupon).toHaveBeenCalledWith("PROMO20", [
       { categoryId: "cat-1", unitPrice: 135000, quantity: 2 },
-    ])
+    ], { isClubMember: false })
     expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ total: 250000 }))
   })
 

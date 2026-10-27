@@ -12,6 +12,20 @@ const WHATSAPP_PATTERN = /^\+?\d{7,15}$/
 /** "" → null para campos opcionales que llegan vacíos desde un formulario. */
 const emptyToNull = (value: string) => (value.length === 0 ? null : value)
 
+const copAmount = z
+  .string()
+  .trim()
+  .regex(/^\d{1,8}$/, "Escribe el valor en pesos, sin puntos ni decimales")
+  .transform((value) => Number(value))
+  .pipe(z.number().int().min(0).max(50_000_000, "El valor no puede superar $50.000.000"))
+
+const optionalText = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max, `No puede superar ${max} caracteres`)
+    .transform(emptyToNull)
+
 export const StoreInfoInputSchema = z.object({
   storeName: z
     .string()
@@ -32,6 +46,56 @@ export const StoreInfoInputSchema = z.object({
       ]),
     )
     .transform(emptyToNull),
+  freeShippingThreshold: copAmount,
+  standardShippingCost: copAmount,
+  expressShippingCost: copAmount,
+  legalName: optionalText(160),
+  taxId: optionalText(40),
+  legalAddress: optionalText(200),
+  contactPhone: z
+    .string()
+    .trim()
+    .transform((value) => value.replace(/[\s()-]/g, ""))
+    .pipe(
+      z.union([
+        z.literal(""),
+        z.string().regex(WHATSAPP_PATTERN, "Usa el formato internacional, ej. +576066666666"),
+      ]),
+    )
+    .transform(emptyToNull),
+  hideImagelessProducts: z.boolean(),
+  newArrivalDays: z.coerce.number().int().min(1, "Usa al menos 1 día").max(365, "No puede superar 365 días"),
+  chatEnabled: z.boolean(),
+  chatWelcome: optionalText(400),
+  giftCardMinAmount: copAmount,
+  giftCardMaxAmount: copAmount,
+  giftCardValidityMonths: z.coerce.number().int().min(1, "La vigencia mínima es 1 mes").max(36, "La vigencia no puede superar 36 meses"),
+  clubHeadline: optionalText(80),
+  clubIntro: optionalText(400),
+  clubBenefits: optionalText(2000),
+  clubWelcomeSubject: optionalText(120),
+  clubWelcomeBody: optionalText(800),
+  footerLinks: optionalText(2000),
+  bottomNav: optionalText(1000),
+  deliveryMinDays: z.coerce.number().int().min(1, "El plazo mínimo es 1 día").max(30),
+  deliveryMaxDays: z.coerce.number().int().min(1).max(60),
+  expressDeliveryMinDays: z.coerce.number().int().min(1).max(15),
+  expressDeliveryMaxDays: z.coerce.number().int().min(1).max(30),
+  legalCity: optionalText(80),
+  commercialRegistry: optionalText(120),
+  dataProtectionEmail: z
+    .union([z.literal(""), z.email("El correo de habeas data no es válido").max(120)])
+    .transform(emptyToNull),
+  giftCardAmounts: optionalText(500),
+}).refine((input) => input.giftCardMinAmount <= input.giftCardMaxAmount, {
+  message: "El monto mínimo no puede ser mayor que el máximo",
+  path: ["giftCardMinAmount"],
+}).refine((input) => input.deliveryMinDays <= input.deliveryMaxDays, {
+  message: "El plazo mínimo no puede ser mayor que el máximo",
+  path: ["deliveryMinDays"],
+}).refine((input) => input.expressDeliveryMinDays <= input.expressDeliveryMaxDays, {
+  message: "El plazo express mínimo no puede ser mayor que el máximo",
+  path: ["expressDeliveryMinDays"],
 })
 
 export type StoreInfoInput = z.infer<typeof StoreInfoInputSchema>

@@ -22,7 +22,7 @@ const baseDashboardData = {
     { productId: "prod-2", _sum: { quantity: 5, unitPrice: 200000 } },
   ],
   lowStockRaw: [
-    { sku: "NK-001", product: { name: "Nike Air Max" }, size: "42", color: "Negro", stock: 2 },
+    { sku: "NK-001", product: { id: "prod-1", name: "Nike Air Max" }, size: "42", color: "Negro", stock: 2 },
   ],
   revenueByDayRaw: [
     { createdAt: new Date("2024-06-01"), total: 150000 },
@@ -99,6 +99,7 @@ describe("getAdminDashboardStats", () => {
     mockGetData.mockResolvedValue(baseDashboardData as never)
     const result = await getAdminDashboardStats()
     expect(result.lowStockVariants).toHaveLength(1)
+    expect(result.lowStockVariants[0].productId).toBe("prod-1")
     expect(result.lowStockVariants[0].sku).toBe("NK-001")
     expect(result.lowStockVariants[0].stock).toBe(2)
   })

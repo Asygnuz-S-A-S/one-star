@@ -3,6 +3,7 @@ import { serializeDecimals, type WithPlainDecimals } from "@/lib/serialize-decim
 import {
   findManyProducts,
   findProductCatalogCandidates,
+  findPublishedProductPriceBounds,
   findProductsByIds,
   findProductBySlug,
   findProductByIdForAdmin,
@@ -141,6 +142,12 @@ export interface AppProductFilter {
   categoryId?: string
   brandId?: string
   isOnSaleOnly?: boolean
+  /** Solo productos con video cargado (secciones de lanzamientos en video). */
+  withVideo?: boolean
+  /** Excluye productos sin ninguna foto. */
+  requireImage?: boolean
+  /** Solo productos creados en los últimos N días. */
+  createdWithinDays?: number
   extraGenders?: string[]
   status?: "active" | "inactive"
   hasStock?: "yes" | "no"
@@ -372,6 +379,11 @@ function buildPrismaWhere(
   const where: Prisma.ProductWhereInput = {}
 
   if (filter.isOnSaleOnly) where.isOnSale = true
+  if (filter.requireImage) where.images = { some: {} }
+  if (filter.createdWithinDays && filter.createdWithinDays > 0) {
+    where.createdAt = { gte: new Date(Date.now() - filter.createdWithinDays * 24 * 60 * 60 * 1000) }
+  }
+  if (filter.withVideo) where.AND = [{ videoUrl: { not: null } }, { videoUrl: { not: "" } }]
   if (filter.categorySlug) where.category = { slug: filter.categorySlug }
   if (filter.categoryId) where.categoryId = filter.categoryId
   if (filter.brandId) where.brandId = filter.brandId
@@ -446,6 +458,15 @@ function buildPrismaOrderBy(
       return [{ createdAt: "asc" }, { id: "asc" }]
     default:
       return [{ createdAt: "desc" }, { id: "asc" }]
+  }
+}
+
+/** Public catalog limits for the price range control. Null means no sellable prices exist. */
+export async function getCatalogPriceBounds(): Promise<{ min: number | null; max: number | null }> {
+  const bounds = await findPublishedProductPriceBounds()
+  return {
+    min: bounds._min.basePrice?.toNumber() ?? null,
+    max: bounds._max.basePrice?.toNumber() ?? null,
   }
 }
 

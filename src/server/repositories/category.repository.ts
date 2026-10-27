@@ -13,3 +13,15 @@ export async function findCategoryBySlug(slug: string): Promise<Category | null>
 export async function createCategory(data: { name: string; slug: string }): Promise<Category> {
   return prisma.category.create({ data })
 }
+
+export async function updateCategory(id: string, data: { name: string; slug: string }): Promise<Category> {
+  return prisma.category.update({ where: { id }, data })
+}
+
+export async function countProductsByCategoryId(id: string): Promise<number> {
+  return prisma.product.count({ where: { categoryId: id } })
+}
+
+export async function deleteCategory(id: string): Promise<Category> {
+  return prisma.category.delete({ where: { id } })
+}

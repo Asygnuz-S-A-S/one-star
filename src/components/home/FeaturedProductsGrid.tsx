@@ -1,7 +1,5 @@
 "use client"
 
-import { useRef } from "react"
-import { motion, useInView } from "motion/react"
 import ProductCard from "@/components/home/ProductCard"
 import type { ProductCardColorSummary } from "@/lib/product-card-colors"
 
@@ -21,29 +19,14 @@ interface ProductItem {
 }
 
 export default function FeaturedProductsGrid({ products }: { products: ProductItem[] }) {
-  const gridRef = useRef<HTMLDivElement>(null)
-  const isInView = useInView(gridRef, { once: true, margin: "-80px" })
-
   return (
-    <div ref={gridRef}>
+    <div>
       {/* Mobile: horizontal scroll */}
-      <motion.div 
-        className="flex md:hidden gap-4 overflow-x-auto scrollbar-hide pb-4"
-        initial="hidden"
-        animate={isInView ? "visible" : "hidden"}
-        variants={{
-          hidden: { opacity: 0 },
-          visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
-        }}
-      >
+      <div className="flex md:hidden gap-4 overflow-x-auto scrollbar-hide pb-4">
         {products.map((product) => (
-          <motion.div
+          <div
             key={`mobile-${product.id}`}
             className="w-48 shrink-0"
-            variants={{
-              hidden: { opacity: 0, x: 24 },
-              visible: { opacity: 1, x: 0, transition: { duration: 0.4, ease: "easeOut" } }
-            }}
           >
             <ProductCard
               id={product.id}
@@ -58,27 +41,16 @@ export default function FeaturedProductsGrid({ products }: { products: ProductIt
               isOnSale={product.isOnSale}
               colorSummary={product.colorSummary}
             />
-          </motion.div>
+          </div>
         ))}
-      </motion.div>
+      </div>
 
       {/* Desktop: grid */}
-      <motion.div 
-        className="hidden md:grid md:grid-cols-4 gap-6"
-        initial="hidden"
-        animate={isInView ? "visible" : "hidden"}
-        variants={{
-          hidden: { opacity: 0 },
-          visible: { opacity: 1, transition: { staggerChildren: 0.08 } }
-        }}
-      >
+      <div className="hidden md:grid md:grid-cols-4 gap-6">
         {products.map((product) => (
-          <motion.div
+          <div
             key={`desktop-${product.id}`}
-            variants={{
-              hidden: { opacity: 0, y: 30 },
-              visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } }
-            }}
+            className="h-full"
           >
             <ProductCard
               id={product.id}
@@ -93,9 +65,9 @@ export default function FeaturedProductsGrid({ products }: { products: ProductIt
               isOnSale={product.isOnSale}
               colorSummary={product.colorSummary}
             />
-          </motion.div>
+          </div>
         ))}
-      </motion.div>
+      </div>
     </div>
   )
 }

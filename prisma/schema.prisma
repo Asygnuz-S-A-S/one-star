@@ -194,12 +194,32 @@ enum AdminRole {
   INVENTORY_OPERATOR
 }
 
+model RateLimit {
+  id          String   @id
+  key         String   @unique
+  count       Int
+  // Better Auth persists Unix milliseconds and declares this field as bigint.
+  lastRequest BigInt
+
+  @@index([lastRequest])
+}
+
+model RequestRateLimit {
+  key       String   @id
+  count     Int
+  resetAt   DateTime
+  updatedAt DateTime @updatedAt
+
+  @@index([resetAt])
+}
+
 model AdminUser {
   id           String    @id @default(cuid())
   email        String    @unique
   passwordHash String
   name         String
   role         AdminRole @default(INVENTORY_OPERATOR)
+  isActive     Boolean   @default(true)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 }
@@ -221,6 +241,11 @@ model User {
   birthDate      DateTime?
   preferredBrand String?
   gender         String? // "hombre" | "mujer"
+  /// One Star Club: membresía gratuita que da acceso a promociones exclusivas.
+  clubMember         Boolean   @default(false)
+  clubJoinedAt       DateTime?
+  /// Consentimiento explícito para recibir el newsletter (null = no aceptó o lo retiró).
+  marketingConsentAt DateTime?
   cart           Cart?
   orders         Order[]
   createdAt      DateTime  @default(now())
@@ -318,6 +343,8 @@ model GiftCard {
   /** Pedido que originó esta tarjeta; null en la tarjeta de prueba del seed. */
   orderId       String?
   customerEmail String?
+  /// Null en tarjetas emitidas antes de configurar la vigencia: no vencen.
+  expiresAt     DateTime?
   createdAt     DateTime @default(now())
 
   @@index([orderId])
@@ -378,12 +405,16 @@ enum LandingSectionType {
 
 model LandingSection {
   id        String             @id @default(cuid())
+  /// Landing a la que pertenece: "home" es la página de inicio; cualquier otro slug se publica en /campanas/<slug>.
+  page      String             @default("home")
   type      LandingSectionType
   position  Int                @default(0)
   isActive  Boolean            @default(true)
   config    Json?
   createdAt DateTime           @default(now())
   updatedAt DateTime           @updatedAt
+
+  @@index([page, isActive, position])
 }
 
 enum DiscountType {
@@ -400,6 +431,8 @@ model Coupon {
   maxUses        Int?
   usedCount      Int          @default(0)
   categoryId     String?
+  /// Solo lo pueden usar miembros de One Star Club.
+  clubOnly       Boolean      @default(false)
   validFrom      DateTime
   validUntil     DateTime
   isActive       Boolean      @default(true)
@@ -562,6 +595,47 @@ model StoreSettings {
   metaTestEventCode String?
   metaPixelEnabled  Boolean  @default(false)
   catalogSource     String   @default("ARCHIVO")
+  /// Umbral de envío estándar gratis, en pesos.
+  freeShippingThreshold Int @default(200000)
+  standardShippingCost  Int @default(15000)
+  expressShippingCost   Int @default(25000)
+  /// Razón social. Vacío hasta que el admin la confirme.
+  legalName    String?
+  taxId        String?
+  legalAddress String?
+  contactPhone String?
+  /// Oculta del catálogo público los productos que no tienen ninguna foto.
+  hideImagelessProducts Boolean @default(true)
+  /// Cuántos días cuenta un producto como lanzamiento.
+  newArrivalDays        Int     @default(30)
+  chatEnabled           Boolean @default(true)
+  chatWelcome           String?
+  giftCardMinAmount     Int     @default(20000)
+  giftCardMaxAmount     Int     @default(2000000)
+  giftCardValidityMonths Int    @default(12)
+  clubHeadline          String?
+  clubIntro             String?
+  /// Líneas "título | detalle", una por beneficio.
+  clubBenefits          String?
+  clubWelcomeSubject    String?
+  clubWelcomeBody       String?
+  /// Líneas "etiqueta | /ruta" del pie de página. Vacío = enlaces de respaldo.
+  footerLinks           String?
+  /// Líneas "Etiqueta | /ruta | icono". Iconos: home, shop, search, bag, user. Vacío = la barra actual.
+  bottomNav             String?
+  deliveryMinDays       Int      @default(3)
+  deliveryMaxDays       Int      @default(5)
+  expressDeliveryMinDays Int     @default(1)
+  expressDeliveryMaxDays Int     @default(2)
+  legalCity             String?
+  /// Matrícula mercantil u otro dato de registro.
+  commercialRegistry    String?
+  dataProtectionEmail   String?
+  termsDocumentUrl      String?
+  privacyDocumentUrl    String?
+  returnsDocumentUrl    String?
+  /// Montos de tarjeta de regalo, uno por línea, en pesos. Vacío = no cambia el catálogo.
+  giftCardAmounts       String?
   updatedAt         DateTime @updatedAt
 }
 

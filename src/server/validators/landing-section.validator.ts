@@ -26,3 +26,11 @@ export const LandingSectionPositionsSchema = z.array(
 })
 
 export const LandingSectionConfigSchema = z.record(z.string(), z.unknown())
+
+/** Slug de landing: "home" o un slug en minúsculas que se publica en /campanas/<slug>. */
+export const LandingPageSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(60)
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Usa solo minúsculas, números y guiones")

@@ -676,3 +676,33 @@ images: {
 - **Para cualquier otra URL (locales o externas):** Retorna la URL original sin transformaciones.
 - **Protección LCP:** Reduce la carga de CPU del VPS a cero para el pipeline de imágenes y entrega tamaños optimizados según el viewport del dispositivo móvil.
 
+
+## Sistema visual de la tienda pública
+
+Especificaciones de fotos, videos, 360° y banners para el equipo de contenido: [`docs/guia-fotografia-producto.md`](guia-fotografia-producto.md).
+
+Basado en `MANUAL_MARCA.md` (rojo 10 % solo para acentos y CTA, grises 60 %, negro 30 %; Barlow para títulos, Montserrat para texto). Los tokens viven en `.public-storefront` (`src/app/globals.css`) y solo aplican a la tienda; admin, checkout y auth conservan sus estilos.
+
+- **Utilidades:** `bg-store-canvas`, `bg-store-surface`, `text-store-ink`, `text-store-muted`, `rounded-store-{sm,md,lg,xl}`, `shadow-store-{raised,float}`.
+- **Primitivas CSS:** `.store-section` (ritmo vertical), `.store-gutter` (márgenes laterales), `.store-heading` (titular de sección), `.store-eyebrow`. Crecen por breakpoint (móvil → `md` → `xl`), no por componente: toda sección nueva del landing builder debe usarlas.
+- **Primitivas React:** `src/components/storefront/public-primitives.tsx` (`PublicButton`, `SectionHeading`, `MediaFrame`, `EditorialSurface`).
+- **Tipografía:** usar `font-barlow` / `font-montserrat`. `font-[var(--font-barlow)]` no funciona en Tailwind v4 (lo interpreta como peso) y dejaba los títulos en Montserrat.
+- **Breakpoints:** mobile-first. El layout de escritorio (header con menú, sidebar de filtros) empieza en `lg` (1024px); por debajo hay header compacto, filtros flotantes y `MobileBottomNav` (oculto en ficha, carrito y checkout, que tienen barra propia).
+- **Movimiento:** el contenido se pinta visible desde el servidor; las animaciones de entrada solo desplazan (`ScrollReveal`/`Reveal`), nunca ocultan con `opacity: 0`, para no generar huecos al hacer scroll ni retrasar el LCP. Siempre respetar `prefers-reduced-motion`.
+
+### Landings y secciones (landing builder)
+
+- `LandingSection.page` agrupa secciones por landing: `home` es `/`; cualquier otro slug (`^[a-z0-9-]+$`) se publica en `/campanas/<slug>` cuando tiene al menos una sección activa. Se crean desde `/admin/landing-builder?page=<slug>` (selector "Landing que editas").
+- `src/components/landing/LandingSections.tsx` es el registro de secciones: agregar un tipo = valor en `LandingSectionType` + entrada en `SECTION_RENDERERS` + campos en el editor.
+- **Hero escenario de producto:** un `campaignHero` con `foregroundMedia` (PNG sin fondo) y sin imágenes de fondo se muestra con el producto flotando sobre la primera palabra del titular en gigante, sombra elíptica y flecha de rotación.
+- **Intro de marca:** `StoreIntro` cubre la home ~1 s solo en la primera visita de la sesión (`sessionStorage`), sin `?preview` y sin movimiento reducido. La página ya está renderizada debajo; la capa se activa con un script con nonce antes del primer pintado.
+
+## One Star Club (comunidad y fidelización)
+
+- **Membresía gratuita** ligada a la cuenta de cliente: `User.clubMember` y `User.clubJoinedAt`. Se activa al registrarse (opción "Unirme a One Star Club", marcada si se llega desde `/club`) o después desde `/club` o la pestaña "One Star Club" de Mi cuenta. Se puede salir en cualquier momento.
+- **Newsletter con consentimiento explícito** (Habeas Data): `User.marketingConsentAt` guarda cuándo se aceptó; `null` = no aceptó o lo retiró. Es una casilla aparte y desmarcada; unirse al club no implica aceptar correos.
+- **Promociones exclusivas:** cupones con `Coupon.clubOnly = true` (casilla "Solo para One Star Club" en `/admin/cupones`). `/club` los lista con el código visible solo para miembros, y `validateCouponForOrder(code, items, { isClubMember })` los rechaza para no miembros tanto al aplicarlos (`validateCouponAction`, según la sesión) como al pagar (`placeOrder`).
+- **Lógica:** `src/server/services/club.service.ts` (estado, unirse, salir, consentimiento, promociones); acciones en `src/app/club/actions.ts` (solo clientes con sesión, nunca administradores).
+- **Bienvenida:** `sendClubWelcomeEmail` (Resend) se envía una sola vez, al unirse por primera vez.
+- **Admin:** `/admin/clientes` filtra por "Miembros de One Star Club" y "Suscritos al newsletter", y `/admin/clientes/exportar-newsletter` descarga en CSV solo a quienes dieron consentimiento, para cargarlos en la herramienta de envío de correos.
+- La sección "Newsletter" del constructor ahora invita al club (no hay formulario suelto de suscripción sin cuenta).

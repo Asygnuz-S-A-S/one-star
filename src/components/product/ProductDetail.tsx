@@ -40,7 +40,8 @@ export default function ProductDetail({ product, reviewStats, promises, whatsapp
   )
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-[60%_40%] gap-8 md:gap-12 mb-16">
+    // minmax(0, …): con porcentajes + gap las columnas sumaban más del 100 % y aparecía scroll horizontal.
+    <div className="mb-16 grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:gap-12">
       {/* key: al cambiar de color la galería vuelve a su primera foto */}
       <ProductGallery
         key={selectedColor}

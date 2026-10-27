@@ -34,10 +34,10 @@ describe("getUniqueSizes", () => {
 })
 
 describe("getUniqueColors", () => {
-  it("delega al repositorio y retorna los colores", async () => {
-    mockColors.mockResolvedValue(["Negro", "Blanco", "Rojo"])
+  it("delega al repositorio y retorna los colores ordenados y sin duplicados por mayúsculas", async () => {
+    mockColors.mockResolvedValue(["Negro", "Blanco", "NEGRO", "Rojo"])
     const result = await getUniqueColors()
-    expect(result).toEqual(["Negro", "Blanco", "Rojo"])
+    expect(result).toEqual(["Blanco", "Negro", "Rojo"])
     expect(mockColors).toHaveBeenCalledTimes(1)
   })
 

@@ -52,8 +52,8 @@ export default function StickyBuyBar({ targetId, name, price, originalPrice, nee
     >
       <div className="flex items-center gap-3">
         <div className="min-w-0 flex-1">
-          <p className="truncate font-[var(--font-montserrat)] text-xs text-[#4A4A4A] dark:text-gray-400">{name}</p>
-          <p className="flex items-baseline gap-2 font-[var(--font-barlow)] font-bold text-[#1C1C1C] dark:text-white">
+          <p className="truncate font-montserrat text-xs text-[#4A4A4A] dark:text-gray-400">{name}</p>
+          <p className="flex items-baseline gap-2 font-barlow font-bold text-[#1C1C1C] dark:text-white">
             <span className="text-lg">{formatCOP(price)}</span>
             {originalPrice && originalPrice > price && (
               <span className="text-xs font-normal text-[#4A4A4A] line-through dark:text-gray-500">{formatCOP(originalPrice)}</span>
@@ -64,7 +64,7 @@ export default function StickyBuyBar({ targetId, name, price, originalPrice, nee
           type="button"
           tabIndex={visible ? 0 : -1}
           onClick={needsSize ? onNeedSize : onAdd}
-          className="shrink-0 bg-[#E31C23] px-5 py-3 font-[var(--font-barlow)] text-sm font-bold uppercase tracking-widest text-white active:bg-[#C01920]"
+          className="shrink-0 bg-[#E31C23] px-5 py-3 font-barlow text-sm font-bold uppercase tracking-widest text-white active:bg-[#C01920]"
         >
           {needsSize ? "Elige tu talla" : "Agregar al carrito"}
         </button>

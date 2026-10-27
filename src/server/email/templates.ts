@@ -198,3 +198,27 @@ export function giftCardDeliveryEmail(params: {
     html: layout(inner, plural ? "Tus tarjetas de regalo ya están listas." : "Tu tarjeta de regalo ya está lista."),
   }
 }
+
+/** Bienvenida a One Star Club. */
+export function clubWelcomeEmail(params: {
+  name?: string
+  newsletter: boolean
+  clubUrl: string
+  subject?: string
+  body?: string
+}): EmailContent {
+  const subject = params.subject?.trim() || "Bienvenido a One Star Club"
+  const body = params.body?.trim() || "Ya eres parte de One Star Club. Desde tu cuenta puedes ver las promociones exclusivas para miembros y usar sus códigos en el checkout."
+  const inner = `
+    <h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;">${escapeHtml(subject)}</h1>
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${COLOR.text};">${greeting(params.name)}</p>
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${COLOR.text};">
+      ${escapeHtml(body)}
+    </p>
+    ${params.newsletter ? `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${COLOR.text};">También te enviaremos lanzamientos y novedades a este correo. Puedes dejar de recibirlos cuando quieras desde tu cuenta.</p>` : ""}
+    <p style="margin:24px 0 0;"><a href="${escapeHtml(params.clubUrl)}" style="display:inline-block;background:#E31C23;color:#FFFFFF;text-decoration:none;font-weight:700;font-size:14px;letter-spacing:1px;padding:14px 22px;border-radius:8px;">VER MIS BENEFICIOS</a></p>`
+  return {
+    subject,
+    html: layout(inner, subject),
+  }
+}

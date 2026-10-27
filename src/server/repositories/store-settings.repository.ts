@@ -13,6 +13,38 @@ export interface StoreSettingsPatch {
   metaTestEventCode?: string | null
   metaPixelEnabled?: boolean
   catalogSource?: string
+  freeShippingThreshold?: number
+  standardShippingCost?: number
+  expressShippingCost?: number
+  legalName?: string | null
+  taxId?: string | null
+  legalAddress?: string | null
+  contactPhone?: string | null
+  hideImagelessProducts?: boolean
+  newArrivalDays?: number
+  chatEnabled?: boolean
+  chatWelcome?: string | null
+  giftCardMinAmount?: number
+  giftCardMaxAmount?: number
+  giftCardValidityMonths?: number
+  clubHeadline?: string | null
+  clubIntro?: string | null
+  clubBenefits?: string | null
+  clubWelcomeSubject?: string | null
+  clubWelcomeBody?: string | null
+  footerLinks?: string | null
+  bottomNav?: string | null
+  deliveryMinDays?: number
+  deliveryMaxDays?: number
+  expressDeliveryMinDays?: number
+  expressDeliveryMaxDays?: number
+  legalCity?: string | null
+  commercialRegistry?: string | null
+  dataProtectionEmail?: string | null
+  termsDocumentUrl?: string | null
+  privacyDocumentUrl?: string | null
+  returnsDocumentUrl?: string | null
+  giftCardAmounts?: string | null
 }
 
 /** Devuelve el registro único; lo crea con los defaults del schema si no existe. */

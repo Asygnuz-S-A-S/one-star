@@ -39,11 +39,26 @@ export interface GiftCardOption {
   amount: number
 }
 
-export function isValidGiftCardAmount(amount: number): boolean {
+export interface GiftCardLimits {
+  minAmount: number
+  maxAmount: number
+  validityMonths: number
+}
+
+export const DEFAULT_GIFT_CARD_LIMITS: GiftCardLimits = {
+  minAmount: GIFT_CARD_MIN_AMOUNT,
+  maxAmount: GIFT_CARD_MAX_AMOUNT,
+  validityMonths: 12,
+}
+
+export function isValidGiftCardAmount(
+  amount: number,
+  limits: Pick<GiftCardLimits, "minAmount" | "maxAmount"> = DEFAULT_GIFT_CARD_LIMITS,
+): boolean {
   return (
     Number.isInteger(amount) &&
-    amount >= GIFT_CARD_MIN_AMOUNT &&
-    amount <= GIFT_CARD_MAX_AMOUNT
+    amount >= limits.minAmount &&
+    amount <= limits.maxAmount
   )
 }
 
@@ -51,9 +66,14 @@ export function isValidGiftCardAmount(amount: number): boolean {
  * Construye el ítem de carrito de una tarjeta de regalo. `id` es el id de la
  * variante real porque el checkout envía `variantId: item.id`.
  */
-export function createGiftCardCartItem(option: GiftCardOption) {
-  if (!isValidGiftCardAmount(option.amount)) {
-    throw new Error("El monto de la tarjeta debe estar entre $20.000 y $2.000.000")
+export function createGiftCardCartItem(
+  option: GiftCardOption,
+  limits?: Pick<GiftCardLimits, "minAmount" | "maxAmount">,
+) {
+  if (!isValidGiftCardAmount(option.amount, limits)) {
+    throw new Error(
+      `El monto de la tarjeta debe estar entre $${formatGiftCardAmount(GIFT_CARD_MIN_AMOUNT)} y $${formatGiftCardAmount(GIFT_CARD_MAX_AMOUNT)}`,
+    )
   }
   if (!option.variantId || !option.productId) {
     throw new Error("La tarjeta de regalo no está disponible en este momento.")
@@ -82,4 +102,18 @@ export function createGiftCardCartItem(option: GiftCardOption) {
  */
 export function isLegacyGiftCardCartItemId(id: string): boolean {
   return id.startsWith("gift-card-")
+}
+
+export type GiftCardFinish = "copper" | "silver" | "gold"
+
+/**
+ * Acabado metálico según la posición del monto entre los disponibles: el tercio más bajo
+ * es cobre, el del medio plata y el más alto oro. Se adapta solo si cambian los montos.
+ */
+export function getGiftCardFinish(amount: number, amounts: number[]): GiftCardFinish {
+  const sorted = [...new Set(amounts)].sort((a, b) => a - b)
+  const index = sorted.indexOf(amount)
+  if (index < 0 || sorted.length === 0) return "copper"
+  const tier = Math.min(2, Math.floor((index * 3) / sorted.length))
+  return (["copper", "silver", "gold"] as const)[tier]
 }

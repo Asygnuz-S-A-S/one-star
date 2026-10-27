@@ -9,21 +9,15 @@ vi.mock("@/server/repositories/media-asset.repository", () => ({
   findMediaAssetByUrl: vi.fn(),
   createMediaAssetRecord: vi.fn(),
   deleteMediaAssetRecord: vi.fn(),
+  findMediaAssetSources: vi.fn(),
+  findMediaAssetReferences: vi.fn(),
 }))
-
-const prismaMock = vi.hoisted(() => ({
-  storeLogo: { findMany: vi.fn() },
-  banner: { findMany: vi.fn() },
-  brand: { findMany: vi.fn() },
-  productImage: { findMany: vi.fn() },
-}))
-
-vi.mock("@/server/db/prisma", () => ({ prisma: prismaMock }))
 
 import {
   autoSyncExistingAssets,
   createMediaAsset,
   deleteMediaAsset,
+  getMediaAssetDeletionInfo,
   getMediaAssets,
 } from "../media-asset.service"
 import {
@@ -33,6 +27,8 @@ import {
   findManyMediaAssets,
   findMediaAssetById,
   findMediaAssetByUrl,
+  findMediaAssetSources,
+  findMediaAssetReferences,
 } from "@/server/repositories/media-asset.repository"
 
 const count = vi.mocked(countMediaAssets)
@@ -58,11 +54,11 @@ function asset(overrides: Record<string, unknown> = {}) {
   }
 }
 
+const findSources = vi.mocked(findMediaAssetSources)
+const findReferences = vi.mocked(findMediaAssetReferences)
+
 function sinRecursosPrevios() {
-  prismaMock.storeLogo.findMany.mockResolvedValue([])
-  prismaMock.banner.findMany.mockResolvedValue([])
-  prismaMock.brand.findMany.mockResolvedValue([])
-  prismaMock.productImage.findMany.mockResolvedValue([])
+  findSources.mockResolvedValue({ logos: [], banners: [], brands: [], productImages: [] } as never)
 }
 
 beforeEach(() => {
@@ -87,7 +83,7 @@ describe("getMediaAssets", () => {
 
     await getMediaAssets()
 
-    expect(prismaMock.storeLogo.findMany).toHaveBeenCalled()
+    expect(findSources).toHaveBeenCalled()
   })
 
   it("no vuelve a sincronizar cuando ya hay recursos registrados", async () => {
@@ -96,13 +92,13 @@ describe("getMediaAssets", () => {
 
     await getMediaAssets()
 
-    expect(prismaMock.storeLogo.findMany).not.toHaveBeenCalled()
+    expect(findSources).not.toHaveBeenCalled()
   })
 
   it("no tumba la biblioteca si la sincronización automática falla", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => {})
     count.mockResolvedValueOnce(0).mockResolvedValue(0)
-    prismaMock.storeLogo.findMany.mockRejectedValue(new Error("db caída"))
+    findSources.mockRejectedValue(new Error("db caída"))
     findMany.mockResolvedValue([])
 
     await expect(getMediaAssets()).resolves.toMatchObject({ items: [], total: 0 })
@@ -158,20 +154,27 @@ describe("deleteMediaAsset", () => {
   })
 })
 
+describe("getMediaAssetDeletionInfo", () => {
+  it("informa las referencias antes de retirar el índice de biblioteca", async () => {
+    findById.mockResolvedValue(asset() as never)
+    findReferences.mockResolvedValue({ banners: 1, productImages: 2, logos: 0, brands: 0, landingSections: 1 })
+
+    await expect(getMediaAssetDeletionInfo("ma_1")).resolves.toEqual({
+      exists: true,
+      referenceCount: 4,
+      references: { banners: 1, productImages: 2, logos: 0, brands: 0, landingSections: 1 },
+    })
+  })
+})
+
 describe("autoSyncExistingAssets", () => {
   it("registra logos, banners, marcas e imágenes de producto que faltaban", async () => {
-    prismaMock.storeLogo.findMany.mockResolvedValue([
-      { url: "/logos/a.svg", fileName: "a.svg", type: "desktop" },
-    ])
-    prismaMock.banner.findMany.mockResolvedValue([
-      { imageUrl: "/banners/b.mp4", title: "Promo Verano", mediaType: "video" },
-    ])
-    prismaMock.brand.findMany.mockResolvedValue([
-      { logoUrl: "/marcas/nike.png", name: "New Balance" },
-    ])
-    prismaMock.productImage.findMany.mockResolvedValue([
-      { url: "/productos/p.jpg", alt: "Zapato Rojo" },
-    ])
+    findSources.mockResolvedValue({
+      logos: [{ url: "/logos/a.svg", fileName: "a.svg", type: "desktop" }],
+      banners: [{ imageUrl: "/banners/b.mp4", title: "Promo Verano", mediaType: "video" }],
+      brands: [{ logoUrl: "/marcas/nike.png", name: "New Balance" }],
+      productImages: [{ url: "/productos/p.jpg", alt: "Zapato Rojo" }],
+    } as never)
     findByUrl.mockResolvedValue(null)
     create.mockResolvedValue(asset() as never)
 
@@ -182,9 +185,9 @@ describe("autoSyncExistingAssets", () => {
   })
 
   it("clasifica el banner de video como video", async () => {
-    prismaMock.banner.findMany.mockResolvedValue([
-      { imageUrl: "/banners/b.mp4", title: "Promo", mediaType: "video" },
-    ])
+    findSources.mockResolvedValue({
+      logos: [], banners: [{ imageUrl: "/banners/b.mp4", title: "Promo", mediaType: "video" }], brands: [], productImages: [],
+    } as never)
     findByUrl.mockResolvedValue(null)
     create.mockResolvedValue(asset() as never)
 
@@ -194,9 +197,9 @@ describe("autoSyncExistingAssets", () => {
   })
 
   it("deriva el nombre del archivo del título, en minúsculas y con guiones", async () => {
-    prismaMock.brand.findMany.mockResolvedValue([
-      { logoUrl: "/marcas/nb.png", name: "New Balance" },
-    ])
+    findSources.mockResolvedValue({
+      logos: [], banners: [], brands: [{ logoUrl: "/marcas/nb.png", name: "New Balance" }], productImages: [],
+    } as never)
     findByUrl.mockResolvedValue(null)
     create.mockResolvedValue(asset() as never)
 
@@ -208,19 +211,18 @@ describe("autoSyncExistingAssets", () => {
   })
 
   it("omite los recursos que ya estaban registrados", async () => {
-    prismaMock.storeLogo.findMany.mockResolvedValue([{ url: "/logos/a.svg", type: "desktop" }])
+    findSources.mockResolvedValue({
+      logos: [{ url: "/logos/a.svg", type: "desktop" }], banners: [], brands: [], productImages: [],
+    } as never)
     findByUrl.mockResolvedValue(asset() as never)
 
     expect(await autoSyncExistingAssets()).toBe(0)
     expect(create).not.toHaveBeenCalled()
   })
 
-  it("limita el barrido de imágenes de producto a 50 registros", async () => {
+  it("carga las fuentes de recursos desde el repositorio", async () => {
     await autoSyncExistingAssets()
 
-    expect(prismaMock.productImage.findMany).toHaveBeenCalledWith({
-      take: 50,
-      orderBy: { id: "desc" },
-    })
+    expect(findSources).toHaveBeenCalledOnce()
   })
 })

@@ -17,7 +17,7 @@ export default async function RelatedProducts({
 
   return (
     <section className="py-12 border-t border-[#E0E0E0]">
-      <h2 className="font-[var(--font-barlow)] font-bold text-xl md:text-2xl uppercase tracking-widest text-[#1C1C1C] mb-6">
+      <h2 className="font-barlow font-bold text-xl md:text-2xl uppercase tracking-widest text-[#1C1C1C] mb-6">
         TAMBIÉN TE PUEDE GUSTAR
       </h2>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

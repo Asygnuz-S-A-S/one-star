@@ -1,7 +1,6 @@
 "use client"
 
 import { useRef, useState, useEffect } from "react"
-import { motion } from "motion/react"
 import Link from "next/link"
 import ProductCard from "./ProductCard"
 
@@ -62,7 +61,7 @@ export default function ProductCarouselClient({ title, products, theme = "light"
       <div className="px-4 md:px-8 lg:px-16 mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
         {/* Title with highlighted background */}
         <div className="inline-block">
-          <h2 className="font-[var(--font-barlow)] font-black uppercase text-2xl md:text-3xl tracking-tight leading-none px-2 py-1 bg-surface-3 text-foreground">
+          <h2 className="store-heading">
             {title}
           </h2>
         </div>
@@ -71,7 +70,7 @@ export default function ProductCarouselClient({ title, products, theme = "light"
         <div className="flex items-center gap-4">
           <Link
             href="/productos"
-            className="font-[var(--font-montserrat)] text-xs font-bold uppercase tracking-widest px-6 py-2 rounded-full border border-foreground text-foreground transition-colors hover:bg-foreground hover:text-background"
+            className="font-montserrat text-xs font-bold uppercase tracking-widest px-6 py-2 rounded-full border border-foreground text-foreground transition-colors hover:bg-foreground hover:text-background"
           >
             Ver Todo
           </Link>
@@ -109,14 +108,10 @@ export default function ProductCarouselClient({ title, products, theme = "light"
           className="flex gap-4 md:gap-6 overflow-x-auto scrollbar-hide pb-4 snap-x snap-mandatory"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
-          {products.map((product, index) => (
-            <motion.div
+          {products.map((product) => (
+            <div
               key={product.id}
               className="w-[280px] md:w-[320px] shrink-0 snap-start"
-              initial={{ opacity: 0, x: 20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true, margin: "-50px" }}
-              transition={{ duration: 0.4, delay: index * 0.05 }}
             >
               <ProductCard
                 id={product.id}
@@ -132,7 +127,7 @@ export default function ProductCarouselClient({ title, products, theme = "light"
                 isNew={product.isNew}
                 hasStock={product.hasStock}
               />
-            </motion.div>
+            </div>
           ))}
         </div>
       </div>

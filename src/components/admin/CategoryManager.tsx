@@ -85,7 +85,7 @@ export default function CategoryManager({ initialCategories }: { initialCategori
     <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
       {/* Formulario */}
       <div className="bg-white p-6 border border-[#E0E0E0] shadow-sm rounded-md h-fit">
-        <h2 className="font-[var(--font-barlow)] font-bold text-xl mb-4">
+        <h2 className="font-barlow font-bold text-xl mb-4">
           {isEditing ? "Editar Categoría" : "Nueva Categoría"}
         </h2>
         
@@ -149,9 +149,9 @@ export default function CategoryManager({ initialCategories }: { initialCategori
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50 border-b border-[#E0E0E0]">
-                <th className="p-4 font-[var(--font-barlow)] font-bold text-[#1C1C1C]">Nombre</th>
-                <th className="p-4 font-[var(--font-barlow)] font-bold text-[#1C1C1C]">URL (Slug)</th>
-                <th className="p-4 font-[var(--font-barlow)] font-bold text-[#1C1C1C] text-right">Acciones</th>
+                <th className="p-4 font-barlow font-bold text-[#1C1C1C]">Nombre</th>
+                <th className="p-4 font-barlow font-bold text-[#1C1C1C]">URL (Slug)</th>
+                <th className="p-4 font-barlow font-bold text-[#1C1C1C] text-right">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#E0E0E0]">

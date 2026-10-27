@@ -188,7 +188,7 @@ export default function StoreManager({ initialStores, erpLocations = [] }: Store
     <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
       {/* Formulario */}
       <div className="bg-white p-6 border border-[#E0E0E0] shadow-sm rounded-md h-fit xl:col-span-1">
-        <h2 className="font-[var(--font-barlow)] font-bold text-xl mb-4">
+        <h2 className="font-barlow font-bold text-xl mb-4">
           {isEditing ? "Editar Sucursal" : "Nueva Sucursal"}
         </h2>
         
@@ -422,7 +422,7 @@ export default function StoreManager({ initialStores, erpLocations = [] }: Store
             <div key={store.id} className="bg-white border border-[#E0E0E0] shadow-sm rounded-md overflow-hidden flex flex-col h-full">
               <div className="p-5 flex-1 flex flex-col">
                 <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-[var(--font-barlow)] font-bold text-lg text-[#1C1C1C] leading-tight">
+                  <h3 className="font-barlow font-bold text-lg text-[#1C1C1C] leading-tight">
                     {store.name}
                   </h3>
                   <button

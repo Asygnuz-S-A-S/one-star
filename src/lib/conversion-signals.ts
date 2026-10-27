@@ -38,6 +38,9 @@ export interface ConversionSignalsInput {
   totalStock: number
   /** Producto digital (tarjeta de regalo): no aplica envío ni escasez. */
   isDigital?: boolean
+  /** Umbral de envío gratis vigente. Si no llega, se usa el valor de respaldo. */
+  freeThreshold?: number
+  delivery?: { min: number; max: number }
 }
 
 export function getConversionSignals(input: ConversionSignalsInput): ConversionSignal[] {
@@ -48,21 +51,22 @@ export function getConversionSignals(input: ConversionSignalsInput): ConversionS
   const scarcity = getScarcitySignal(input)
   if (scarcity) signals.push(scarcity)
 
-  signals.push(getShippingSignal(input.price))
+  signals.push(getShippingSignal(input.price, input.freeThreshold ?? STANDARD_SHIPPING_THRESHOLD))
+  const delivery = input.delivery ?? DELIVERY_BUSINESS_DAYS
   signals.push({
     kind: "delivery",
-    text: `Entrega en ${DELIVERY_BUSINESS_DAYS.min} a ${DELIVERY_BUSINESS_DAYS.max} días hábiles en toda Colombia`,
+    text: `Entrega en ${delivery.min} a ${delivery.max} días hábiles en toda Colombia`,
     tone: "info",
   })
 
   return signals.slice(0, MAX_CONVERSION_SIGNALS)
 }
 
-function getShippingSignal(price: number): ConversionSignal {
-  if (price >= STANDARD_SHIPPING_THRESHOLD) {
+function getShippingSignal(price: number, freeThreshold: number): ConversionSignal {
+  if (price >= freeThreshold) {
     return { kind: "shipping", text: "Envío gratis en este producto", tone: "info" }
   }
-  const missing = STANDARD_SHIPPING_THRESHOLD - price
+  const missing = freeThreshold - price
   return {
     kind: "shipping",
     text: `Te faltan ${formatCOP(missing)} para el envío gratis`,

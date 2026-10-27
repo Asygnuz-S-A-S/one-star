@@ -3,7 +3,8 @@ import "server-only"
 import Anthropic from "@anthropic-ai/sdk"
 import { getProducts } from "./product.service"
 import { findVariantForCartDisplay } from "@/server/repositories/variant.repository"
-import { STORE_KNOWLEDGE } from "@/lib/store-knowledge"
+import { buildStoreKnowledge, STORE_KNOWLEDGE } from "@/lib/store-knowledge"
+import { getDeliveryWindow, getShippingRates } from "@/server/services/store-settings.service"
 
 const DEFAULT_MODEL = "claude-3-5-haiku-latest"
 const MAX_TOOL_ROUNDS = 4
@@ -39,7 +40,8 @@ function getClient(): Anthropic | null {
   return new Anthropic({ apiKey })
 }
 
-const SYSTEM_PROMPT = `Eres el asesor de compras virtual exclusivo de One Star, tienda colombiana especializada en ropa y calzado deportivo y urbano premium (Nike, New Balance, Veja, Hoka, Vans, Converse, Skechers, Asics, Adidas).
+function systemPrompt(knowledge: string) {
+  return `Eres el asesor de compras virtual exclusivo de One Star, tienda colombiana especializada en ropa y calzado deportivo y urbano premium (Nike, New Balance, Veja, Hoka, Vans, Converse, Skechers, Asics, Adidas).
 
 Tu único objetivo es guiar al cliente hacia la compra informada de productos de nuestra tienda.
 
@@ -54,7 +56,8 @@ Reglas estrictas de interacción:
 8. Políticas y tiendas: para envíos, pagos, cambios, devoluciones, garantías, tiendas físicas y horarios, básate exclusivamente en la base de conocimiento oficial de abajo.
 
 BASE DE CONOCIMIENTO DE ONE STAR
-${STORE_KNOWLEDGE}`
+${knowledge}`
+}
 
 const TOOLS: Anthropic.Tool[] = [
   {
@@ -167,6 +170,9 @@ export async function sendChatMessage(history: ChatMessage[], message: string): 
   }
 
   const model = process.env.ANTHROPIC_MODEL || DEFAULT_MODEL
+  const knowledge = await Promise.all([getShippingRates(), getDeliveryWindow()])
+    .then(([rates, delivery]) => buildStoreKnowledge(rates, delivery))
+    .catch(() => STORE_KNOWLEDGE)
   const messages: Anthropic.MessageParam[] = [
     ...history.map((m) => ({ role: m.role, content: m.content }) as Anthropic.MessageParam),
     { role: "user", content: message },
@@ -179,7 +185,7 @@ export async function sendChatMessage(history: ChatMessage[], message: string): 
       const response = await client.messages.create({
         model,
         max_tokens: 1024,
-        system: SYSTEM_PROMPT,
+        system: systemPrompt(knowledge),
         tools: TOOLS,
         messages,
       })

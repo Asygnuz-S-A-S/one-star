@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { getProducts } from "@/server/services/product.service"
+import { getCatalogRules } from "@/server/services/store-settings.service"
 import FeaturedProductsGrid from "./FeaturedProductsGrid"
 import { buildProductFamilyCardColorSummary } from "@/lib/product-card-colors"
 
@@ -8,7 +9,8 @@ export default async function FeaturedProducts({ config = {} }: { config?: Recor
   const limit = config.limit ? Number(config.limit) : 8
   const theme = config.theme === "dark" ? "dark" : "light"
 
-  const { products } = await getProducts({ orden: "reciente" }, limit)
+  const rules = await getCatalogRules().catch(() => ({ hideImagelessProducts: true, newArrivalDays: 30 }))
+  const { products } = await getProducts({ orden: "reciente", requireImage: rules.hideImagelessProducts }, limit)
 
   if (products.length === 0) return null
 
@@ -33,7 +35,7 @@ export default async function FeaturedProducts({ config = {} }: { config?: Recor
   return (
     <section className={`px-4 md:px-8 lg:px-16 py-12 md:py-16 bg-background text-foreground ${isDark ? "dark" : ""}`}>
       <div className="mb-8 md:mb-12">
-        <h2 className="font-[var(--font-barlow)] font-black uppercase text-3xl md:text-4xl tracking-tight leading-none text-foreground">
+        <h2 className="store-heading">
           {title}
         </h2>
         <div className="w-12 h-1 bg-[#E31C23] mt-3" />
@@ -44,7 +46,7 @@ export default async function FeaturedProducts({ config = {} }: { config?: Recor
       <div className="text-center mt-10">
         <Link
           href="/productos"
-          className="inline-block border-2 border-foreground text-foreground font-[var(--font-barlow)] font-bold uppercase tracking-widest text-sm px-10 py-4 transition-colors duration-200 hover:bg-foreground hover:text-background"
+          className="inline-block border-2 border-foreground text-foreground font-barlow font-bold uppercase tracking-widest text-sm px-10 py-4 transition-colors duration-200 hover:bg-foreground hover:text-background"
         >
           Ver Todos los Productos
         </Link>

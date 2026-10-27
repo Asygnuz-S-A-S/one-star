@@ -12,7 +12,7 @@ export default function CrossSelling({ products, title = "COMPLETA TU LOOK" }: C
 
   return (
     <section className="py-12">
-      <h2 className="font-[var(--font-barlow)] font-bold text-xl md:text-2xl uppercase tracking-widest text-[#1C1C1C] mb-6">
+      <h2 className="font-barlow font-bold text-xl md:text-2xl uppercase tracking-widest text-[#1C1C1C] mb-6">
         {title}
       </h2>
       <div className="flex gap-4 overflow-x-auto pb-2 md:grid md:grid-cols-4 md:overflow-visible scrollbar-hide">

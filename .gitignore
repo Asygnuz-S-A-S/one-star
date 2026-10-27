@@ -57,3 +57,7 @@ sentry-debug.log
 .agents/
 .claude/
 
+
+# Local SDD skill registry
+.atl/
+/public/demo/

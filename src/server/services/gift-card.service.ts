@@ -1,6 +1,19 @@
 import "server-only"
 
-import { isGiftCardSku, isValidGiftCardAmount, type GiftCardOption } from "@/lib/gift-card"
+import { Prisma } from "@prisma/client"
+import { prisma } from "@/server/db/prisma"
+import {
+  DEFAULT_GIFT_CARD_LIMITS,
+  GIFT_CARD_CATEGORY_SLUG,
+  formatGiftCardAmount,
+  giftCardSku,
+  giftCardSlug,
+  isGiftCardSku,
+  isValidGiftCardAmount,
+  type GiftCardOption,
+} from "@/lib/gift-card"
+import { giftCardExpiry } from "@/lib/storefront-copy"
+import { getGiftCardLimits } from "@/server/services/store-settings.service"
 import { generateGiftCardCode } from "@/lib/gift-card-code"
 import {
   findPurchasableGiftCardVariants,
@@ -16,13 +29,64 @@ import type { OrderDTO } from "./order.service"
  * menor a mayor. Descarta las variantes sin stock o con un precio fuera del
  * rango permitido para no ofrecer una opción que el checkout va a rechazar.
  */
+const GIFT_CARD_STOCK = 9_999
+
+/** Crea o publica los montos pedidos y oculta los que ya no están en la lista. */
+export async function syncGiftCardCatalog(
+  amounts: number[],
+  limits: { minAmount: number; maxAmount: number },
+): Promise<void> {
+  const allowed = amounts.filter((amount) => isValidGiftCardAmount(amount, limits))
+  if (allowed.length === 0) return
+  const category = await prisma.category.upsert({
+    where: { slug: GIFT_CARD_CATEGORY_SLUG },
+    update: {},
+    create: { name: "Tarjetas de regalo", slug: GIFT_CARD_CATEGORY_SLUG },
+  })
+  const keep = new Set(allowed)
+  const current = await prisma.product.findMany({
+    where: { slug: { startsWith: "tarjeta-regalo-" } },
+    select: { id: true, basePrice: true },
+  })
+  for (const product of current) {
+    if (!keep.has(product.basePrice.toNumber())) {
+      await prisma.product.update({ where: { id: product.id }, data: { isPublished: false } })
+    }
+  }
+  for (const amount of allowed) {
+    const product = await prisma.product.upsert({
+      where: { slug: giftCardSlug(amount) },
+      update: { basePrice: new Prisma.Decimal(amount), isPublished: true, availableOnline: true },
+      create: {
+        slug: giftCardSlug(amount),
+        name: `Tarjeta de Regalo $${formatGiftCardAmount(amount)}`,
+        description: "Tarjeta de regalo digital One Star. Se entrega por correo electrónico después de la compra.",
+        basePrice: new Prisma.Decimal(amount),
+        isOnSale: false,
+        categoryId: category.id,
+        availableOnline: true,
+        availableInStores: false,
+        isPublished: true,
+      },
+    })
+    const variant = await prisma.variant.upsert({
+      where: { sku: giftCardSku(amount) },
+      update: { stock: GIFT_CARD_STOCK, productId: product.id },
+      create: { sku: giftCardSku(amount), size: "Digital", color: "Rojo One Star", stock: GIFT_CARD_STOCK, productId: product.id },
+    })
+    await prisma.inventoryLevel.deleteMany({ where: { variantId: variant.id } })
+    await prisma.inventoryLevel.create({ data: { variantId: variant.id, storeLocationId: null, stock: GIFT_CARD_STOCK } })
+  }
+}
+
 export async function getGiftCardOptions(): Promise<GiftCardOption[]> {
   const variants = await findPurchasableGiftCardVariants()
+  const limits = await getGiftCardLimits().catch(() => DEFAULT_GIFT_CARD_LIMITS)
 
   return variants
     .flatMap((variant) => {
       const amount = variant.product.basePrice.toNumber()
-      if (variant.stock <= 0 || !isValidGiftCardAmount(amount)) return []
+      if (variant.stock <= 0 || !isValidGiftCardAmount(amount, limits)) return []
       return [
         {
           variantId: variant.id,
@@ -52,9 +116,15 @@ export async function issueGiftCardsForOrder(order: OrderDTO): Promise<IssuedGif
   const balances = giftItems.flatMap((item) =>
     Array.from({ length: item.quantity }, () => item.unitPrice)
   )
+  const limits = await getGiftCardLimits().catch(() => DEFAULT_GIFT_CARD_LIMITS)
   // Idempotente: repetir la llamada para un pedido ya atendido no crea nada.
   return issueMissingGiftCardsForOrder(
-    { orderId: order.id, customerEmail: order.customerEmail, balances },
+    {
+      orderId: order.id,
+      customerEmail: order.customerEmail,
+      balances,
+      expiresAt: giftCardExpiry(new Date(), limits.validityMonths),
+    },
     generateGiftCardCode
   )
 }
@@ -113,6 +183,9 @@ export async function redeemGiftCard(code: string, amount: number): Promise<Gift
   if (!existing) throw new Error("Código no encontrado.")
   if (!existing.isActive || existing.balance.toNumber() <= 0) {
     throw new Error("Esta tarjeta ya no tiene saldo disponible.")
+  }
+  if (existing.expiresAt && existing.expiresAt.getTime() <= Date.now()) {
+    throw new Error("Esta tarjeta ya venció.")
   }
   if (amount > existing.balance.toNumber()) {
     throw new Error("El monto excede el saldo disponible.")

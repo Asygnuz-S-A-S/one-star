@@ -6,8 +6,9 @@ import {
   findMediaAssetByUrl,
   createMediaAssetRecord,
   deleteMediaAssetRecord,
+  findMediaAssetReferences,
+  findMediaAssetSources,
 } from "../repositories/media-asset.repository"
-import { prisma } from "../db/prisma"
 import type { MediaAsset } from "@prisma/client"
 
 export interface MediaAssetDTO {
@@ -96,81 +97,75 @@ export async function deleteMediaAsset(id: string): Promise<void> {
   await deleteMediaAssetRecord(id)
 }
 
+export async function getMediaAssetDeletionInfo(id: string) {
+  const asset = await findMediaAssetById(id)
+  if (!asset) {
+    return { exists: false, referenceCount: 0, references: null }
+  }
+
+  const references = await findMediaAssetReferences(asset.url)
+  return {
+    exists: true,
+    referenceCount: Object.values(references).reduce((total, count) => total + count, 0),
+    references,
+  }
+}
+
 /**
  * Escanea imágenes ya existentes en StoreLogo, Banner, Brand y ProductImage
  * y las registra en MediaAsset para que aparezcan en la biblioteca.
  */
 export async function autoSyncExistingAssets(): Promise<number> {
+  const { logos, banners, brands, productImages } = await findMediaAssetSources()
   let synced = 0
 
-  // 1. StoreLogos
-  const logos = await prisma.storeLogo.findMany()
+  const register = async (asset: Parameters<typeof createMediaAssetRecord>[0]) => {
+    if (await findMediaAssetByUrl(asset.url)) return
+    await createMediaAssetRecord(asset)
+    synced++
+  }
+
   for (const logo of logos) {
     if (logo.url) {
-      const existing = await findMediaAssetByUrl(logo.url)
-      if (!existing) {
-        await createMediaAssetRecord({
-          url: logo.url,
-          fileName: logo.fileName || `logo-${logo.type || "store"}.png`,
-          fileType: "image",
-          folder: "logos",
-        })
-        synced++
-      }
+      await register({
+        url: logo.url,
+        fileName: logo.fileName || `logo-${logo.type || "store"}.png`,
+        fileType: "image",
+        folder: "logos",
+      })
     }
   }
 
-  // 2. Banners
-  const banners = await prisma.banner.findMany()
   for (const banner of banners) {
     if (banner.imageUrl) {
-      const existing = await findMediaAssetByUrl(banner.imageUrl)
-      if (!existing) {
-        await createMediaAssetRecord({
-          url: banner.imageUrl,
-          fileName: banner.title ? `${banner.title.toLowerCase().replace(/\s+/g, "-")}.jpg` : "banner.jpg",
-          fileType: banner.mediaType === "video" ? "video" : "image",
-          folder: "banners",
-        })
-        synced++
-      }
+      await register({
+        url: banner.imageUrl,
+        fileName: banner.title ? `${banner.title.toLowerCase().replace(/\s+/g, "-")}.jpg` : "banner.jpg",
+        fileType: banner.mediaType === "video" ? "video" : "image",
+        folder: "banners",
+      })
     }
   }
 
-  // 3. Brands
-  const brands = await prisma.brand.findMany({ where: { logoUrl: { not: null } } })
   for (const brand of brands) {
     if (brand.logoUrl) {
-      const existing = await findMediaAssetByUrl(brand.logoUrl)
-      if (!existing) {
-        await createMediaAssetRecord({
-          url: brand.logoUrl,
-          fileName: `${brand.name.toLowerCase().replace(/\s+/g, "-")}-logo.png`,
-          fileType: "image",
-          folder: "marcas",
-        })
-        synced++
-      }
+      await register({
+        url: brand.logoUrl,
+        fileName: `${brand.name.toLowerCase().replace(/\s+/g, "-")}-logo.png`,
+        fileType: "image",
+        folder: "marcas",
+      })
     }
   }
 
-  // 4. Product Images (hasta 50 registros)
-  const productImages = await prisma.productImage.findMany({
-    take: 50,
-    orderBy: { id: "desc" },
-  })
-  for (const pImg of productImages) {
-    if (pImg.url) {
-      const existing = await findMediaAssetByUrl(pImg.url)
-      if (!existing) {
-        await createMediaAssetRecord({
-          url: pImg.url,
-          fileName: pImg.alt ? `${pImg.alt.toLowerCase().replace(/\s+/g, "-")}.jpg` : "producto.jpg",
-          fileType: "image",
-          folder: "productos",
-        })
-        synced++
-      }
+  for (const image of productImages) {
+    if (image.url) {
+      await register({
+        url: image.url,
+        fileName: image.alt ? `${image.alt.toLowerCase().replace(/\s+/g, "-")}.jpg` : "producto.jpg",
+        fileType: "image",
+        folder: "productos",
+      })
     }
   }
 

@@ -7,7 +7,6 @@ import { type ColumnDef } from "@tanstack/react-table"
 import { DataTable } from "./DataTable"
 import { bulkToggleProductsPublishStatus } from "@/app/admin/productos/actions"
 import type { ProductDTO } from "@/server/services/product.service"
-import { PLACEHOLDER_IMAGE_URL } from "@/lib/product-image"
 import { useToast } from "@/hooks/useToast"
 import ToastContainer from "@/components/ui/ToastContainer"
 import {
@@ -48,11 +47,22 @@ const columns: ColumnDef<ProductDTO, unknown>[] = [
     meta: { width: "64px" },
     cell: ({ row }) => {
       const img = row.original.images[0]
+      if (!img) {
+        return (
+          <Link
+            href={`/admin/productos/${row.original.id}`}
+            className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-amber-300 bg-amber-50 px-1 text-center text-[10px] font-semibold leading-tight text-amber-800 hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-[#E31C23]"
+            aria-label={`Agregar imagen a ${row.original.name}`}
+          >
+            Sin imagen
+          </Link>
+        )
+      }
       return (
         <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
           <Image
-            src={img?.url ?? PLACEHOLDER_IMAGE_URL}
-            alt={img?.alt ?? `${row.original.name} — sin foto`}
+            src={img.url}
+            alt={img.alt ?? row.original.name}
             width={48}
             height={48}
             className={`w-full h-full object-contain`}

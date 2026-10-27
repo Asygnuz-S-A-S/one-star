@@ -52,6 +52,17 @@ const columns: ColumnDef<CustomerListDTO, unknown>[] = [
     ),
   },
   {
+    id: "club",
+    header: "Club",
+    cell: ({ row }) => (
+      <span className="flex flex-wrap gap-1">
+        {row.original.clubMember && <span className="rounded-full bg-[#1C1C1C] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">Club</span>}
+        {row.original.newsletter && <span className="rounded-full border border-gray-300 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#4A4A4A]">Newsletter</span>}
+        {!row.original.clubMember && !row.original.newsletter && <span className="text-xs text-gray-400">—</span>}
+      </span>
+    ),
+  },
+  {
     id: "registro",
     header: "Registro",
     accessorKey: "createdAt",

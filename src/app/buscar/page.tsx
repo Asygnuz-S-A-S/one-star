@@ -3,7 +3,7 @@ import ProductGrid from "@/components/shop/ProductGrid"
 import FilterSidebar from "@/components/shop/FilterSidebar"
 import SearchForm from "@/components/shop/SearchForm"
 import ShopLayout from "@/components/shop/ShopLayout"
-import { getUniqueBrands } from "@/server/services/product.service"
+import { getCatalogPriceBounds, getUniqueBrands } from "@/server/services/product.service"
 import { getUniqueSizes, getUniqueColors } from "@/server/services/variant.service"
 import { getColorPalette } from "@/server/services/product-color.service"
 import type { ProductSortValue } from "@/lib/product-sort"
@@ -39,11 +39,12 @@ const PRESERVED_FILTERS = [
 
 export default async function BuscarPage({ searchParams }: BuscarPageProps) {
   const resolvedSearchParams = await searchParams
-  const [brands, sizes, colors, colorPalette] = await Promise.all([
+  const [brands, sizes, colors, colorPalette, priceBounds] = await Promise.all([
     getUniqueBrands(),
     getUniqueSizes(),
     getUniqueColors(),
     getColorPalette(),
+    getCatalogPriceBounds(),
   ])
 
   const query = resolvedSearchParams.q?.trim()
@@ -63,10 +64,12 @@ export default async function BuscarPage({ searchParams }: BuscarPageProps) {
     <ShopLayout
       sidebar={
         <FilterSidebar
+          key={currentParams.toString()}
           brands={brands}
           sizes={sizes}
           colors={colors}
           colorPalette={colorPalette}
+          priceBounds={priceBounds}
           currentParams={currentParams.toString()}
         />
       }

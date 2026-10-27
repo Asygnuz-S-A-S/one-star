@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import "./globals.css";
 import PublicSiteFrame from "@/components/PublicSiteFrame";
+import StoreIntro, { STORE_INTRO_SCRIPT } from "@/components/StoreIntro";
 import Providers from "@/app/providers";
 import MetaPixel from "@/components/tracking/MetaPixel";
 
@@ -15,7 +16,11 @@ import { getActiveNavigationItems } from "@/server/repositories/navigation.repos
 import { getTopBanner } from "@/server/repositories/top-banner.repository";
 import { getPrimaryLogos } from "@/server/repositories/site-logo.repository";
 import { getHeaderConfig } from "@/server/repositories/header-config.repository";
-import { getMetaPixelPublicConfig } from "@/server/services/store-settings.service";
+import { getMetaPixelPublicConfig, getPublicStorefrontConfig } from "@/server/services/store-settings.service";
+import { DEFAULT_SHIPPING_RATES } from "@/lib/shipping";
+import { DEFAULT_BOTTOM_NAV, DEFAULT_CHAT_WELCOME, DEFAULT_FOOTER_LINKS } from "@/lib/storefront-copy";
+import { DEFAULT_GIFT_CARD_LIMITS } from "@/lib/gift-card";
+import { ShippingRatesProvider } from "@/components/storefront/ShippingRatesProvider";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +33,7 @@ export default async function RootLayout({
 
   // Queries independientes en paralelo; si la BD falla, la página
   // se renderiza con fallbacks en lugar de caerse entera.
-  const [navigationItems, topBanner, primaryLogos, headerConfig, metaPixel] = await Promise.all([
+  const [navigationItems, topBanner, primaryLogos, headerConfig, metaPixel, storefront] = await Promise.all([
     getActiveNavigationItems().catch((error: unknown) => {
       console.error("[layout] getActiveNavigationItems falló:", error);
       return [];
@@ -49,21 +54,60 @@ export default async function RootLayout({
       console.error("[layout] getMetaPixelPublicConfig falló:", error);
       return null;
     }),
+    getPublicStorefrontConfig().catch((error: unknown) => {
+      console.error("[layout] getPublicStorefrontConfig falló:", error);
+      return {
+        shipping: DEFAULT_SHIPPING_RATES,
+        chatEnabled: true,
+        chatWelcome: DEFAULT_CHAT_WELCOME,
+        giftCardValidityMonths: DEFAULT_GIFT_CARD_LIMITS.validityMonths,
+        footerLinks: DEFAULT_FOOTER_LINKS,
+        bottomNav: DEFAULT_BOTTOM_NAV,
+        deliveryMinDays: 3,
+        deliveryMaxDays: 5,
+        expressDeliveryMinDays: 1,
+        expressDeliveryMaxDays: 2,
+        storeName: "One Star",
+        contactEmail: null,
+        whatsapp: null,
+      };
+    }),
   ]);
 
   return (
     <html lang="es" className="h-full antialiased" suppressHydrationWarning>
       <body className="min-h-full flex flex-col bg-white text-[#1C1C1C] dark:bg-[#0f0f0f] dark:text-[#f5f5f7] transition-colors duration-300">
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: STORE_INTRO_SCRIPT }} />
+        <StoreIntro />
+        <a href="#contenido-principal" className="skip-link">
+          Saltar al contenido principal
+        </a>
         <Providers nonce={nonce}>
+          <ShippingRatesProvider
+            rates={storefront.shipping}
+            giftCardValidityMonths={storefront.giftCardValidityMonths}
+            deliveryMinDays={storefront.deliveryMinDays}
+            deliveryMaxDays={storefront.deliveryMaxDays}
+            expressDeliveryMinDays={storefront.expressDeliveryMinDays}
+            expressDeliveryMaxDays={storefront.expressDeliveryMaxDays}
+          >
           {metaPixel && <MetaPixel pixelId={metaPixel.pixelId} />}
           <PublicSiteFrame
             items={navigationItems}
             banner={topBanner}
             logos={primaryLogos}
             config={headerConfig}
+            chatEnabled={storefront.chatEnabled}
+            chatWelcome={storefront.chatWelcome}
+            footerLinks={storefront.footerLinks}
+            bottomNav={storefront.bottomNav}
+            storeName={storefront.storeName}
+            contactEmail={storefront.contactEmail}
+            whatsapp={storefront.whatsapp}
           >
             {children}
           </PublicSiteFrame>
+          </ShippingRatesProvider>
         </Providers>
       </body>
 

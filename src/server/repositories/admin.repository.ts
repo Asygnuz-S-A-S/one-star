@@ -1,6 +1,6 @@
 import "server-only"
 import { prisma } from "../db/prisma"
-import type { AdminUser } from "@prisma/client"
+import type { AdminRole, AdminUser } from "@prisma/client"
 
 export async function findAdminByEmail(email: string): Promise<AdminUser | null> {
   return prisma.adminUser.findUnique({ where: { email } })
@@ -25,16 +25,49 @@ export async function findAdminRoleByIdOrEmail(
   if (id) {
     const admin = await prisma.adminUser.findUnique({
       where: { id },
-      select: { role: true },
-    })
-    if (admin) return admin.role
+    select: { role: true, isActive: true },
+  })
+  if (admin?.isActive) return admin.role
+  if (admin) return null
   }
   if (email) {
     const adminByEmail = await prisma.adminUser.findUnique({
       where: { email },
-      select: { role: true },
+      select: { role: true, isActive: true },
     })
-    if (adminByEmail) return adminByEmail.role
+    if (adminByEmail?.isActive) return adminByEmail.role
   }
   return null
+}
+
+export async function listAdminUsers() {
+  return prisma.adminUser.findMany({
+    orderBy: { createdAt: "asc" },
+    select: { id: true, email: true, name: true, role: true, isActive: true, createdAt: true },
+  })
+}
+
+export async function createAdminUser(input: {
+  email: string
+  name: string
+  passwordHash: string
+  role: AdminRole
+}) {
+  return prisma.adminUser.create({ data: input, select: { id: true, email: true, role: true } })
+}
+
+export async function updateAdminUserRole(id: string, role: AdminRole) {
+  return prisma.adminUser.update({ where: { id }, data: { role }, select: { id: true, email: true, role: true } })
+}
+
+export async function countSuperAdmins() {
+  return prisma.adminUser.count({ where: { role: "SUPER_ADMIN", isActive: true } })
+}
+
+export async function setAdminUserActive(id: string, isActive: boolean) {
+  return prisma.adminUser.update({ where: { id }, data: { isActive }, select: { id: true, email: true, isActive: true } })
+}
+
+export async function setAdminUserPassword(id: string, passwordHash: string) {
+  return prisma.adminUser.update({ where: { id }, data: { passwordHash }, select: { id: true } })
 }

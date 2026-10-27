@@ -9,6 +9,7 @@ export interface TopProductDTO {
 }
 
 export interface LowStockVariantDTO {
+  productId: string
   sku: string
   productName: string
   size: string
@@ -109,6 +110,7 @@ export async function getAdminDashboardStats(): Promise<DashboardStatsDTO> {
     })
 
     const lowStockVariants = rawData.lowStockRaw.map((v) => ({
+      productId: v.product.id,
       sku: v.sku,
       productName: v.product.name,
       size: v.size,

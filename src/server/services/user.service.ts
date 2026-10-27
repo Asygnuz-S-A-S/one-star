@@ -1,4 +1,5 @@
 import "server-only"
+import { joinClub } from "@/server/services/club.service"
 import { hash } from "bcryptjs"
 import {
   findUserByEmail,
@@ -9,6 +10,7 @@ import {
   findManyCustomers,
   countCustomers,
   findCustomerProfileById,
+  findNewsletterSubscribers,
 } from "../repositories/user.repository"
 import type { CreateUserDTO, UpdateUserDTO } from "../validators/user.validator"
 import type { User } from "@prisma/client"
@@ -39,6 +41,8 @@ export interface CustomerListDTO {
   orderCount: number
   ltv: number
   createdAt: string
+  clubMember: boolean
+  newsletter: boolean
 }
 
 export type CustomerProfileDTO = Awaited<ReturnType<typeof findCustomerProfileById>>
@@ -96,7 +100,10 @@ export async function registerUser(data: CreateUserDTO): Promise<UserDTO> {
     birthDate: data.birthDate ? new Date(data.birthDate) : undefined,
     preferredBrand: data.preferredBrand,
     gender: data.gender,
+    ...(data.newsletter ? { marketingConsentAt: new Date() } : {}),
   })
+
+  if (data.joinClub) await joinClub(user.id, { newsletter: Boolean(data.newsletter) })
 
   return mapToDTO(user)
 }
@@ -117,13 +124,17 @@ export async function getCustomers(params: {
   q?: string
   page?: number
   pageSize?: number
+  /** "club" = miembros de One Star Club; "newsletter" = aceptaron recibir correos. */
+  segment?: "club" | "newsletter"
 }): Promise<{ customers: CustomerListDTO[]; total: number }> {
-  const { q = "", page = 1, pageSize = 25 } = params
+  const { q = "", page = 1, pageSize = 25, segment } = params
   const where = {
     role: "CUSTOMER" as const,
     ...(q
       ? { OR: [{ email: { contains: q, mode: "insensitive" as const } }] }
       : {}),
+    ...(segment === "club" ? { clubMember: true } : {}),
+    ...(segment === "newsletter" ? { marketingConsentAt: { not: null } } : {}),
   }
 
   const [rows, total] = await Promise.all([
@@ -139,6 +150,8 @@ export async function getCustomers(params: {
     orderCount: u._count.orders,
     ltv: u.orders.reduce((sum, o) => sum + Number(o.total), 0),
     createdAt: u.createdAt.toISOString(),
+    clubMember: u.clubMember,
+    newsletter: u.marketingConsentAt !== null,
   }))
 
   return { customers, total }
@@ -146,4 +159,15 @@ export async function getCustomers(params: {
 
 export async function getCustomerProfile(id: string): Promise<CustomerProfileDTO> {
   return findCustomerProfileById(id)
+}
+
+/** Suscriptores del newsletter (solo quienes dieron consentimiento) para exportar a la herramienta de correo. */
+export async function getNewsletterSubscribers(): Promise<{ email: string; name: string; clubMember: boolean; consentAt: string }[]> {
+  const rows = await findNewsletterSubscribers()
+  return rows.map((user) => ({
+    email: user.email,
+    name: [user.name, user.lastName].filter(Boolean).join(" "),
+    clubMember: user.clubMember,
+    consentAt: user.marketingConsentAt!.toISOString(),
+  }))
 }

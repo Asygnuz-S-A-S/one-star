@@ -128,6 +128,20 @@ export default function ProductImagesByColor({
           Hay <strong>{unassignedCount}</strong> foto(s) sin color. Arrástralas al color que les
           corresponda —o cámbialo en el selector de cada tarjeta— porque ya no se publican fotos
           generales.
+          {variantColors.length > 0 && (
+            <span className="mt-2 flex flex-wrap gap-2">
+              {variantColors.map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  onClick={() => images.forEach((image, index) => { if (!image.color) onColorChange(index, color) })}
+                  className="min-h-9 rounded-md border border-amber-300 bg-white px-3 font-semibold text-amber-900 hover:bg-amber-100"
+                >
+                  Asignar todas a {color}
+                </button>
+              ))}
+            </span>
+          )}
         </p>
       )}
 
