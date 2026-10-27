@@ -10,9 +10,6 @@ interface ProductGalleryProps {
   videoUrl?: string | null
 }
 
-// Superficie única: las fotos (fondo blanco) se funden con multiply y el producto queda
-// "posado" sobre la página, sin el recuadro blanco dentro de una tarjeta gris.
-const STAGE = "bg-[radial-gradient(ellipse_at_50%_45%,#ffffff_0%,#f7f7f5_45%,var(--store-canvas)_100%)]"
 const pad = (value: number) => String(value).padStart(2, "0")
 
 export default function ProductGallery({ images, videoUrl }: ProductGalleryProps) {
@@ -111,7 +108,7 @@ export default function ProductGallery({ images, videoUrl }: ProductGalleryProps
 
       {/* Foto principal */}
       <div
-        className={`group relative aspect-square min-w-0 flex-1 overflow-hidden rounded-store-xl ${STAGE}`}
+        className="group relative aspect-square min-w-0 flex-1 overflow-hidden rounded-store-xl bg-white border border-gray-200/80 shadow-sm dark:border-white/10 dark:bg-white/5"
         onMouseMove={handleMouseMove}
         onMouseLeave={() => setHoverFrame(null)}
         onTouchStart={(e) => { touchStart.current = e.changedTouches[0]?.clientX ?? null }}
@@ -126,20 +123,22 @@ export default function ProductGallery({ images, videoUrl }: ProductGalleryProps
           <video src={videoUrl} autoPlay loop muted playsInline className="h-full w-full object-cover" />
         ) : (
           <>
-            {/* Una sola foto visible a la vez; la que entra gira desde el lado del movimiento. */}
-            {images.map((img, idx) => (
-              <Image
-                key={img.id}
-                src={img.url}
-                alt={img.alt || `Vista ${idx + 1}`}
-                fill
-                priority={idx === 0}
-                className={`object-contain object-center scale-[1.3] mix-blend-multiply ${
-                  idx === visibleIndex ? "opacity-100 motion-safe:animate-[card-frame-in_320ms_cubic-bezier(.22,1,.36,1)]" : "opacity-0"
-                }`}
-                sizes="(max-width: 1024px) 100vw, 55vw"
-              />
-            ))}
+            {/* Contenedor con difuminado radial mask-image para fundir bordes de fotos de estudio no perfectamente blancas */}
+            <div className="absolute inset-0 [mask-image:radial-gradient(ellipse_92%_88%_at_50%_50%,black_80%,transparent_100%)] [-webkit-mask-image:radial-gradient(ellipse_92%_88%_at_50%_50%,black_80%,transparent_100%)]">
+              {images.map((img, idx) => (
+                <Image
+                  key={img.id}
+                  src={img.url}
+                  alt={img.alt || `Vista ${idx + 1}`}
+                  fill
+                  priority={idx === 0}
+                  className={`object-contain object-center scale-[1.3] mix-blend-multiply dark:mix-blend-normal ${
+                    idx === visibleIndex ? "opacity-100 motion-safe:animate-[card-frame-in_320ms_cubic-bezier(.22,1,.36,1)]" : "opacity-0"
+                  }`}
+                  sizes="(max-width: 1024px) 100vw, 55vw"
+                />
+              ))}
+            </div>
 
             {/* Sombra de contacto: el tenis "apoya" sobre la superficie. */}
             <div aria-hidden="true" className="pointer-events-none absolute inset-x-[24%] bottom-[22%] h-6 rounded-[50%] bg-black/10 blur-xl" />

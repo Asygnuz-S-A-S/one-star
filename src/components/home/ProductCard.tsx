@@ -173,10 +173,10 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
       <div 
         ref={imageFrameRef}
         data-testid="product-card-media"
-        className="relative mb-3 aspect-square overflow-hidden rounded-store-sm bg-store-surface dark:bg-white/5"
+        className="relative mb-3 aspect-square overflow-hidden rounded-store-sm bg-white border border-gray-200/80 shadow-sm dark:bg-white/5 dark:border-white/10"
       >
         <div ref={tiltRef} className="h-full w-full bg-inherit transition-transform duration-500 ease-[cubic-bezier(.22,1,.36,1)] [transform:perspective(900px)_rotateY(var(--card-ry,0deg))_scale(1.08)]">
-          <div className="absolute inset-0 w-full h-full pointer-events-none">
+          <div className="absolute inset-0 w-full h-full pointer-events-none [mask-image:radial-gradient(ellipse_92%_88%_at_50%_50%,black_80%,transparent_100%)] [-webkit-mask-image:radial-gradient(ellipse_92%_88%_at_50%_50%,black_80%,transparent_100%)]">
             {frames.map((src, index) => (
               <Image
                 key={`frame-${index}`}

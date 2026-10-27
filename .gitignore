@@ -56,8 +56,13 @@ sentry-debug.log
 # Agent and IDE local settings
 .agents/
 .claude/
+.logs/*
 
 
 # Local SDD skill registry
 .atl/
 /public/demo/
+
+# Local assets and inventory files
+banners/
+Inventario Fundadores 05 octubre.xlsx
