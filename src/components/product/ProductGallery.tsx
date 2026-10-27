@@ -44,7 +44,7 @@ export default function ProductGallery({ images, videoUrl }: ProductGalleryProps
   // Producto sin fotos cargadas: imagen predeterminada de la tienda.
   if (total === 0 && !hasVideo) {
     return (
-      <div className={`relative aspect-square overflow-hidden rounded-store-xl ${STAGE}`}>
+      <div className="relative aspect-square overflow-hidden rounded-store-xl bg-white border border-gray-200/80 shadow-sm dark:border-white/10 dark:bg-white/5">
         <Image
           src={PLACEHOLDER_IMAGE_URL}
           alt="Producto sin imagen disponible"
@@ -72,7 +72,7 @@ export default function ProductGallery({ images, videoUrl }: ProductGalleryProps
                 aria-selected={active}
                 onClick={() => select(idx)}
                 // Activo: la miniatura se ilumina y una línea roja la marca; sin marco negro alrededor.
-                className={`relative h-16 w-16 shrink-0 snap-start overflow-hidden rounded-store-md transition-[opacity,box-shadow] duration-200 lg:h-[72px] lg:w-[72px] ${STAGE} ${
+                className={`relative h-16 w-16 shrink-0 snap-start overflow-hidden rounded-store-md bg-white border border-gray-200/80 transition-[opacity,box-shadow] duration-200 dark:bg-white/5 dark:border-white/10 lg:h-[72px] lg:w-[72px] ${
                   active ? "opacity-100 shadow-[0_6px_16px_rgb(28_28_28/0.10)]" : "opacity-45 hover:opacity-100"
                 }`}
                 aria-label={img.alt || `Foto ${idx + 1}`}
