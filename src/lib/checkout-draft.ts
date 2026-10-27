@@ -70,7 +70,7 @@ function isCheckoutFormDraft(value: unknown): value is CheckoutFormDraft {
   const hasValidStrings = Object.entries(STRING_LIMITS).every(
     ([field, maxLength]) => {
       const val = form[field]
-      if (val === undefined && field === "cedula") return true
+      if (val === undefined && (field === "cedula" || field === "documentType")) return true
       return typeof val === "string" && val.length <= maxLength
     },
   )
