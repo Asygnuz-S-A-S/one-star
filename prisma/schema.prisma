@@ -298,23 +298,35 @@ enum PaymentStatus {
   EXPIRED // Nunca llegó confirmación y el pedido venció
 }
 
+enum ShippingCarrier {
+  ENVIA
+  OTHER
+}
+
 model Order {
-  id               String        @id @default(cuid())
-  status           OrderStatus   @default(PENDING)
-  total            Decimal       @db.Decimal(10, 2)
-  paymentMethod    String?
-  trackingNumber   String?
-  paymentReference String? // Referencia de la pasarela (ej. ref_payco de ePayco)
-  paymentStatus    PaymentStatus @default(PENDING)
-  paidAt           DateTime? // Momento en que se confirmó el pago
-  customerEmail    String?
-  customerName     String?
-  shippingAddress  Json?
-  userId           String?
-  user             User?         @relation(fields: [userId], references: [id])
-  items            OrderItem[]
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+  id                   String           @id @default(cuid())
+  status               OrderStatus      @default(PENDING)
+  total                Decimal          @db.Decimal(10, 2)
+  paymentMethod        String?
+  trackingNumber       String?
+  carrier              ShippingCarrier?
+  paymentReference     String? // Referencia de la pasarela (ej. ref_payco de ePayco)
+  paymentStatus        PaymentStatus    @default(PENDING)
+  paidAt               DateTime? // Momento en que se confirmó el pago
+  customerEmail        String?
+  customerName         String?
+  customerDocumentType String?
+  customerDocument     String?
+  customerPhone        String?
+  shippingAddress      Json?
+  userId               String?
+  user                 User?            @relation(fields: [userId], references: [id])
+  items                OrderItem[]
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  @@index([customerDocument])
+  @@index([customerPhone])
 }
 
 // unitPrice se congela al momento de la compra (no varía si el producto cambia de precio)

@@ -31,14 +31,15 @@ function logActionError(action: string, error: unknown): void {
 export async function updateOrderStatus(
   orderId: string,
   status: string,
-  trackingNumber?: string
+  trackingNumber?: string,
+  carrier?: "ENVIA" | "OTHER"
 ): Promise<ActionResult> {
   try {
     await requireAdmin()
     if (!isOrderStatus(status)) {
       return { success: false, error: "Estado de pedido inválido." }
     }
-    await changeOrderStatusAndTracking(orderId, status, trackingNumber)
+    await changeOrderStatusAndTracking(orderId, status, trackingNumber, carrier)
     revalidateOrder(orderId)
     return { success: true }
   } catch (error: unknown) {

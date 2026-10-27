@@ -8,6 +8,7 @@ export type CheckoutShippingMethod = "standard" | "express"
 
 export interface CheckoutFormDraft {
   email: string
+  documentType?: "CC" | "CE" | "NIT" | "PP"
   cedula: string
   newsletter: boolean
   name: string
@@ -29,6 +30,7 @@ export interface CheckoutDraft {
 
 export interface CheckoutRegistrationPrefill {
   email: string
+  documentType?: "CC" | "CE" | "NIT" | "PP"
   cedula: string
   newsletter: boolean
   name: string
@@ -45,6 +47,7 @@ interface CheckoutDraftEnvelope {
 
 const STRING_LIMITS = {
   email: 254,
+  documentType: 10,
   cedula: 30,
   name: 100,
   lastName: 100,
