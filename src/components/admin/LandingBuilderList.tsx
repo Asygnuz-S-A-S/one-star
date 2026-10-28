@@ -1,7 +1,7 @@
 "use client"
 /* eslint-disable @typescript-eslint/no-explicit-any -- los configs JSON heterogéneos de secciones aún no tienen una unión discriminada */
 
-import React, { useState } from "react"
+import React, { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd"
 import { motion, AnimatePresence } from "motion/react"
@@ -58,7 +58,8 @@ interface LandingBuilderListProps {
   initialBanners?: BannerDTO[]
   initialGridBlocks?: HomeGridBlock[]
   unavailableAreas?: string[]
-  onRefresh?: () => void
+  onRefresh?: (anchorId?: string) => void
+  onDraftCount?: (count: number) => void
 }
 
 // Custom confirm dialog state type
@@ -68,15 +69,41 @@ interface DeleteConfirm {
 }
 
 const SECTION_LABELS: Record<string, string> = {
-  HERO: "Hero Banner (Principal)",
-  CATEGORY_GRID: "Grilla de Categorías web",
-  FEATURED_PRODUCTS: "Productos Destacados",
-  BRAND_STRIP: "Carrusel de Marcas",
-  NEW_ARRIVALS: "Nuevos Lanzamientos",
-  NEWSLETTER: "Suscripción al Newsletter",
-  CUSTOM_HTML: "Código Libre HTML/CSS",
-  PRODUCT_CAROUSEL: "Carrusel de Productos Personalizado",
-  MEDIA_CAROUSEL: "Carrusel Multimedia / Promos (Imagen/Video)",
+  HERO: "Campaña",
+  CATEGORY_GRID: "Colecciones",
+  FEATURED_PRODUCTS: "Destacados",
+  BRAND_STRIP: "Marcas",
+  NEW_ARRIVALS: "Lanzamientos",
+  NEWSLETTER: "Club",
+  CUSTOM_HTML: "HTML libre",
+  PRODUCT_CAROUSEL: "Carrusel de productos",
+  MEDIA_CAROUSEL: "Promos",
+}
+
+const SECTION_HELP: Record<string, string> = {
+  HERO: "La imagen grande de arriba, con titular y botón.",
+  CATEGORY_GRID: "Las tarjetas para entrar a cada colección.",
+  FEATURED_PRODUCTS: "Una selección de productos.",
+  BRAND_STRIP: "La franja con las marcas.",
+  NEW_ARRIVALS: "Los productos recién llegados.",
+  NEWSLETTER: "La invitación al club.",
+  CUSTOM_HTML: "Código propio. No hace falta para armar una campaña.",
+  PRODUCT_CAROUSEL: "Un carrusel con productos que eliges.",
+  MEDIA_CAROUSEL: "Promos con imagen o video.",
+}
+
+function sectionConfigOf(section: { config: unknown; draftConfig?: unknown }) {
+  const source = section.draftConfig ?? section.config
+  return typeof source === "object" && source !== null && !Array.isArray(source)
+    ? source as Record<string, any>
+    : {}
+}
+
+function sectionTitle(section: { type: string; config: unknown; draftConfig?: unknown }) {
+  const config = sectionConfigOf(section)
+  const title = typeof config.title === "string" ? config.title.trim() : ""
+  const headline = typeof config.headline === "string" ? config.headline.trim() : ""
+  return title || headline || SECTION_LABELS[section.type] || "Sección"
 }
 
 function sectionDestination(config: Record<string, any>): string | null {
@@ -86,7 +113,7 @@ function sectionDestination(config: Record<string, any>): string | null {
     : null
 }
 
-export default function LandingBuilderList({ actions, initialSections, initialGlobals, initialBanners, initialGridBlocks = [], categories, unavailableAreas = [], onRefresh }: LandingBuilderListProps) {
+export default function LandingBuilderList({ actions, initialSections, initialGlobals, initialBanners, initialGridBlocks = [], categories, unavailableAreas = [], onRefresh, onDraftCount }: LandingBuilderListProps) {
   const {
     createLandingSectionAction,
     deleteBanner,
@@ -238,10 +265,14 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
   // Add block state
   const [isAddingBlock, setIsAddingBlock] = useState(false)
 
+  useEffect(() => {
+    onDraftCount?.(sections.filter((section) => section.draftConfig != null).length)
+  }, [sections, onDraftCount])
+
   // Delay refresh to let revalidatePath propagate before iframe reloads
-  const triggerRefresh = () => {
+  const triggerRefresh = (anchorId?: string) => {
     setTimeout(() => {
-      if (onRefresh) onRefresh()
+      if (onRefresh) onRefresh(anchorId)
     }, 500)
   }
 
@@ -376,8 +407,9 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
     returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
     setConfigSaveStatus(null)
     setEditingSection(section)
-    const config = typeof section.config === 'object' && section.config !== null 
-      ? section.config as Record<string, any> 
+    const source = section.draftConfig ?? section.config
+    const config = typeof source === "object" && source !== null && !Array.isArray(source)
+      ? source as Record<string, any>
       : {}
     setConfigInput(config)
   }
@@ -591,7 +623,7 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
     const prevSections = sections
     setSections(sections.map(s =>
       s.id === editingSection.id
-        ? { ...s, config: configInput as any }
+        ? { ...s, draftConfig: configInput as any }
         : s
     ))
 
@@ -605,9 +637,10 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
         return
       }
 
-      setConfigSaveStatus({ tone: "success", message: "Cambios guardados." })
-      closeSectionEditor()
-      triggerRefresh()
+      setEditingSection((current) => current ? { ...current, draftConfig: configInput as any } : current)
+      setConfigSaveStatus({ tone: "success", message: "Borrador guardado. Se ve en la vista previa. La tienda cambia cuando publicas." })
+      setTimeout(() => configStatusRef.current?.focus(), 0)
+      triggerRefresh(editingSection.id)
     } catch {
       setSections(prevSections)
       setConfigSaveStatus({ tone: "error", message: "No se pudo guardar la configuración. Inténtalo de nuevo." })
@@ -1421,8 +1454,8 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
           </h3>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto p-4">
-        {configSaveStatus?.tone === "error" && (
-          <p ref={configStatusRef} tabIndex={-1} role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900">
+        {configSaveStatus && (
+          <p ref={configStatusRef} tabIndex={-1} role={configSaveStatus.tone === "error" ? "alert" : "status"} className={`rounded-lg border p-3 text-sm ${configSaveStatus.tone === "error" ? "border-red-200 bg-red-50 text-red-900" : "border-green-200 bg-green-50 text-green-900"}`}>
             {configSaveStatus.message}
           </p>
         )}
@@ -2698,9 +2731,9 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
             <button
               onClick={saveConfig}
               disabled={isSaving}
-              className="px-4 py-2 bg-[#1C1C1C] text-white rounded text-xs font-bold uppercase hover:bg-gray-800 disabled:opacity-50"
+              className="min-h-11 rounded bg-[#E31C23] px-4 text-xs font-bold uppercase text-white hover:bg-[#c01018] disabled:opacity-50"
             >
-              {isSaving ? "Guardando..." : "Guardar cambios"}
+              {isSaving ? "Guardando..." : "Guardar borrador"}
             </button>
           </div>
         </div>
@@ -2718,18 +2751,29 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
         </h3>
         
         <div className="flex-1 flex flex-col gap-2 overflow-y-auto">
-          {Object.entries(SECTION_LABELS).map(([type, label]) => (
+          {Object.entries(SECTION_LABELS).filter(([type]) => type !== "CUSTOM_HTML").map(([type, label]) => (
             <button
               key={type}
               onClick={() => handleAddBlock(type as LandingSectionType)}
               disabled={isSaving}
-              className="p-3 text-left border border-gray-200 rounded hover:border-[#1C1C1C] hover:bg-gray-50 transition-colors"
+              className="min-h-11 p-3 text-left border border-gray-200 rounded hover:border-[#1C1C1C] hover:bg-gray-50 transition-colors"
             >
               <div className="font-bold text-[#1C1C1C]">{label}</div>
-              <div className="text-xs text-gray-500 font-mono mt-1">{type}</div>
-              {type === "CUSTOM_HTML" && <div className="mt-1 text-xs text-amber-700">Avanzado: requiere HTML/CSS; no es necesario para campañas.</div>}
+              <div className="mt-1 text-xs text-gray-500">{SECTION_HELP[type]}</div>
             </button>
           ))}
+          <details className="rounded border border-gray-200 p-3">
+            <summary className="min-h-11 cursor-pointer text-sm font-bold text-gray-700">Más opciones</summary>
+            <button
+              type="button"
+              onClick={() => handleAddBlock("CUSTOM_HTML")}
+              disabled={isSaving}
+              className="mt-2 min-h-11 w-full p-3 text-left border border-gray-200 rounded hover:border-[#1C1C1C] hover:bg-gray-50"
+            >
+              <div className="font-bold text-[#1C1C1C]">HTML libre</div>
+              <div className="mt-1 text-xs text-gray-500">{SECTION_HELP.CUSTOM_HTML}</div>
+            </button>
+          </details>
         </div>
 
         <div className="mt-4 pt-4 border-t">
@@ -2756,45 +2800,12 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
           Parte del contenido no pudo cargarse. Las áreas afectadas están bloqueadas hasta que recargues.
         </div>
       )}
-      {/* Elementos Globales (No arrastrables) */}
-      <div className="p-4 border-b border-gray-200 bg-white">
-        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">1. Campaña y tienda</h3>
-        <p className="mb-3 text-xs text-gray-500">Primero configura el Hero editorial. Sus imágenes Web, Tablet y Móvil son la campaña principal de Inicio.</p>
-        <div className="flex flex-col gap-2">
-          <button onClick={() => primaryHero && startEditingConfig(primaryHero)} disabled={!primaryHero} className="w-full flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded hover:border-[#1C1C1C] transition-colors text-left disabled:cursor-not-allowed disabled:opacity-40">
-            <span className="text-sm font-medium text-gray-800">Campaña principal (Hero)</span>
-            <span className="text-xs text-blue-600 font-bold">Configurar ↗</span>
-          </button>
-          <button onClick={() => setEditingGlobal("BANNERS")} disabled={isUnavailable("banners")} className="w-full flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded hover:border-[#1C1C1C] transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed">
-            <span className="text-sm font-medium text-gray-800">Banners heredados (respaldo)</span>
-            <span className="text-xs text-gray-500 font-bold">Ver ↗</span>
-          </button>
-          <button id="grilla" onClick={() => setEditingGlobal("HOME_GRID")} disabled={isUnavailable("grid")} className="w-full flex min-h-11 items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded hover:border-[#1C1C1C] transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed">
-            <span className="text-sm font-medium text-gray-800">Colecciones rápidas</span>
-            <span className="text-xs text-blue-600 font-bold">Editar ↗</span>
-          </button>
-          <p className="pt-2 text-xs font-bold uppercase tracking-wider text-gray-500">Globales</p>
-          <button id="banner" onClick={() => setEditingGlobal("TOP_BANNER")} disabled={isUnavailable("topBanner")} className="w-full flex min-h-11 items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded hover:border-[#1C1C1C] transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed">
-            <span className="text-sm font-medium text-gray-800">Top Banner (Promocional)</span>
-            <span className="text-xs text-blue-600 font-bold">Editar ↗</span>
-          </button>
-          <button id="logos" onClick={() => setEditingGlobal("LOGOS")} disabled={isUnavailable("logos")} className="w-full flex min-h-11 items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded hover:border-[#1C1C1C] transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed">
-            <span className="text-sm font-medium text-gray-800">Logos (Header/Footer)</span>
-            <span className="text-xs text-blue-600 font-bold">Editar ↗</span>
-          </button>
-          <button id="menu" onClick={() => setEditingGlobal("NAVIGATION")} disabled={isUnavailable("navigation") || isUnavailable("header")} className="w-full flex min-h-11 items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded hover:border-[#1C1C1C] transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed">
-            <span className="text-sm font-medium text-gray-800">Menú de Navegación</span>
-            <span className="text-xs text-blue-600 font-bold">Editar ↗</span>
-          </button>
-        </div>
-      </div>
-
       <div className="p-4 border-b border-gray-200 bg-white flex justify-between items-center">
-        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">2. Secciones de la página</h3>
+        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Esta página</h3>
         <button 
           onClick={() => setIsAddingBlock(true)}
           disabled={isUnavailable("sections")}
-          className="text-xs bg-[#1C1C1C] text-white px-3 py-1.5 rounded font-bold hover:bg-gray-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="min-h-11 text-xs bg-[#1C1C1C] text-white px-3 rounded font-bold hover:bg-gray-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           + Añadir sección
         </button>
@@ -2821,26 +2832,25 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
                       <div className="flex items-center gap-4 p-4">
                         <div
                           {...provided.dragHandleProps}
-                          className="cursor-grab text-gray-400 hover:text-[#1C1C1C] transition-colors"
+                          aria-label={`Mover ${sectionTitle(section)}`}
+                          className="grid h-11 w-11 shrink-0 cursor-grab place-items-center rounded-md text-gray-400 hover:text-[#1C1C1C]"
                         >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
                           </svg>
                         </div>
                         
                         <div className="flex-1 min-w-0">
                           <div className="font-bold text-[15px] text-[#1C1C1C] truncate">
-                            {(() => {
-                               const config = typeof section.config === 'object' && section.config !== null ? section.config as Record<string, any> : {}
-                               return config.title || SECTION_LABELS[section.type] || section.type
-                            })()}
+                            {sectionTitle(section)}
                           </div>
-                          <div className="text-[10px] text-gray-400 font-mono uppercase tracking-widest mt-0.5">
-                            {section.type}
-                          </div>
+                          <p className="mt-0.5 text-xs text-gray-500">
+                            {SECTION_LABELS[section.type] ?? "Sección"}
+                            {section.draftConfig != null ? " · Borrador" : ""}
+                            {section.isActive ? "" : " · Oculta en la tienda"}
+                          </p>
                           {(() => {
-                            const config = typeof section.config === "object" && section.config !== null ? section.config as Record<string, any> : {}
-                            const destination = sectionDestination(config)
+                            const destination = sectionDestination(sectionConfigOf(section))
                             return destination ? <p className="mt-1 truncate text-xs text-gray-500">Destino: {destination}</p> : null
                           })()}
                         </div>
@@ -2850,38 +2860,38 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
                             type="button"
                             onClick={() => moveSection(index, -1)}
                             disabled={isSaving || index === 0}
-                            aria-label={`Subir ${SECTION_LABELS[section.type] ?? section.type}`}
-                            className="grid h-9 w-9 place-items-center rounded-md border border-gray-200 text-gray-600 hover:border-[#1C1C1C] hover:text-[#1C1C1C] disabled:opacity-30"
+                            aria-label={`Subir ${sectionTitle(section)}`}
+                            className="grid h-11 w-11 place-items-center rounded-md border border-gray-200 text-gray-600 hover:border-[#1C1C1C] hover:text-[#1C1C1C] disabled:opacity-30"
                           >↑</button>
                           <button
                             type="button"
                             onClick={() => moveSection(index, 1)}
                             disabled={isSaving || index === sections.length - 1}
-                            aria-label={`Bajar ${SECTION_LABELS[section.type] ?? section.type}`}
-                            className="grid h-9 w-9 place-items-center rounded-md border border-gray-200 text-gray-600 hover:border-[#1C1C1C] hover:text-[#1C1C1C] disabled:opacity-30"
+                            aria-label={`Bajar ${sectionTitle(section)}`}
+                            className="grid h-11 w-11 place-items-center rounded-md border border-gray-200 text-gray-600 hover:border-[#1C1C1C] hover:text-[#1C1C1C] disabled:opacity-30"
                           >↓</button>
                         </div>
 
                         <button
                           onClick={() => handleToggleActive(section.id, section.isActive)}
                           disabled={isSaving}
-                          aria-label={section.isActive ? "Desactivar sección" : "Activar sección"}
-                          className={`flex-shrink-0 relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                            section.isActive ? 'bg-[#1C1C1C]' : 'bg-gray-300'
-                          } disabled:cursor-not-allowed disabled:opacity-50`}
+                          aria-label={section.isActive ? `Ocultar ${sectionTitle(section)} en la tienda` : `Mostrar ${sectionTitle(section)} en la tienda`}
+                          className="grid h-11 w-11 place-items-center disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                          <span
-                            className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
-                              section.isActive ? 'translate-x-5' : 'translate-x-1'
-                            }`}
-                          />
+                          <span className={`relative inline-flex h-6 w-11 items-center rounded-full ${section.isActive ? "bg-[#1C1C1C]" : "bg-gray-300"}`}>
+                            <span
+                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                section.isActive ? "translate-x-6" : "translate-x-1"
+                              }`}
+                            />
+                          </span>
                         </button>
                       </div>
 
                       <div className="bg-gray-50/50 px-4 py-2.5 border-t border-gray-100 flex justify-end">
                         <button
                           onClick={() => startEditingConfig(section)}
-                          className="text-xs font-bold text-[#1C1C1C] hover:text-[#E31C23] uppercase tracking-wider flex items-center gap-1.5 transition-colors"
+                          className="inline-flex min-h-11 items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#1C1C1C] hover:text-[#E31C23]"
                         >
                           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -2898,6 +2908,33 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
           )}
         </Droppable>
       </DragDropContext>
+
+      <div className="m-4 rounded-lg border border-gray-200 bg-white p-4">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">Toda la tienda</h3>
+        <p className="mb-3 mt-1 text-xs text-gray-500">Menú, logos y banner superior se ven en todas las páginas, no solo en esta.</p>
+        <div className="flex flex-col gap-2">
+          <button id="banner" onClick={() => setEditingGlobal("TOP_BANNER")} disabled={isUnavailable("topBanner")} className="flex min-h-11 w-full items-center justify-between rounded border border-gray-200 bg-gray-50 p-3 text-left disabled:cursor-not-allowed disabled:opacity-40">
+            <span className="text-sm font-medium text-gray-800">Banner superior</span>
+            <span className="text-xs font-bold text-[#E31C23]">Editar</span>
+          </button>
+          <button id="logos" onClick={() => setEditingGlobal("LOGOS")} disabled={isUnavailable("logos")} className="flex min-h-11 w-full items-center justify-between rounded border border-gray-200 bg-gray-50 p-3 text-left disabled:cursor-not-allowed disabled:opacity-40">
+            <span className="text-sm font-medium text-gray-800">Logos</span>
+            <span className="text-xs font-bold text-[#E31C23]">Editar</span>
+          </button>
+          <button id="menu" onClick={() => setEditingGlobal("NAVIGATION")} disabled={isUnavailable("navigation") || isUnavailable("header")} className="flex min-h-11 w-full items-center justify-between rounded border border-gray-200 bg-gray-50 p-3 text-left disabled:cursor-not-allowed disabled:opacity-40">
+            <span className="text-sm font-medium text-gray-800">Menú</span>
+            <span className="text-xs font-bold text-[#E31C23]">Editar</span>
+          </button>
+          <button id="grilla" onClick={() => setEditingGlobal("HOME_GRID")} disabled={isUnavailable("grid")} className="flex min-h-11 w-full items-center justify-between rounded border border-gray-200 bg-gray-50 p-3 text-left disabled:cursor-not-allowed disabled:opacity-40">
+            <span className="text-sm font-medium text-gray-800">Colecciones de inicio</span>
+            <span className="text-xs font-bold text-[#E31C23]">Editar</span>
+          </button>
+          <button onClick={() => setEditingGlobal("BANNERS")} disabled={isUnavailable("banners")} className="flex min-h-11 w-full items-center justify-between rounded border border-gray-200 bg-gray-50 p-3 text-left disabled:cursor-not-allowed disabled:opacity-40">
+            <span className="text-sm font-medium text-gray-800">Banners de respaldo</span>
+            <span className="text-xs font-bold text-gray-500">Ver</span>
+          </button>
+        </div>
+      </div>
 
       <button
         onClick={() => setIsAddingBlock(true)}

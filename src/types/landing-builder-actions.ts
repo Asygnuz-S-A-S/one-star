@@ -17,6 +17,7 @@ import type {
   toggleLandingSectionActiveAction,
   updateLandingSectionConfigAction,
   updateLandingSectionPositionsAction,
+  publishLandingPageAction,
 } from "@/server/actions/landing.actions"
 import type {
   createNavigationItemAction,
@@ -48,6 +49,7 @@ export interface LandingBuilderActions {
   toggleLandingSectionActiveAction: typeof toggleLandingSectionActiveAction
   updateLandingSectionConfigAction: typeof updateLandingSectionConfigAction
   updateLandingSectionPositionsAction: typeof updateLandingSectionPositionsAction
+  publishLandingPageAction: typeof publishLandingPageAction
   createNavigationItemAction: typeof createNavigationItemAction
   deleteNavigationItemAction: typeof deleteNavigationItemAction
   toggleNavigationItemActiveAction: typeof toggleNavigationItemActiveAction

@@ -12,10 +12,16 @@ vi.mock("@/server/repositories/landing-section.repository", () => ({
   createLandingSection: vi.fn(),
   deleteLandingSection: vi.fn(),
   getMaximumLandingSectionPosition: vi.fn(),
+  publishLandingDrafts: vi.fn(),
+}))
+
+vi.mock("@/server/auth/require-admin", () => ({
+  getAdminSession: vi.fn(),
 }))
 
 import * as service from "../landing-section.service"
 import * as repository from "@/server/repositories/landing-section.repository"
+import { getAdminSession } from "@/server/auth/require-admin"
 
 beforeEach(() => vi.clearAllMocks())
 
@@ -122,6 +128,45 @@ describe("createLandingSection", () => {
     await service.createLandingSection(type)
 
     expect(vi.mocked(repository.createLandingSection).mock.calls[0][0].config).toMatchObject(expectedConfig)
+  })
+})
+
+describe("borrador de landing", () => {
+  it("guarda la configuración como borrador, sin tocar lo publicado", async () => {
+    vi.mocked(repository.updateLandingSection).mockResolvedValue({ id: "sec_1" } as never)
+
+    await service.updateLandingSectionConfig("sec_1", { title: "Hola" })
+
+    expect(repository.updateLandingSection).toHaveBeenCalledWith("sec_1", { draftConfig: { title: "Hola" } })
+  })
+
+  it("publica los borradores de una landing", async () => {
+    vi.mocked(repository.publishLandingDrafts).mockResolvedValue(2)
+
+    expect(await service.publishLandingPage("home")).toBe(2)
+    expect(repository.publishLandingDrafts).toHaveBeenCalledWith("home")
+  })
+
+  it("la vista previa sin sesión de admin no muestra el borrador", async () => {
+    vi.mocked(repository.getActiveLandingSections).mockResolvedValue([
+      { id: "sec_1", config: { title: "Publicado" }, draftConfig: { title: "Borrador" } },
+    ] as never)
+    vi.mocked(getAdminSession).mockResolvedValue(null)
+
+    const sections = await service.getLandingSectionsForRequest("home", true)
+
+    expect(sections[0]?.config).toEqual({ title: "Publicado" })
+  })
+
+  it("la vista previa de un admin muestra el borrador", async () => {
+    vi.mocked(repository.getActiveLandingSections).mockResolvedValue([
+      { id: "sec_1", config: { title: "Publicado" }, draftConfig: { title: "Borrador" } },
+    ] as never)
+    vi.mocked(getAdminSession).mockResolvedValue({ user: { id: "admin" } } as never)
+
+    const sections = await service.getLandingSectionsForRequest("home", true)
+
+    expect(sections[0]?.config).toEqual({ title: "Borrador" })
   })
 })
 

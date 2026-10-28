@@ -428,9 +428,11 @@ model LandingSection {
   page      String             @default("home")
   type      LandingSectionType
   position  Int                @default(0)
-  isActive  Boolean            @default(true)
-  config    Json?
-  createdAt DateTime           @default(now())
+  isActive    Boolean            @default(true)
+  config      Json?
+  /// Cambios aún no publicados. Null: la tienda muestra `config`.
+  draftConfig Json?
+  createdAt   DateTime           @default(now())
   updatedAt DateTime           @updatedAt
 
   @@index([page, isActive, position])

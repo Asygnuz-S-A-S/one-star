@@ -26,6 +26,7 @@ import {
   toggleLandingSectionActiveAction,
   updateLandingSectionConfigAction,
   updateLandingSectionPositionsAction,
+  publishLandingPageAction,
 } from "@/server/actions/landing.actions"
 import {
   createNavigationItemAction,
@@ -132,6 +133,7 @@ export default async function LandingBuilderPage({ searchParams }: { searchParam
     toggleLandingSectionActiveAction,
     updateLandingSectionConfigAction,
     updateLandingSectionPositionsAction,
+    publishLandingPageAction,
     createNavigationItemAction,
     deleteNavigationItemAction,
     toggleNavigationItemActiveAction,

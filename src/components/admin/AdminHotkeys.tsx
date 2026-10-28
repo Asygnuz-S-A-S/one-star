@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useCallback } from "react"
+import { usePathname } from "next/navigation"
 import { useAdminHotkeys } from "@/hooks/useAdminHotkeys"
 import HotkeysHelp from "./HotkeysHelp"
 
@@ -11,6 +12,9 @@ export default function AdminHotkeys() {
   const handleCloseHelp = useCallback(() => setShowHelp(false), [])
 
   useAdminHotkeys({ onShowHelp: handleShowHelp })
+  const pathname = usePathname()
+
+  if (pathname.startsWith("/admin/landing-builder")) return null
 
   return (
     <>
