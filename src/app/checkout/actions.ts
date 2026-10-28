@@ -1,10 +1,12 @@
 "use server"
 
 import "server-only"
-import { headers } from "next/headers"
+import { cookies, headers } from "next/headers"
 import { auth } from "@/lib/auth"
+import { LEAD_COOKIE_NAME, verifyLeadCookieValue } from "@/lib/lead-cookie"
 import { prisma } from "@/server/db/prisma"
 import { placeOrder } from "@/server/services/order.service"
+import { linkOrderToLead } from "@/server/services/lead.service"
 import { markCartsRecoveredForEmail } from "@/server/services/abandoned-cart.service"
 import { getUserById } from "@/server/services/user.service"
 import { checkoutSchema } from "@/server/validators/checkout.validator"
@@ -168,6 +170,20 @@ export async function createOrder(data: CheckoutData): Promise<CreateOrderResult
     markCartsRecoveredForEmail(input.email).catch((err) => {
       console.error("[createOrder] No se pudo marcar carrito recuperado:", err)
     })
+
+    // Vincula el pedido al lead de WhatsApp (por cookie os_lead o teléfono) y avanza a CHECKOUT.
+    // Nunca debe romper la creación del pedido si falla.
+    try {
+      const cookieStore = await cookies()
+      const cookieLeadId = verifyLeadCookieValue(cookieStore.get(LEAD_COOKIE_NAME)?.value)
+      await linkOrderToLead(order.id, {
+        leadId: cookieLeadId,
+        waPhone: input.phone,
+        advanceToStage: "CHECKOUT",
+      })
+    } catch (leadError) {
+      console.error("[createOrder] Error al vincular lead en checkout:", leadError)
+    }
 
     const guestToken = !userId ? signGuestOrderSuccessToken(order.id) : undefined
 

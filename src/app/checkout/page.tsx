@@ -22,6 +22,7 @@ import OrderSummary, { type AppliedCoupon } from "@/components/checkout/OrderSum
 import EpaycoButton, { type EpaycoCheckoutData } from "@/components/checkout/EpaycoButton"
 import { useSession } from "@/lib/auth-client"
 import { captureAbandonedCartAction } from "@/server/actions/abandoned-cart.actions"
+import { trackLeadCheckoutStageAction } from "@/server/actions/lead-stage.actions"
 import { validateCouponAction } from "@/server/actions/coupon.actions"
 import { createOrder, getCustomerCheckoutProfile } from "./actions"
 
@@ -190,6 +191,7 @@ function CheckoutForm({
     if (hasTrackedCheckout.current || items.length === 0) return
     hasTrackedCheckout.current = true
     trackMetaEvent("InitiateCheckout", buildMetaCommerceParams(items))
+    void trackLeadCheckoutStageAction().catch(() => {})
   }, [items])
 
   const [errors, setErrors] = useState<FormErrors>({})

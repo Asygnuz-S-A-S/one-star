@@ -214,6 +214,7 @@ esas condiciones para no sobrescribir una edición administrativa concurrente.
 - **Order** → estado logístico (enum `OrderStatus`: PENDING → PAID → SHIPPED → DELIVERED / CANCELLED), estado del pago (enum `PaymentStatus`: PENDING, APPROVED, REJECTED, FAILED, EXPIRED), `paidAt`, `paymentReference` (ref_payco), total, shipping (Json con dirección, método, costo y cupón), items. **Solo cuenta como venta cuando `paymentStatus = APPROVED`**: el pedido se crea PENDING al entrar al checkout de ePayco y pasa a PAID únicamente cuando la pasarela confirma (webhook `x_id_invoice` o consulta por `ref_payco` desde la página de respuesta). Los que nunca reciben notificación vencen pasadas 24 h vía `/api/cron/expire-orders` (`EXPIRED`; el cron es diario, así que en la práctica cierran entre 24 y 48 h); el correo de confirmación y el `Purchase` de Meta se disparan solo al aprobar el pago.
 - **OrderItem** → snapshot de precio, quantity, variante
 - **AbandonedCart** → email, cartData (Json), userId opcional, recoveredAt
+- **Lead / LeadEvent** → leads captados desde el asistente de WhatsApp (`waPhone` normalizado a dígitos, `name`, `ctwaClid`, `consentAt`, `optedOut`/`optedOutAt`, `shortCode`, `productSlug`, `utmSource`/`utmMedium`/`utmCampaign`/`utmContent`, `stage` con enum `LeadStage`: `NUEVO` → `INTERESADO` → `CARRITO` → `CHECKOUT` → `ABANDONO` → `COMPRO`) y su historial en `LeadEvent`. `Order.leadId` vincula la compra con el lead mediante la cookie firmada `os_lead` (30 días, `httpOnly`, `SameSite=Lax`) o el teléfono del pedido.
 
 ### Banners y Cupones
 - **Banner** → url, imageUrl, position, isActive, fechas
@@ -428,6 +429,7 @@ ANTHROPIC_MODEL=claude-sonnet-5  # Opcional; ya es el default
 # API del Asistente WhatsApp (n8n — ver /api/assistant/* y src/server/services/assistant-auth.service.ts)
 ASSISTANT_API_KEY=...            # Clave requerida en x-assistant-key (sin ella los endpoints responden 503)
 ASSISTANT_RATE_LIMIT_PER_MIN=60  # Rate limit general por minuto (default: 60)
+ASSISTANT_PHONE_RATE_LIMIT_PER_MIN=30 # Rate limit por waPhone por minuto en rutas POST de leads (default: 30)
 
 # Seguimiento de Envíos (Envía — ver src/server/shipping/tracking/)
 ENVIA_API_URL=...                # URL del servicio de tracking de Envía (opcional, sin ella tracking=null)

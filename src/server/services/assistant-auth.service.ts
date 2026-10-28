@@ -47,16 +47,38 @@ const ORDER_FAILED_MAX = 5
 const ORDER_FAILED_WINDOW_MS = 60 * 60 * 1000 // 1 hora
 
 /**
- * Valida método HTTP (solo GET), presencia y exactitud de ASSISTANT_API_KEY
+ * Rutas del asistente de WhatsApp donde se permite únicamente POST.
+ * Todas las demás rutas de `/api/assistant/*` solo permiten GET.
+ */
+export const POST_ALLOWED_ASSISTANT_PATHS = new Set([
+  "/api/assistant/leads",
+  "/api/assistant/leads/event",
+  "/api/assistant/leads/link",
+])
+
+function resolveNormalizedPathname(url: string): string {
+  try {
+    return new URL(url, "https://onestar.com.co").pathname.replace(/\/+$/, "") || "/"
+  } catch {
+    return "/"
+  }
+}
+
+/**
+ * Valida método HTTP (POST solo en rutas autorizadas de leads; GET en el resto),
+ * presencia y exactitud de ASSISTANT_API_KEY en tiempo constante
  * y el rate limit general de la API de asistente.
  */
 export async function authenticateAssistantRequest(req: Request): Promise<AuthResult> {
-  if (req.method !== "GET") {
+  const pathname = resolveNormalizedPathname(req.url)
+  const expectedMethod = POST_ALLOWED_ASSISTANT_PATHS.has(pathname) ? "POST" : "GET"
+
+  if (req.method !== expectedMethod) {
     return {
       authorized: false,
       response: NextResponse.json(
         { error: "Método no permitido" },
-        { status: 405, headers: { Allow: "GET" } }
+        { status: 405, headers: { Allow: expectedMethod } }
       ),
     }
   }
@@ -107,6 +129,22 @@ export async function authenticateAssistantRequest(req: Request): Promise<AuthRe
   }
 
   return { authorized: true, apiKey: providedKey }
+}
+
+/**
+ * Límite de peticiones por waPhone para las rutas de escritura de leads del asistente.
+ */
+export async function checkLeadPhoneRateLimit(
+  headers: Headers,
+  waPhone: string
+): Promise<{ allowed: boolean; retryAfterSeconds?: number }> {
+  const normPhone = normalizeDigits(waPhone)
+  const maxPerPhonePerMin = Number(process.env.ASSISTANT_PHONE_RATE_LIMIT_PER_MIN) || 30
+  return consumePublicRateLimit("assistant-lead-phone", headers, {
+    max: maxPerPhonePerMin,
+    windowMs: 60 * 1000,
+    subject: normPhone || "unknown-phone",
+  })
 }
 
 /**
