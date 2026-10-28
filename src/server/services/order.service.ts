@@ -280,7 +280,7 @@ export async function placeOrder(
     const isValidInERP = await erp.validateStock(erpItemsToValidate)
 
     if (!isValidInERP) {
-      throw new Error(`Lo sentimos, el stock de uno o más productos se agotó en la tienda principal justo ahora. Por favor actualiza tu carrito.`)
+      throw new Error(`Lo sentimos, el stock de uno o más productos se agotó en la tienda principal justo ahora. Por favor actualiza tu bolsa.`)
     }
   }
 

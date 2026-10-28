@@ -169,8 +169,10 @@ export default function MediaCarousel({ config = {} }: MediaCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isPaused, setIsPaused] = useState(false)
   const [direction, setDirection] = useState<1 | -1>(1)
-  const touchStartX = useRef<number | null>(null)
-  const touchEndX = useRef<number | null>(null)
+  const [dragX, setDragX] = useState(0)
+  const [dragging, setDragging] = useState(false)
+  const viewportRef = useRef<HTMLDivElement>(null)
+  const gesture = useRef<{ id: number; x: number; lastX: number; lastT: number } | null>(null)
 
   const isMultiSlide = items.length > 1
   const autoplay = cfg.autoplay ?? true
@@ -220,24 +222,23 @@ export default function MediaCarousel({ config = {} }: MediaCarouselProps) {
     return () => clearInterval(timer)
   }, [autoplay, isPaused, isMultiSlide, intervalSeconds, nextSlide])
 
-  // Gestos táctiles
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.targetTouches[0].clientX
-  }
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    touchEndX.current = e.targetTouches[0].clientX
-  }
-
-  const handleTouchEnd = () => {
-    if (!touchStartX.current || !touchEndX.current) return
-    const diff = touchStartX.current - touchEndX.current
-    if (Math.abs(diff) > 50) {
-      if (diff > 0) nextSlide()
-      else prevSlide()
+  const finishDrag = (dx: number, velocity: number) => {
+    const width = viewportRef.current?.clientWidth ?? 1
+    const projected = dx + velocity * 0.22
+    const dir = projected < -width * 0.18 ? 1 : projected > width * 0.18 ? -1 : 0
+    setDragging(false)
+    if (dir === 0) {
+      setDragX(0)
+      return
     }
-    touchStartX.current = null
-    touchEndX.current = null
+    setDragX(dir * -width)
+    window.setTimeout(() => {
+      if (dir > 0) nextSlide()
+      else prevSlide()
+      setDragging(true)
+      setDragX(0)
+      requestAnimationFrame(() => setDragging(false))
+    }, 240)
   }
 
   const currentSlide = items[currentIndex] || items[0]
@@ -280,9 +281,6 @@ export default function MediaCarousel({ config = {} }: MediaCarouselProps) {
       aria-label={cfg.title || "Carrusel de promociones y novedades"}
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
     >
       {/* Título de sección opcional */}
       {(cfg.title || cfg.subtitle) && (
@@ -301,7 +299,36 @@ export default function MediaCarousel({ config = {} }: MediaCarouselProps) {
       )}
 
       {/* Contenedor del Carrusel */}
-      <div className={`relative w-full ${getHeightClasses()} ${layout === "card" ? "rounded-2xl" : ""} overflow-hidden bg-gray-900`}>
+      <div
+        ref={viewportRef}
+        className={`relative w-full ${getHeightClasses()} ${layout === "card" ? "rounded-2xl" : ""} overflow-hidden bg-gray-900`}
+        onPointerDown={(event) => {
+          if (animationType !== "slide" || !isMultiSlide || (event.target as HTMLElement).closest("a,button")) return
+          gesture.current = { id: event.pointerId, x: event.clientX, lastX: event.clientX, lastT: event.timeStamp }
+        }}
+        onPointerMove={(event) => {
+          const drag = gesture.current
+          if (!drag || drag.id !== event.pointerId) return
+          const dx = event.clientX - drag.x
+          if (Math.abs(dx) > 8) event.currentTarget.setPointerCapture(event.pointerId)
+          drag.lastX = event.clientX
+          drag.lastT = event.timeStamp
+          setDragging(true)
+          setDragX(dx)
+          setIsPaused(true)
+        }}
+        onPointerUp={(event) => {
+          const drag = gesture.current
+          if (!drag || drag.id !== event.pointerId) return
+          gesture.current = null
+          const dx = event.clientX - drag.x
+          const dt = Math.max(16, event.timeStamp - drag.lastT)
+          const velocity = ((event.clientX - drag.lastX) / dt) * 1000
+          finishDrag(dx, velocity)
+        }}
+        onPointerCancel={() => { gesture.current = null; setDragging(false); setDragX(0) }}
+      >
+        <div className="absolute inset-0" style={{ transform: animationType === "slide" ? `translate3d(${dragX}px,0,0)` : undefined, transition: dragging ? "none" : "transform 240ms cubic-bezier(.22,1,.36,1)" }}>
         <AnimatePresence initial={false} custom={direction}>
           <motion.div
             key={`slide-${currentIndex}-${currentSlide.id || 'item'}`}
@@ -325,8 +352,8 @@ export default function MediaCarousel({ config = {} }: MediaCarouselProps) {
                 },
               },
               exit: (dir: number) => ({
-                x: animationType === "fade" ? 0 : dir > 0 ? "-35%" : "35%",
-                opacity: animationType === "fade" ? 0 : 0.3,
+                x: animationType === "fade" ? 0 : dir > 0 ? "-100%" : "100%",
+                opacity: animationType === "fade" ? 0 : 1,
                 scale: animationType === "fade" ? 0.97 : 0.94,
                 zIndex: 1,
                 transition: {
@@ -437,6 +464,7 @@ export default function MediaCarousel({ config = {} }: MediaCarouselProps) {
             </div>
           </motion.div>
         </AnimatePresence>
+        </div>
 
         {/* Flechas de Navegación */}
         {showArrows && (
@@ -444,7 +472,7 @@ export default function MediaCarousel({ config = {} }: MediaCarouselProps) {
             <button
               onClick={prevSlide}
               aria-label="Diapositiva anterior"
-              className="absolute left-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 md:w-12 md:h-12 rounded-full bg-black/40 hover:bg-black/80 text-white backdrop-blur-md border border-white/20 flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 shadow-md"
+              className="absolute left-4 top-1/2 z-20 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full border border-white/20 bg-black/40 text-white shadow-md backdrop-blur-md transition-all duration-200 hover:bg-black/80 active:scale-95 md:h-12 md:w-12"
             >
               <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
@@ -454,7 +482,7 @@ export default function MediaCarousel({ config = {} }: MediaCarouselProps) {
             <button
               onClick={nextSlide}
               aria-label="Siguiente diapositiva"
-              className="absolute right-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 md:w-12 md:h-12 rounded-full bg-black/40 hover:bg-black/80 text-white backdrop-blur-md border border-white/20 flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 shadow-md"
+              className="absolute right-4 top-1/2 z-20 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full border border-white/20 bg-black/40 text-white shadow-md backdrop-blur-md transition-all duration-200 hover:bg-black/80 active:scale-95 md:h-12 md:w-12"
             >
               <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
@@ -474,12 +502,10 @@ export default function MediaCarousel({ config = {} }: MediaCarouselProps) {
                   setCurrentIndex(idx)
                 }}
                 aria-label={`Ir a diapositiva ${idx + 1}`}
-                className={`transition-all duration-300 rounded-full ${
-                  idx === currentIndex 
-                    ? "w-8 h-2 bg-white" 
-                    : "w-2 h-2 bg-white/40 hover:bg-white/80"
-                }`}
-              />
+                className="grid h-11 w-11 place-items-center"
+              >
+                <span className={`block rounded-full transition-all duration-300 ${idx === currentIndex ? "h-2 w-8 bg-white" : "h-2 w-2 bg-white/40"}`} />
+              </button>
             ))}
           </div>
         )}

@@ -207,11 +207,33 @@ body {
 .skip-link:focus { top: 1rem; outline: 3px solid #E31C23; outline-offset: 2px; }
 
 @media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
-    transition-duration: 0.01ms !important;
+    transition-duration: 180ms !important;
+    transition-property: opacity, color, background-color, border-color, outline-color !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .public-storefront header {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    background-color: #fff !important;
+  }
+  .public-storefront nav[aria-label="Navegación inferior"] > div {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    background-color: #1c1c1c !important;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .public-storefront header,
+  .public-storefront nav[aria-label="Navegación inferior"] > div {
+    outline: 2px solid CanvasText;
   }
 }
 
@@ -422,4 +444,40 @@ html[data-intro] .store-intro__logo {
 @keyframes store-reveal {
   from { opacity: 0.25; transform: translateY(3rem) scale(0.98); }
   to { opacity: 1; transform: none; }
+}
+
+/* Panel: el objetivo táctil mínimo es 44 px. No cambia display, para no pisar `hidden`. */
+.admin-shell :where(button, input:not([type="hidden"]), select, textarea) {
+  min-height: 44px;
+}
+.admin-shell :where(button) {
+  min-width: 44px;
+}
+.admin-shell :where(a) {
+  min-height: 44px;
+  min-width: 44px;
+  flex-shrink: 0;
+  padding-block: 0.625rem;
+  box-sizing: border-box;
+}
+.admin-shell :where(input[type="checkbox"], input[type="radio"], input[type="color"]) {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  flex-shrink: 0;
+}
+.admin-shell .leaflet-container .leaflet-bar a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  line-height: 44px;
+}
+.admin-shell .leaflet-container .leaflet-control-attribution a {
+  display: inline-flex;
+  align-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding-block: 0;
 }

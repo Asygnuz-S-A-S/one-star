@@ -165,7 +165,7 @@ export function DataTable<TData>({
             {pagination.prevHref ? (
               <Link
                 href={pagination.prevHref}
-                className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg bg-white hover:bg-gray-50 text-[#1C1C1C]"
+                className="inline-flex min-h-11 items-center rounded-lg border border-gray-200 bg-white px-3 text-sm text-[#1C1C1C] hover:bg-gray-50"
               >
                 ← Anterior
               </Link>
@@ -177,7 +177,7 @@ export function DataTable<TData>({
             {pagination.nextHref ? (
               <Link
                 href={pagination.nextHref}
-                className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg bg-white hover:bg-gray-50 text-[#1C1C1C]"
+                className="inline-flex min-h-11 items-center rounded-lg border border-gray-200 bg-white px-3 text-sm text-[#1C1C1C] hover:bg-gray-50"
               >
                 Siguiente →
               </Link>

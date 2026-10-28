@@ -35,7 +35,7 @@ export const checkoutSchema = z.object({
   shippingMethod: z.enum(["standard", "express"]),
   paymentMethod: z.enum(["epayco", "mercadopago", "addi"]),
   couponCode: z.string().trim().max(40).optional(),
-  items: z.array(checkoutItemSchema).min(1, "El carrito está vacío").max(100),
+  items: z.array(checkoutItemSchema).min(1, "La bolsa está vacía").max(100),
 })
 
 export type ValidatedCheckout = z.infer<typeof checkoutSchema>

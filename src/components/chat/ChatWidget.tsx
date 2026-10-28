@@ -88,15 +88,17 @@ export default function ChatWidget({ welcome = DEFAULT_CHAT_WELCOME }: { welcome
   }
 
   return (
-    <div className="fixed bottom-[4.75rem] right-4 z-30 lg:bottom-5 lg:z-40">
+    // En móvil el botón baja por debajo del wordmark del hero y de la miga.
+    // El panel es absoluto para que el botón no se desplace al abrirse.
+    <div className="fixed right-3 top-[calc(var(--public-header-offset,56px)+8.25rem)] z-30 lg:bottom-5 lg:right-4 lg:top-auto lg:z-40">
       {open && (
-        <div className="mb-3 flex h-[28rem] w-80 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl sm:w-96">
+        <div className="absolute right-0 top-full z-30 mt-3 flex max-h-[min(28rem,calc(100svh-var(--public-header-offset,56px)-16rem))] w-80 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl sm:w-96 lg:bottom-full lg:top-auto lg:mb-3 lg:mt-0">
           <div className="flex items-center justify-between bg-[#1C1C1C] px-4 py-3">
             <span className="font-montserrat text-sm font-semibold text-white">Asistente One Star</span>
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="text-white/70 hover:text-white"
+              className="grid h-11 w-11 place-items-center text-white/70 hover:text-white"
               aria-label="Cerrar chat"
             >
               ✕
@@ -151,7 +153,7 @@ export default function ChatWidget({ welcome = DEFAULT_CHAT_WELCOME }: { welcome
                 onClick={openCart}
                 className="mt-2 w-full rounded-full border border-gray-300 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
               >
-                Ver carrito
+                Ver bolsa
               </button>
             )}
           </div>

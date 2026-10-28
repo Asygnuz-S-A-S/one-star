@@ -63,7 +63,7 @@ test.describe("Ficha de producto — SEO y conversión", () => {
 
     await expect(page.locator("h1")).toBeVisible()
     await expect(page.getByTestId("product-availability")).toBeVisible()
-    await expect(page.locator("#comprar").getByRole("button", { name: /agregar al carrito/i })).toBeVisible()
+    await expect(page.locator("#comprar").getByRole("button", { name: /agregar a la bolsa/i })).toBeVisible()
   })
 
   test("mantiene la compra rápida separada del acceso al chat en móvil", async ({ page }) => {
@@ -86,9 +86,9 @@ test.describe("Ficha de producto — SEO y conversión", () => {
     await openFirstProduct(page)
 
     await page.locator('#selector-talla button[aria-label^="Talla"]:not([disabled])').first().click()
-    await page.locator("#comprar").getByRole("button", { name: /agregar al carrito/i }).click()
+    await page.locator("#comprar").getByRole("button", { name: /agregar a la bolsa/i }).click()
 
-    await expect(page.getByRole("dialog", { name: /carrito de compras/i })).toBeVisible()
-    await expect(page.getByRole("dialog", { name: /carrito de compras/i }).getByText("Talla:")).toBeVisible()
+    await expect(page.getByRole("dialog", { name: /^bolsa$/i })).toBeVisible()
+    await expect(page.getByRole("dialog", { name: /^bolsa$/i }).getByText("Talla:")).toBeVisible()
   })
 })

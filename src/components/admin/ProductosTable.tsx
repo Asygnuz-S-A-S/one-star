@@ -177,7 +177,7 @@ const columns: ColumnDef<ProductDTO, unknown>[] = [
       <div className="flex items-center justify-end gap-2">
         <Link
           href={`/admin/productos/${row.original.id}`}
-          className="text-xs font-medium text-[#E31C23] hover:underline"
+          className="inline-flex min-h-11 items-center text-xs font-medium text-[#E31C23] hover:underline"
         >
           Editar
         </Link>
@@ -185,7 +185,7 @@ const columns: ColumnDef<ProductDTO, unknown>[] = [
         <Link
           href={`/productos/${row.original.slug}`}
           target="_blank"
-          className="text-xs font-medium text-[#4A4A4A] hover:underline"
+          className="inline-flex min-h-11 items-center text-xs font-medium text-[#4A4A4A] hover:underline"
         >
           Ver en tienda
         </Link>
@@ -253,6 +253,39 @@ export function ProductosTable({
           </Link>
         </div>
       ) : (
+        <>
+        <div className="space-y-3 md:hidden">
+          {products.map((product) => {
+            const stock = product.variants.reduce((sum, variant) => sum + variant.stock, 0)
+            const image = product.images[0]
+            const price = product.isOnSale && product.salePrice ? product.salePrice : product.basePrice
+            return (
+              <article key={product.id} className="rounded-xl border border-gray-200 bg-white p-4">
+                <div className="flex gap-3">
+                  <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+                    {image && (
+                      <Image src={image.url} alt={image.alt ?? product.name} width={64} height={64} className="h-full w-full object-contain" />
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <h2 className="font-medium text-[#1C1C1C]">{product.name}</h2>
+                    <p className="text-sm text-[#4A4A4A]">{product.brandName ?? "Sin marca"} · {product.category.name}</p>
+                    <p className="mt-1 text-sm font-semibold">${price.toLocaleString("es-CO")} · stock {stock}</p>
+                  </div>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <Link href={`/admin/productos/${product.id}`} className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[#E31C23] text-sm font-semibold text-white">Editar</Link>
+                  <Link href={`/productos/${product.slug}`} target="_blank" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-gray-200 text-sm font-semibold text-[#1C1C1C]">Ver en tienda</Link>
+                </div>
+              </article>
+            )
+          })}
+          <div className="flex gap-2">
+            {prevHref && <Link href={prevHref} className="inline-flex min-h-11 flex-1 items-center justify-center rounded-lg border border-gray-200 bg-white text-sm">Anterior</Link>}
+            {nextHref && <Link href={nextHref} className="inline-flex min-h-11 flex-1 items-center justify-center rounded-lg border border-gray-200 bg-white text-sm">Siguiente</Link>}
+          </div>
+        </div>
+        <div className="hidden md:block">
         <DataTable
           key={`${page}:${products.map((product) => product.id).join(":")}`}
           data={products}
@@ -286,6 +319,8 @@ export function ProductosTable({
             </div>
           )}
         />
+        </div>
+        </>
       )}
     </>
   )

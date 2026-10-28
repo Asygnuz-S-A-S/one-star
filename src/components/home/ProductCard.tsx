@@ -162,7 +162,7 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
       className="group cursor-pointer relative flex flex-col h-full rounded-store-md bg-store-surface p-2 transition-shadow duration-300 hover:shadow-[var(--store-elevation-raised)] dark:bg-[var(--store-surface)] dark:hover:bg-white/[0.03]"
       data-product-id={id}
       whileHover={shouldReduceMotion ? undefined : { y: -6 }}
-      transition={{ duration: shouldReduceMotion ? 0 : 0.5, type: "spring", stiffness: 300, damping: 20 }}
+      transition={{ duration: shouldReduceMotion ? 0 : 0.4, type: "spring", stiffness: 300, damping: 35 }}
       onMouseMove={handleMouseMoveSequence}
       onMouseEnter={handleMouseEnterSequence}
       onMouseLeave={handleMouseLeaveSequence}
@@ -214,7 +214,7 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
         {mounted && session?.user && (
           <button 
             onClick={toggleFavorite}
-            className="absolute top-2 right-2 z-20 p-2 bg-white/70 dark:bg-black/50 backdrop-blur-md rounded-full text-[#1C1C1C] dark:text-white hover:text-[#E31C23] dark:hover:text-[#E31C23] transition-colors shadow-sm"
+            className="absolute top-2 right-2 z-20 grid h-11 w-11 place-items-center rounded-full bg-white/70 text-[#1C1C1C] backdrop-blur-md transition-colors hover:text-[#E31C23] dark:bg-black/50 dark:text-white dark:hover:text-[#E31C23]"
             aria-label="Agregar a favoritos"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill={isFavorite ? "#E31C23" : "none"} stroke={isFavorite ? "#E31C23" : "currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -244,7 +244,7 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
                   key={option.name}
                   href={`/productos/${option.slug ?? slug}?color=${encodeURIComponent(option.name)}`}
                   prefetch={false}
-                  className={`relative isolate h-9 w-9 shrink-0 overflow-hidden rounded-store-sm bg-white transition-opacity duration-200 focus-visible:outline-2 focus-visible:outline-[var(--store-action)] dark:bg-[#2a2a2a] ${
+                  className={`relative isolate h-11 w-11 shrink-0 overflow-hidden rounded-store-sm bg-white transition-opacity duration-200 focus-visible:outline-2 focus-visible:outline-[var(--store-action)] dark:bg-[#2a2a2a] ${
                     isActive ? "opacity-100" : "opacity-60 hover:opacity-100"
                   }`}
                   aria-label={`Ver ${option.productName ?? name} en color ${option.name}`}

@@ -29,12 +29,12 @@ test.describe("Admin — auditoría E2E integral", () => {
       { path: "/admin/clientes/abandonados", heading: /^Carritos abandonados/ },
       { path: "/admin/cupones", heading: /^Cupones/ },
       { path: "/admin/productos", heading: /^Productos/ },
-      { path: "/admin/categorias", heading: /^Gestor de Categorías/ },
+      { path: "/admin/categorias", heading: /^Categorías de la tienda$/ },
       { path: "/admin/marcas", heading: /^Catálogo de Marcas$/ },
       { path: "/admin/colores", heading: /^Colores de producto$/ },
       { path: "/admin/landing-builder", heading: /^Constructor Visual$/ },
       { path: "/admin/contenido", heading: /^Contenido y Promesas Globales$/ },
-      { path: "/admin/tiendas", heading: /^Gestor de Sucursales Físicas$/ },
+      { path: "/admin/tiendas", heading: /^Tiendas$/ },
       { path: "/admin/configuracion", heading: /^Configuración$/ },
       { path: "/admin/integraciones", heading: /^Integraciones$/ },
     ]
@@ -66,7 +66,7 @@ test.describe("Admin — auditoría E2E integral", () => {
       "/admin/navegacion",
     ]) {
       await page.goto(legacyRoute)
-      await expect(page).toHaveURL(/\/admin\/landing-builder$/)
+      await expect(page).toHaveURL(/\/admin\/landing-builder(?:#.+)?$/)
       await expect(page.getByRole("heading", { name: "Inicio · editor visual", exact: true })).toBeVisible()
       await page.waitForTimeout(2_500)
     }
@@ -75,7 +75,7 @@ test.describe("Admin — auditoría E2E integral", () => {
   test("muestra los editores de contenido sin un lienzo en blanco", async ({ adminPage: page }) => {
     await page.goto("/admin/contenido")
     await expect(page.getByTestId("site-content-form")).toBeVisible()
-    await expect(page.getByRole("heading", { name: "1. Beneficios Globales (Highlights)", exact: true })).toBeVisible()
+    await expect(page.getByRole("heading", { name: "1. Beneficios de la tienda", exact: true })).toBeVisible()
 
     await page.goto("/admin/landing-builder")
     await expect(page.getByRole("heading", { name: "Inicio · editor visual", exact: true })).toBeVisible()
@@ -229,7 +229,7 @@ test.describe("Admin — auditoría E2E integral", () => {
 
     await expect(page.getByRole("banner")).toHaveCount(1)
     await expect(page.getByRole("navigation", { name: "Menú principal", exact: true })).toBeVisible()
-    await expect(page.getByRole("button", { name: "Carrito de compras", exact: true })).toBeVisible()
+    await expect(page.getByRole("button", { name: "Bolsa", exact: true })).toBeVisible()
     await expect(page.getByTestId("public-site-spacer")).toBeVisible()
     await expect(page.getByRole("main")).toHaveCount(1)
   })

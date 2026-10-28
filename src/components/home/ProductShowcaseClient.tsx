@@ -39,7 +39,7 @@ const stageVariants: Variants = {
   center: { x: 0, opacity: 1, rotate: 0, scale: 1 },
   exit: (dir: number) => ({ x: dir > 0 ? -160 : 160, opacity: 0, rotate: dir > 0 ? -14 : 14, scale: 0.75 }),
   // Al hacer clic, el producto "despega" hacia el usuario antes de abrir la ficha
-  launch: { scale: 1.55, y: -50, opacity: 0, rotate: -6, transition: { type: "spring", stiffness: 220, damping: 20 } },
+  launch: { scale: 1.55, y: -50, opacity: 0, rotate: -6, transition: { type: "spring", stiffness: 220, damping: 30 } },
 }
 
 /** Duración de la animación de salida antes de navegar (ms). */
@@ -167,7 +167,7 @@ export default function ProductShowcaseClient({ title, products, theme = "light"
               initial="enter"
               animate={launching ? "launch" : "center"}
               exit="exit"
-              transition={{ type: "spring", stiffness: 260, damping: 26 }}
+              transition={{ type: "spring", stiffness: 260, damping: 32 }}
               className="relative z-10 w-[68vw] max-w-[440px] aspect-square cursor-pointer"
               onMouseMove={handleMove}
               onMouseLeave={() => setFrame(0)}
@@ -205,8 +205,8 @@ export default function ProductShowcaseClient({ title, products, theme = "light"
               key={active.id}
               initial={reduce ? { opacity: 0 } : { opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={reduce ? { opacity: 0 } : { opacity: 0, y: -16 }}
-              transition={{ type: "spring", stiffness: 300, damping: 24 }}
+              exit={reduce ? { opacity: 0 } : { opacity: 0, y: 24 }}
+              transition={{ type: "spring", stiffness: 300, damping: 35 }}
             >
               <h3 className="font-barlow font-black uppercase leading-[0.85] tracking-tight text-[13vw] md:text-[6.5rem]">
                 {active.brand || "One Star"}

@@ -70,7 +70,7 @@ function NewReviewForm() {
   return (
     <details className="mb-8 rounded-xl border border-gray-200 bg-white p-5">
       <summary className="cursor-pointer text-sm font-semibold text-[#1C1C1C]">
-        + Cargar una reseña propia (testimonio real)
+        Cargar una reseña propia (testimonio real)
       </summary>
       <form action={submit} className="mt-4 grid gap-4 md:grid-cols-2">
         <div className="relative md:col-span-2">
@@ -118,8 +118,8 @@ function NewReviewForm() {
           <input name="title" maxLength={120} className={inputClass} />
         </div>
         <div className="md:col-span-2">
-          <label className="mb-1 block text-sm font-medium">Comentario</label>
-          <textarea name="body" required rows={3} maxLength={2000} className={inputClass} />
+          <label htmlFor="review-body" className="mb-1 block text-sm font-medium">Comentario</label>
+          <textarea id="review-body" name="body" required rows={3} maxLength={2000} className={inputClass} />
         </div>
         <div className="flex flex-wrap gap-4 md:col-span-2">
           <label className="flex items-center gap-2 text-sm">
@@ -250,8 +250,9 @@ function EditReviewModal({
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-semibold text-gray-700">Comentario</label>
+            <label htmlFor="edit-review-body" className="mb-1 block text-xs font-semibold text-gray-700">Comentario</label>
             <textarea
+              id="edit-review-body"
               rows={4}
               value={body}
               onChange={(e) => setBody(e.target.value)}

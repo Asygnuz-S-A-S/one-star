@@ -85,7 +85,43 @@ export default function CuponesClient({ coupons, categories }: Props) {
         </div>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="space-y-3 p-3 md:hidden">
+            {coupons.map((coupon) => {
+              const isExpired = new Date(coupon.validUntil) < new Date()
+              return (
+                <article key={coupon.id} className="rounded-xl border border-gray-200 p-4">
+                  <p className="font-mono text-base font-semibold text-[#1C1C1C] break-all">
+                    {coupon.code}
+                    {coupon.clubOnly ? " · Club" : ""}
+                  </p>
+                  <p className="mt-1 text-sm text-[#4A4A4A]">
+                    {coupon.discountType === "PERCENTAGE" ? "Porcentaje" : "Monto fijo"}
+                    {" · "}
+                    {coupon.discountType === "PERCENTAGE" ? `${coupon.discountValue}%` : formatCOP(coupon.discountValue)}
+                  </p>
+                  <p className="mt-1 text-sm text-[#4A4A4A]">
+                    Mínimo {coupon.minOrderAmount ? formatCOP(coupon.minOrderAmount) : "sin mínimo"}
+                    {" · "}
+                    {coupon.usedCount}{coupon.maxUses ? ` / ${coupon.maxUses}` : " / ∞"} usos
+                  </p>
+                  <p className={`mt-1 text-sm ${isExpired ? "text-[#E31C23]" : "text-[#4A4A4A]"}`}>
+                    Válido hasta {formatDate(coupon.validUntil)}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => handleToggle(coupon.id, coupon.isActive)}
+                    disabled={isPending}
+                    className={`mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-lg text-sm font-semibold ${
+                      coupon.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"
+                    }`}
+                  >
+                    {coupon.isActive ? "Activo" : "Inactivo"}
+                  </button>
+                </article>
+              )
+            })}
+          </div>
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50">

@@ -36,12 +36,12 @@ export default async function AdminLayout({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex bg-[#F5F5F5]">
+    <div className="admin-shell fixed inset-0 z-50 flex bg-[#F5F5F5]">
       <AdminSidebar
         userName={session.user.name ?? "Admin"}
         userRole={activeRole}
       />
-      <main className="flex-1 overflow-y-auto">{children}</main>
+      <main className="min-w-0 flex-1 overflow-y-auto pt-16 md:pt-0">{children}</main>
       <AdminHotkeys />
     </div>
   )

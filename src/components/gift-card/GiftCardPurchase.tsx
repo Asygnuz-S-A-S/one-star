@@ -145,7 +145,7 @@ export default function GiftCardPurchase({ options, intro, validityMonths = 12, 
   function handleAddToCart() {
     if (!selectedOption) return
     addItem(createGiftCardCartItem(selectedOption, limits))
-    setMessage(`Tarjeta de ${formatCOP(selectedOption.amount)} añadida al carrito.`)
+    setMessage(`Tarjeta de ${formatCOP(selectedOption.amount)} añadida a la bolsa.`)
     openCart()
   }
 
@@ -203,7 +203,7 @@ export default function GiftCardPurchase({ options, intro, validityMonths = 12, 
               className="min-h-14 w-full rounded-[var(--store-radius-md)] bg-[#E31C23] font-barlow text-lg font-bold uppercase tracking-wider text-white transition-colors hover:bg-[#C01920] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {selectedOption
-                ? `Añadir ${formatCOP(selectedOption.amount)} al carrito`
+                ? `Añadir ${formatCOP(selectedOption.amount)} a la bolsa`
                 : "Selecciona un monto"}
             </button>
           </>

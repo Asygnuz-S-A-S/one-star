@@ -2,7 +2,8 @@
 
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { motion, useReducedMotion } from "motion/react"
 import { INVENTORY_OPERATOR_HREFS, type AdminRole } from "@/lib/admin-access"
 import { signOut } from "@/lib/auth-client"
 
@@ -44,6 +45,15 @@ const navGroups = [
         icon: (
           <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        ),
+      },
+      {
+        label: "Leads (CRM)",
+        href: "/admin/leads",
+        icon: (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
           </svg>
         ),
       },
@@ -225,10 +235,25 @@ export default function AdminSidebar({ userName, userRole }: AdminSidebarProps) 
             .filter((group) => group.items.length > 0)
         : []
 
+  const navHrefs = navGroups.flatMap((group) => group.items.map((item) => item.href))
   const isActive = (href: string) => {
     if (href === "/admin") return pathname === "/admin"
-    return pathname.startsWith(href)
+    const matches = navHrefs.filter(
+      (item) => item !== "/admin" && (pathname === item || pathname.startsWith(`${item}/`))
+    )
+    const winner = matches.sort((a, b) => b.length - a.length)[0]
+    return winner === href
   }
+
+  const reduceMotion = useReducedMotion()
+  useEffect(() => {
+    if (!mobileOpen) return
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMobileOpen(false)
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [mobileOpen])
 
   const sidebarContent = (
     <div className="flex flex-col h-full bg-[#1C1C1C] text-white w-64">
@@ -258,7 +283,7 @@ export default function AdminSidebar({ userName, userRole }: AdminSidebarProps) 
                       key={item.href}
                       href={item.href}
                       onClick={() => setMobileOpen(false)}
-                      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg font-montserrat text-sm transition-colors ${
+                      className={`flex min-h-11 w-full items-center gap-3 rounded-lg px-3 font-montserrat text-sm transition-colors ${
                         active
                           ? "bg-[#E31C23] text-white"
                           : "text-white/70 hover:bg-white/10 hover:text-white"
@@ -289,7 +314,7 @@ export default function AdminSidebar({ userName, userRole }: AdminSidebarProps) 
           <button
             type="button"
             onClick={() => signOut({ fetchOptions: { onSuccess: () => { router.push("/admin/login") } } })}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg font-montserrat text-sm text-white/70 hover:bg-white/10 hover:text-white transition-colors"
+            className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 font-montserrat text-sm text-white/70 transition-colors hover:bg-white/10 hover:text-white"
           >
             <svg
               className="w-4 h-4"
@@ -322,8 +347,9 @@ export default function AdminSidebar({ userName, userRole }: AdminSidebarProps) 
       <div className="md:hidden">
         <button
           onClick={() => setMobileOpen(true)}
-          className="fixed top-4 left-4 z-50 p-2 bg-[#1C1C1C] text-white rounded-lg"
+          className="fixed top-3 left-3 z-50 grid h-11 w-11 place-items-center rounded-lg bg-[#1C1C1C] text-white"
           aria-label="Abrir menú"
+          aria-expanded={mobileOpen}
         >
           <svg
             className="w-5 h-5"
@@ -349,13 +375,15 @@ export default function AdminSidebar({ userName, userRole }: AdminSidebarProps) 
         )}
 
         {/* Drawer */}
-        <aside
-          className={`fixed top-0 left-0 z-50 h-full transition-transform duration-300 ${
-            mobileOpen ? "translate-x-0" : "-translate-x-full"
-          }`}
+        <motion.aside
+          className="fixed top-0 left-0 z-50 h-full"
+          aria-hidden={!mobileOpen}
+          initial={false}
+          animate={{ x: mobileOpen ? 0 : "-100%" }}
+          transition={reduceMotion ? { duration: 0.15 } : { type: "spring", stiffness: 380, damping: 39 }}
         >
           {sidebarContent}
-        </aside>
+        </motion.aside>
       </div>
     </>
   )

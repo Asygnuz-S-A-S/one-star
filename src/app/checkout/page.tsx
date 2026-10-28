@@ -301,7 +301,7 @@ function CheckoutForm({
         couponCode: appliedCoupon?.code ?? null,
       })
       onAuthRequired(draftSaved)
-      window.scrollTo({ top: 0, behavior: "smooth" })
+      document.getElementById("public-scroll")?.scrollTo({ top: 0, behavior: "smooth" })
       return
     }
 
@@ -317,7 +317,7 @@ function CheckoutForm({
     }
 
     if (items.length === 0) {
-      setServerError("Tu carrito está vacío")
+      setServerError("Tu bolsa está vacía")
       return
     }
 
@@ -357,14 +357,14 @@ function CheckoutForm({
       // Pedido creado — pasamos al paso de pago
       clearCheckoutDraft(getCheckoutSessionStorage())
       setEpaycoData(result.epaycoData)
-      window.scrollTo({ top: 0, behavior: "smooth" })
+      document.getElementById("public-scroll")?.scrollTo({ top: 0, behavior: "smooth" })
     } else if (result.code === "AUTH_REQUIRED") {
       const draftSaved = saveCheckoutDraft(getCheckoutSessionStorage(), {
         form: values,
         couponCode: appliedCoupon?.code ?? null,
       })
       onAuthRequired(draftSaved)
-      window.scrollTo({ top: 0, behavior: "smooth" })
+      document.getElementById("public-scroll")?.scrollTo({ top: 0, behavior: "smooth" })
     } else {
       setServerError(result.error ?? "Error al procesar el pedido")
     }
@@ -448,7 +448,7 @@ function CheckoutForm({
                   </div>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" checked={values.newsletter} onChange={(e) => set("newsletter", e.target.checked)}
-                      className="w-4 h-4 rounded border-[#E0E0E0] accent-[#E31C23]" />
+                      className="h-12 w-12 shrink-0 rounded border-[#E0E0E0] accent-[#E31C23]" />
                     <span className="text-sm font-montserrat text-[#4A4A4A]">Recibir novedades y ofertas</span>
                   </label>
                 </div>
@@ -540,7 +540,7 @@ function CheckoutForm({
                 </div>
                 <label className="flex items-center gap-2 cursor-pointer mt-4">
                   <input type="checkbox" checked={values.saveAddress} onChange={(e) => set("saveAddress", e.target.checked)}
-                    className="w-4 h-4 rounded border-[#E0E0E0] accent-[#E31C23]" />
+                    className="h-12 w-12 shrink-0 rounded border-[#E0E0E0] accent-[#E31C23]" />
                   <span className="text-sm font-montserrat text-[#4A4A4A]">Guardar esta dirección para futuras compras</span>
                 </label>
               </motion.section>
@@ -564,7 +564,7 @@ function CheckoutForm({
                     values.shippingMethod === "standard" ? "border-[#1C1C1C] shadow-[0_0_0_1px_#1C1C1C]" : "border-[#E0E0E0] hover:border-[#4A4A4A]"}`}>
                     <div className="flex items-center gap-3">
                       <input type="radio" name="shippingMethod" value="standard" checked={values.shippingMethod === "standard"}
-                        onChange={() => set("shippingMethod", "standard")} className="h-4 w-4 accent-[#E31C23]" />
+                        onChange={() => set("shippingMethod", "standard")} className="h-12 w-12 shrink-0 accent-[#E31C23]" />
                       <div>
                         <p className="text-sm font-montserrat font-medium text-[#1C1C1C]">Envío estándar ({deliveryDays.min}-{deliveryDays.max} días hábiles)</p>
                         {subtotal >= shippingRates.freeThreshold ? (
@@ -589,7 +589,7 @@ function CheckoutForm({
                     values.shippingMethod === "express" ? "border-[#1C1C1C] shadow-[0_0_0_1px_#1C1C1C]" : "border-[#E0E0E0] hover:border-[#4A4A4A]"}`}>
                     <div className="flex items-center gap-3">
                       <input type="radio" name="shippingMethod" value="express" checked={values.shippingMethod === "express"}
-                        onChange={() => set("shippingMethod", "express")} className="h-4 w-4 accent-[#E31C23]" />
+                        onChange={() => set("shippingMethod", "express")} className="h-12 w-12 shrink-0 accent-[#E31C23]" />
                       <p className="text-sm font-montserrat font-medium text-[#1C1C1C]">Envío express ({deliveryDays.expressMin}-{deliveryDays.expressMax} días hábiles)</p>
                     </div>
                     <span className="text-sm font-montserrat font-medium text-[#1C1C1C]">{formatCOP(shippingRates.expressCost)}</span>

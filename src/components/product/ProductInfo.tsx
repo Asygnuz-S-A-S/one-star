@@ -24,6 +24,7 @@ import StickyBuyBar from "./StickyBuyBar"
 import { RETURN_WINDOW_DAYS, type StorePromise } from "@/lib/store-promises"
 import { useDeliveryDays, useShippingRates } from "@/components/storefront/ShippingRatesProvider"
 import { getProductAvailability } from "@/lib/product-availability"
+import AddiWidget from "@/components/product/AddiWidget"
 
 interface ProductInfoProps {
   product: ProductWithRelations
@@ -48,11 +49,11 @@ const itemVariants: Variants = {
   show: {
     opacity: 1,
     y: 0,
-    transition: { type: "spring", stiffness: 380, damping: 15 },
+    transition: { type: "spring", stiffness: 380, damping: 39 },
   },
 }
 
-const springy = { type: "spring", stiffness: 400, damping: 15 } as const
+const springy = { type: "spring" as const, stiffness: 400, damping: 40 }
 
 /**
  * El "pop" de confirmación al agregar al carrito recorre varios keyframes, y
@@ -230,7 +231,7 @@ export default function ProductInfo({
           <motion.div variants={itemVariants}>
             <Link
               href={`/buscar?marca=${encodeURIComponent(product.brand)}`}
-              className="font-montserrat text-xs uppercase tracking-widest text-[#4A4A4A] hover:text-[#1C1C1C] transition-colors w-fit"
+              className="inline-flex min-h-11 min-w-11 items-center font-montserrat text-xs uppercase tracking-widest text-[#4A4A4A] transition-colors hover:text-[#1C1C1C]"
             >
               {product.brand}
             </Link>
@@ -270,7 +271,7 @@ export default function ProductInfo({
                   className={star <= Math.round(reviewStats.avg) ? "text-yellow-400" : "text-gray-200 dark:text-white/10"}
                   initial={{ scale: 0, rotate: -30 }}
                   animate={{ scale: 1, rotate: 0 }}
-                  transition={{ type: "spring", stiffness: 500, damping: 12, delay: 0.3 + star * 0.06 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 45, delay: 0.3 + star * 0.06 }}
                 >
                   <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
                 </motion.svg>
@@ -309,6 +310,9 @@ export default function ProductInfo({
               Ahorras {formatCOP(savings)}
             </p>
           )}
+          <div className="mt-1">
+            <AddiWidget price={salePrice ?? basePrice} />
+          </div>
         </motion.div>
 
         <div
@@ -520,12 +524,10 @@ export default function ProductInfo({
                 whileTap={canAct ? { scale: 0.95 } : undefined}
                 animate={justAdded ? { scale: [1, 1.08, 0.96, 1] } : { scale: 1 }}
                 transition={justAdded ? popTween : springy}
-                className={`relative w-full py-4 font-barlow font-bold uppercase tracking-widest text-sm overflow-hidden ${
+                className={`relative min-h-12 w-full overflow-hidden py-4 font-barlow text-sm font-bold uppercase tracking-widest ${
                   justAdded
                     ? "bg-green-600 text-white"
-                    : canAct
-                      ? "bg-[#1C1C1C] text-white hover:bg-[#333] dark:bg-white dark:text-black dark:hover:bg-gray-200"
-                      : "bg-[#1C1C1C] text-white dark:bg-white dark:text-black"
+                    : "bg-[#E31C23] text-white hover:bg-[#C01920]"
                 }`}
               >
                 <AnimatePresence mode="wait" initial={false}>
@@ -543,7 +545,7 @@ export default function ProductInfo({
                         stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
                         initial={{ scale: 0, rotate: -45 }}
                         animate={{ scale: 1, rotate: 0 }}
-                        transition={{ type: "spring", stiffness: 500, damping: 12 }}
+                        transition={{ type: "spring", stiffness: 500, damping: 45 }}
                       >
                         <path d="M20 6 9 17l-5-5" />
                       </motion.svg>
@@ -555,7 +557,7 @@ export default function ProductInfo({
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -10 }}
                     >
-                      Agregar al Carrito
+                      Agregar a la bolsa
                     </motion.span>
                   )}
                 </AnimatePresence>
@@ -566,11 +568,7 @@ export default function ProductInfo({
                 whileHover={canAct ? { scale: 1.03 } : undefined}
                 whileTap={canAct ? { scale: 0.95 } : undefined}
                 transition={springy}
-                className={`w-full py-4 font-barlow font-bold uppercase tracking-widest text-sm ${
-                  canAct
-                    ? "bg-[#E31C23] text-white hover:bg-[#C01920]"
-                    : "bg-[#E31C23] text-white"
-                }`}
+                className="min-h-12 w-full border-2 border-[#1C1C1C] bg-transparent py-4 font-barlow text-sm font-bold uppercase tracking-widest text-[#1C1C1C] hover:bg-[#1C1C1C] hover:text-white dark:border-white dark:text-white dark:hover:bg-white dark:hover:text-black"
               >
                 Comprar Ahora
               </motion.button>

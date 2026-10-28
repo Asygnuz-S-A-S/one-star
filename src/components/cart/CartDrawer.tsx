@@ -139,7 +139,7 @@ export default function CartDrawer() {
             className="fixed top-0 right-0 z-50 flex h-full w-full max-w-md flex-col bg-white shadow-2xl sm:rounded-l-[var(--store-radius-xl)]"
             role="dialog"
             aria-modal="true"
-            aria-label="Carrito de compras"
+            aria-label="Bolsa"
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
@@ -160,7 +160,7 @@ export default function CartDrawer() {
               <button
                 ref={closeButtonRef}
                 onClick={closeCart}
-                aria-label="Cerrar carrito"
+                aria-label="Cerrar bolsa"
                 className="-mr-2 grid h-11 w-11 place-items-center rounded-full text-[#4A4A4A] transition-colors hover:bg-[#F2F2F0] hover:text-[#1C1C1C] focus-visible:outline-2 focus-visible:outline-[#E31C23]"
               >
                 <IconX />
@@ -172,7 +172,7 @@ export default function CartDrawer() {
               <div className="flex flex-col items-center justify-center flex-1 gap-4 px-6 text-center">
                 <IconCartEmpty />
                 <p className="font-barlow font-bold text-lg text-[#1C1C1C] uppercase tracking-wide">
-                  Tu carrito está vacío
+                  Tu bolsa está vacía
                 </p>
                 <p className="font-montserrat text-sm text-[#4A4A4A]">
                   Agrega productos para comenzar

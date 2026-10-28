@@ -2,9 +2,11 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import "./globals.css";
 import PublicSiteFrame from "@/components/PublicSiteFrame";
+import Script from "next/script";
 import StoreIntro, { STORE_INTRO_SCRIPT } from "@/components/StoreIntro";
 import Providers from "@/app/providers";
 import MetaPixel from "@/components/tracking/MetaPixel";
+import GoogleAnalytics from "@/components/tracking/GoogleAnalytics";
 
 export const metadata: Metadata = {
   title: "One Star | Urban Performance",
@@ -77,7 +79,9 @@ export default async function RootLayout({
   return (
     <html lang="es" className="h-full antialiased" suppressHydrationWarning>
       <body className="min-h-full flex flex-col bg-white text-[#1C1C1C] dark:bg-[#0f0f0f] dark:text-[#f5f5f7] transition-colors duration-300">
-        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: STORE_INTRO_SCRIPT }} />
+        <Script id="store-intro" strategy="beforeInteractive" nonce={nonce}>
+          {STORE_INTRO_SCRIPT}
+        </Script>
         <StoreIntro />
         <a href="#contenido-principal" className="skip-link">
           Saltar al contenido principal
@@ -92,6 +96,9 @@ export default async function RootLayout({
             expressDeliveryMaxDays={storefront.expressDeliveryMaxDays}
           >
           {metaPixel && <MetaPixel pixelId={metaPixel.pixelId} />}
+          {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (
+            <GoogleAnalytics measurementId={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID} />
+          )}
           <PublicSiteFrame
             items={navigationItems}
             banner={topBanner}

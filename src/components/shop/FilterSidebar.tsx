@@ -3,7 +3,9 @@
 import { useRouter, usePathname } from "next/navigation"
 import { GENDER_FILTER_OPTIONS } from "@/lib/gender-filter"
 import { DEFAULT_PRODUCT_SORT, PRODUCT_SORT_OPTIONS } from "@/lib/product-sort"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, useSyncExternalStore } from "react"
+import { createPortal } from "react-dom"
+import { AnimatePresence, motion } from "motion/react"
 import {
   buildPriceFilterSearch,
   normalizePriceBounds,
@@ -33,6 +35,21 @@ const chevron = "text-[#4A4A4A] dark:text-white/40"
 
 const optionText = "font-montserrat text-sm text-[#4A4A4A] dark:text-white/60"
 
+function subscribeToFilterSlot(onStoreChange: () => void) {
+  // El slot lo pinta SortBar después de este componente. Un aviso en el
+  // siguiente frame vuelve a leer el nodo ya montado, también al cambiar de página.
+  const frame = requestAnimationFrame(onStoreChange)
+  return () => cancelAnimationFrame(frame)
+}
+
+function readFilterSlot() {
+  return document.getElementById("catalog-filter-slot")
+}
+
+function readServerFilterSlot() {
+  return null
+}
+
 export default function FilterSidebar({
   brands,
   sizes,
@@ -46,6 +63,7 @@ export default function FilterSidebar({
   const router = useRouter()
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
+  const filterSlot = useSyncExternalStore(subscribeToFilterSlot, readFilterSlot, readServerFilterSlot)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const dialogRef = useRef<HTMLDivElement>(null)
 
@@ -164,7 +182,7 @@ export default function FilterSidebar({
   const visibleColors = showAllColors || allColors.length <= COLOR_PREVIEW
     ? allColors
     : [...allColors.slice(0, COLOR_PREVIEW), ...(currentColor && allColors.indexOf(currentColor) >= COLOR_PREVIEW ? [currentColor] : [])]
-  const moreButton = "mt-3 font-montserrat text-xs font-semibold text-[#1C1C1C] underline underline-offset-4 hover:text-[#E31C23] dark:text-white"
+  const moreButton = "mt-3 inline-flex min-h-11 items-center font-montserrat text-xs font-semibold text-[#1C1C1C] underline underline-offset-4 hover:text-[#E31C23] dark:text-white"
 
   const sidebarContent = (
     <div className="flex flex-col gap-4">
@@ -183,7 +201,7 @@ export default function FilterSidebar({
                 value={value}
                 checked={currentOrden === value}
                 onChange={() => setParam("orden", value)}
-                className="accent-[#1C1C1C] dark:accent-white"
+                className="h-11 w-11 shrink-0 accent-[#1C1C1C] dark:accent-white"
               />
               <span className={optionText}>{label}</span>
             </label>
@@ -239,7 +257,7 @@ export default function FilterSidebar({
               <button
                 type="button"
                 onClick={applyPrecio}
-                className="bg-[#1C1C1C] dark:bg-white text-white dark:text-black font-barlow font-bold uppercase text-xs tracking-widest py-3 px-4 hover:bg-[#4A4A4A] dark:hover:bg-white/80 transition-colors"
+                className="min-h-11 bg-[#1C1C1C] px-4 font-barlow text-xs font-bold uppercase tracking-widest text-white transition-colors hover:bg-[#4A4A4A] dark:bg-white dark:text-black dark:hover:bg-white/80"
               >
                 Aplicar
               </button>
@@ -264,7 +282,7 @@ export default function FilterSidebar({
               value=""
               checked={currentGenero === ""}
               onChange={() => setParam("genero", "")}
-              className="accent-[#1C1C1C] dark:accent-white"
+              className="h-11 w-11 shrink-0 accent-[#1C1C1C] dark:accent-white"
             />
             <span className={optionText}>Todos</span>
           </label>
@@ -276,7 +294,7 @@ export default function FilterSidebar({
                 value={value}
                 checked={currentGenero === value}
                 onChange={() => setParam("genero", value)}
-                className="accent-[#1C1C1C] dark:accent-white"
+                className="h-11 w-11 shrink-0 accent-[#1C1C1C] dark:accent-white"
               />
               <span className={optionText}>{label}</span>
             </label>
@@ -298,7 +316,7 @@ export default function FilterSidebar({
                   type="checkbox"
                   checked={currentMarca === brand}
                   onChange={() => updateParam("marca", brand)}
-                  className="accent-[#1C1C1C] dark:accent-white"
+                  className="h-11 w-11 shrink-0 accent-[#1C1C1C] dark:accent-white"
                 />
                 <span className={optionText}>{brand}</span>
               </label>
@@ -319,7 +337,7 @@ export default function FilterSidebar({
               key={size}
               onClick={() => updateParam("talla", size)}
               aria-pressed={currentTalla === size}
-              className={`min-h-9 rounded-[var(--store-radius-sm)] border text-xs font-montserrat font-medium transition-colors ${
+              className={`min-h-11 min-w-11 rounded-[var(--store-radius-sm)] border text-xs font-montserrat font-medium transition-colors ${
                 currentTalla === size
                   ? "bg-[#1C1C1C] dark:bg-white text-white dark:text-black border-[#1C1C1C] dark:border-white"
                   : "border-[#E0E0E0] dark:border-white/15 text-[#4A4A4A] dark:text-white/55 hover:border-[#1C1C1C] dark:hover:border-white/40"
@@ -350,7 +368,7 @@ export default function FilterSidebar({
                 key={color}
                 onClick={() => updateParam("color", color)}
                 aria-pressed={isActive}
-                className="flex items-center gap-2 text-left group"
+                className="flex min-h-11 items-center gap-2 text-left group"
               >
                 <span
                   className={`w-6 h-6 shrink-0 rounded-full transition-all ${
@@ -389,54 +407,70 @@ export default function FilterSidebar({
     </div>
   )
 
+  const filterButton = (
+    <button
+      ref={triggerRef}
+      type="button"
+      onClick={() => setIsOpen(true)}
+      aria-haspopup="dialog"
+      aria-expanded={isOpen}
+      aria-controls="filter-dialog"
+      className="inline-flex min-h-11 items-center rounded-full border border-[#1C1C1C] px-4 font-barlow text-sm font-bold uppercase tracking-widest text-[#1C1C1C] lg:hidden dark:border-white dark:text-white"
+    >
+      Filtros
+    </button>
+  )
+  const mobileFilterButton = filterSlot ? createPortal(filterButton, filterSlot) : filterButton
+
   return (
     <>
       {/* Desktop sidebar */}
       <div className="hidden lg:block">{sidebarContent}</div>
 
-      {/* Móvil: botón flotante + drawer */}
-      <div className="lg:hidden">
-        <button
-          ref={triggerRef}
-          type="button"
-          onClick={() => setIsOpen(true)}
-          aria-haspopup="dialog"
-          aria-expanded={isOpen}
-          aria-controls="filter-dialog"
-          className="fixed bottom-[4.75rem] left-4 z-40 inline-flex min-h-12 items-center gap-2 rounded-full bg-[var(--store-action)] px-5 font-barlow text-sm font-bold uppercase tracking-widest text-white shadow-[0_10px_24px_rgb(227_28_35/0.35)]"
-        >
-          Filtros
-        </button>
-
+      {/* Móvil: el disparador vive en la barra de orden, no encima de las tarjetas. */}
+      {mobileFilterButton}
+      <AnimatePresence>
         {isOpen && (
           <>
-            <div className="fixed inset-0 z-[60] bg-black/40" onClick={closeFilters} aria-hidden="true" />
-            <div
+            <motion.div
+              className="fixed inset-0 z-[60] bg-black/40 lg:hidden"
+              onClick={closeFilters}
+              aria-hidden="true"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            />
+            <motion.div
               ref={dialogRef}
               id="filter-dialog"
               role="dialog"
               aria-modal="true"
               aria-labelledby="filter-dialog-title"
-              className="fixed inset-y-0 left-0 z-[70] w-80 max-w-[calc(100vw-2rem)] overflow-y-auto bg-white px-5 py-8 shadow-2xl dark:bg-[#111111]"
+              className="fixed inset-y-0 left-0 z-[70] w-80 max-w-[calc(100vw-2rem)] overflow-y-auto bg-white px-5 py-8 shadow-2xl lg:hidden dark:bg-[#111111]"
+              initial={{ x: "-100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "-100%" }}
+              transition={{ type: "spring", stiffness: 380, damping: 39 }}
             >
-              <div className="flex justify-between items-center mb-6">
-                <h2 id="filter-dialog-title" className="font-barlow font-bold uppercase text-base tracking-widest dark:text-white">
+              <div className="mb-6 flex items-center justify-between">
+                <h2 id="filter-dialog-title" className="font-barlow text-base font-bold uppercase tracking-widest dark:text-white">
                   Filtros
                 </h2>
                 <button
                   type="button"
                   onClick={closeFilters}
-                  className="text-[#4A4A4A] dark:text-white/50 text-2xl leading-none"
+                  className="grid h-11 w-11 place-items-center text-[#4A4A4A] dark:text-white/50"
                   aria-label="Cerrar filtros"
                 >
                   ×
                 </button>
               </div>
               {sidebarContent}
-            </div>
+            </motion.div>
           </>
         )}
-      </div>
+      </AnimatePresence>
     </>
   )
 }

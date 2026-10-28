@@ -85,7 +85,7 @@ export default function OrderSummary({ shippingCost, appliedCoupon, onCouponChan
         <div className="space-y-4 border-b border-[#ECECEA] p-4 sm:p-5">
           {items.length === 0 ? (
             <p className="text-[#4A4A4A] text-sm font-montserrat text-center py-4">
-              Tu carrito está vacío
+              Tu bolsa está vacía
             </p>
           ) : (
             items.map((item) => (
