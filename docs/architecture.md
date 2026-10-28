@@ -716,3 +716,14 @@ Basado en `MANUAL_MARCA.md` (rojo 10 % solo para acentos y CTA, grises 60 %, neg
 - **Bienvenida:** `sendClubWelcomeEmail` (Resend) se envía una sola vez, al unirse por primera vez.
 - **Admin:** `/admin/clientes` filtra por "Miembros de One Star Club" y "Suscritos al newsletter", y `/admin/clientes/exportar-newsletter` descarga en CSV solo a quienes dieron consentimiento, para cargarlos en la herramienta de envío de correos.
 - La sección "Newsletter" del constructor ahora invita al club (no hay formulario suelto de suscripción sin cuenta).
+
+## Integración con Addi (Widget Oficial)
+
+- **Componente Oficial (`AddiWidget`):** Carga el web component `<addi-widget>` oficial (`https://s3.amazonaws.com/widgets.addi.com/bundle.min.js`) mediante `next/script` con estrategia `afterInteractive` y nonce de la CSP.
+- **Configuración Dinámica:** Consulta server-side `https://channels-public-api.addi.com/allies/{ally_slug}/config?requestedamount={monto}` (`src/server/services/addi-config.service.ts`) con caché corto y tolerancia a fallos.
+- **Validación de Elegibilidad:**
+  - Si el aliado está inactivo (`isActiveAlly = false`) o la política no es visible (`policy.isVisible = false`), el widget se oculta.
+  - Si el monto se encuentra fuera del rango crediticio (`[minAmount, maxAmount]`), se despliega un aviso accesible ("Addi aplica para compras entre X y Y") sin inventar cuotas ni ocultar la información.
+  - El campo `policy.discount` es meramente visual y nunca altera el precio del producto o carrito.
+- **Variables de Entorno:**
+  - `ADDI_ALLY_SLUG`: Slug del aliado comercial asignado por Addi (por defecto `onestar-ecommerce`). En esta fase no se manejan llaves privadas ni client secrets.
