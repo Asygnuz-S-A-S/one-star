@@ -144,3 +144,111 @@ export async function consumeGuestInviteTokenAndLinkOrders(
     linkedOrdersCount,
   }
 }
+
+const LINK_ORDERS_PREFIX = "link_orders:"
+
+/**
+ * Crea un token de un solo uso para verificar que el usuario autenticado
+ * es el dueño del correo y confirmar la vinculación de sus compras de invitado.
+ * Vigencia de 24 horas.
+ */
+export async function createLinkOrdersToken(
+  email: string,
+  userId: string,
+  ttlMs = 24 * 60 * 60 * 1000
+): Promise<string> {
+  const token = randomBytes(32).toString("hex")
+  const normEmail = email.trim().toLowerCase()
+  const identifier = `${LINK_ORDERS_PREFIX}${userId}:${normEmail}`
+  const expiresAt = new Date(Date.now() + ttlMs)
+
+  await createAuthVerification({
+    id: randomUUID(),
+    identifier,
+    value: token,
+    expiresAt,
+  })
+
+  return token
+}
+
+/**
+ * Valida un token de vinculación de pedidos sin consumirlo.
+ */
+export async function verifyLinkOrdersToken(
+  token: string | null | undefined
+): Promise<{ email: string; userId: string } | null> {
+  if (!token || typeof token !== "string") return null
+
+  const record = await findAuthVerificationByValue(token.trim())
+  if (!record || !record.identifier.startsWith(LINK_ORDERS_PREFIX)) {
+    return null
+  }
+
+  if (record.expiresAt.getTime() <= Date.now()) {
+    return null
+  }
+
+  const raw = record.identifier.slice(LINK_ORDERS_PREFIX.length)
+  const sepIdx = raw.indexOf(":")
+  if (sepIdx === -1) return null
+
+  const userId = raw.slice(0, sepIdx)
+  const email = raw.slice(sepIdx + 1)
+  if (!userId || !email) return null
+
+  return { email, userId }
+}
+
+/**
+ * Consume atómicamente el token de vinculación de pedidos y asocia
+ * todas las compras previas de invitado con ese correo al userId.
+ */
+export async function consumeLinkOrdersTokenAndLink(
+  token: string
+): Promise<{ email: string; userId: string; linkedOrdersCount: number } | null> {
+  const verified = await verifyLinkOrdersToken(token)
+  if (!verified) return null
+
+  const record = await findAuthVerificationByValue(token.trim())
+  if (!record) return null
+
+  await deleteAuthVerification(record.id)
+
+  const linkedOrdersCount = await linkGuestOrdersByEmail(verified.email, verified.userId)
+
+  return {
+    email: verified.email,
+    userId: verified.userId,
+    linkedOrdersCount,
+  }
+}
+
+/**
+ * Solicita el enlace de confirmación para vincular compras anteriores realizadas como invitado.
+ * El mensaje de respuesta es neutral para no filtrar información sensible.
+ */
+export async function requestGuestOrdersLinking(
+  userId: string,
+  email: string,
+  name?: string
+): Promise<{ sent: boolean; message: string }> {
+  const token = await createLinkOrdersToken(email, userId)
+  const baseUrl = (process.env.BETTER_AUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "")
+  const verifyUrl = `${baseUrl}/cuenta?vincularToken=${encodeURIComponent(token)}`
+
+  const { sendLinkGuestOrdersEmail } = await import("@/server/services/email.service")
+  await sendLinkGuestOrdersEmail({
+    email: email.trim().toLowerCase(),
+    name,
+    verifyUrl,
+  }).catch((err) => {
+    console.error("[requestGuestOrdersLinking] Error al enviar correo de vinculación:", err)
+  })
+
+  return {
+    sent: true,
+    message: "Si existen pedidos de invitado registrados con tu correo, hemos enviado un enlace de confirmación a tu bandeja de entrada.",
+  }
+}
+

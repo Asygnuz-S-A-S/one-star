@@ -12,6 +12,10 @@ const orderRepoMock = vi.hoisted(() => ({
   linkGuestOrdersByEmail: vi.fn(),
 }))
 
+const emailServiceMock = vi.hoisted(() => ({
+  sendLinkGuestOrdersEmail: vi.fn(),
+}))
+
 vi.mock("@/server/repositories/auth-verification.repository", () => ({
   createAuthVerification: authVerificationRepoMock.createAuthVerification,
   findAuthVerificationByValue: authVerificationRepoMock.findAuthVerificationByValue,
@@ -22,12 +26,20 @@ vi.mock("@/server/repositories/order.repository", () => ({
   linkGuestOrdersByEmail: orderRepoMock.linkGuestOrdersByEmail,
 }))
 
+vi.mock("@/server/services/email.service", () => ({
+  sendLinkGuestOrdersEmail: emailServiceMock.sendLinkGuestOrdersEmail,
+}))
+
 import {
   signGuestOrderSuccessToken,
   verifyGuestOrderSuccessToken,
   createGuestAccountInviteToken,
   verifyGuestInviteToken,
   consumeGuestInviteTokenAndLinkOrders,
+  createLinkOrdersToken,
+  verifyLinkOrdersToken,
+  consumeLinkOrdersTokenAndLink,
+  requestGuestOrdersLinking,
 } from "../guest-order.service"
 
 describe("guest-order.service", () => {
@@ -173,4 +185,95 @@ describe("guest-order.service", () => {
       expect(orderRepoMock.linkGuestOrdersByEmail).not.toHaveBeenCalled()
     })
   })
+
+  describe("createLinkOrdersToken & verifyLinkOrdersToken", () => {
+    it("crea un token con identifier link_orders:userId:email", async () => {
+      const email = "Usuario@Tienda.com"
+      const userId = "usr-123"
+      const token = await createLinkOrdersToken(email, userId)
+
+      expect(token).toHaveLength(64)
+      expect(authVerificationRepoMock.createAuthVerification).toHaveBeenCalledWith({
+        id: expect.any(String),
+        identifier: "link_orders:usr-123:usuario@tienda.com",
+        value: token,
+        expiresAt: expect.any(Date),
+      })
+    })
+
+    it("verifica el token y extrae email y userId correctamente", async () => {
+      authVerificationRepoMock.findAuthVerificationByValue.mockResolvedValueOnce({
+        id: "verif-link-1",
+        identifier: "link_orders:usr-abc:comprador@example.com",
+        value: "token-link-valido",
+        expiresAt: new Date(Date.now() + 100000),
+      })
+
+      const verified = await verifyLinkOrdersToken("token-link-valido")
+      expect(verified).toEqual({
+        userId: "usr-abc",
+        email: "comprador@example.com",
+      })
+    })
+
+    it("rechaza si el token expiró o no tiene el prefijo link_orders:", async () => {
+      authVerificationRepoMock.findAuthVerificationByValue.mockResolvedValueOnce({
+        id: "verif-link-exp",
+        identifier: "link_orders:usr-abc:comprador@example.com",
+        value: "token-exp",
+        expiresAt: new Date(Date.now() - 1000),
+      })
+      expect(await verifyLinkOrdersToken("token-exp")).toBeNull()
+
+      authVerificationRepoMock.findAuthVerificationByValue.mockResolvedValueOnce({
+        id: "verif-link-otro",
+        identifier: "guest_invite:comprador@example.com",
+        value: "token-otro",
+        expiresAt: new Date(Date.now() + 10000),
+      })
+      expect(await verifyLinkOrdersToken("token-otro")).toBeNull()
+    })
+  })
+
+  describe("consumeLinkOrdersTokenAndLink", () => {
+    it("elimina el token atómicamente y vincula los pedidos previos al userId del token", async () => {
+      authVerificationRepoMock.findAuthVerificationByValue.mockResolvedValue({
+        id: "verif-link-single",
+        identifier: "link_orders:usr-final:invitado@example.com",
+        value: "token-single-use",
+        expiresAt: new Date(Date.now() + 60000),
+      })
+      orderRepoMock.linkGuestOrdersByEmail.mockResolvedValue(3)
+
+      const result = await consumeLinkOrdersTokenAndLink("token-single-use")
+
+      expect(result).toEqual({
+        email: "invitado@example.com",
+        userId: "usr-final",
+        linkedOrdersCount: 3,
+      })
+      expect(authVerificationRepoMock.deleteAuthVerification).toHaveBeenCalledWith("verif-link-single")
+      expect(orderRepoMock.linkGuestOrdersByEmail).toHaveBeenCalledWith(
+        "invitado@example.com",
+        "usr-final"
+      )
+    })
+  })
+
+  describe("requestGuestOrdersLinking", () => {
+    it("genera el token y devuelve un mensaje neutral sin filtrar existencia de datos", async () => {
+      emailServiceMock.sendLinkGuestOrdersEmail.mockResolvedValue({ success: true })
+
+      const res = await requestGuestOrdersLinking("usr-1", "test@example.com", "Test User")
+
+      expect(res.sent).toBe(true)
+      expect(res.message).toContain("Si existen pedidos de invitado registrados con tu correo")
+      expect(emailServiceMock.sendLinkGuestOrdersEmail).toHaveBeenCalledWith({
+        email: "test@example.com",
+        name: "Test User",
+        verifyUrl: expect.stringContaining("/cuenta?vincularToken="),
+      })
+    })
+  })
 })
+
