@@ -79,7 +79,7 @@ describe("findManyProducts", () => {
 })
 
 describe("findProductCatalogCandidates", () => {
-  it("solo trae id y familia de color, que es lo que necesita el colapso de variantes", async () => {
+  it("trae id, familia de color, primera imagen y stock de variantes para priorizar el catálogo", async () => {
     m.product.findMany.mockResolvedValue([])
 
     await findProductCatalogCandidates({ isPublished: true }, { createdAt: "desc" })
@@ -87,7 +87,21 @@ describe("findProductCatalogCandidates", () => {
     expect(m.product.findMany).toHaveBeenCalledWith({
       where: { isPublished: true },
       orderBy: { createdAt: "desc" },
-      select: { id: true, colorFamilyId: true },
+      select: {
+        id: true,
+        colorFamilyId: true,
+        images: {
+          select: {
+            id: true,
+          },
+          take: 1,
+        },
+        variants: {
+          select: {
+            stock: true,
+          },
+        },
+      },
     })
   })
 })

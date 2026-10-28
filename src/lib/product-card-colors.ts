@@ -35,6 +35,8 @@ export interface ProductCardColorSummary {
   hiddenCount: number
   total: number
   label: string | null
+  extraColorsCount?: number
+  extraColorsLabel?: string | null
 }
 
 export const MAX_VISIBLE_PRODUCT_COLORS = 3
@@ -80,6 +82,11 @@ export function buildProductCardColorSummary(
     (option): option is ProductCardColorImageOption => Boolean(option.imageUrl)
   )
 
+  const extraColorsCount = Math.max(0, total - 1)
+  const extraColorsLabel = extraColorsCount > 0
+    ? `+${extraColorsCount} ${extraColorsCount === 1 ? "color" : "colores"}`
+    : null
+
   return {
     options,
     imageOptions,
@@ -87,6 +94,8 @@ export function buildProductCardColorSummary(
     hiddenCount: Math.max(0, total - MAX_VISIBLE_PRODUCT_COLORS),
     total,
     label: total > 0 ? `${total} ${total === 1 ? "color" : "colores"}` : null,
+    extraColorsCount,
+    extraColorsLabel,
   }
 }
 
@@ -120,6 +129,11 @@ export function buildProductFamilyCardColorSummary(
     (option): option is ProductCardColorImageOption => Boolean(option.imageUrl)
   )
 
+  const extraColorsCount = Math.max(0, total - 1)
+  const extraColorsLabel = extraColorsCount > 0
+    ? `+${extraColorsCount} ${extraColorsCount === 1 ? "color" : "colores"}`
+    : null
+
   return {
     options,
     imageOptions,
@@ -127,5 +141,7 @@ export function buildProductFamilyCardColorSummary(
     hiddenCount: Math.max(0, total - MAX_VISIBLE_PRODUCT_COLORS),
     total,
     label: total > 0 ? `${total} ${total === 1 ? "color" : "colores"}` : null,
+    extraColorsCount,
+    extraColorsLabel,
   }
 }

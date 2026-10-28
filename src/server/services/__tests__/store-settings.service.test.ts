@@ -8,6 +8,11 @@ vi.mock("@/server/repositories/store-settings.repository", () => ({
   updateStoreSettingsRecord: vi.fn(),
 }))
 
+vi.mock("@/server/repositories/site-content.repository", () => ({
+  getCatalogSettingsRecord: vi.fn(async () => ({ groupColorsInCatalog: true })),
+  upsertCatalogSettingsRecord: vi.fn(async () => ({})),
+}))
+
 import {
   getMetaConversionsCredentials,
   getMetaPixelPublicConfig,

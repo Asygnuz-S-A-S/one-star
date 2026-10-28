@@ -63,7 +63,7 @@ export const TEMPLATE_COLUMNS = [
   "description", "extendedDescription", "size", "sizeUS", "sizeCM", "sizeEUR", "color", "stock",
   "image1", "image2", "image3", "image4", "image5", "image6", "image7", "image8", "videoUrl",
   "photosFolderUrl", "readyFlag", "colorGroup", "isPublished", "availableOnline", "availableInStores",
-  "isFeatured", "isLaunch", "highlights", "faqs",
+  "isFeatured", "isLaunch", "highlights", "faqs", "metaTitle", "metaDescription",
 ] as const
 
 /**
@@ -303,6 +303,15 @@ export const COLUMN_HEADER_ALIASES: Record<string, string> = {
   FAQS: "faqs",
   FAQ: "faqs",
   "PREGUNTAS FRECUENTES": "faqs",
+  // SEO
+  "TITULO SEO": "metaTitle",
+  "TÍTULO SEO": "metaTitle",
+  METATITLE: "metaTitle",
+  "META TITLE": "metaTitle",
+  "DESCRIPCION SEO": "metaDescription",
+  "DESCRIPCIÓN SEO": "metaDescription",
+  METADESCRIPTION: "metaDescription",
+  "META DESCRIPTION": "metaDescription",
 }
 
 export function matchHeader(rawHeader: unknown): string | null {
@@ -975,6 +984,12 @@ async function planImport(
       const warnings: string[] = []
       if (v.isRecoveredFromDate) warnings.push("talla recuperada de fecha")
       if (!hasImages) warnings.push("sin fotos")
+      if (v.row.metaTitle && v.row.metaTitle.length > 60) {
+        warnings.push("Título SEO excede los 60 caracteres recomendados")
+      }
+      if (v.row.metaDescription && v.row.metaDescription.length > 160) {
+        warnings.push("Descripción SEO excede los 160 caracteres recomendados")
+      }
 
       let msg = ""
       if (v.kind === "update") {

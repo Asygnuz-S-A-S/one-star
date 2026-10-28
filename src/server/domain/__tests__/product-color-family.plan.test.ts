@@ -210,4 +210,28 @@ describe("buildVisibleProductPage", () => {
       "product-a",
     ])
   })
+
+  test("elige el producto con stock y foto como representante de la familia", () => {
+    const candidates = [
+      { id: "family-no-stock", colorFamilyId: "family-1", hasStock: false, hasImage: true },
+      { id: "family-with-stock-and-photo", colorFamilyId: "family-1", hasStock: true, hasImage: true },
+      { id: "family-no-photo", colorFamilyId: "family-1", hasStock: true, hasImage: false },
+    ]
+
+    const result = buildVisibleProductPage(candidates, 1, 24)
+    expect(result.productIds).toEqual(["family-with-stock-and-photo"])
+    expect(result.total).toBe(1)
+  })
+
+  test("cuando groupColors es false muestra cada producto por separado sin colapsar", () => {
+    const candidates = [
+      { id: "family-a", colorFamilyId: "family-1", hasStock: true, hasImage: true },
+      { id: "family-b", colorFamilyId: "family-1", hasStock: true, hasImage: true },
+      { id: "loose-a", colorFamilyId: null, hasStock: true, hasImage: true },
+    ]
+
+    const result = buildVisibleProductPage(candidates, 1, 24, { groupColors: false })
+    expect(result.productIds).toEqual(["family-a", "family-b", "loose-a"])
+    expect(result.total).toBe(3)
+  })
 })

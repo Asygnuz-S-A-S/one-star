@@ -9,11 +9,11 @@ export default async function NewArrivals({ config = {} }: { config?: Record<str
   const limit = config.limit ? Number(config.limit) : 5
   const theme = config.theme === "dark" ? "dark" : "light"
 
-  const rules = await getCatalogRules().catch(() => ({ hideImagelessProducts: true, newArrivalDays: 30 }))
-  const launches = await getProducts({ categorySlug: "lanzamientos", orden: "reciente", requireImage: rules.hideImagelessProducts }, limit)
+  const rules = await getCatalogRules().catch(() => ({ hideImagelessProducts: true, newArrivalDays: 30, groupColorsInCatalog: true }))
+  const launches = await getProducts({ categorySlug: "lanzamientos", orden: "reciente", requireImage: rules.hideImagelessProducts, groupColors: rules.groupColorsInCatalog }, limit)
   // Si la categoría no llena la sección, se completa con los productos más recientes que tienen video.
   const videoFill = launches.products.length < limit
-    ? (await getProducts({ withVideo: true, orden: "reciente", requireImage: rules.hideImagelessProducts }, limit)).products
+    ? (await getProducts({ withVideo: true, orden: "reciente", requireImage: rules.hideImagelessProducts, groupColors: rules.groupColorsInCatalog }, limit)).products
         .filter((product) => !launches.products.some((launch) => launch.id === product.id))
     : []
   // Los que tienen video van primero: el destacado grande luce mejor en movimiento.

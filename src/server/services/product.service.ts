@@ -151,6 +151,8 @@ export interface AppProductFilter {
   extraGenders?: string[]
   status?: "active" | "inactive"
   hasStock?: "yes" | "no"
+  /** Si true (default), agrupa productos del mismo grupo de color en el catálogo. */
+  groupColors?: boolean
 }
 
 /**
@@ -363,7 +365,12 @@ function mapToDTO(raw: RawProduct): ProductDTO {
     images: raw.images.map(mapImage),
     variants: raw.variants.map(mapVariant),
     colorSiblings: (raw.colorFamily?.products ?? [])
-      .filter((product) => product.id !== raw.id && product.isPublished !== false)
+      .filter((product) => {
+        if (product.id === raw.id) return false
+        if (product.isPublished === false) return false
+        const hasStock = product.variants.some((v) => (v.stock || 0) > 0)
+        return hasStock
+      })
       .map(mapRelatedProduct),
     crossSells: (raw.crossSells ?? []).map(mapRelatedProduct),
     hasStock: raw.variants.reduce((acc, v) => acc + (v.stock || 0), 0) > 0,
@@ -478,7 +485,25 @@ export async function getProducts(
   const where = { ...buildPrismaWhere(filter), isPublished: true }
   const orderBy = buildPrismaOrderBy(filter.orden)
   const candidates = await findProductCatalogCandidates(where, orderBy)
-  const visiblePage = buildVisibleProductPage(candidates, page, pageSize)
+  const mappedCandidates = candidates.map((c) => {
+    const candidateWithRelations = c as {
+      variants?: { stock: number }[]
+      images?: { id: string }[]
+    }
+    return {
+      id: c.id,
+      colorFamilyId: c.colorFamilyId,
+      hasStock: candidateWithRelations.variants
+        ? candidateWithRelations.variants.some((v) => (v.stock || 0) > 0)
+        : true,
+      hasImage: candidateWithRelations.images
+        ? candidateWithRelations.images.length > 0
+        : true,
+    }
+  })
+  const visiblePage = buildVisibleProductPage(mappedCandidates, page, pageSize, {
+    groupColors: filter.groupColors,
+  })
   const rows = await findProductsByIds(visiblePage.productIds)
   const rowsById = new Map(rows.map((row) => [row.id, row]))
 

@@ -155,6 +155,8 @@ describe("buildProductFamilyCardColorSummary", () => {
       expect.objectContaining({ name: "Blanco", productId: "product-white", slug: "modelo-blanco" }),
     ])
     expect(summary.label).toBe("2 colores")
+    expect(summary.extraColorsCount).toBe(1)
+    expect(summary.extraColorsLabel).toBe("+1 color")
   })
 
   test("mantiene navegable un color sin foto usando el placeholder", () => {

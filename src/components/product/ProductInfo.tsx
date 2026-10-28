@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { getColorSwatchStyle } from "@/lib/colors"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence, MotionConfig, type Transition, type Variants } from "motion/react"
@@ -371,19 +372,31 @@ export default function ProductInfo({
                 const active = belongsToCurrentProduct && selectedColor === option.name
                 // Punto de color (como en las fichas de referencia) con anillo cuando está activo;
                 // el nombre aparece al pasar el cursor y lo anuncia el lector de pantalla.
-                const className = `group relative grid h-11 w-11 place-items-center rounded-full transition-shadow duration-200 ${
+                const className = `group relative flex items-center gap-2 rounded-store-md border p-1.5 pr-2.5 transition-all duration-200 ${
                   active
-                    ? "ring-2 ring-[#1C1C1C] ring-offset-2 ring-offset-[var(--store-canvas)]"
-                    : "hover:ring-1 hover:ring-[#1C1C1C]/40 hover:ring-offset-2 hover:ring-offset-[var(--store-canvas)]"
+                    ? "border-[#1C1C1C] bg-[#1C1C1C]/5 ring-1 ring-[#1C1C1C] dark:border-white dark:bg-white/10 dark:ring-white"
+                    : "border-black/10 hover:border-black/30 dark:border-white/20 dark:hover:border-white/40"
                 }`
                 const content = (
                   <>
-                    <span
-                      aria-hidden="true"
-                      className="block h-8 w-8 rounded-full border border-black/10 shadow-inner"
-                      style={getColorSwatchStyle(option.name)}
-                    />
-                    <span aria-hidden="true" className="pointer-events-none absolute -bottom-7 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded bg-[#1C1C1C] px-2 py-0.5 text-xs capitalize text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+                    <span className="relative block h-9 w-9 shrink-0 overflow-hidden rounded-store-sm bg-stone-100 dark:bg-stone-800">
+                      {option.imageUrl ? (
+                        <Image
+                          src={option.imageUrl}
+                          alt={option.name}
+                          fill
+                          sizes="36px"
+                          className="object-contain mix-blend-multiply brightness-[1.05] contrast-[1.05] dark:mix-blend-normal dark:filter-none"
+                        />
+                      ) : (
+                        <span
+                          aria-hidden="true"
+                          className="block h-full w-full"
+                          style={getColorSwatchStyle(option.name)}
+                        />
+                      )}
+                    </span>
+                    <span className="text-xs font-medium capitalize text-[#1C1C1C] dark:text-gray-200">
                       {option.name.toLowerCase()}
                     </span>
                   </>

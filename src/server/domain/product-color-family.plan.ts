@@ -19,6 +19,8 @@ export function normalizeColorFamilyMemberIds(
 export interface ProductCatalogCandidate {
   id: string
   colorFamilyId: string | null
+  hasStock?: boolean
+  hasImage?: boolean
 }
 
 export interface ProductColorFamilyMembership {
@@ -153,17 +155,43 @@ export function planProductColorFamilyUpdate(input: {
 export function buildVisibleProductPage(
   candidates: readonly ProductCatalogCandidate[],
   page: number,
-  pageSize: number
+  pageSize: number,
+  options?: { groupColors?: boolean }
 ): { productIds: string[]; total: number } {
-  const seen = new Set<string>()
-  const visibleIds: string[] = []
+  if (options?.groupColors === false) {
+    const safePage = Number.isFinite(page) ? Math.max(1, Math.floor(page)) : 1
+    const safePageSize = Number.isFinite(pageSize) ? Math.max(1, Math.floor(pageSize)) : 24
+    const start = (safePage - 1) * safePageSize
+    const productIds = candidates.map((c) => c.id)
+
+    return {
+      productIds: productIds.slice(start, start + safePageSize),
+      total: productIds.length,
+    }
+  }
+
+  // Agrupación de colores: se colapsan los productos de la misma familia
+  // eligiendo el primero con stock y foto (o el primero con stock, o el primero del orden).
+  const familyBestMap = new Map<string, { candidate: ProductCatalogCandidate; score: number }>()
+  const familyOrder: string[] = []
 
   for (const candidate of candidates) {
     const unitId = candidate.colorFamilyId ?? `product:${candidate.id}`
-    if (seen.has(unitId)) continue
-    seen.add(unitId)
-    visibleIds.push(candidate.id)
+    // Score: 3 = stock + image, 2 = stock only, 1 = image only, 0 = neither
+    const hasStock = candidate.hasStock ?? true
+    const hasImage = candidate.hasImage ?? true
+    const score = (hasStock ? 2 : 0) + (hasImage ? 1 : 0)
+
+    const existing = familyBestMap.get(unitId)
+    if (!existing) {
+      familyBestMap.set(unitId, { candidate, score })
+      familyOrder.push(unitId)
+    } else if (score > existing.score) {
+      familyBestMap.set(unitId, { candidate, score })
+    }
   }
+
+  const visibleIds = familyOrder.map((unitId) => familyBestMap.get(unitId)!.candidate.id)
 
   const safePage = Number.isFinite(page) ? Math.max(1, Math.floor(page)) : 1
   const safePageSize = Number.isFinite(pageSize) ? Math.max(1, Math.floor(pageSize)) : 24
