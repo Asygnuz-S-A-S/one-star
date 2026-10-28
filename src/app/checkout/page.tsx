@@ -130,10 +130,13 @@ function Field({ label, error, required, children }: FieldProps) {
 }
 
 // 16 px de texto: con menos, iOS hace zoom al enfocar el campo y desacomoda el formulario.
-const inputClass =
-  "w-full min-h-12 border border-[#E0E0E0] rounded-[var(--store-radius-md)] px-3.5 py-3 text-base font-montserrat text-[#1C1C1C] placeholder-[#9E9E9E] bg-white focus:outline-none focus:border-[#1C1C1C] focus:ring-2 focus:ring-[#1C1C1C]/10 transition-colors"
-const inputErrorClass =
-  "w-full min-h-12 border border-[#E31C23] rounded-[var(--store-radius-md)] px-3.5 py-3 text-base font-montserrat text-[#1C1C1C] placeholder-[#9E9E9E] bg-white focus:outline-none focus:border-[#E31C23] focus:ring-2 focus:ring-[#E31C23]/15 transition-colors"
+const baseControlClass =
+  "min-h-12 border border-[#E0E0E0] rounded-[var(--store-radius-md)] px-3.5 py-3 text-base font-montserrat text-[#1C1C1C] placeholder-[#9E9E9E] bg-white focus:outline-none focus:border-[#1C1C1C] focus:ring-2 focus:ring-[#1C1C1C]/10 transition-colors"
+const baseControlErrorClass =
+  "min-h-12 border border-[#E31C23] rounded-[var(--store-radius-md)] px-3.5 py-3 text-base font-montserrat text-[#1C1C1C] placeholder-[#9E9E9E] bg-white focus:outline-none focus:border-[#E31C23] focus:ring-2 focus:ring-[#E31C23]/15 transition-colors"
+
+const inputClass = `w-full ${baseControlClass}`
+const inputErrorClass = `w-full ${baseControlErrorClass}`
 
 const sectionClass = "rounded-[var(--store-radius-lg)] border border-[#ECECEA] bg-white p-5 sm:p-6"
 
@@ -460,9 +463,9 @@ function CheckoutForm({
                         placeholder="hola@ejemplo.com" className={errors.email ? inputErrorClass : inputClass} autoComplete="email" />
                     </Field>
                   </div>
-                  <label className="flex items-center gap-2 cursor-pointer">
+                  <label className="flex min-h-11 items-center gap-2.5 cursor-pointer">
                     <input type="checkbox" checked={values.newsletter} onChange={(e) => set("newsletter", e.target.checked)}
-                      className="h-12 w-12 shrink-0 rounded border-[#E0E0E0] accent-[#E31C23]" />
+                      className="h-5 w-5 shrink-0 rounded border-[#E0E0E0] accent-[#E31C23]" />
                     <span className="text-sm font-montserrat text-[#4A4A4A]">Recibir novedades y ofertas</span>
                   </label>
                 </div>
@@ -486,11 +489,11 @@ function CheckoutForm({
                   </div>
                   <div data-field="cedula">
                     <Field label="Documento (Facturación)" required error={errors.cedula}>
-                      <div className="flex gap-2">
+                      <div className="flex items-center gap-2">
                         <select
                           value={values.documentType ?? "CC"}
                           onChange={(e) => set("documentType", e.target.value as FormValues["documentType"])}
-                          className={`w-28 shrink-0 ${errors.cedula ? inputErrorClass : inputClass} cursor-pointer`}
+                          className={`w-20 shrink-0 px-2.5 ${errors.cedula ? baseControlErrorClass : baseControlClass} cursor-pointer`}
                           aria-label="Tipo de documento"
                         >
                           <option value="CC">CC</option>
@@ -504,7 +507,7 @@ function CheckoutForm({
                           value={values.cedula}
                           onChange={(e) => set("cedula", e.target.value.replace(/\D/g, ""))}
                           placeholder="Número de documento"
-                          className={errors.cedula ? inputErrorClass : inputClass}
+                          className={`min-w-0 flex-1 ${errors.cedula ? baseControlErrorClass : baseControlClass}`}
                           autoComplete="off"
                         />
                       </div>
@@ -552,9 +555,9 @@ function CheckoutForm({
                     </Field>
                   </div>
                 </div>
-                <label className="flex items-center gap-2 cursor-pointer mt-4">
+                <label className="flex min-h-11 items-center gap-2.5 cursor-pointer mt-4">
                   <input type="checkbox" checked={values.saveAddress} onChange={(e) => set("saveAddress", e.target.checked)}
-                    className="h-12 w-12 shrink-0 rounded border-[#E0E0E0] accent-[#E31C23]" />
+                    className="h-5 w-5 shrink-0 rounded border-[#E0E0E0] accent-[#E31C23]" />
                   <span className="text-sm font-montserrat text-[#4A4A4A]">Guardar esta dirección para futuras compras</span>
                 </label>
               </motion.section>
@@ -578,7 +581,7 @@ function CheckoutForm({
                     values.shippingMethod === "standard" ? "border-[#1C1C1C] shadow-[0_0_0_1px_#1C1C1C]" : "border-[#E0E0E0] hover:border-[#4A4A4A]"}`}>
                     <div className="flex items-center gap-3">
                       <input type="radio" name="shippingMethod" value="standard" checked={values.shippingMethod === "standard"}
-                        onChange={() => set("shippingMethod", "standard")} className="h-12 w-12 shrink-0 accent-[#E31C23]" />
+                        onChange={() => set("shippingMethod", "standard")} className="h-5 w-5 shrink-0 accent-[#E31C23]" />
                       <div>
                         <p className="text-sm font-montserrat font-medium text-[#1C1C1C]">Envío estándar ({deliveryDays.min}-{deliveryDays.max} días hábiles)</p>
                         {subtotal >= shippingRates.freeThreshold ? (
@@ -603,7 +606,7 @@ function CheckoutForm({
                     values.shippingMethod === "express" ? "border-[#1C1C1C] shadow-[0_0_0_1px_#1C1C1C]" : "border-[#E0E0E0] hover:border-[#4A4A4A]"}`}>
                     <div className="flex items-center gap-3">
                       <input type="radio" name="shippingMethod" value="express" checked={values.shippingMethod === "express"}
-                        onChange={() => set("shippingMethod", "express")} className="h-12 w-12 shrink-0 accent-[#E31C23]" />
+                        onChange={() => set("shippingMethod", "express")} className="h-5 w-5 shrink-0 accent-[#E31C23]" />
                       <p className="text-sm font-montserrat font-medium text-[#1C1C1C]">Envío express ({deliveryDays.expressMin}-{deliveryDays.expressMax} días hábiles)</p>
                     </div>
                     <span className="text-sm font-montserrat font-medium text-[#1C1C1C]">{formatCOP(shippingRates.expressCost)}</span>
@@ -641,7 +644,7 @@ function CheckoutForm({
 
               {/* Casilla obligatoria de términos y datos */}
               <div className="rounded-[var(--store-radius-md)] border border-[#ECECEA] bg-white p-4">
-                <label className="flex items-center gap-2.5 cursor-pointer">
+                <label className="flex min-h-11 items-center gap-2.5 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={termsAccepted}
@@ -649,7 +652,7 @@ function CheckoutForm({
                       setTermsAccepted(e.target.checked)
                       if (e.target.checked) setTermsError("")
                     }}
-                    className="h-12 w-12 shrink-0 rounded border-[#E0E0E0] accent-[#E31C23]"
+                    className="h-5 w-5 shrink-0 rounded border-[#E0E0E0] accent-[#E31C23]"
                   />
                   <span className="text-xs font-montserrat text-[#4A4A4A] leading-relaxed">
                     He leído y acepto los{" "}
