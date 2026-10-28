@@ -4,6 +4,8 @@ export type AdminRole = (typeof ADMIN_ROLES)[number]
 /** Único alcance de "Operador de Inventario" — todo lo demás requiere Super Admin. */
 export const INVENTORY_OPERATOR_HREFS: ReadonlySet<string> = new Set([
   "/admin",
+  "/admin/cuenta",
+  "/admin/mi-cuenta",
   "/admin/pedidos",
   "/admin/productos",
   "/admin/productos/importar",

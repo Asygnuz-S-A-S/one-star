@@ -146,3 +146,32 @@ docker compose -f docker-compose.prod.yml up -d --build
 
 Una migración ya aplicada **no** se revierte sola: si el commit anterior no
 contempla el cambio de esquema, hay que restaurar el respaldo.
+
+## Recuperación de acceso de Administrador en Emergencia (SQL)
+
+> **Importante:** La imagen Docker de producción (`runner`) **no contiene** `scripts/create-admin.ts` ni el entorno de desarrollo (solo incluye el bundle compilado `standalone` de Next.js y Prisma para migraciones).
+> Si un administrador pierde el acceso y no puede utilizar la recuperación autónoma por correo (`/admin/login` → "¿Olvidaste tu contraseña?"), se puede restablecer la contraseña mediante SQL directamente en el contenedor de base de datos.
+
+### Procedimiento
+
+1. En tu máquina de desarrollo local, ejecuta el script interactivo generador de SQL:
+
+```bash
+node scripts/admin-password-sql.cjs tu-correo@ejemplo.com
+```
+
+2. El script solicitará la nueva contraseña (mínimo 10 caracteres) leyéndola de forma segura sin eco en terminal, generará el hash bcrypt correspondiente (costo 10) e imprimirá la sentencia SQL `INSERT ... ON CONFLICT` sin almacenar ni mostrar la contraseña en texto claro.
+
+3. En el servidor de producción, aplica el SQL generado en el contenedor `db`:
+
+```bash
+docker compose -f docker-compose.prod.yml exec -T db \
+  psql -U "$POSTGRES_USER" "$POSTGRES_DB" << 'EOF'
+-- Pega aquí el bloque SQL generado por scripts/admin-password-sql.cjs
+EOF
+```
+
+La sentencia ejecutada:
+- Inserta o actualiza el usuario en `AdminUser` asegurando `isActive = true`.
+- Sincroniza la credencial en `ba_accounts` de Better Auth.
+- Cierra todas las sesiones existentes en `ba_sessions` para obligar a un inicio de sesión fresco.

@@ -319,7 +319,31 @@ export default function AdminSidebar({ userName, userRole }: AdminSidebarProps) 
             {userRole ? (roleLabel[userRole] ?? userRole) : "Sin rol"}
           </p>
         </div>
-        <div>
+        <div className="space-y-1">
+          <Link
+            href="/admin/cuenta"
+            onClick={() => setMobileOpen(false)}
+            className={`flex min-h-11 w-full items-center gap-2 rounded-lg px-3 font-montserrat text-sm transition-colors ${
+              isActive("/admin/cuenta")
+                ? "bg-[#E31C23] text-white"
+                : "text-white/70 hover:bg-white/10 hover:text-white"
+            }`}
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.8}
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+              />
+            </svg>
+            Mi cuenta
+          </Link>
           <button
             type="button"
             onClick={() => signOut({ fetchOptions: { onSuccess: () => { router.push("/admin/login") } } })}

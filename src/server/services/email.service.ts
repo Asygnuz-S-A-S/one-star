@@ -10,6 +10,7 @@ import {
   linkGuestOrdersEmail,
   pqrsConfirmationEmail,
   pqrsAdminNotificationEmail,
+  adminPasswordResetEmail,
   type OrderEmailItem,
   type GiftCardEmailCard,
 } from "@/server/email/templates"
@@ -139,6 +140,19 @@ export async function sendPqrsAdminNotificationEmail(params: {
 }): Promise<SendEmailResult> {
   const { subject, html } = pqrsAdminNotificationEmail(params)
   return sendEmail({ to: params.toEmail, subject, html })
+}
+
+/** Envía el correo para restablecer contraseña de administrador. */
+export async function sendAdminPasswordResetEmail(params: {
+  email: string
+  name?: string
+  resetUrl: string
+}): Promise<SendEmailResult> {
+  const { subject, html } = adminPasswordResetEmail({
+    name: params.name,
+    resetUrl: params.resetUrl,
+  })
+  return sendEmail({ to: params.email, subject, html })
 }
 
 
