@@ -4,7 +4,11 @@ import { useState, useEffect } from "react"
 import { useSession, signOut } from "@/lib/auth-client"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { updateProfile } from "./actions"
+import {
+  updateProfile,
+  requestGuestOrdersLinkingAction,
+  confirmGuestOrdersLinkingAction,
+} from "./actions"
 import { formatDateLong, formatCurrency } from "@/lib/dates"
 import { orderStatusBadge, orderStatusLabel } from "@/lib/order-status"
 import { PLACEHOLDER_IMAGE_URL } from "@/lib/product-image"
@@ -61,6 +65,11 @@ export default function CuentaPage() {
   const [ordersLoading, setOrdersLoading] = useState(false)
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
 
+  // Linking guest orders state
+  const [linkingLoading, setLinkingLoading] = useState(false)
+  const [linkingMessage, setLinkingMessage] = useState("")
+  const [linkedSuccessMessage, setLinkedSuccessMessage] = useState("")
+
   // Redirect if not authenticated (wait until session is resolved)
   useEffect(() => {
     if (!isPending && !session) {
@@ -68,19 +77,65 @@ export default function CuentaPage() {
     }
   }, [isPending, session, router])
 
+  // Helper para recargar la lista de pedidos
+  const loadOrders = () => {
+    setOrdersLoading(true)
+    fetch("/api/cuenta/pedidos")
+      .then((r) => r.json())
+      .then((data: { orders: Order[] }) => setOrders(data.orders ?? []))
+      .catch(() => setOrders([]))
+      .finally(() => setOrdersLoading(false))
+  }
+
   // Load orders when tab changes
   useEffect(() => {
     if (activeTab === "pedidos" && orders.length === 0) {
       // The effect synchronizes loading state with the external orders API.
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setOrdersLoading(true)
-      fetch("/api/cuenta/pedidos")
-        .then((r) => r.json())
-        .then((data: { orders: Order[] }) => setOrders(data.orders ?? []))
-        .catch(() => setOrders([]))
-        .finally(() => setOrdersLoading(false))
+      loadOrders()
     }
   }, [activeTab, orders.length])
+
+  // Verificar si viene con un token de vinculación en la URL (?vincularToken=...)
+  useEffect(() => {
+    if (typeof window === "undefined" || !session) return
+    const params = new URLSearchParams(window.location.search)
+    const token = params.get("vincularToken")
+    if (!token) return
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setActiveTab("pedidos")
+    void confirmGuestOrdersLinkingAction(token).then((res) => {
+      // Limpia el token de la barra de direcciones sin recargar
+      const url = new URL(window.location.href)
+      url.searchParams.delete("vincularToken")
+      window.history.replaceState({}, "", url.pathname)
+
+      if (res.success) {
+        setLinkedSuccessMessage(
+          res.linkedCount && res.linkedCount > 0
+            ? `¡Listo! Se han vinculado ${res.linkedCount} pedido(s) anterior(es) a tu cuenta.`
+            : "¡Listo! Tu solicitud de vinculación ha sido procesada."
+        )
+        loadOrders()
+      } else if (res.error) {
+        setLinkingMessage(res.error)
+      }
+    })
+  }, [session])
+
+  async function handleRequestLinkGuestOrders() {
+    setLinkingLoading(true)
+    setLinkingMessage("")
+    setLinkedSuccessMessage("")
+    const res = await requestGuestOrdersLinkingAction()
+    setLinkingLoading(false)
+    if (res.success) {
+      setLinkingMessage(res.message)
+    } else if (res.error) {
+      setLinkingMessage(res.error)
+    }
+  }
 
   if (isPending) {
     return (
@@ -355,6 +410,39 @@ export default function CuentaPage() {
                 ))}
               </div>
             )}
+
+            {/* Sección: Vincular compras como invitado */}
+            <div className="mt-8 border-t border-[#E0E0E0] pt-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-[#ECECEA] bg-[#FAFAFA] p-4">
+                <div>
+                  <h3 className="font-barlow font-bold text-sm text-[#1C1C1C] uppercase tracking-wide">
+                    ¿Hiciste compras como invitado?
+                  </h3>
+                  <p className="mt-0.5 font-montserrat text-xs text-[#4A4A4A]">
+                    Si realizaste pedidos con tu correo antes de registrarte o sin iniciar sesión, vincúlalos a tu cuenta para verlos aquí.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleRequestLinkGuestOrders}
+                  disabled={linkingLoading}
+                  className="shrink-0 rounded-lg border border-[#1C1C1C] px-4 py-2 font-montserrat text-xs font-semibold text-[#1C1C1C] transition-colors hover:bg-[#1C1C1C] hover:text-white disabled:opacity-60"
+                >
+                  {linkingLoading ? "Enviando enlace..." : "Vincular mis pedidos"}
+                </button>
+              </div>
+
+              {linkingMessage && (
+                <p className="mt-3 font-montserrat text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2.5">
+                  {linkingMessage}
+                </p>
+              )}
+              {linkedSuccessMessage && (
+                <p className="mt-3 font-montserrat text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-2.5">
+                  {linkedSuccessMessage}
+                </p>
+              )}
+            </div>
           </div>
         )}
 

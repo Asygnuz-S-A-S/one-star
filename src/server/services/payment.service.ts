@@ -10,6 +10,9 @@ import {
 import { updateOrderPaymentReference } from "../repositories/order.repository"
 import { sendMetaPurchaseForOrder } from "./meta-conversions.service"
 import { issueAndSendGiftCardsForOrder } from "./gift-card.service"
+import { getUserByEmail } from "./user.service"
+import { createGuestAccountInviteToken } from "./guest-order.service"
+import { sendGuestAccountInvitationEmail } from "./email.service"
 
 /** Tolerancia para comparar montos (centavos por redondeo de la pasarela) */
 const AMOUNT_TOLERANCE = 0.01
@@ -39,6 +42,28 @@ export interface PaymentResult {
   order: OrderDTO | null
 }
 
+async function handleGuestAccountInvitation(order: OrderDTO): Promise<void> {
+  // Solo se invita a compradores que ordenaron sin cuenta (userId === null)
+  if (order.userId !== null || !order.customerEmail) return
+
+  // Si el correo ya pertenece a una cuenta registrada:
+  // "Si el correo ya pertenece a una cuenta, no vincules automáticamente el pedido: no filtres si el correo existe."
+  const existingUser = await getUserByEmail(order.customerEmail)
+  if (existingUser) {
+    return
+  }
+
+  const token = await createGuestAccountInviteToken(order.customerEmail)
+  const baseUrl = (process.env.BETTER_AUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "")
+  const inviteUrl = `${baseUrl}/crear-cuenta?token=${encodeURIComponent(token)}`
+
+  await sendGuestAccountInvitationEmail({
+    email: order.customerEmail,
+    name: order.customerName ?? undefined,
+    inviteUrl,
+  })
+}
+
 /**
  * Efectos posteriores a un pago aprobado. Fire-and-forget: ni el correo ni el
  * evento de marketing deben hacer fallar la confirmación del pago.
@@ -46,6 +71,9 @@ export interface PaymentResult {
 function runPostPaymentEffects(order: OrderDTO): void {
   sendOrderConfirmation(order).catch((error: unknown) => {
     console.error(`[payment] Correo de confirmación del pedido ${order.id} falló:`, error)
+  })
+  handleGuestAccountInvitation(order).catch((error: unknown) => {
+    console.error(`[payment] Invitación a crear cuenta para pedido ${order.id} falló:`, error)
   })
   sendMetaPurchaseForOrder(order).catch((error: unknown) => {
     console.error(`[payment] Meta CAPI falló para pedido ${order.id}:`, error)

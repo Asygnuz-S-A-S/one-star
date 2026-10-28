@@ -6,6 +6,8 @@ import {
   orderConfirmationEmail,
   giftCardDeliveryEmail,
   clubWelcomeEmail,
+  guestAccountInvitationEmail,
+  linkGuestOrdersEmail,
   type OrderEmailItem,
   type GiftCardEmailCard,
 } from "@/server/email/templates"
@@ -78,3 +80,30 @@ export async function sendClubWelcomeEmail(params: {
   })
   return sendEmail({ to: params.email, subject, html })
 }
+
+/** Envía el correo de invitación al comprador invitado para crear su contraseña y activar su cuenta. */
+export async function sendGuestAccountInvitationEmail(params: {
+  email: string
+  name?: string
+  inviteUrl: string
+}): Promise<SendEmailResult> {
+  const { subject, html } = guestAccountInvitationEmail({
+    name: params.name,
+    inviteUrl: params.inviteUrl,
+  })
+  return sendEmail({ to: params.email, subject, html })
+}
+
+/** Envía el correo para confirmar la vinculación de compras realizadas como invitado a una cuenta existente. */
+export async function sendLinkGuestOrdersEmail(params: {
+  email: string
+  name?: string
+  verifyUrl: string
+}): Promise<SendEmailResult> {
+  const { subject, html } = linkGuestOrdersEmail({
+    name: params.name,
+    verifyUrl: params.verifyUrl,
+  })
+  return sendEmail({ to: params.email, subject, html })
+}
+
