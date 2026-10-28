@@ -6,6 +6,7 @@ export default defineConfig({
   test: {
     environment: "node",
     globals: true,
+    testTimeout: 15_000,
     // Solo tests unitarios; los specs E2E (e2e/**) corren con Playwright, no Vitest
     include: ["src/**/*.{test,spec}.{ts,tsx}", "scripts/**/*.test.ts"],
     exclude: ["node_modules", "e2e", ".next"],

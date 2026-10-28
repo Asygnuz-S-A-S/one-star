@@ -262,12 +262,20 @@ export default async function PedidoDetailPage({ params }: Props) {
                 </span>
               </div>
               {order.trackingNumber && (
-                <div className="flex justify-between gap-3 pt-1">
-                  <span className="text-[#4A4A4A]">Tracking</span>
-                  <span className="font-mono text-xs text-[#1C1C1C]">
-                    {order.trackingNumber}
-                  </span>
-                </div>
+                <>
+                  <div className="flex justify-between gap-3 pt-1">
+                    <span className="text-[#4A4A4A]">Transportadora</span>
+                    <span className="text-xs text-[#1C1C1C]">
+                      {order.carrier === "OTHER" ? "Otra" : "Envía"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-[#4A4A4A]">Tracking</span>
+                    <span className="font-mono text-xs text-[#1C1C1C]">
+                      {order.trackingNumber}
+                    </span>
+                  </div>
+                </>
               )}
             </div>
           </div>
@@ -278,6 +286,7 @@ export default async function PedidoDetailPage({ params }: Props) {
             currentStatus={order.status}
             paymentStatus={order.paymentStatus}
             currentTrackingNumber={order.trackingNumber ?? ""}
+            currentCarrier={order.carrier ?? "ENVIA"}
             hasCustomerEmail={Boolean(order.customerEmail)}
           />
         </div>

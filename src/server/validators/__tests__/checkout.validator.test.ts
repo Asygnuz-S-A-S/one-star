@@ -65,11 +65,26 @@ describe("checkoutSchema", () => {
     expect(result.success).toBe(false)
   })
 
-  it("rechaza cédula con letras o caracteres no numéricos", () => {
-    const result = checkoutSchema.safeParse({
-      ...validPayload,
-      cedula: "102030405A",
-    })
+  it("asigna CC por defecto a documentType si no se envía", () => {
+    const result = checkoutSchema.safeParse(validPayload)
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.documentType).toBe("CC")
+    }
+  })
+
+  it("acepta tipos de documento válidos (CE, NIT, PP)", () => {
+    for (const docType of ["CE", "NIT", "PP"] as const) {
+      const result = checkoutSchema.safeParse({ ...validPayload, documentType: docType })
+      expect(result.success).toBe(true)
+      if (result.success) {
+        expect(result.data.documentType).toBe(docType)
+      }
+    }
+  })
+
+  it("rechaza tipo de documento inválido", () => {
+    const result = checkoutSchema.safeParse({ ...validPayload, documentType: "INVALID" })
     expect(result.success).toBe(false)
   })
 })

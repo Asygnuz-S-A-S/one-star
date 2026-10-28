@@ -900,6 +900,7 @@ describe("updateOrderCustomerData", () => {
     expect(mockUpdateCustomer).toHaveBeenCalledWith("order-1", {
       customerName: "Ana Gómez",
       customerEmail: "ana@example.com",
+      customerPhone: "3001234567",
       shippingAddress: {
         phone: "3001234567",
         address: "Calle 1 # 2-3",

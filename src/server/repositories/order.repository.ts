@@ -1,6 +1,6 @@
 import "server-only"
 import { prisma } from "../db/prisma"
-import type { Prisma, OrderStatus, PaymentStatus } from "@prisma/client"
+import type { Prisma, OrderStatus, PaymentStatus, ShippingCarrier } from "@prisma/client"
 
 export async function createOrder(data: Prisma.OrderCreateInput) {
   return prisma.order.create({
@@ -68,13 +68,15 @@ export async function updateOrderStatus(id: string, status: OrderStatus) {
 export async function updateOrderStatusAndTracking(
   id: string,
   status: string,
-  trackingNumber?: string
+  trackingNumber?: string,
+  carrier?: ShippingCarrier | null
 ) {
   return prisma.order.update({
     where: { id },
     data: {
       status: status as OrderStatus,
       ...(trackingNumber !== undefined ? { trackingNumber } : {}),
+      ...(carrier !== undefined ? { carrier } : {}),
     },
   })
 }
@@ -116,6 +118,9 @@ export async function findAbandonedPendingOrders(before: Date) {
 export interface OrderCustomerDataUpdate {
   customerName: string
   customerEmail: string
+  customerDocumentType?: string | null
+  customerDocument?: string | null
+  customerPhone?: string | null
   shippingAddress: Prisma.InputJsonValue
 }
 
@@ -172,7 +177,11 @@ async function decrementStoreInventory(
  * sobreventa por condiciones de carrera. Idempotente: si el pedido ya está
  * PAID no descuenta de nuevo.
  */
-export async function markOrderPaidWithStock(id: string, trackingNumber?: string) {
+export async function markOrderPaidWithStock(
+  id: string,
+  trackingNumber?: string,
+  carrier?: ShippingCarrier | null
+) {
   return prisma.$transaction(async (tx) => {
     const order = await tx.order.findUnique({
       where: { id },
@@ -182,8 +191,14 @@ export async function markOrderPaidWithStock(id: string, trackingNumber?: string
 
     // Idempotencia: no descontar dos veces si ya estaba pagado.
     if (order.status === "PAID") {
-      if (trackingNumber !== undefined) {
-        return tx.order.update({ where: { id }, data: { trackingNumber } })
+      if (trackingNumber !== undefined || carrier !== undefined) {
+        return tx.order.update({
+          where: { id },
+          data: {
+            ...(trackingNumber !== undefined ? { trackingNumber } : {}),
+            ...(carrier !== undefined ? { carrier } : {}),
+          },
+        })
       }
       return order
     }
@@ -200,6 +215,7 @@ export async function markOrderPaidWithStock(id: string, trackingNumber?: string
         paymentStatus: "APPROVED",
         paidAt: new Date(),
         ...(trackingNumber !== undefined ? { trackingNumber } : {}),
+        ...(carrier !== undefined ? { carrier } : {}),
       },
     })
     if (claimed.count === 0) {

@@ -22,6 +22,7 @@ export const checkoutSchema = z.object({
     .string()
     .transform((v) => v.replace(/\s/g, ""))
     .pipe(z.string().regex(/^[0-9]{7,15}$/, "Ingresa un teléfono válido (solo números)")),
+  documentType: z.enum(["CC", "CE", "NIT", "PP"]).default("CC"),
   cedula: z
     .string()
     .transform((v) => v.replace(/\s/g, ""))
