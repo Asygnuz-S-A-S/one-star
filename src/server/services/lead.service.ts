@@ -53,6 +53,13 @@ export async function getLeadsList(params: {
   }
 }
 
+/** Neutraliza fórmulas maliciosas de Excel/Calc (CWE-1236) y escapa comillas dobles. */
+function csvCell(value: string | null | undefined): string {
+  if (!value) return '""'
+  const safe = /^[=+\-@]/.test(value) ? `'${value}` : value
+  return `"${safe.replaceAll('"', '""')}"`
+}
+
 /**
  * Genera contenido en formato CSV para exportar leads hacia campañas de WhatsApp o CRM externo.
  */
@@ -61,17 +68,17 @@ export async function exportLeadsToCsv(): Promise<string> {
   const headers = ["ID", "Email", "Nombre", "Telefono", "Origen", "Etapa", "Marca Preferida", "Genero", "Items en Carrito", "Valor Estimado", "Fecha Registro"]
 
   const rows = result.leads.map((l) => [
-    `"${l.id}"`,
-    `"${l.email}"`,
-    `"${l.name.replace(/"/g, '""')}"`,
-    `"${l.phone ?? ""}"`,
-    `"${l.source}"`,
-    `"${l.stage}"`,
-    `"${l.preferredBrand ?? ""}"`,
-    `"${l.gender ?? ""}"`,
+    csvCell(l.id),
+    csvCell(l.email),
+    csvCell(l.name),
+    csvCell(l.phone),
+    csvCell(l.source),
+    csvCell(l.stage),
+    csvCell(l.preferredBrand),
+    csvCell(l.gender),
     l.cartItemCount,
     l.estimatedValue,
-    `"${l.createdAt}"`,
+    csvCell(l.createdAt),
   ])
 
   return [headers.join(","), ...rows.map((r) => r.join(","))].join("\n")
