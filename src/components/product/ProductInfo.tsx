@@ -25,6 +25,7 @@ import { RETURN_WINDOW_DAYS, type StorePromise } from "@/lib/store-promises"
 import { useDeliveryDays, useShippingRates } from "@/components/storefront/ShippingRatesProvider"
 import { getProductAvailability } from "@/lib/product-availability"
 import AddiWidget from "@/components/product/AddiWidget"
+import { trackLeadCartStageAction } from "@/server/actions/lead-stage.actions"
 
 interface ProductInfoProps {
   product: ProductWithRelations
@@ -156,6 +157,11 @@ export default function ProductInfo({
     const cartItem = buildCartItem()
     if (!cartItem) return
     addItem(cartItem)
+    void trackLeadCartStageAction({
+      productId: cartItem.productId,
+      variantId: cartItem.id,
+      productName: cartItem.name,
+    }).catch(() => {})
     trackMetaEvent("AddToCart", {
       content_type: "product",
       content_ids: [cartItem.productId],
@@ -178,6 +184,11 @@ export default function ProductInfo({
     const cartItem = buildCartItem()
     if (!cartItem) return
     addItem(cartItem)
+    void trackLeadCartStageAction({
+      productId: cartItem.productId,
+      variantId: cartItem.id,
+      productName: cartItem.name,
+    }).catch(() => {})
     trackMetaEvent("AddToCart", {
       content_type: "product",
       content_ids: [cartItem.productId],

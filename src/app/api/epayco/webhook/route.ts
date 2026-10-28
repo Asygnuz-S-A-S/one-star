@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
 import {
+  extractCookieFromHeader,
+  LEAD_COOKIE_NAME,
+  verifyLeadCookieValue,
+} from "@/lib/lead-cookie"
+import {
   parseEpaycoWebhookPayload,
   verifyEpaycoSignature,
 } from "@/server/services/epayco.service"
+import { linkOrderToLead } from "@/server/services/lead.service"
 import { applyPaymentNotification } from "@/server/services/payment.service"
 
 /**
@@ -50,6 +56,39 @@ export async function POST(request: NextRequest) {
 
     if (result.outcome === "order_not_found") {
       return NextResponse.json({ error: "Order not found" }, { status: 404 })
+    }
+
+    if (result.outcome === "paid" || result.outcome === "already_paid") {
+      try {
+        const rawCookie =
+          request.cookies?.get?.(LEAD_COOKIE_NAME)?.value ??
+          extractCookieFromHeader(request.headers.get("cookie"), LEAD_COOKIE_NAME)
+        const cookieLeadId = verifyLeadCookieValue(rawCookie)
+
+        const orderObj = (result.order ?? {}) as {
+          id?: string
+          leadId?: string | null
+          customerPhone?: string | null
+          shippingAddress?: unknown
+        }
+        const shippingPhone =
+          typeof orderObj.shippingAddress === "object" &&
+          orderObj.shippingAddress !== null &&
+          "phone" in orderObj.shippingAddress
+            ? String((orderObj.shippingAddress as Record<string, unknown>).phone)
+            : null
+        const orderPhone = orderObj.customerPhone || shippingPhone
+
+        if (cookieLeadId || orderObj.leadId || orderPhone) {
+          await linkOrderToLead(orderObj.id || payload.x_invoice, {
+            leadId: orderObj.leadId ?? cookieLeadId,
+            waPhone: orderPhone,
+            advanceToStage: "COMPRO",
+          })
+        }
+      } catch (leadError) {
+        console.error("[epayco/webhook] Error al actualizar etapa COMPRO del lead:", leadError)
+      }
     }
 
     // Siempre 200 en los demás casos para que ePayco no reintente: los

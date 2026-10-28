@@ -1,0 +1,48 @@
+import { NextResponse } from "next/server"
+import {
+  authenticateAssistantRequest,
+  checkLeadPhoneRateLimit,
+} from "@/server/services/assistant-auth.service"
+import { upsertLeadByPhone } from "@/server/services/lead.service"
+import { assistantLeadUpsertSchema } from "@/server/validators/lead.validator"
+
+export const dynamic = "force-dynamic"
+
+export async function POST(request: Request) {
+  const auth = await authenticateAssistantRequest(request)
+  if (!auth.authorized) {
+    return auth.response
+  }
+
+  let body: unknown
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: "Cuerpo JSON inválido" }, { status: 400 })
+  }
+
+  const parsed = assistantLeadUpsertSchema.safeParse(body)
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Parámetros inválidos", details: parsed.error.issues },
+      { status: 400 }
+    )
+  }
+
+  const phoneLimit = await checkLeadPhoneRateLimit(request.headers, parsed.data.waPhone)
+  if (!phoneLimit.allowed) {
+    return NextResponse.json(
+      { error: "Límite de peticiones por teléfono excedido. Intenta más tarde." },
+      {
+        status: 429,
+        headers: phoneLimit.retryAfterSeconds
+          ? { "Retry-After": String(phoneLimit.retryAfterSeconds) }
+          : undefined,
+      }
+    )
+  }
+
+  const lead = await upsertLeadByPhone(parsed.data)
+
+  return NextResponse.json({ lead })
+}

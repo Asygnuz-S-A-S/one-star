@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server"
+import { markAbandonedLeads } from "@/server/services/lead.service"
 import { expireAbandonedOrders } from "@/server/services/order.service"
 
 /**
  * GET /api/cron/expire-orders
  * Vence los pedidos que quedaron PENDING sin ninguna notificación de la
- * pasarela (el cliente abrió ePayco pero nunca pagó). Mismo esquema de
+ * pasarela (el cliente abrió ePayco pero nunca pagó) y marca como ABANDONO
+ * los leads de WhatsApp que llevan 24 h sin pago. Mismo esquema de
  * protección que /api/cron/sync-erp: `Authorization: Bearer $CRON_SECRET`.
  */
 export async function GET(request: Request) {
@@ -24,9 +26,17 @@ export async function GET(request: Request) {
 
     const expired = await expireAbandonedOrders()
 
+    let abandonedLeads: string[] = []
+    try {
+      abandonedLeads = await markAbandonedLeads()
+    } catch (leadError) {
+      console.error("[cron/expire-orders] Error marcando leads en ABANDONO:", leadError)
+    }
+
     return NextResponse.json({
       success: true,
       expired: expired.length,
+      abandonedLeads: abandonedLeads.length,
       timestamp: new Date().toISOString(),
     })
   } catch (error) {
