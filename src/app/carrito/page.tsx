@@ -9,6 +9,7 @@ import { formatCOP } from "@/lib/shop-utils"
 import { useGiftCardValidityMonths, useShippingRates } from "@/components/storefront/ShippingRatesProvider"
 import { getShippingCost } from "@/lib/shipping"
 import { applyCoupon, type ApplyCouponResult } from "./actions"
+import AddiWidget from "@/components/product/AddiWidget"
 
 function IconX({ size = 18 }: { size?: number }) {
   return (
@@ -257,6 +258,8 @@ export default function CarritoPage() {
                 {formatCOP(total)}
               </span>
             </div>
+
+            <AddiWidget price={total} />
 
             <button
               onClick={() => router.push("/checkout")}

@@ -1,38 +1,85 @@
 "use client"
 
-interface AddiWidgetProps {
+import React, { useEffect, useState, useTransition } from "react"
+import Script from "next/script"
+import { useCspNonce } from "@/app/providers"
+import { getAddiWidgetEvaluationAction } from "@/server/actions/addi.actions"
+import type { AddiWidgetEvaluation } from "@/server/services/addi-config.service"
+
+export interface AddiWidgetProps {
   price: number
+  className?: string
+  initialEvaluation?: AddiWidgetEvaluation | null
 }
 
-const currencyCOP = new Intl.NumberFormat("es-CO", {
-  style: "currency",
-  currency: "COP",
-  maximumFractionDigits: 0,
-})
+const ADDI_SCRIPT_SRC = "https://s3.amazonaws.com/widgets.addi.com/bundle.min.js"
 
-/**
- * Widget informativo de Addi ("Compra a cuotas sin interés con Addi").
- * Muestra el cálculo estimado en 3 o 4 cuotas mensuales sin interés.
- * Se integra de forma limpia y responsiva en la ficha de producto y en el carrito.
- */
-export default function AddiWidget({ price }: AddiWidgetProps) {
-  if (price < 50000) return null
+export default function AddiWidget({
+  price,
+  className = "",
+  initialEvaluation = null,
+}: AddiWidgetProps) {
+  const nonce = useCspNonce()
+  const [evaluation, setEvaluation] = useState<AddiWidgetEvaluation | null>(initialEvaluation)
+  const [, startTransition] = useTransition()
 
-  // Cálculo de cuotas sin interés representativo de Addi (ej. 3 cuotas)
-  const installments = 3
-  const installmentValue = Math.round(price / installments)
+  useEffect(() => {
+    if (price <= 0) return
+
+    let cancelled = false
+    startTransition(async () => {
+      try {
+        const evalResult = await getAddiWidgetEvaluationAction(price)
+        if (!cancelled) {
+          setEvaluation(evalResult)
+        }
+      } catch (err) {
+        console.warn("[AddiWidget] Error al evaluar disponibilidad de Addi:", err)
+      }
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [price])
+
+  if (price <= 0 || !evaluation || !evaluation.available) {
+    return null
+  }
 
   return (
-    <div className="flex items-center gap-2.5 p-2.5 rounded-lg border border-[#00C389]/30 bg-[#00C389]/5 text-[#1C1C1C] dark:text-gray-200 text-xs font-montserrat">
-      <div className="flex items-center justify-center bg-[#00C389] text-white font-bold text-[10px] px-1.5 py-0.5 rounded tracking-wider">
-        addi
-      </div>
-      <div className="flex-1">
-        <span>O págalo en <b>{installments} cuotas</b> de <b>{currencyCOP.format(installmentValue)}</b> sin interés.</span>
-      </div>
-      <span className="text-[11px] text-[#00C389] font-semibold underline underline-offset-2 cursor-pointer hover:opacity-80">
-        Conoce más
-      </span>
+    <div
+      className={`addi-widget-container ${className}`.trim()}
+      data-testid="addi-widget-container"
+    >
+      <Script
+        id="addi-widget-script"
+        src={ADDI_SCRIPT_SRC}
+        strategy="afterInteractive"
+        nonce={nonce}
+      />
+
+      {evaluation.inRange ? (
+        React.createElement("addi-widget", {
+          price: Math.round(price),
+          "ally-slug": evaluation.allySlug,
+          "data-testid": "addi-widget-element",
+        })
+      ) : (
+        <div
+          role="status"
+          aria-live="polite"
+          data-testid="addi-out-of-range"
+          className="flex items-center gap-2.5 p-2.5 rounded-lg border border-[#00C389]/30 bg-[#00C389]/5 text-[#1C1C1C] dark:text-gray-200 text-xs font-montserrat"
+        >
+          <span className="flex items-center justify-center bg-[#00C389] text-white font-bold text-[10px] px-1.5 py-0.5 rounded tracking-wider uppercase shrink-0">
+            addi
+          </span>
+          <span className="flex-1 text-[#4A4A4A] dark:text-gray-300">
+            {evaluation.outOfRangeNotice}
+          </span>
+        </div>
+      )}
     </div>
   )
 }

@@ -22,6 +22,11 @@ export function buildContentSecurityPolicy({
     "https://connect.facebook.net",
     // Google Analytics 4
     "https://www.googletagmanager.com",
+    // Widget oficial de Addi
+    "https://s3.amazonaws.com",
+    "https://cdn.addi.com",
+    "https://cdn.addi-staging.com",
+    "https://unpkg.com",
   ]
   const connectSources = ["'self'"]
 
@@ -38,6 +43,10 @@ export function buildContentSecurityPolicy({
     "https://www.googletagmanager.com",
     "https://*.google-analytics.com",
     "https://*.analytics.google.com",
+    // API y servicios de Addi
+    "https://*.addi.com",
+    "https://*.addi-staging.com",
+    "https://s3.amazonaws.com",
   )
 
   if (isDevelopment) {
@@ -50,9 +59,9 @@ export function buildContentSecurityPolicy({
     `script-src ${scriptSources.join(" ")}`,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' blob: data: https:",
-    "font-src 'self' data:",
+    "font-src 'self' data: https://s3.amazonaws.com",
     `connect-src ${connectSources.join(" ")}`,
-    "frame-src 'self' https://*.epayco.co https://www.google.com https://maps.google.com",
+    "frame-src 'self' https://*.epayco.co https://www.google.com https://maps.google.com https://*.addi.com https://*.addi-staging.com",
     "form-action 'self' https://*.epayco.co",
     "media-src 'self' blob: https:",
     "worker-src 'self' blob:",
