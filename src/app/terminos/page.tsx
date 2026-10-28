@@ -51,7 +51,8 @@ export default async function TerminosPage() {
       <LegalSection id="cuenta" heading="3. Registro y cuenta de usuario">
         <LegalList
           items={[
-            "Puedes comprar como invitado o crear una cuenta. La información que registres debe ser veraz, completa y actualizada.",
+            "Puedes comprar como invitado o crear una cuenta. Para compras como invitado, solicitamos los datos de facturación y despacho necesarios para procesar el pedido y emitir el comprobante correspondiente.",
+            "Al comprar como invitado y tras la confirmación de pago aprobado, recibirás por correo electrónico una invitación con un enlace de un solo uso para crear tu contraseña y activar tu cuenta; al verificarlo, se vincularán tus pedidos a tu perfil.",
             "Eres responsable de la confidencialidad de tus credenciales y de toda actividad realizada desde tu cuenta.",
             "Podemos suspender o cancelar cuentas que incumplan estos términos, que registren datos falsos o que se usen con fines fraudulentos.",
           ]}
@@ -73,6 +74,7 @@ export default async function TerminosPage() {
         <LegalList
           items={[
             "El pedido se perfecciona cuando el pago es aprobado por la pasarela y recibes la confirmación por correo electrónico.",
+            "Antes de finalizar y pagar, es obligatorio aceptar expresamente estos términos y condiciones y autorizar el tratamiento de datos personales.",
             "Los pagos se procesan a través de pasarelas autorizadas; no almacenamos los datos completos de tu medio de pago.",
             "Nos reservamos el derecho de rechazar o cancelar un pedido cuando existan indicios de fraude, imposibilidad de verificar la identidad del comprador o falta de inventario, con reembolso íntegro del valor pagado.",
           ]}

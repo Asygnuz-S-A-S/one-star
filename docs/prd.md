@@ -150,10 +150,16 @@ Flujo de compra desde agregar al carrito hasta confirmación del pedido.
 **para** reducir la fricción y comprar más rápido.
 
 **Criterios de aceptación:**
-- El checkout solicita solo: email, nombre, dirección de envío, teléfono.
-- **Dado** que el pedido se procesa,  
-  **cuando** se confirma el pago,  
-  **entonces** el comprador recibe email de confirmación aunque no tenga cuenta.
+- El checkout solicita datos completos de facturación y envío: email, nombre, apellidos, tipo y número de documento (cédula/NIT), teléfono, dirección, ciudad y departamento.
+- Se exige la aceptación obligatoria de los términos y condiciones y tratamiento de datos personales antes de proceder al pago.
+- Se aplican límites de tasa (rate limiting) por IP y por correo para prevenir abuso en la creación de pedidos.
+- El comprador invitado puede acceder a la pantalla de confirmación (`/checkout/success`) mediante un token firmado y con tiempo de expiración corto en la URL, sin requerir sesión.
+- **Dado** que el pago queda aprobado,  
+  **cuando** se ejecuta el post-procesamiento del pago,  
+  **entonces** el comprador recibe un correo de confirmación de pedido y un correo de invitación con un enlace seguro de un solo uso para crear su contraseña y activar su cuenta.
+- **Dado** que el comprador activa su cuenta mediante dicho enlace verificado,  
+  **cuando** define su contraseña,  
+  **entonces** sus pedidos anteriores asociados a ese correo se vinculan automáticamente a su nueva cuenta de cliente. Si el correo ya pertenecía a una cuenta registrada previa a la compra, no se vincula automáticamente para prevenir vulnerabilidades de enumeración y suplantación.
 
 #### US-3.3 — Pago con ePayco / MercadoPago
 **Como** comprador,  

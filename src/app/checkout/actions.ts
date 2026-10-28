@@ -6,7 +6,10 @@ import { auth } from "@/lib/auth"
 import { prisma } from "@/server/db/prisma"
 import { placeOrder } from "@/server/services/order.service"
 import { markCartsRecoveredForEmail } from "@/server/services/abandoned-cart.service"
+import { getUserById } from "@/server/services/user.service"
 import { checkoutSchema } from "@/server/validators/checkout.validator"
+import { consumePublicRateLimit } from "@/server/services/public-rate-limit.service"
+import { signGuestOrderSuccessToken } from "@/server/services/guest-order.service"
 import type { EpaycoCheckoutData } from "@/components/checkout/EpaycoButton"
 
 interface CheckoutItem {
@@ -35,6 +38,7 @@ export interface CheckoutData {
   paymentMethod: "epayco" | "mercadopago" | "addi"
   /** Código de cupón aplicado; el servidor lo revalida y recalcula el descuento */
   couponCode?: string
+  termsAccepted?: boolean
   items: CheckoutItem[]
   /** Solo informativos — el servidor los ignora y recalcula (ver order.service) */
   subtotal: number
@@ -53,12 +57,38 @@ interface CreateOrderResult {
 
 export async function createOrder(data: CheckoutData): Promise<CreateOrderResult> {
   try {
-    const session = await auth.api.getSession({ headers: await headers() })
-    if (!session?.user?.id || session.user.userType !== "customer") {
-      return {
-        success: false,
-        code: "AUTH_REQUIRED",
-        error: "Debes iniciar sesión como cliente para completar la compra.",
+    const reqHeaders = await headers()
+    const session = await auth.api.getSession({ headers: reqHeaders })
+    const isCustomer = Boolean(session?.user?.id && session.user.userType === "customer")
+    const userId = isCustomer && session?.user?.id ? session.user.id : null
+
+    // Si es compra como invitado, aplicamos límites de intentos por IP y por correo
+    if (!userId) {
+      const ipLimit = await consumePublicRateLimit("guest_order_ip", reqHeaders, {
+        max: 15,
+        windowMs: 60 * 60 * 1000,
+      })
+      if (!ipLimit.allowed) {
+        return {
+          success: false,
+          code: "ORDER_ERROR",
+          error: "Demasiados intentos de pedido desde esta conexión. Por favor intenta más tarde.",
+        }
+      }
+
+      if (data.email) {
+        const emailLimit = await consumePublicRateLimit("guest_order_email", reqHeaders, {
+          max: 5,
+          windowMs: 60 * 60 * 1000,
+          subject: data.email,
+        })
+        if (!emailLimit.allowed) {
+          return {
+            success: false,
+            code: "ORDER_ERROR",
+            error: "Demasiados intentos de pedido para este correo. Por favor intenta más tarde.",
+          }
+        }
       }
     }
 
@@ -76,7 +106,7 @@ export async function createOrder(data: CheckoutData): Promise<CreateOrderResult
 
     // SEGURIDAD: no se envían precios — placeOrder los resuelve desde la BD
     // y calcula subtotal, envío y total en el servidor.
-    const order = await placeOrder(session.user.id, {
+    const order = await placeOrder(userId, {
       customerEmail: input.email,
       customerName: `${input.name} ${input.lastName}`,
       customerDocumentType: input.documentType,
@@ -105,10 +135,10 @@ export async function createOrder(data: CheckoutData): Promise<CreateOrderResult
     })
 
     // Actualiza cédula en el perfil del usuario si no la tenía registrada
-    if (session.user.id && input.cedula) {
+    if (userId && input.cedula) {
       prisma.user
         .updateMany({
-          where: { id: session.user.id, cedula: null },
+          where: { id: userId, cedula: null },
           data: { cedula: input.cedula },
         })
         .catch((error: unknown) => {
@@ -122,6 +152,8 @@ export async function createOrder(data: CheckoutData): Promise<CreateOrderResult
       console.error("[createOrder] No se pudo marcar carrito recuperado:", err)
     })
 
+    const guestToken = !userId ? signGuestOrderSuccessToken(order.id) : undefined
+
     const epaycoData: EpaycoCheckoutData = {
       orderId: order.id,
       // El monto a cobrar es el total calculado en servidor, no el del cliente.
@@ -134,6 +166,7 @@ export async function createOrder(data: CheckoutData): Promise<CreateOrderResult
       address: input.address,
       city: input.city,
       department: input.department,
+      ...(guestToken ? { guestToken } : {}),
     }
 
     return { success: true, orderId: order.id, epaycoData }
@@ -154,3 +187,27 @@ export async function createOrder(data: CheckoutData): Promise<CreateOrderResult
     }
   }
 }
+
+/**
+ * Obtiene los datos del perfil del cliente autenticado para autocompletar el formulario de checkout.
+ */
+export async function getCustomerCheckoutProfile(): Promise<{
+  email: string
+  name?: string
+  lastName?: string
+  phone?: string
+  cedula?: string
+} | null> {
+  const session = await auth.api.getSession({ headers: await headers() })
+  if (!session?.user?.id || session.user.userType !== "customer") return null
+  const user = await getUserById(session.user.id)
+  if (!user) return null
+  return {
+    email: user.email,
+    name: user.name ?? undefined,
+    lastName: user.lastName ?? undefined,
+    phone: user.phone ?? undefined,
+    cedula: user.cedula ?? undefined,
+  }
+}
+

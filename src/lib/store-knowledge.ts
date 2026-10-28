@@ -26,7 +26,7 @@ PAGOS
 - El pago se hace en el checkout de la tienda, con la pasarela ePayco.
 - Medios de pago de contado: tarjetas de crédito y débito, PSE, Efecty, Baloto y otros medios incluidos en ePayco. Si preguntan por un medio que no está en esta lista (por ejemplo Nequi o Daviplata), no lo confirmes: los medios disponibles se ven en el checkout.
 - Pago contra entrega: por ahora no. One Star está trabajando para ofrecerlo pronto.
-- Se puede comprar como invitado, sin crear cuenta.
+- Se puede comprar como invitado, sin crear cuenta previa. Tras la confirmación del pago aprobado, el comprador recibe un correo para activar su cuenta y crear contraseña si lo desea.
 
 CAMBIOS, DEVOLUCIONES Y GARANTÍA
 - Cambios: 30 días calendario cuando el producto no es lo que el cliente buscaba o no es su talla. En productos en oferta, el plazo es de 10 días calendario.

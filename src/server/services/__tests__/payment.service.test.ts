@@ -10,6 +10,9 @@ const mocks = vi.hoisted(() => ({
   updateOrderPaymentReference: vi.fn(),
   sendMetaPurchaseForOrder: vi.fn(),
   fetchEpaycoTransaction: vi.fn(),
+  getUserByEmail: vi.fn(),
+  createGuestAccountInviteToken: vi.fn(),
+  sendGuestAccountInvitationEmail: vi.fn(),
 }))
 
 vi.mock("@/server/services/order.service", () => ({
@@ -23,6 +26,15 @@ vi.mock("@/server/repositories/order.repository", () => ({
 }))
 vi.mock("@/server/services/meta-conversions.service", () => ({
   sendMetaPurchaseForOrder: mocks.sendMetaPurchaseForOrder,
+}))
+vi.mock("@/server/services/user.service", () => ({
+  getUserByEmail: mocks.getUserByEmail,
+}))
+vi.mock("@/server/services/guest-order.service", () => ({
+  createGuestAccountInviteToken: mocks.createGuestAccountInviteToken,
+}))
+vi.mock("@/server/services/email.service", () => ({
+  sendGuestAccountInvitationEmail: mocks.sendGuestAccountInvitationEmail,
 }))
 vi.mock("@/server/services/epayco.service", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/server/services/epayco.service")>()
@@ -310,5 +322,105 @@ describe("applyPaymentNotification — aprobación tardía", () => {
     mocks.getOrderById.mockResolvedValue({ ...pendingOrder, status: "CANCELLED", paymentStatus: "EXPIRED" })
 
     expect((await confirmPaymentByReference("ref-1")).status).toBe("pending")
+  })
+})
+
+describe("handleGuestAccountInvitation — post-payment effects", () => {
+  const guestPendingOrder = {
+    ...pendingOrder,
+    id: "guest-order-1",
+    userId: null,
+    customerName: "Carlos Gómez",
+    customerEmail: "carlos.guest@example.com",
+  }
+
+  const guestPaidOrder = {
+    ...guestPendingOrder,
+    status: "PAID",
+    paymentStatus: "APPROVED",
+    paymentReference: "ref-guest-1",
+    paidAt: "2026-10-27T00:00:00.000Z",
+  }
+
+  const guestAccepted = {
+    orderId: "guest-order-1",
+    refPayco: "ref-guest-1",
+    amount: "150000.00",
+    codResponse: "1",
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.sendOrderConfirmation.mockResolvedValue(undefined)
+    mocks.sendMetaPurchaseForOrder.mockResolvedValue({ sent: true })
+    mocks.updateOrderPaymentReference.mockResolvedValue({})
+    mocks.changeOrderStatus.mockResolvedValue(undefined)
+    mocks.getUserByEmail.mockResolvedValue(null)
+    mocks.createGuestAccountInviteToken.mockResolvedValue("guest-invite-token-abc")
+    mocks.sendGuestAccountInvitationEmail.mockResolvedValue({ success: true })
+  })
+
+  it("envía invitación por correo al invitado cuando el pago es aprobado", async () => {
+    mocks.getOrderById
+      .mockResolvedValueOnce(guestPendingOrder)
+      .mockResolvedValueOnce(guestPaidOrder)
+
+    const result = await applyPaymentNotification(guestAccepted)
+    await flush()
+
+    expect(result.outcome).toBe("paid")
+    expect(mocks.getUserByEmail).toHaveBeenCalledWith("carlos.guest@example.com")
+    expect(mocks.createGuestAccountInviteToken).toHaveBeenCalledWith("carlos.guest@example.com")
+    expect(mocks.sendGuestAccountInvitationEmail).toHaveBeenCalledWith({
+      email: "carlos.guest@example.com",
+      name: "Carlos Gómez",
+      inviteUrl: expect.stringContaining("/crear-cuenta?token=guest-invite-token-abc"),
+    })
+  })
+
+  it("NO envía invitación si el correo del invitado ya pertenece a una cuenta registrada", async () => {
+    mocks.getOrderById
+      .mockResolvedValueOnce(guestPendingOrder)
+      .mockResolvedValueOnce(guestPaidOrder)
+    mocks.getUserByEmail.mockResolvedValue({
+      id: "existing-user-1",
+      email: "carlos.guest@example.com",
+    })
+
+    const result = await applyPaymentNotification(guestAccepted)
+    await flush()
+
+    expect(result.outcome).toBe("paid")
+    expect(mocks.getUserByEmail).toHaveBeenCalledWith("carlos.guest@example.com")
+    expect(mocks.createGuestAccountInviteToken).not.toHaveBeenCalled()
+    expect(mocks.sendGuestAccountInvitationEmail).not.toHaveBeenCalled()
+  })
+
+  it("NO envía invitación si el pedido pertenece a un usuario con sesión (userId !== null)", async () => {
+    const userOrder = {
+      ...paidOrder,
+      userId: "user-registered-1",
+      customerEmail: "registrado@example.com",
+    }
+    mocks.getOrderById
+      .mockResolvedValueOnce({ ...userOrder, status: "PENDING", paymentStatus: "PENDING" })
+      .mockResolvedValueOnce(userOrder)
+
+    await applyPaymentNotification({ ...accepted, orderId: "order-1" })
+    await flush()
+
+    expect(mocks.createGuestAccountInviteToken).not.toHaveBeenCalled()
+    expect(mocks.sendGuestAccountInvitationEmail).not.toHaveBeenCalled()
+  })
+
+  it("NO envía invitación si el pago es rechazado", async () => {
+    mocks.getOrderById.mockResolvedValue(guestPendingOrder)
+    mocks.closeOrderWithoutPayment.mockResolvedValue(true)
+
+    await applyPaymentNotification({ ...guestAccepted, codResponse: "2" })
+    await flush()
+
+    expect(mocks.createGuestAccountInviteToken).not.toHaveBeenCalled()
+    expect(mocks.sendGuestAccountInvitationEmail).not.toHaveBeenCalled()
   })
 })

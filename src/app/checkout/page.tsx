@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useId, useRef, cloneElement, isValidElement } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { motion } from "motion/react"
 import { useCart, useCartStore } from "@/store"
 import { formatCOP } from "@/lib/shop-utils"
@@ -19,11 +20,10 @@ import {
 import CheckoutStepper from "@/components/checkout/CheckoutStepper"
 import OrderSummary, { type AppliedCoupon } from "@/components/checkout/OrderSummary"
 import EpaycoButton, { type EpaycoCheckoutData } from "@/components/checkout/EpaycoButton"
-import CheckoutAuthGate from "@/components/checkout/CheckoutAuthGate"
 import { useSession } from "@/lib/auth-client"
 import { captureAbandonedCartAction } from "@/server/actions/abandoned-cart.actions"
 import { validateCouponAction } from "@/server/actions/coupon.actions"
-import { createOrder } from "./actions"
+import { createOrder, getCustomerCheckoutProfile } from "./actions"
 
 const sectionVariants = {
   hidden: { opacity: 0, y: 18 },
@@ -153,40 +153,29 @@ function SectionTitle({ step, children, aside }: { step: number; children: React
 
 export default function CheckoutPage() {
   const { data: session, isPending } = useSession()
-  const [requiresAuth, setRequiresAuth] = useState(false)
-  const [draftPersistenceFailed, setDraftPersistenceFailed] = useState(false)
-  const canCreateOrder = session?.user?.userType === "customer"
-
-  if (requiresAuth && !canCreateOrder) {
-    return <CheckoutAuthGate draftPersistenceFailed={draftPersistenceFailed} />
-  }
+  const isAuthenticated = session?.user?.userType === "customer"
 
   return (
     <CheckoutForm
-      canCreateOrder={canCreateOrder}
+      isAuthenticated={isAuthenticated}
       isSessionPending={isPending}
-      sessionEmail={canCreateOrder ? session.user.email : null}
-      onAuthRequired={(draftSaved) => {
-        setDraftPersistenceFailed(!draftSaved)
-        setRequiresAuth(true)
-      }}
+      sessionEmail={isAuthenticated ? session.user.email : null}
     />
   )
 }
 
 interface CheckoutFormProps {
-  canCreateOrder: boolean
+  isAuthenticated: boolean
   isSessionPending: boolean
   sessionEmail: string | null
-  onAuthRequired: (draftSaved: boolean) => void
 }
 
 function CheckoutForm({
-  canCreateOrder,
+  isAuthenticated,
   isSessionPending,
   sessionEmail,
-  onAuthRequired,
 }: CheckoutFormProps) {
+  const router = useRouter()
   const { items, subtotal } = useCart()
   const shippingRates = useShippingRates()
   const deliveryDays = useDeliveryDays()
@@ -203,6 +192,8 @@ function CheckoutForm({
   const [errors, setErrors] = useState<FormErrors>({})
   const [submitting, setSubmitting] = useState(false)
   const [serverError, setServerError] = useState("")
+  const [termsAccepted, setTermsAccepted] = useState(false)
+  const [termsError, setTermsError] = useState("")
   /** Cuando está definido el pedido ya fue creado; mostramos el botón de pago */
   const [epaycoData, setEpaycoData] = useState<EpaycoCheckoutData | null>(null)
   /** Cupón validado en servidor; placeOrder lo revalida y recalcula el descuento */
@@ -210,45 +201,65 @@ function CheckoutForm({
 
   const [values, setValues] = useState<FormValues>(INITIAL_FORM_VALUES)
 
+  // Restaurar borrador y autocompletar perfil si hay sesión
   useEffect(() => {
-    if (!canCreateOrder || !sessionEmail) return
-
-    const storage = getCheckoutSessionStorage()
-    const draft = loadCheckoutDraft(storage, sessionEmail)
-    if (!draft) return
-    clearCheckoutDraft(storage)
-
     let cancelled = false
-    const restoreDraft = async () => {
-      await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()))
-      if (cancelled) return
+    const storage = getCheckoutSessionStorage()
+    const draft = sessionEmail ? loadCheckoutDraft(storage, sessionEmail) : null
 
-      if (!hasEditedForm.current) setValues(draft.form)
-      if (!draft.couponCode) return
-
-      const currentCart = useCartStore.getState()
-      if (currentCart.subtotal <= 0 || currentCart.items.length === 0) return
-
-      const couponResult = await validateCouponAction(
-        draft.couponCode,
-        currentCart.items.map((i) => ({ variantId: i.id, quantity: i.quantity }))
-      )
-      if (cancelled) return
-      if (couponResult.valid && couponResult.code && couponResult.discountAmount !== undefined) {
-        setAppliedCoupon({
-          code: couponResult.code,
-          discountAmount: couponResult.discountAmount,
-        })
-      } else {
-        setServerError("El cupón guardado ya no está disponible y no fue aplicado.")
+    if (draft) {
+      clearCheckoutDraft(storage)
+      if (!hasEditedForm.current) {
+        setValues((prev) => ({
+          ...draft.form,
+          email: draft.form.email || sessionEmail || prev.email,
+        }))
+      }
+      if (draft.couponCode) {
+        const currentCart = useCartStore.getState()
+        if (currentCart.subtotal > 0 && currentCart.items.length > 0) {
+          void validateCouponAction(
+            draft.couponCode,
+            currentCart.items.map((i) => ({ variantId: i.id, quantity: i.quantity }))
+          ).then((couponResult) => {
+            if (cancelled) return
+            if (couponResult.valid && couponResult.code && couponResult.discountAmount !== undefined) {
+              setAppliedCoupon({
+                code: couponResult.code,
+                discountAmount: couponResult.discountAmount,
+              })
+            }
+          })
+        }
       }
     }
 
-    void restoreDraft()
+    if (isAuthenticated) {
+      void getCustomerCheckoutProfile().then((profile) => {
+        if (cancelled || !profile) return
+        setValues((prev) => ({
+          ...prev,
+          email: prev.email || profile.email,
+          name: prev.name || profile.name || "",
+          lastName: prev.lastName || profile.lastName || "",
+          phone: prev.phone || profile.phone || "",
+          cedula: prev.cedula || profile.cedula || "",
+        }))
+      })
+    }
+
     return () => {
       cancelled = true
     }
-  }, [canCreateOrder, sessionEmail])
+  }, [isAuthenticated, sessionEmail])
+
+  const handleLoginRedirect = useCallback(() => {
+    saveCheckoutDraft(getCheckoutSessionStorage(), {
+      form: values,
+      couponCode: appliedCoupon?.code ?? null,
+    })
+    router.push("/login?callbackUrl=%2Fcheckout")
+  }, [values, appliedCoupon, router])
 
   // Un carrito solo de tarjetas de regalo se entrega por correo: sin envío.
   const digitalOnly = items.length > 0 && items.every((item) => item.kind === "gift_card")
@@ -293,15 +304,12 @@ function CheckoutForm({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setServerError("")
+    setTermsError("")
 
     if (isSessionPending) return
-    if (!canCreateOrder) {
-      const draftSaved = saveCheckoutDraft(getCheckoutSessionStorage(), {
-        form: values,
-        couponCode: appliedCoupon?.code ?? null,
-      })
-      onAuthRequired(draftSaved)
-      document.getElementById("public-scroll")?.scrollTo({ top: 0, behavior: "smooth" })
+
+    if (!termsAccepted) {
+      setTermsError("Debes aceptar los términos y condiciones y el tratamiento de datos para continuar")
       return
     }
 
@@ -338,6 +346,7 @@ function CheckoutForm({
       shippingMethod: values.shippingMethod,
       paymentMethod: "epayco",
       couponCode: appliedCoupon?.code,
+      termsAccepted: true,
       items: items.map((item) => ({
         productId: item.productId,
         variantId: item.id,
@@ -357,13 +366,6 @@ function CheckoutForm({
       // Pedido creado — pasamos al paso de pago
       clearCheckoutDraft(getCheckoutSessionStorage())
       setEpaycoData(result.epaycoData)
-      document.getElementById("public-scroll")?.scrollTo({ top: 0, behavior: "smooth" })
-    } else if (result.code === "AUTH_REQUIRED") {
-      const draftSaved = saveCheckoutDraft(getCheckoutSessionStorage(), {
-        form: values,
-        couponCode: appliedCoupon?.code ?? null,
-      })
-      onAuthRequired(draftSaved)
       document.getElementById("public-scroll")?.scrollTo({ top: 0, behavior: "smooth" })
     } else {
       setServerError(result.error ?? "Error al procesar el pedido")
@@ -440,6 +442,18 @@ function CheckoutForm({
               <motion.section className={sectionClass} variants={sectionVariants} initial="hidden" animate="visible" custom={0}>
                 <SectionTitle step={1}>Contacto</SectionTitle>
                 <div className="space-y-4">
+                  {!isSessionPending && !isAuthenticated && (
+                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#E0E0E0] bg-[#F9F9F9] p-3.5 text-xs font-montserrat text-[#4A4A4A]">
+                      <span>¿Ya tienes cuenta en One Star?</span>
+                      <button
+                        type="button"
+                        onClick={handleLoginRedirect}
+                        className="font-bold text-[#E31C23] hover:underline"
+                      >
+                        Inicia sesión para autocompletar tus datos
+                      </button>
+                    </div>
+                  )}
                   <div data-field="email">
                     <Field label="Email" required error={errors.email}>
                       <input type="email" value={values.email} onChange={(e) => set("email", e.target.value)}
@@ -624,6 +638,32 @@ function CheckoutForm({
                   Al confirmar tus datos se abrirá el portal seguro de ePayco para completar el pago.
                 </p>
               </motion.section>
+
+              {/* Casilla obligatoria de términos y datos */}
+              <div className="rounded-[var(--store-radius-md)] border border-[#ECECEA] bg-white p-4">
+                <label className="flex items-center gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={termsAccepted}
+                    onChange={(e) => {
+                      setTermsAccepted(e.target.checked)
+                      if (e.target.checked) setTermsError("")
+                    }}
+                    className="h-12 w-12 shrink-0 rounded border-[#E0E0E0] accent-[#E31C23]"
+                  />
+                  <span className="text-xs font-montserrat text-[#4A4A4A] leading-relaxed">
+                    He leído y acepto los{" "}
+                    <Link href="/terminos" target="_blank" className="underline font-semibold text-[#1C1C1C]">
+                      Términos y condiciones
+                    </Link>{" "}
+                    y autorizo el{" "}
+                    <Link href="/terminos" target="_blank" className="underline font-semibold text-[#1C1C1C]">
+                      tratamiento de mis datos personales
+                    </Link>. <span className="text-[#E31C23]">*</span>
+                  </span>
+                </label>
+                {termsError && <p className="mt-2 text-xs font-montserrat text-[#E31C23]">{termsError}</p>}
+              </div>
 
               {serverError && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4">

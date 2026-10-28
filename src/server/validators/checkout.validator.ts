@@ -35,6 +35,9 @@ export const checkoutSchema = z.object({
   shippingMethod: z.enum(["standard", "express"]),
   paymentMethod: z.enum(["epayco", "mercadopago", "addi"]),
   couponCode: z.string().trim().max(40).optional(),
+  termsAccepted: z.boolean().refine((val) => val === true, {
+    message: "Debes aceptar los términos y condiciones y el tratamiento de datos para continuar",
+  }),
   items: z.array(checkoutItemSchema).min(1, "La bolsa está vacía").max(100),
 })
 

@@ -222,3 +222,29 @@ export function clubWelcomeEmail(params: {
     html: layout(inner, subject),
   }
 }
+
+/** Invitación para que un comprador invitado active su cuenta y consulte sus compras. */
+export function guestAccountInvitationEmail(params: {
+  name?: string
+  inviteUrl: string
+}): EmailContent {
+  const inner = `
+    <h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;">Activa tu cuenta en One Star</h1>
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${COLOR.text};">${greeting(params.name)}</p>
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${COLOR.text};">
+      ¡Tu pago ha sido aprobado exitosamente! Para consultar el estado de tu pedido en cualquier momento y acumular tu historial de compras, activa tu cuenta creando tu contraseña en el siguiente enlace de un solo uso:
+    </p>
+    <p style="margin:24px 0 24px;">
+      <a href="${escapeHtml(params.inviteUrl)}" style="display:inline-block;background:#E31C23;color:#FFFFFF;text-decoration:none;font-weight:700;font-size:14px;letter-spacing:1px;padding:14px 22px;border-radius:8px;">
+        CREAR MI CONTRASEÑA
+      </a>
+    </p>
+    <p style="margin:0 0 8px;font-size:13px;line-height:1.6;color:${COLOR.muted};">
+      Este enlace es válido por 7 días y solo puede usarse una vez. Si no realizaste esta compra, puedes ignorar este mensaje.
+    </p>`
+  return {
+    subject: "Activa tu cuenta One Star y consulta tus pedidos",
+    html: layout(inner, "Activa tu cuenta en One Star para consultar el estado de tus compras."),
+  }
+}
+
