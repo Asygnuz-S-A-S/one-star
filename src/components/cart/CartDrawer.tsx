@@ -9,6 +9,7 @@ import { formatCOP } from "@/lib/shop-utils"
 import { PLACEHOLDER_IMAGE_URL } from "@/lib/product-image"
 import { useGiftCardValidityMonths, useShippingRates } from "@/components/storefront/ShippingRatesProvider"
 import { getColorSwatchStyle } from "@/lib/colors"
+import AddiWidget from "@/components/product/AddiWidget"
 
 // Misma superficie de la ficha: la foto (fondo blanco) se funde con multiply, sin recuadro gris.
 const THUMB_STAGE = "bg-[radial-gradient(ellipse_at_50%_45%,#ffffff_0%,#f7f7f5_55%,#ececea_100%)]"
@@ -299,6 +300,7 @@ export default function CartDrawer() {
                   <p className="-mt-2 font-montserrat text-xs text-[#4A4A4A]">
                     Envío y cupones se calculan en el checkout
                   </p>
+                  <AddiWidget price={subtotal} />
                   <Link
                     href="/checkout"
                     onClick={closeCart}

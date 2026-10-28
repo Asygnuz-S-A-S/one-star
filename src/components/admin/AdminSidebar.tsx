@@ -345,6 +345,8 @@ export default function AdminSidebar({ userName, userRole }: AdminSidebarProps) 
     </div>
   )
 
+  if (pathname.startsWith("/admin/landing-builder")) return null
+
   return (
     <>
       {/* Desktop sidebar */}

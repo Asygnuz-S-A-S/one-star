@@ -15,7 +15,7 @@ describe("buildContentSecurityPolicy", () => {
       .find((directive) => directive.startsWith("script-src "))
 
     expect(scriptDirective).toBe(
-      "script-src 'self' 'nonce-request-nonce' 'strict-dynamic' https://*.epayco.co https://connect.facebook.net https://www.googletagmanager.com",
+      "script-src 'self' 'nonce-request-nonce' 'strict-dynamic' https://*.epayco.co https://connect.facebook.net https://www.googletagmanager.com https://s3.amazonaws.com https://cdn.addi.com https://cdn.addi-staging.com https://unpkg.com",
     )
     expect(scriptDirective).not.toContain("'unsafe-inline'")
     expect(scriptDirective).not.toContain("'unsafe-eval'")
@@ -45,6 +45,7 @@ describe("buildContentSecurityPolicy", () => {
 
     expect(scriptDirective).toContain("https://*.epayco.co")
     expect(scriptDirective).toContain("https://connect.facebook.net")
+    expect(scriptDirective).toContain("https://s3.amazonaws.com")
   })
 
   it("allows same-origin framing only for the preview response", () => {
@@ -72,10 +73,10 @@ describe("buildContentSecurityPolicy", () => {
     })
 
     expect(policy).toContain(
-      "connect-src 'self' https://*.epayco.co https://*.epayco.io https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://nominatim.openstreetmap.org https://connect.facebook.net https://www.facebook.com",
+      "connect-src 'self' https://*.epayco.co https://*.epayco.io https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://nominatim.openstreetmap.org https://connect.facebook.net https://www.facebook.com https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://*.addi.com https://*.addi-staging.com https://s3.amazonaws.com",
     )
     expect(policy).toContain(
-      "frame-src 'self' https://*.epayco.co https://www.google.com https://maps.google.com",
+      "frame-src 'self' https://*.epayco.co https://www.google.com https://maps.google.com https://*.addi.com https://*.addi-staging.com",
     )
     expect(policy).toContain("form-action 'self' https://*.epayco.co")
     expect(policy).toContain("img-src 'self' blob: data: https:")
