@@ -67,6 +67,8 @@ export interface OrderDTO {
   shippingAddress: unknown
   userId: string | null
   userEmail: string | null
+  marketingConsentAt?: string | null
+  marketingConsentVersion?: string | null
   createdAt: string
   updatedAt: string
   items?: OrderItemDTO[]
@@ -90,6 +92,8 @@ function mapToDTO(raw: {
   shippingAddress: unknown
   userId: string | null
   user?: { email: string } | null
+  marketingConsentAt?: Date | null
+  marketingConsentVersion?: string | null
   createdAt: Date
   updatedAt: Date
   items?: Array<{
@@ -119,6 +123,8 @@ function mapToDTO(raw: {
     shippingAddress: raw.shippingAddress,
     userId: raw.userId,
     userEmail: raw.user?.email ?? null,
+    marketingConsentAt: raw.marketingConsentAt ? raw.marketingConsentAt.toISOString() : null,
+    marketingConsentVersion: raw.marketingConsentVersion ?? null,
     createdAt: raw.createdAt.toISOString(),
     updatedAt: raw.updatedAt.toISOString(),
     items: raw.items
@@ -217,6 +223,9 @@ export async function placeOrder(
     paymentMethod?: string
     /** Código de cupón; el descuento se valida y recalcula en servidor */
     couponCode?: string
+    /** Consentimiento opcional de mercadeo (política §8.2) */
+    marketingConsentAt?: Date | null
+    marketingConsentVersion?: string | null
   }
 ): Promise<OrderDTO> {
   // 0. SEGURIDAD: recalcula precios desde la BD. El total nunca viene del cliente.
@@ -332,6 +341,8 @@ export async function placeOrder(
     customerPhone: customerPhone || null,
     carrier,
     paymentMethod: data.paymentMethod,
+    marketingConsentAt: data.marketingConsentAt ?? null,
+    marketingConsentVersion: data.marketingConsentVersion ?? null,
     items: {
       create: pricedItems.map((i) => ({
         product: { connect: { id: i.productId } },

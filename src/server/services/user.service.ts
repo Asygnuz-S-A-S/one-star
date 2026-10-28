@@ -100,7 +100,7 @@ export async function registerUser(data: CreateUserDTO): Promise<UserDTO> {
     birthDate: data.birthDate ? new Date(data.birthDate) : undefined,
     preferredBrand: data.preferredBrand,
     gender: data.gender,
-    ...(data.newsletter ? { marketingConsentAt: new Date() } : {}),
+    ...(data.newsletter ? { marketingConsentAt: new Date(), marketingConsentVersion: "v2.0" } : {}),
   })
 
   if (data.joinClub) await joinClub(user.id, { newsletter: Boolean(data.newsletter) })

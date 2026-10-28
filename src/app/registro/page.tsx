@@ -560,7 +560,7 @@ function RegistroForm() {
               className="mt-0.5 h-5 w-5 shrink-0 accent-[#E31C23]"
             />
             <span className="font-montserrat text-sm text-[var(--text-secondary)]">
-              Quiero recibir ofertas, lanzamientos y novedades por correo
+              Quiero recibir novedades y promociones
             </span>
           </label>
 

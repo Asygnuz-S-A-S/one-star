@@ -350,6 +350,8 @@ function CheckoutForm({
       paymentMethod: "epayco",
       couponCode: appliedCoupon?.code,
       termsAccepted: true,
+      marketingConsent: Boolean(values.newsletter),
+      marketingConsentVersion: "v2.0",
       items: items.map((item) => ({
         productId: item.productId,
         variantId: item.id,
@@ -466,7 +468,7 @@ function CheckoutForm({
                   <label className="flex min-h-11 items-center gap-2.5 cursor-pointer">
                     <input type="checkbox" checked={values.newsletter} onChange={(e) => set("newsletter", e.target.checked)}
                       className="h-5 w-5 shrink-0 rounded border-[#E0E0E0] accent-[#E31C23]" />
-                    <span className="text-sm font-montserrat text-[#4A4A4A]">Recibir novedades y ofertas</span>
+                    <span className="text-sm font-montserrat text-[#4A4A4A]">Quiero recibir novedades y promociones</span>
                   </label>
                 </div>
               </motion.section>
@@ -660,7 +662,7 @@ function CheckoutForm({
                       Términos y condiciones
                     </Link>{" "}
                     y autorizo el{" "}
-                    <Link href="/terminos" target="_blank" className="underline font-semibold text-[#1C1C1C]">
+                    <Link href="/privacidad" target="_blank" className="underline font-semibold text-[#1C1C1C]">
                       tratamiento de mis datos personales
                     </Link>. <span className="text-[#E31C23]">*</span>
                   </span>

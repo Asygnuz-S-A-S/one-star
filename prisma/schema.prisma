@@ -246,6 +246,7 @@ model User {
   clubJoinedAt       DateTime?
   /// Consentimiento explícito para recibir el newsletter (null = no aceptó o lo retiró).
   marketingConsentAt DateTime?
+  marketingConsentVersion String?
   cart           Cart?
   orders         Order[]
   createdAt      DateTime  @default(now())
@@ -319,6 +320,9 @@ model Order {
   customerDocument     String?
   customerPhone        String?
   shippingAddress      Json?
+  /// Consentimiento de publicidad separado (null = no aceptó o lo retiró).
+  marketingConsentAt   DateTime?
+  marketingConsentVersion String?
   userId               String?
   user                 User?            @relation(fields: [userId], references: [id])
   items                OrderItem[]
@@ -726,4 +730,38 @@ model MediaAsset {
 
   @@index([fileType])
   @@index([createdAt])
+}
+
+enum PqrsType {
+  CONSULTA
+  RECLAMO
+  SUPRESION
+  RETIRO_PUBLICIDAD
+}
+
+enum PqrsStatus {
+  PENDIENTE
+  EN_TRAMITE
+  RESUELTO
+}
+
+model PqrsRequest {
+  id             String     @id @default(cuid())
+  ticketNumber   String     @unique
+  name           String
+  documentType   String     @default("CC")
+  documentNumber String
+  email          String
+  phone          String?
+  type           PqrsType
+  description    String
+  status         PqrsStatus @default(PENDIENTE)
+  responseNotes  String?
+  respondedAt    DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@index([email])
+  @@index([documentNumber])
+  @@index([status])
 }

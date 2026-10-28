@@ -38,6 +38,9 @@ export const checkoutSchema = z.object({
   termsAccepted: z.boolean().refine((val) => val === true, {
     message: "Debes aceptar los términos y condiciones y el tratamiento de datos para continuar",
   }),
+  /** Consentimiento opcional de publicidad (política §8.2, Ley 2300 de 2023). */
+  marketingConsent: z.boolean().default(false),
+  marketingConsentVersion: z.string().trim().max(40).optional(),
   items: z.array(checkoutItemSchema).min(1, "La bolsa está vacía").max(100),
 })
 

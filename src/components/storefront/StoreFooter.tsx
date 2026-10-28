@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { DEFAULT_FOOTER_LINKS, type FooterLink } from "@/lib/storefront-copy"
+import CookiePreferencesButton from "@/components/legal/CookiePreferencesButton"
 
 export default function StoreFooter({
   links = DEFAULT_FOOTER_LINKS,
@@ -36,6 +37,7 @@ export default function StoreFooter({
               {link.label}
             </Link>
           ))}
+          <CookiePreferencesButton />
         </nav>
       </div>
     </footer>
