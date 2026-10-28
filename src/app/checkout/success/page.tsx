@@ -210,7 +210,7 @@ const COPY: Record<PaymentStatusResult["status"], { title: string; description: 
   rejected: {
     title: "El pago no se completó",
     description:
-      "La pasarela no aprobó el pago y el pedido quedó sin efecto. Tu carrito sigue intacto para que lo intentes de nuevo.",
+      "La pasarela no aprobó el pago y el pedido quedó sin efecto. Tu bolsa sigue intacta para que lo intentes de nuevo.",
   },
   unknown: {
     title: "No pudimos verificar tu pago",

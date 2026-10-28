@@ -98,13 +98,13 @@ export default function AdminLoginPage() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full border border-[#E0E0E0] rounded-lg px-4 py-2.5 pr-11 font-montserrat text-sm text-[#1C1C1C] placeholder:text-[#ABABAB] focus:outline-none focus:border-[#E31C23] focus:ring-1 focus:ring-[#E31C23] transition-colors"
+                className="min-h-11 w-full rounded-lg border border-[#E0E0E0] px-4 pr-14 font-montserrat text-sm text-[#1C1C1C] transition-colors placeholder:text-[#ABABAB] focus:border-[#E31C23] focus:outline-none focus:ring-1 focus:ring-[#E31C23]"
                 placeholder="••••••••"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#ABABAB] hover:text-[#4A4A4A] transition-colors"
+                className="absolute right-1 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center text-[#ABABAB] transition-colors hover:text-[#4A4A4A]"
                 aria-label={
                   showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
                 }

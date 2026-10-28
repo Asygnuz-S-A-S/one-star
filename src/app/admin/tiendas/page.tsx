@@ -16,13 +16,11 @@ export default async function StoresAdminPage() {
     <div className="max-w-7xl mx-auto py-8 px-4">
       <div className="mb-8">
         <h1 className="text-3xl font-bold font-barlow text-[#1C1C1C]">
-          Gestor de Sucursales Físicas
+          Tiendas
         </h1>
         <p className="text-gray-500 mt-2 font-montserrat">
-          Añade o edita las tiendas de la marca. Esta información aparecerá automáticamente
-          en la página pública de <code>/tiendas</code> y en la disponibilidad por sede de cada
-          producto. Vincula cada sucursal con su sede del ERP para que el stock por tienda se
-          actualice solo con cada sincronización.
+          Dirección, horario y mapa de cada sede. Lo que guardas aquí es lo que ve el cliente
+          en la página de tiendas y en la disponibilidad del producto.
         </p>
       </div>
 

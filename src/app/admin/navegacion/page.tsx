@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation"
 
 export default function NavigationPage() {
-  redirect("/admin/landing-builder")
+  redirect("/admin/landing-builder#menu")
 }

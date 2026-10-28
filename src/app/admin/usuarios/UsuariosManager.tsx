@@ -48,7 +48,7 @@ function AccountForms({ admin }: { admin: AdminRow }) {
       <form action={activeAction} className="flex flex-wrap items-center gap-2">
         <input type="hidden" name="id" value={admin.id} />
         <input type="hidden" name="active" value={admin.isActive ? "false" : "true"} />
-        <button type="submit" disabled={activePending} className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold">
+        <button type="submit" disabled={activePending} className="min-h-11 rounded-lg border border-[#E31C23] px-3 text-xs font-semibold text-[#E31C23]">
           {admin.isActive ? "Desactivar" : "Activar"}
         </button>
         <span className={`text-xs ${admin.isActive ? "text-emerald-700" : "text-red-700"}`}>{admin.isActive ? "Activa" : "Desactivada"}</span>
@@ -88,7 +88,15 @@ export default function UsuariosManager({ admins }: { admins: AdminRow[] }) {
             {admins.map((admin) => (
               <tr key={admin.id} className="border-t border-gray-100">
                 <td className="px-4 py-3 font-medium text-[#1C1C1C]">{admin.name}</td>
-                <td className="px-4 py-3 text-[#4A4A4A]">{admin.email}</td>
+                <td className="px-4 py-3 text-[#4A4A4A]">
+                  {admin.email.includes("@") ? (
+                    <>
+                      {admin.email.slice(0, admin.email.indexOf("@"))}
+                      <wbr />
+                      {admin.email.slice(admin.email.indexOf("@"))}
+                    </>
+                  ) : admin.email}
+                </td>
                 <td className="px-4 py-3">
                   <RoleForm admin={admin} />
                 </td>

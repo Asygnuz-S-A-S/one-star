@@ -160,23 +160,23 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Breadcrumb */}
-        <nav className="mb-6 flex flex-wrap items-center gap-2 font-montserrat text-sm text-[#4A4A4A] dark:text-gray-400">
-          <Link href="/" className="hover:text-[#1C1C1C] dark:hover:text-white transition-colors">Inicio</Link>
+        <nav className="mb-6 flex flex-wrap items-center gap-x-2 gap-y-1 pr-16 font-montserrat text-sm text-[#4A4A4A] dark:text-gray-400 lg:pr-0">
+          <Link href="/" className="inline-flex min-h-11 min-w-11 items-center justify-center transition-colors hover:text-[#1C1C1C] dark:hover:text-white">Inicio</Link>
           <span>/</span>
-          <Link href="/productos" className="hover:text-[#1C1C1C] dark:hover:text-white transition-colors">Productos</Link>
+          <Link href="/productos" className="inline-flex min-h-11 min-w-11 items-center transition-colors hover:text-[#1C1C1C] dark:hover:text-white">Productos</Link>
           {product.category && (
             <>
               <span>/</span>
               <Link
                 href={`/productos?categoria=${product.category.slug}`}
-                className="hover:text-[#1C1C1C] dark:hover:text-white transition-colors"
+                className="inline-flex min-h-11 min-w-11 items-center transition-colors hover:text-[#1C1C1C] dark:hover:text-white"
               >
                 {product.category.name}
               </Link>
             </>
           )}
           <span>/</span>
-          <span className="text-[#1C1C1C] dark:text-white font-medium truncate max-w-[140px]">{product.name}</span>
+          <span className="inline-flex min-h-11 items-center font-medium text-[#1C1C1C] dark:text-white">{product.name}</span>
         </nav>
 
         {/* ── Main product grid ── */}

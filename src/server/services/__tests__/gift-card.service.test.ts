@@ -7,6 +7,7 @@ vi.mock("@/server/repositories/gift-card.repository", () => ({
   findPurchasableGiftCardVariants: vi.fn(),
   issueMissingGiftCardsForOrder: vi.fn(),
   findGiftCardByCode: vi.fn(),
+  findRecentGiftCards: vi.fn(),
   redeemGiftCardAmountRecord: vi.fn(),
 }))
 
@@ -20,11 +21,13 @@ import {
   issueAndSendGiftCardsForOrder,
   searchGiftCard,
   redeemGiftCard,
+  listRecentGiftCards,
 } from "@/server/services/gift-card.service"
 import {
   findPurchasableGiftCardVariants,
   issueMissingGiftCardsForOrder,
   findGiftCardByCode,
+  findRecentGiftCards,
   redeemGiftCardAmountRecord,
 } from "@/server/repositories/gift-card.repository"
 import { sendGiftCardEmail } from "../email.service"
@@ -221,5 +224,29 @@ describe("searchGiftCard / redeemGiftCard", () => {
   it("rechaza un código inexistente", async () => {
     vi.mocked(findGiftCardByCode).mockResolvedValue(null)
     await expect(redeemGiftCard("OS-NOPE-NOPE-NOPE", 1000)).rejects.toThrow(/no encontrado/i)
+  })
+})
+
+describe("listRecentGiftCards", () => {
+  it("convierte el saldo y la fecha para la lista del panel", async () => {
+    vi.mocked(findRecentGiftCards).mockResolvedValue([
+      {
+        code: "OS-AAAA-BBBB-CCCC",
+        balance: decimal(50000),
+        isActive: true,
+        createdAt: new Date("2026-10-01T12:00:00.000Z"),
+      },
+    ] as never)
+
+    const cards = await listRecentGiftCards()
+
+    expect(cards).toEqual([
+      {
+        code: "OS-AAAA-BBBB-CCCC",
+        balance: 50000,
+        isActive: true,
+        createdAt: "2026-10-01T12:00:00.000Z",
+      },
+    ])
   })
 })

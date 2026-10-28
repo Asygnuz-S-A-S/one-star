@@ -2769,20 +2769,20 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
             <span className="text-sm font-medium text-gray-800">Banners heredados (respaldo)</span>
             <span className="text-xs text-gray-500 font-bold">Ver ↗</span>
           </button>
-          <button onClick={() => setEditingGlobal("HOME_GRID")} disabled={isUnavailable("grid")} className="w-full flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded hover:border-[#1C1C1C] transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed">
+          <button id="grilla" onClick={() => setEditingGlobal("HOME_GRID")} disabled={isUnavailable("grid")} className="w-full flex min-h-11 items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded hover:border-[#1C1C1C] transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed">
             <span className="text-sm font-medium text-gray-800">Colecciones rápidas</span>
             <span className="text-xs text-blue-600 font-bold">Editar ↗</span>
           </button>
           <p className="pt-2 text-xs font-bold uppercase tracking-wider text-gray-500">Globales</p>
-          <button onClick={() => setEditingGlobal("TOP_BANNER")} disabled={isUnavailable("topBanner")} className="w-full flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded hover:border-[#1C1C1C] transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed">
+          <button id="banner" onClick={() => setEditingGlobal("TOP_BANNER")} disabled={isUnavailable("topBanner")} className="w-full flex min-h-11 items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded hover:border-[#1C1C1C] transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed">
             <span className="text-sm font-medium text-gray-800">Top Banner (Promocional)</span>
             <span className="text-xs text-blue-600 font-bold">Editar ↗</span>
           </button>
-          <button onClick={() => setEditingGlobal("LOGOS")} disabled={isUnavailable("logos")} className="w-full flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded hover:border-[#1C1C1C] transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed">
+          <button id="logos" onClick={() => setEditingGlobal("LOGOS")} disabled={isUnavailable("logos")} className="w-full flex min-h-11 items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded hover:border-[#1C1C1C] transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed">
             <span className="text-sm font-medium text-gray-800">Logos (Header/Footer)</span>
             <span className="text-xs text-blue-600 font-bold">Editar ↗</span>
           </button>
-          <button onClick={() => setEditingGlobal("NAVIGATION")} disabled={isUnavailable("navigation") || isUnavailable("header")} className="w-full flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded hover:border-[#1C1C1C] transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed">
+          <button id="menu" onClick={() => setEditingGlobal("NAVIGATION")} disabled={isUnavailable("navigation") || isUnavailable("header")} className="w-full flex min-h-11 items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded hover:border-[#1C1C1C] transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed">
             <span className="text-sm font-medium text-gray-800">Menú de Navegación</span>
             <span className="text-xs text-blue-600 font-bold">Editar ↗</span>
           </button>

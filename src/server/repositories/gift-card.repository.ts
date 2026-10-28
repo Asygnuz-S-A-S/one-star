@@ -61,6 +61,14 @@ export async function issueMissingGiftCardsForOrder(
   })
 }
 
+export async function findRecentGiftCards(take = 12) {
+  return prisma.giftCard.findMany({
+    orderBy: { createdAt: "desc" },
+    take,
+    select: { code: true, balance: true, isActive: true, createdAt: true },
+  })
+}
+
 export async function findGiftCardByCode(code: string) {
   return prisma.giftCard.findUnique({ where: { code } })
 }

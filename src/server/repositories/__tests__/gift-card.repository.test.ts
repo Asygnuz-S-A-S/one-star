@@ -6,7 +6,7 @@ const tx = vi.hoisted(() => ({
   $executeRaw: vi.fn(),
   giftCard: { count: vi.fn(), findUnique: vi.fn(), create: vi.fn() },
 }))
-const giftCard = vi.hoisted(() => ({ updateMany: vi.fn(), findUnique: vi.fn(), update: vi.fn() }))
+const giftCard = vi.hoisted(() => ({ updateMany: vi.fn(), findUnique: vi.fn(), update: vi.fn(), findMany: vi.fn() }))
 
 vi.mock("@/server/db/prisma", () => ({
   prisma: {
@@ -16,6 +16,7 @@ vi.mock("@/server/db/prisma", () => ({
 }))
 
 import {
+  findRecentGiftCards,
   issueMissingGiftCardsForOrder,
   redeemGiftCardAmountRecord,
 } from "../gift-card.repository"
@@ -85,5 +86,17 @@ describe("redeemGiftCardAmountRecord", () => {
       data: { balance: { decrement: 5000 } },
     })
     expect(result).toBeNull()
+  })
+})
+
+describe("findRecentGiftCards", () => {
+  it("pide las más recientes, con un tope", async () => {
+    giftCard.findMany.mockResolvedValue([])
+    await findRecentGiftCards()
+    expect(giftCard.findMany).toHaveBeenCalledWith({
+      orderBy: { createdAt: "desc" },
+      take: 12,
+      select: { code: true, balance: true, isActive: true, createdAt: true },
+    })
   })
 })

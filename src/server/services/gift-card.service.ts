@@ -19,6 +19,7 @@ import {
   findPurchasableGiftCardVariants,
   issueMissingGiftCardsForOrder,
   findGiftCardByCode,
+  findRecentGiftCards,
   redeemGiftCardAmountRecord,
 } from "../repositories/gift-card.repository"
 import { sendGiftCardEmail } from "./email.service"
@@ -167,6 +168,23 @@ function toLookupResult(card: {
     orderId: card.orderId,
     createdAt: card.createdAt.toISOString(),
   }
+}
+
+export interface RecentGiftCard {
+  code: string
+  balance: number
+  isActive: boolean
+  createdAt: string
+}
+
+export async function listRecentGiftCards(): Promise<RecentGiftCard[]> {
+  const rows = await findRecentGiftCards()
+  return rows.map((row) => ({
+    code: row.code,
+    balance: row.balance.toNumber(),
+    isActive: row.isActive,
+    createdAt: row.createdAt.toISOString(),
+  }))
 }
 
 export async function searchGiftCard(code: string): Promise<GiftCardLookupResult | null> {

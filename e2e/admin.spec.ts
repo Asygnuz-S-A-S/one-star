@@ -29,7 +29,7 @@ test.describe("Admin — Acceso", () => {
     await page.goto("/")
     await expect(page.getByRole("banner")).toHaveCount(1)
     await expect(page.getByRole("navigation", { name: "Menú principal", exact: true })).toHaveCount(1)
-    await expect(page.getByRole("button", { name: "Carrito de compras", exact: true })).toBeVisible()
+    await expect(page.getByRole("button", { name: "Bolsa", exact: true })).toBeVisible()
     await expect(page.getByTestId("public-site-spacer")).toBeVisible()
     await expect(page.getByRole("main")).toHaveCount(1)
   })

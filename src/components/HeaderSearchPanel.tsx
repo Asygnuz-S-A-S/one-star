@@ -52,11 +52,11 @@ export default function HeaderSearchPanel({ open, onClose }: HeaderSearchPanelPr
           name="q"
           placeholder="Busca por producto, marca o modelo"
           autoComplete="off"
-          className="flex-1 min-w-0 border border-[#E0E0E0] dark:border-white/15 bg-white dark:bg-[#151515] text-[#1C1C1C] dark:text-white placeholder:text-[#4A4A4A]/60 font-montserrat text-sm px-4 py-2.5 outline-none focus-visible:border-[#E31C23] focus-visible:ring-2 focus-visible:ring-[#E31C23]/30 transition-colors"
+          className="min-h-11 min-w-0 flex-1 border border-[#E0E0E0] bg-white px-4 font-montserrat text-sm text-[#1C1C1C] outline-none transition-colors placeholder:text-[#4A4A4A]/60 focus-visible:border-[#E31C23] focus-visible:ring-2 focus-visible:ring-[#E31C23]/30 dark:border-white/15 dark:bg-[#151515] dark:text-white"
         />
         <button
           type="submit"
-          className="shrink-0 bg-[#1C1C1C] text-white font-barlow font-bold uppercase text-xs tracking-widest px-5 md:px-8 py-2.5 hover:bg-[#E31C23] focus-visible:bg-[#E31C23] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E31C23]/40 transition-colors"
+          className="min-h-11 shrink-0 bg-[#1C1C1C] px-5 font-barlow text-xs font-bold uppercase tracking-widest text-white transition-colors hover:bg-[#E31C23] focus-visible:bg-[#E31C23] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E31C23]/40 md:px-8"
         >
           Buscar
         </button>
@@ -64,7 +64,7 @@ export default function HeaderSearchPanel({ open, onClose }: HeaderSearchPanelPr
           type="button"
           onClick={onClose}
           aria-label="Cerrar búsqueda"
-          className="shrink-0 p-2 text-[#4A4A4A] dark:text-white/60 hover:text-[#E31C23] rounded-sm focus-visible:outline-2 focus-visible:outline-[#E31C23] transition-colors"
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-sm text-[#4A4A4A] transition-colors hover:text-[#E31C23] focus-visible:outline-2 focus-visible:outline-[#E31C23] dark:text-white/60"
         >
           <svg
             width="18"

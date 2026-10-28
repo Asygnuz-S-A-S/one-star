@@ -34,7 +34,7 @@ test.describe("Tarjeta de regalo", () => {
       .getByRole("button", { name: /100\.000/ })
       .click()
 
-    await page.getByRole("button", { name: /añadir .* al carrito/i }).click()
+    await page.getByRole("button", { name: /añadir .* a la bolsa/i }).click()
 
     await expect(page.getByText("Tarjeta de Regalo $100.000").first()).toBeVisible()
 
@@ -49,7 +49,7 @@ test.describe("Tarjeta de regalo", () => {
 
   test("la tarjeta sobrevive a la página del carrito con su precio", async ({ page }) => {
     await page.goto("/tarjeta-regalo")
-    await page.getByRole("button", { name: /añadir .* al carrito/i }).click()
+    await page.getByRole("button", { name: /añadir .* a la bolsa/i }).click()
     await expect(page.getByText(/tarjeta de regalo \$/i).first()).toBeVisible()
 
     await page.goto("/carrito")

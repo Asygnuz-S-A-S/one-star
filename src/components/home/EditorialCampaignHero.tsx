@@ -52,9 +52,9 @@ const AUTOPLAY_MS = 6500
 const isStageSlide = (slide: CampaignHeroSlide) => Boolean(slide.foregroundMedia) && !slide.mobileMedia && !slide.tabletMedia && !slide.desktopMedia
 
 /** Fondo de un slide. Todos quedan apilados y solo cambia la opacidad: eso hace el crossfade. */
-function SlideBackdrop({ slide, active, priority }: { slide: CampaignHeroSlide; active: boolean; priority: boolean }) {
+function SlideBackdrop({ slide, active, priority, instant = false }: { slide: CampaignHeroSlide; active: boolean; priority: boolean; instant?: boolean }) {
   const stage = isStageSlide(slide)
-  return <div aria-hidden={!active} className={`absolute inset-0 isolate transition-opacity duration-700 ease-out ${active ? "opacity-100" : "opacity-0"} ${stage ? STAGE_BACKGROUNDS[slide.accent] : ""}`}>
+  return <div aria-hidden={!active} className={`absolute inset-0 isolate ${instant ? "" : "transition-opacity duration-700 ease-out"} ${active ? "opacity-100" : "opacity-0"} ${stage ? STAGE_BACKGROUNDS[slide.accent] : ""}`}>
     {!stage && <CampaignMedia slide={slide} priority={priority} />}
     {!stage && <div className={`absolute inset-0 -z-10 bg-gradient-to-t md:bg-gradient-to-r ${ACCENT_CLASSES[slide.accent]}`} />}
     {!stage && slide.foregroundMedia && <div className="pointer-events-none absolute inset-x-0 top-12 z-0 h-[42%] sm:top-auto sm:bottom-0 sm:left-[38%] sm:h-[72%]" data-testid="editorial-hero-foreground">
@@ -144,7 +144,9 @@ export default function EditorialCampaignHero({ campaign }: { campaign: Campaign
   const [changed, setChanged] = useState(false)
   const [paused, setPaused] = useState(false)
   const [reducedMotion, setReducedMotion] = useState(false)
-  const [touchStart, setTouchStart] = useState<number | null>(null)
+  const [shift, setShift] = useState(0)
+  const [live, setLive] = useState(false)
+  const gesture = useRef<{ id: number; x: number; lastX: number; lastT: number; width: number } | null>(null)
   const currentIndex = Math.min(current, slides.length - 1)
   const slide = slides[currentIndex]
   const multipleSlides = slides.length > 1
@@ -171,13 +173,65 @@ export default function EditorialCampaignHero({ campaign }: { campaign: Campaign
     aria-label={multipleSlides ? "Campañas destacadas" : "Campaña destacada"}
     onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}
     onFocus={() => setPaused(true)} onBlur={() => setPaused(false)}
-    onTouchStart={(event) => setTouchStart(event.changedTouches[0]?.clientX ?? null)}
-    onTouchEnd={(event) => { const end = event.changedTouches[0]?.clientX; if (touchStart !== null && end !== undefined && Math.abs(end - touchStart) > 48) goTo(end < touchStart ? currentIndex + 1 : currentIndex - 1); setTouchStart(null) }}
+    onPointerDown={(event) => {
+      if (!multipleSlides || (event.target as HTMLElement).closest("a,button")) return
+      gesture.current = { id: event.pointerId, x: event.clientX, lastX: event.clientX, lastT: event.timeStamp, width: event.currentTarget.clientWidth }
+    }}
+    onPointerMove={(event) => {
+      const drag = gesture.current
+      if (!drag || drag.id !== event.pointerId) return
+      const dx = event.clientX - drag.x
+      if (Math.abs(dx) > 8) event.currentTarget.setPointerCapture(event.pointerId)
+      drag.lastX = event.clientX
+      drag.lastT = event.timeStamp
+      setPaused(true)
+      if (reducedMotion) return
+      setLive(true)
+      setShift(dx)
+    }}
+    onPointerUp={(event) => {
+      const drag = gesture.current
+      if (!drag || drag.id !== event.pointerId) return
+      gesture.current = null
+      const dx = event.clientX - drag.x
+      const dt = Math.max(16, event.timeStamp - drag.lastT)
+      const velocity = ((event.clientX - drag.lastX) / dt) * 1000
+      const projected = dx + velocity * 0.22
+      const width = drag.width || 1
+      if (reducedMotion) {
+        if (Math.abs(dx) > 48) goTo(dx < 0 ? currentIndex + 1 : currentIndex - 1)
+        setLive(false)
+        setShift(0)
+        return
+      }
+      const dir = projected < -width * 0.18 ? 1 : projected > width * 0.18 ? -1 : 0
+      setLive(false)
+      setShift(dir === 0 ? 0 : dir * -width)
+      window.setTimeout(() => {
+        if (dir !== 0) goTo(currentIndex + dir)
+        setShift(0)
+      }, 260)
+    }}
+    onPointerCancel={() => { gesture.current = null; setLive(false); setShift(0) }}
   >
-    {slides.map((item, index) => <SlideBackdrop key={item.id} slide={item} active={index === currentIndex} priority={index === 0} />)}
+    <div className="absolute inset-0 overflow-hidden">
+      {slides.map((item, index) => {
+        const count = slides.length
+        let place = index - currentIndex
+        if (place > count / 2) place -= count
+        if (place < -count / 2) place += count
+        if (count === 2 && place !== 0) place = shift < -1 ? 1 : shift > 1 ? -1 : 1
+        if (Math.abs(place) > 1) return null
+        return (
+          <div key={item.id} className="absolute inset-0" style={{ transform: `translate3d(calc(${place * 100}% + ${shift}px), 0, 0)`, transition: live ? "none" : "transform 260ms cubic-bezier(.22,1,.36,1)" }}>
+            <SlideBackdrop slide={item} active priority={index === 0} instant />
+          </div>
+        )
+      })}
+    </div>
 
     {/* El contenido se re-monta por slide; solo anima opacidad tras el primer cambio para no retrasar el primer pintado. */}
-    <div key={slide.id} className={`hero-scroll-out relative z-10 mx-auto flex h-full max-w-7xl px-4 sm:px-8 md:px-12 lg:px-16 ${isStage ? "flex-col justify-end gap-4 pb-16 pt-4 lg:flex-row-reverse lg:items-center lg:gap-10 lg:pb-16" : "items-end pb-16 pt-20 md:items-center"}`}>
+    <div key={slide.id} style={{ transform: `translate3d(${shift}px, 0, 0)`, transition: live ? "none" : "transform 260ms cubic-bezier(.22,1,.36,1)" }} className={`hero-scroll-out relative z-10 mx-auto flex h-full max-w-7xl px-4 sm:px-8 md:px-12 lg:px-16 ${isStage ? "flex-col justify-end gap-4 pb-16 pt-4 lg:flex-row-reverse lg:items-center lg:gap-10 lg:pb-16" : "items-end pb-16 pt-20 md:items-center"}`}>
       {isStage && <div className="min-h-0 flex-1 lg:h-full"><ProductStage slide={slide} /></div>}
       <div className={`min-w-0 max-w-2xl ${isStage ? "shrink-0 lg:flex-1" : ""} ${ACCENT_TEXT[slide.accent]} ${changed ? "motion-safe:animate-[hero-copy-swap_650ms_cubic-bezier(.22,1,.36,1)_both]" : "motion-safe:animate-[editorial-copy-in_600ms_cubic-bezier(.22,1,.36,1)_both]"}`} aria-live="polite">
         {slide.eyebrow && <p className="mb-3 font-barlow text-xs font-bold uppercase tracking-[0.18em] text-[var(--store-action)] md:mb-4">{slide.eyebrow}</p>}
@@ -189,7 +243,7 @@ export default function EditorialCampaignHero({ campaign }: { campaign: Campaign
 
     {multipleSlides && <div className={`absolute inset-x-4 bottom-3 z-20 flex items-center justify-between sm:inset-x-8 md:inset-x-12 lg:inset-x-16 ${controlTone}`} aria-label="Controles del carrusel">
       <div className="flex items-center" role="tablist" aria-label="Seleccionar campaña">
-        {slides.map((item, index) => <button key={item.id} type="button" role="tab" aria-selected={index === currentIndex} onClick={() => goTo(index)} className="group grid h-11 place-items-center px-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current" aria-label={`Ir al slide ${index + 1}: ${item.headline}`}>
+        {slides.map((item, index) => <button key={item.id} type="button" role="tab" aria-selected={index === currentIndex} onClick={() => goTo(index)} className="group grid h-11 min-w-11 place-items-center px-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current" aria-label={`Ir al slide ${index + 1}: ${item.headline}`}>
           <span className={`relative block h-0.5 overflow-hidden rounded-full bg-current/25 transition-[width] duration-300 ${index === currentIndex ? "w-10" : "w-5 group-hover:bg-current/50"}`}>
             {index === currentIndex && <span key={`${item.id}-${currentIndex}`} className="absolute inset-y-0 left-0 w-full origin-left bg-current motion-safe:animate-[hero-progress_linear_both]" style={{ animationDuration: `${AUTOPLAY_MS}ms`, animationPlayState: paused ? "paused" : "running" }} />}
           </span>

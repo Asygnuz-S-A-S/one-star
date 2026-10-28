@@ -30,12 +30,13 @@ export default function StickyBuyBar({ targetId, name, price, originalPrice, nee
     if (!target || typeof IntersectionObserver === "undefined") return
     const observer = new IntersectionObserver(([entry]) => setTargetInView(entry.isIntersecting), { threshold: 0 })
     observer.observe(target)
-    const onScroll = () => setScrolled(window.scrollY > 240)
+    const scroller = document.getElementById("public-scroll")
+    const onScroll = () => setScrolled((scroller?.scrollTop ?? window.scrollY) > 240)
     onScroll()
-    window.addEventListener("scroll", onScroll, { passive: true })
+    scroller?.addEventListener("scroll", onScroll, { passive: true })
     return () => {
       observer.disconnect()
-      window.removeEventListener("scroll", onScroll)
+      scroller?.removeEventListener("scroll", onScroll)
     }
   }, [targetId])
 
@@ -66,7 +67,7 @@ export default function StickyBuyBar({ targetId, name, price, originalPrice, nee
           onClick={needsSize ? onNeedSize : onAdd}
           className="shrink-0 bg-[#E31C23] px-5 py-3 font-barlow text-sm font-bold uppercase tracking-widest text-white active:bg-[#C01920]"
         >
-          {needsSize ? "Elige tu talla" : "Agregar al carrito"}
+          {needsSize ? "Elige tu talla" : "Agregar a la bolsa"}
         </button>
       </div>
     </div>
