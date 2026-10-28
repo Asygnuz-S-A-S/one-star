@@ -16,6 +16,7 @@ export interface EpaycoCheckoutData {
   city: string
   department: string
   cedula?: string
+  guestToken?: string
 }
 
 /** Handler que devuelve `ePayco.checkout.configure`. */
@@ -46,6 +47,7 @@ export default function EpaycoButton({
   city,
   department,
   cedula,
+  guestToken,
 }: EpaycoCheckoutData) {
   const nonce = useCspNonce()
   const [isReady, setIsReady] = useState(false)
@@ -80,6 +82,10 @@ export default function EpaycoButton({
         test: isTest,
       })
 
+      const successUrl = guestToken
+        ? `${baseUrl}/checkout/success?token=${encodeURIComponent(guestToken)}`
+        : `${baseUrl}/checkout/success?orderId=${encodeURIComponent(orderId)}`
+
       handler.open({
         name: `Pedido One Star #${reference}`,
         description: `One Star · Pedido #${reference}`,
@@ -91,9 +97,9 @@ export default function EpaycoButton({
         country: "co",
         lang: "es",
         external: "false",
-        // ePayco redirige aquí con `ref_payco`; orderId va de respaldo por si
-        // la consulta por referencia no responde.
-        response: `${baseUrl}/checkout/success?orderId=${encodeURIComponent(orderId)}`,
+        // ePayco redirige aquí con `ref_payco`; el token firmado (invitados)
+        // o el orderId (usuarios con sesión) permite validar la confirmación.
+        response: successUrl,
         confirmation: `${baseUrl}/api/epayco/webhook`,
         email_billing: customerEmail,
         name_billing: `${customerName} ${customerLastName}`.trim(),
@@ -111,7 +117,7 @@ export default function EpaycoButton({
       setError("No se pudo abrir la pasarela de pagos. Inténtalo de nuevo.")
     }
   }, [
-    publicKey, isTest, reference, orderId, amount, baseUrl,
+    publicKey, isTest, reference, orderId, amount, baseUrl, guestToken,
     customerEmail, customerName, customerLastName, address, phone, city, department, cedula,
   ])
 

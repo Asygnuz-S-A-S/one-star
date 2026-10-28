@@ -36,6 +36,8 @@ export const DEFAULT_FOOTER_LINKS: FooterLink[] = [
   { label: "Tiendas", href: "/tiendas" },
   { label: "Términos", href: "/terminos" },
   { label: "Privacidad", href: "/privacidad" },
+  { label: "Cookies", href: "/cookies" },
+  { label: "PQRS (Habeas Data)", href: "/pqrs" },
   { label: "Cambios", href: "/cambios" },
   { label: "Envíos y devoluciones", href: "/envios-y-devoluciones" },
 ]

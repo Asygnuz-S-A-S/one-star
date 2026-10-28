@@ -204,6 +204,7 @@ export function clubWelcomeEmail(params: {
   name?: string
   newsletter: boolean
   clubUrl: string
+  unsubscribeUrl?: string
   subject?: string
   body?: string
 }): EmailContent {
@@ -216,9 +217,126 @@ export function clubWelcomeEmail(params: {
       ${escapeHtml(body)}
     </p>
     ${params.newsletter ? `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${COLOR.text};">También te enviaremos lanzamientos y novedades a este correo. Puedes dejar de recibirlos cuando quieras desde tu cuenta.</p>` : ""}
-    <p style="margin:24px 0 0;"><a href="${escapeHtml(params.clubUrl)}" style="display:inline-block;background:#E31C23;color:#FFFFFF;text-decoration:none;font-weight:700;font-size:14px;letter-spacing:1px;padding:14px 22px;border-radius:8px;">VER MIS BENEFICIOS</a></p>`
+    <p style="margin:24px 0 0;"><a href="${escapeHtml(params.clubUrl)}" style="display:inline-block;background:#E31C23;color:#FFFFFF;text-decoration:none;font-weight:700;font-size:14px;letter-spacing:1px;padding:14px 22px;border-radius:8px;">VER MIS BENEFICIOS</a></p>
+    ${params.unsubscribeUrl ? `
+    <p style="margin:32px 0 0;font-size:12px;line-height:1.5;color:${COLOR.muted};border-top:1px solid #ECECEA;padding-top:16px;">
+      Si no deseas recibir más comunicaciones comerciales o de mercadeo, puedes <a href="${escapeHtml(params.unsubscribeUrl)}" style="color:${COLOR.muted};text-decoration:underline;">darte de baja aquí</a>.
+    </p>` : ""}`
   return {
     subject,
     html: layout(inner, subject),
   }
 }
+
+/** Invitación para que un comprador invitado active su cuenta y consulte sus compras. */
+export function guestAccountInvitationEmail(params: {
+  name?: string
+  inviteUrl: string
+}): EmailContent {
+  const inner = `
+    <h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;">Activa tu cuenta en One Star</h1>
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${COLOR.text};">${greeting(params.name)}</p>
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${COLOR.text};">
+      ¡Tu pago ha sido aprobado exitosamente! Para consultar el estado de tu pedido en cualquier momento y acumular tu historial de compras, activa tu cuenta creando tu contraseña en el siguiente enlace de un solo uso:
+    </p>
+    <p style="margin:24px 0 24px;">
+      <a href="${escapeHtml(params.inviteUrl)}" style="display:inline-block;background:#E31C23;color:#FFFFFF;text-decoration:none;font-weight:700;font-size:14px;letter-spacing:1px;padding:14px 22px;border-radius:8px;">
+        CREAR MI CONTRASEÑA
+      </a>
+    </p>
+    <p style="margin:0 0 8px;font-size:13px;line-height:1.6;color:${COLOR.muted};">
+      Este enlace es válido por 7 días y solo puede usarse una vez. Si no realizaste esta compra, puedes ignorar este mensaje.
+    </p>`
+  return {
+    subject: "Activa tu cuenta One Star y consulta tus pedidos",
+    html: layout(inner, "Activa tu cuenta en One Star para consultar el estado de tus compras."),
+  }
+}
+
+/** Correo para confirmar la vinculación de pedidos realizados como invitado a una cuenta existente. */
+export function linkGuestOrdersEmail(params: {
+  name?: string
+  verifyUrl: string
+}): EmailContent {
+  const inner = `
+    <h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;">Vincula tus compras a tu cuenta One Star</h1>
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${COLOR.text};">${greeting(params.name)}</p>
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${COLOR.text};">
+      Recibimos una solicitud para vincular a tu cuenta de One Star los pedidos que hayas realizado como invitado con este correo electrónico.
+    </p>
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${COLOR.text};">
+      Para confirmar y ver tus compras anteriores en tu perfil, haz clic en el siguiente botón:
+    </p>
+    <p style="margin:24px 0 24px;">
+      <a href="${escapeHtml(params.verifyUrl)}" style="display:inline-block;background:#E31C23;color:#FFFFFF;text-decoration:none;font-weight:700;font-size:14px;letter-spacing:1px;padding:14px 22px;border-radius:8px;">
+        VINCULAR MIS PEDIDOS
+      </a>
+    </p>
+    <p style="margin:0 0 8px;font-size:13px;line-height:1.6;color:${COLOR.muted};">
+      Este enlace es válido por 24 horas y solo puede usarse una vez. Si no solicitaste vincular tus pedidos, puedes ignorar este correo de forma segura.
+    </p>`
+  return {
+    subject: "Confirma la vinculación de tus compras a tu cuenta One Star",
+    html: layout(inner, "Confirma la vinculación de tus compras anteriores a tu cuenta One Star."),
+  }
+}
+
+/** Confirmación de recepción de solicitud PQRS al titular. */
+export function pqrsConfirmationEmail(params: {
+  name: string
+  ticketNumber: string
+  type: string
+  maxDays: number
+  description: string
+}): EmailContent {
+  const inner = `
+    <h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;">Radicado de solicitud: ${escapeHtml(params.ticketNumber)}</h1>
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${COLOR.text};">${greeting(params.name)}</p>
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${COLOR.text};">
+      Hemos recibido tu solicitud ante nuestro canal de Habeas Data y Protección de Datos Personales.
+    </p>
+    <div style="background:#F9F9F9;border:1px solid #E0E0E0;border-radius:8px;padding:16px;margin:16px 0;">
+      <p style="margin:0 0 8px;font-size:14px;color:${COLOR.text};"><strong>Número de radicado:</strong> ${escapeHtml(params.ticketNumber)}</p>
+      <p style="margin:0 0 8px;font-size:14px;color:${COLOR.text};"><strong>Tipo de trámite:</strong> ${escapeHtml(params.type)}</p>
+      <p style="margin:0;font-size:14px;color:${COLOR.text};"><strong>Término legal de respuesta:</strong> Hasta ${params.maxDays} días hábiles (Ley 1581 de 2012)</p>
+    </div>
+    <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:${COLOR.muted};">
+      Tu solicitud se encuentra en trámite por el área de Administración. Te daremos respuesta formal a esta misma dirección de correo electrónico dentro del término legal aplicable.
+    </p>`
+  return {
+    subject: `Confirmación de radicado ${params.ticketNumber} — Tienda One Star`,
+    html: layout(inner, `Confirmación de radicado ${params.ticketNumber}`),
+  }
+}
+
+/** Notificación al correo de protección de datos del Responsable. */
+export function pqrsAdminNotificationEmail(params: {
+  name: string
+  document: string
+  email: string
+  ticketNumber: string
+  type: string
+  maxDays: number
+  description: string
+}): EmailContent {
+  const inner = `
+    <h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;">Nueva solicitud PQRS: ${escapeHtml(params.ticketNumber)}</h1>
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${COLOR.text};">
+      Se ha recibido una nueva solicitud a través del canal oficial de Habeas Data:
+    </p>
+    <div style="background:#F9F9F9;border:1px solid #E0E0E0;border-radius:8px;padding:16px;margin:16px 0;">
+      <p style="margin:0 0 8px;font-size:14px;"><strong>Radicado:</strong> ${escapeHtml(params.ticketNumber)}</p>
+      <p style="margin:0 0 8px;font-size:14px;"><strong>Titular:</strong> ${escapeHtml(params.name)} (Doc: ${escapeHtml(params.document)})</p>
+      <p style="margin:0 0 8px;font-size:14px;"><strong>Correo:</strong> ${escapeHtml(params.email)}</p>
+      <p style="margin:0 0 8px;font-size:14px;"><strong>Tipo:</strong> ${escapeHtml(params.type)}</p>
+      <p style="margin:0 0 8px;font-size:14px;"><strong>Plazo de respuesta:</strong> ${params.maxDays} días hábiles</p>
+      <p style="margin:8px 0 0;font-size:13px;color:#4A4A4A;"><strong>Descripción:</strong><br />${escapeHtml(params.description)}</p>
+    </div>`
+  return {
+    subject: `[PQRS] Nueva solicitud ${params.ticketNumber} (${params.type})`,
+    html: layout(inner, `Nueva solicitud PQRS ${params.ticketNumber}`),
+  }
+}
+
+
+

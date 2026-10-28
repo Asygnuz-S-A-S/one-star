@@ -121,8 +121,8 @@ export function saveCheckoutDraft(
 ): boolean {
   if (!storage || !isCheckoutDraft(draft)) return false
 
-  const ownerEmail = normalizeEmail(draft.form.email)
-  if (!ownerEmail) return false
+  const rawOwner = normalizeEmail(draft.form.email)
+  const ownerEmail = rawOwner || "guest"
 
   const envelope: CheckoutDraftEnvelope = {
     version: CHECKOUT_DRAFT_VERSION,
@@ -157,13 +157,20 @@ export function loadCheckoutDraft(
     }
 
     const parsed: unknown = JSON.parse(serialized)
+    if (!isCheckoutDraftEnvelope(parsed)) {
+      storage.removeItem(CHECKOUT_DRAFT_STORAGE_KEY)
+      return null
+    }
+
     const normalizedOwner = normalizeEmail(ownerEmail)
+    const matchesOwner =
+      parsed.ownerEmail === normalizedOwner ||
+      parsed.ownerEmail === "guest" ||
+      !parsed.ownerEmail
     const isCurrent =
-      isCheckoutDraftEnvelope(parsed) &&
       parsed.savedAt <= now &&
       now - parsed.savedAt <= CHECKOUT_DRAFT_TTL_MS &&
-      parsed.ownerEmail === normalizedOwner &&
-      normalizeEmail(parsed.data.form.email) === normalizedOwner
+      matchesOwner
 
     if (!isCurrent) {
       storage.removeItem(CHECKOUT_DRAFT_STORAGE_KEY)

@@ -163,7 +163,7 @@ export default async function PedidoDetailPage({ params }: Props) {
               <Row label="Email" value={order.customerEmail ?? order.userEmail} />
               <Row label="Cédula / NIT" value={shipping.cedula || "No registrada"} />
               <Row label="Teléfono" value={shipping.phone} />
-              <Row label="Cuenta" value={order.userEmail} />
+              <Row label="Cuenta" value={order.userEmail ?? "Invitado (sin cuenta)"} />
               <Row
                 label="Dirección"
                 value={[shipping.address, shipping.apartment].filter(Boolean).join(", ")}
