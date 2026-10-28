@@ -30,9 +30,11 @@ import {
   getActiveLandingSections,
   getAllLandingSections,
   getMaximumLandingSectionPosition,
+  publishLandingDrafts,
   updateLandingSection,
   updateLandingSectionPositions,
 } from "../landing-section.repository"
+import { Prisma } from "@prisma/client"
 
 const ordenEstable = [{ position: "asc" }, { createdAt: "asc" }]
 
@@ -104,5 +106,21 @@ describe("landing-section.repository", () => {
     expect(m.create).toHaveBeenCalledWith({ data: { type: "HERO" } })
     expect(m.update).toHaveBeenCalledWith({ where: { id: "sec_1" }, data: { isActive: false } })
     expect(m.del).toHaveBeenCalledWith({ where: { id: "sec_1" } })
+  })
+
+  it("publica solo las secciones que tienen borrador", async () => {
+    m.findMany.mockResolvedValue([
+      { id: "a", draftConfig: { title: "Nuevo" } },
+      { id: "b", draftConfig: null },
+    ])
+    m.update.mockResolvedValue({})
+
+    expect(await publishLandingDrafts("home")).toBe(1)
+
+    expect(m.update).toHaveBeenCalledTimes(1)
+    expect(m.update).toHaveBeenCalledWith({
+      where: { id: "a" },
+      data: { config: { title: "Nuevo" }, draftConfig: Prisma.DbNull },
+    })
   })
 })

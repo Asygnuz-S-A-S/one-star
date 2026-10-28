@@ -1,6 +1,7 @@
 import "server-only"
 
-import type { Prisma } from "@prisma/client"
+import type { LandingSection, Prisma } from "@prisma/client"
+import { getAdminSession } from "@/server/auth/require-admin"
 import * as repository from "@/server/repositories/landing-section.repository"
 import {
   LandingPageSchema,
@@ -18,6 +19,20 @@ export async function getActiveLandingSections(page: string = repository.HOME_LA
   return repository.getActiveLandingSections(LandingPageSchema.parse(page))
 }
 
+export function applyLandingDraft(section: LandingSection): LandingSection {
+  if (section.draftConfig == null) return section
+  return { ...section, config: section.draftConfig }
+}
+
+/** La vista previa del constructor muestra el borrador solo a un admin. El resto ve lo publicado. */
+export async function getLandingSectionsForRequest(page: string, preview: boolean) {
+  const sections = await getActiveLandingSections(page)
+  if (!preview) return sections
+  const session = await getAdminSession()
+  if (!session) return sections
+  return sections.map(applyLandingDraft)
+}
+
 export async function getLandingPages() {
   const pages = await repository.getLandingPages()
   return [repository.HOME_LANDING_PAGE, ...pages.filter((page) => page !== repository.HOME_LANDING_PAGE)]
@@ -33,7 +48,11 @@ export async function setLandingSectionActive(id: string, isActive: boolean) {
 
 export async function updateLandingSectionConfig(id: string, config: Prisma.InputJsonValue) {
   const validConfig = LandingSectionConfigSchema.parse(config) as Prisma.InputJsonObject
-  return repository.updateLandingSection(id, { config: validConfig })
+  return repository.updateLandingSection(id, { draftConfig: validConfig })
+}
+
+export async function publishLandingPage(page: string) {
+  return repository.publishLandingDrafts(LandingPageSchema.parse(page))
 }
 
 export async function createLandingSection(type: string, page: string = repository.HOME_LANDING_PAGE) {
