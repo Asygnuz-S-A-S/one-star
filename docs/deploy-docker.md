@@ -47,6 +47,21 @@ RESEND_API_KEY, EMAIL_FROM
 CRON_SECRET
 ```
 
+Opcionales (vacías = la función queda deshabilitada). Las claves van solo en el `.env`
+del servidor, nunca en el repositorio:
+
+```bash
+ANTHROPIC_API_KEY, ANTHROPIC_MODEL            # chat de ventas con IA
+ASSISTANT_API_KEY, ASSISTANT_RATE_LIMIT_PER_MIN  # API del asistente de WhatsApp (n8n)
+SENDGRID_API_KEY
+GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
+ADDI_ALLY_SLUG
+ENVIA_API_URL, ENVIA_API_TOKEN, ENVIA_TRACKING_URL_TEMPLATE
+LOGGRO_IVA_RATE
+```
+
+Tras cambiar el `.env`: `docker compose -f docker-compose.prod.yml up -d app` (no requiere reconstruir la imagen).
+
 Las variables `NEXT_PUBLIC_*` se incrustan en el bundle **durante el build**, así
 que cambiarlas exige reconstruir la imagen, no solo reiniciar el contenedor.
 
