@@ -37,3 +37,9 @@ export async function deleteExpiredAuthVerifications(now = new Date()) {
     where: { expiresAt: { lte: now } },
   })
 }
+
+export async function deleteAuthVerificationsByIdentifier(identifier: string) {
+  return prisma.authVerification.deleteMany({
+    where: { identifier },
+  })
+}

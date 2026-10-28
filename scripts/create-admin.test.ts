@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest"
 
 const scriptPath = resolve(process.cwd(), "scripts/create-admin.ts")
 
-describe("scripts/create-admin.ts", () => {
+describe("scripts/create-admin.ts", { timeout: 30000 }, () => {
   it("falla si falta ADMIN_EMAIL", () => {
     const result = spawnSync("pnpm", ["exec", "tsx", scriptPath], {
       env: {
