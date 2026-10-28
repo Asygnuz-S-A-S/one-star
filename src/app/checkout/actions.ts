@@ -21,6 +21,7 @@ interface CheckoutItem {
 
 export interface CheckoutData {
   email: string
+  documentType?: "CC" | "CE" | "NIT" | "PP"
   cedula: string
   name: string
   lastName: string
@@ -78,10 +79,14 @@ export async function createOrder(data: CheckoutData): Promise<CreateOrderResult
     const order = await placeOrder(session.user.id, {
       customerEmail: input.email,
       customerName: `${input.name} ${input.lastName}`,
+      customerDocumentType: input.documentType,
+      customerDocument: input.cedula,
+      customerPhone: input.phone,
       paymentMethod: input.paymentMethod,
       shippingMethod: input.shippingMethod,
       couponCode: input.couponCode,
       shippingAddress: {
+        documentType: input.documentType,
         cedula: input.cedula,
         phone: input.phone,
         address: input.address,

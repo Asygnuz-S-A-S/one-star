@@ -9,6 +9,7 @@ export const orderCustomerDataSchema = z.object({
     .string()
     .transform((v) => v.replace(/\s/g, ""))
     .pipe(z.string().regex(/^[0-9]{7,15}$/, "Ingresa un teléfono válido (solo números)")),
+  customerDocumentType: z.enum(["CC", "CE", "NIT", "PP"]).optional(),
   cedula: z
     .string()
     .transform((v) => v.replace(/\s/g, ""))
