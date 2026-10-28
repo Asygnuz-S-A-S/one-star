@@ -71,3 +71,27 @@ export async function setAdminUserActive(id: string, isActive: boolean) {
 export async function setAdminUserPassword(id: string, passwordHash: string) {
   return prisma.adminUser.update({ where: { id }, data: { passwordHash }, select: { id: true } })
 }
+
+export async function deleteAdminSessionsByEmail(
+  email: string,
+  exceptSessionId?: string
+): Promise<number> {
+  const where: { user: { email: string }; id?: { not: string } } = {
+    user: { email },
+  }
+  if (exceptSessionId) {
+    where.id = { not: exceptSessionId }
+  }
+  const result = await prisma.authSession.deleteMany({ where })
+  return result.count
+}
+
+export async function syncAuthAccountPassword(
+  email: string,
+  passwordHash: string
+): Promise<void> {
+  await prisma.authAccount.updateMany({
+    where: { user: { email }, providerId: "credential" },
+    data: { password: passwordHash, updatedAt: new Date() },
+  })
+}

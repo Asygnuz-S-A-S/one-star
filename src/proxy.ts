@@ -60,7 +60,9 @@ export async function proxy(request: NextRequest) {
 
   const isAdminRoute =
     nextUrl.pathname === "/admin" || nextUrl.pathname.startsWith("/admin/")
-  const isAdminLoginPage = nextUrl.pathname === "/admin/login"
+  const isAdminLoginPage =
+    nextUrl.pathname === "/admin/login" ||
+    nextUrl.pathname === "/admin/restablecer-contrasena"
   const isCuentaRoute =
     nextUrl.pathname === "/cuenta" || nextUrl.pathname.startsWith("/cuenta/")
 
@@ -68,7 +70,7 @@ export async function proxy(request: NextRequest) {
     return nextWithCsp(csp)
   }
 
-  // Skip session check on the login pages themselves to avoid redirect loops
+  // Skip session check on the login/recovery pages themselves to avoid redirect loops
   if (isAdminLoginPage || nextUrl.pathname === "/login") {
     return nextWithCsp(csp)
   }
