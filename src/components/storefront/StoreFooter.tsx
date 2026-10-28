@@ -40,6 +40,7 @@ export default function StoreFooter({
           <CookiePreferencesButton />
         </nav>
       </div>
+      <p className="store-gutter mx-auto max-w-6xl pb-4 text-right font-montserrat text-xs text-white/40">vs2</p>
     </footer>
   )
 }
