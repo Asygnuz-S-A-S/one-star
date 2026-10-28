@@ -8,6 +8,7 @@ import {
   createLandingSection,
   deleteLandingSection,
   setLandingSectionActive,
+  publishLandingPage,
   updateLandingSectionConfig,
   updateLandingSectionPositions,
 } from "@/server/services/landing-section.service"
@@ -46,10 +47,14 @@ function landingConfigError(error: unknown): string {
   return issue?.message || "Revisa los datos de la configuración"
 }
 
+function revalidateLandingEditor() {
+  revalidatePath("/admin/landing-builder")
+}
+
 function revalidateLanding() {
   revalidatePath("/")
   revalidatePath("/campanas/[slug]", "page")
-  revalidatePath("/admin/landing-builder")
+  revalidateLandingEditor()
 }
 
 export async function updateLandingSectionPositionsAction(updates: { id: string; position: number }[]) {
@@ -90,11 +95,24 @@ export async function updateLandingSectionConfigAction(id: string, config: Prism
     // Typed presets are strict; pre-existing free-form JSON remains untouched.
     if (isEditorialContentConfig(validConfig)) EditorialContentConfigSchema.parse(validConfig)
     await updateLandingSectionConfig(validId, validConfig)
-    revalidateLanding()
+    revalidateLandingEditor()
     return { success: true }
   } catch (error) {
     console.error("Error updating landing section config:", error)
     return { success: false, error: landingConfigError(error) }
+  }
+}
+
+export async function publishLandingPageAction(page: string) {
+  "use server"
+  try {
+    await requireSuperAdmin()
+    const count = await publishLandingPage(LandingPageSchema.parse(page))
+    revalidateLanding()
+    return { success: true as const, count }
+  } catch (error) {
+    console.error("Error publishing landing page:", error)
+    return { success: false, error: "No se pudo publicar" }
   }
 }
 

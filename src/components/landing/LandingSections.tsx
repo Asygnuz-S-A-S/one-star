@@ -91,13 +91,23 @@ export default async function LandingSections({ sections }: { sections: LandingS
       {sections.map((section, index) => {
         const config = sectionConfig(section)
         const editorial = parseEditorialConfig(config)
-        if (editorial.kind === "editorialBlock") return <div key={section.id} className="store-reveal"><EditorialBlock block={editorial} /></div>
+        if (editorial.kind === "editorialBlock") {
+          return (
+            <div id={`landing-section-${section.id}`} key={section.id} className="store-reveal">
+              <EditorialBlock block={editorial} />
+            </div>
+          )
+        }
 
         const render = SECTION_RENDERERS[section.type]
         if (!render) return null
         const node = render({ banners, brands, config, editorial, gridBlocks, id: section.id, isBannerActive, isFirst: index === 0 })
-        // La primera sección (hero) no se anima al entrar: ya está en pantalla y es el LCP.
-        return index === 0 || !node ? node : <div key={section.id} className="store-reveal">{node}</div>
+        if (!node) return null
+        return (
+          <div id={`landing-section-${section.id}`} key={section.id} className={index === 0 ? undefined : "store-reveal"}>
+            {node}
+          </div>
+        )
       })}
     </>
   )

@@ -702,6 +702,7 @@ Basado en `MANUAL_MARCA.md` (rojo 10 % solo para acentos y CTA, grises 60 %, neg
 ### Landings y secciones (landing builder)
 
 - `LandingSection.page` agrupa secciones por landing: `home` es `/`; cualquier otro slug (`^[a-z0-9-]+$`) se publica en `/campanas/<slug>` cuando tiene al menos una sección activa. Se crean desde `/admin/landing-builder?page=<slug>` (selector "Landing que editas").
+- Guardar una sección escribe `draftConfig`. La vista previa (`?preview=true`, solo con sesión de admin) muestra ese borrador. `publishLandingPage` lo copia a `config` y limpia el borrador. Sin sesión, `?preview=true` sigue mostrando lo publicado.
 - `src/components/landing/LandingSections.tsx` es el registro de secciones: agregar un tipo = valor en `LandingSectionType` + entrada en `SECTION_RENDERERS` + campos en el editor.
 - **Hero escenario de producto:** un `campaignHero` con `foregroundMedia` (PNG sin fondo) y sin imágenes de fondo se muestra con el producto flotando sobre la primera palabra del titular en gigante, sombra elíptica y flecha de rotación.
 - **Intro de marca:** `StoreIntro` cubre la home ~1 s solo en la primera visita de la sesión (`sessionStorage`), sin `?preview` y sin movimiento reducido. La página ya está renderizada debajo; la capa se activa con un script con nonce antes del primer pintado.
@@ -715,3 +716,14 @@ Basado en `MANUAL_MARCA.md` (rojo 10 % solo para acentos y CTA, grises 60 %, neg
 - **Bienvenida:** `sendClubWelcomeEmail` (Resend) se envía una sola vez, al unirse por primera vez.
 - **Admin:** `/admin/clientes` filtra por "Miembros de One Star Club" y "Suscritos al newsletter", y `/admin/clientes/exportar-newsletter` descarga en CSV solo a quienes dieron consentimiento, para cargarlos en la herramienta de envío de correos.
 - La sección "Newsletter" del constructor ahora invita al club (no hay formulario suelto de suscripción sin cuenta).
+
+## Integración con Addi (Widget Oficial)
+
+- **Componente Oficial (`AddiWidget`):** Carga el web component `<addi-widget>` oficial (`https://s3.amazonaws.com/widgets.addi.com/bundle.min.js`) mediante `next/script` con estrategia `afterInteractive` y nonce de la CSP.
+- **Configuración Dinámica:** Consulta server-side `https://channels-public-api.addi.com/allies/{ally_slug}/config?requestedamount={monto}` (`src/server/services/addi-config.service.ts`) con caché corto y tolerancia a fallos.
+- **Validación de Elegibilidad:**
+  - Si el aliado está inactivo (`isActiveAlly = false`) o la política no es visible (`policy.isVisible = false`), el widget se oculta.
+  - Si el monto se encuentra fuera del rango crediticio (`[minAmount, maxAmount]`), se despliega un aviso accesible ("Addi aplica para compras entre X y Y") sin inventar cuotas ni ocultar la información.
+  - El campo `policy.discount` es meramente visual y nunca altera el precio del producto o carrito.
+- **Variables de Entorno:**
+  - `ADDI_ALLY_SLUG`: Slug del aliado comercial asignado por Addi (por defecto `onestar-ecommerce`). En esta fase no se manejan llaves privadas ni client secrets.
