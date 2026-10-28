@@ -3,9 +3,11 @@ import "server-only"
 import { createHash, timingSafeEqual } from "node:crypto"
 import { isIP } from "node:net"
 import { NextResponse } from "next/server"
-import { prisma } from "../db/prisma"
 import { consumePublicRateLimit } from "./public-rate-limit.service"
-import { consumeRequestRateLimit } from "../repositories/request-rate-limit.repository"
+import {
+  consumeRequestRateLimit,
+  findActiveRateLimitExceeded,
+} from "../repositories/request-rate-limit.repository"
 import { normalizeDigits, normalizePhone10 } from "../validators/assistant.validator"
 
 export interface AuthSuccess {
@@ -126,14 +128,7 @@ export async function checkOrderRateLimits(
     normPhone ? rateLimitKey("assistant-order-fail-phone", normPhone) : null,
   ].filter(Boolean) as string[]
 
-  const now = new Date()
-  const records = await prisma.requestRateLimit.findMany({
-    where: {
-      key: { in: keys },
-      resetAt: { gt: now },
-      count: { gte: ORDER_FAILED_MAX },
-    },
-  })
+  const records = await findActiveRateLimitExceeded(keys, ORDER_FAILED_MAX)
 
   if (records.length > 0) {
     const maxReset = Math.max(...records.map((r) => r.resetAt.getTime()))

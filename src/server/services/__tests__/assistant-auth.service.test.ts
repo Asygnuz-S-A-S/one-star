@@ -9,6 +9,7 @@ import {
 } from "../assistant-auth.service"
 import { prisma } from "../../db/prisma"
 import * as publicRateLimitService from "../public-rate-limit.service"
+import * as requestRateLimitRepo from "../../repositories/request-rate-limit.repository"
 
 describe("assistant-auth.service", () => {
   const originalEnv = process.env
@@ -134,7 +135,7 @@ describe("assistant-auth.service", () => {
 
   describe("order rate limiting (5 intentos fallidos por hora)", () => {
     it("permite la consulta cuando no se ha superado el límite", async () => {
-      vi.spyOn(prisma.requestRateLimit, "findMany").mockResolvedValueOnce([])
+      vi.spyOn(requestRateLimitRepo, "findActiveRateLimitExceeded").mockResolvedValueOnce([])
 
       const headers = new Headers({ "x-real-ip": "190.25.1.1" })
       const status = await checkOrderRateLimits(headers, "12345678", "573001234567")
@@ -144,12 +145,10 @@ describe("assistant-auth.service", () => {
 
     it("bloquea con 429 si alguna clave (ip, cédula o waPhone) alcanzó 5 fallos", async () => {
       const resetTime = new Date(Date.now() + 1800 * 1000)
-      vi.spyOn(prisma.requestRateLimit, "findMany").mockResolvedValueOnce([
+      vi.spyOn(requestRateLimitRepo, "findActiveRateLimitExceeded").mockResolvedValueOnce([
         {
-          key: "some-key",
           count: 5,
           resetAt: resetTime,
-          updatedAt: new Date(),
         },
       ])
 

@@ -31,3 +31,22 @@ export async function consumeRequestRateLimit(
 export async function removeExpiredRequestRateLimits(now = new Date()): Promise<void> {
   await prisma.requestRateLimit.deleteMany({ where: { resetAt: { lte: now } } })
 }
+
+export async function findActiveRateLimitExceeded(
+  keys: string[],
+  minCount: number,
+  now = new Date()
+): Promise<RateLimitRecord[]> {
+  if (keys.length === 0) return []
+  return prisma.requestRateLimit.findMany({
+    where: {
+      key: { in: keys },
+      resetAt: { gt: now },
+      count: { gte: minCount },
+    },
+    select: {
+      count: true,
+      resetAt: true,
+    },
+  })
+}
