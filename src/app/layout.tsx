@@ -5,6 +5,7 @@ import PublicSiteFrame from "@/components/PublicSiteFrame";
 import StoreIntro, { STORE_INTRO_SCRIPT } from "@/components/StoreIntro";
 import Providers from "@/app/providers";
 import MetaPixel from "@/components/tracking/MetaPixel";
+import GoogleAnalytics from "@/components/tracking/GoogleAnalytics";
 
 export const metadata: Metadata = {
   title: "One Star | Urban Performance",
@@ -92,6 +93,9 @@ export default async function RootLayout({
             expressDeliveryMaxDays={storefront.expressDeliveryMaxDays}
           >
           {metaPixel && <MetaPixel pixelId={metaPixel.pixelId} />}
+          {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (
+            <GoogleAnalytics measurementId={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID} />
+          )}
           <PublicSiteFrame
             items={navigationItems}
             banner={topBanner}
