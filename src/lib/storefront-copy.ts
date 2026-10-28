@@ -1,5 +1,5 @@
 export const DEFAULT_CHAT_WELCOME =
-  "¡Hola! Soy el asistente de One Star. Pregúntame por cualquier producto — puedo revisar precio, tallas y stock, y agregarlo directo a tu carrito."
+  "¡Hola! Soy el asistente de One Star. Pregúntame por cualquier producto — puedo revisar precio, tallas y stock, y agregarlo directo a tu bolsa."
 
 export const DEFAULT_CLUB_HEADLINE = "One Star Club"
 

@@ -75,7 +75,7 @@ export default async function PedidosPage({ searchParams }: Props) {
       </div>
 
       {/* Status tabs */}
-      <div className="flex gap-1 overflow-x-auto pb-1 mb-4 border-b border-gray-200">
+      <div className="mb-4 flex flex-wrap gap-1 border-b border-gray-200 pb-1">
         {ADMIN_ORDER_FILTERS.map((tab, i) => (
           <Link
             key={tab}
@@ -83,9 +83,7 @@ export default async function PedidosPage({ searchParams }: Props) {
             className={`whitespace-nowrap px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
               filter === tab
                 ? "border-b-2 border-[#E31C23] text-[#E31C23]"
-                : tab === "UNPAID"
-                  ? "text-[#4A4A4A] hover:text-[#1C1C1C] ml-auto"
-                  : "text-[#4A4A4A] hover:text-[#1C1C1C]"
+                : "text-[#4A4A4A] hover:text-[#1C1C1C]"
             }`}
           >
             {TAB_LABELS[tab]}{" "}

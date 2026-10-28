@@ -60,7 +60,7 @@ export async function validateCouponAction(
     if (parsed.data.items.some((i) => !variantMap.has(i.variantId))) {
       return {
         valid: false,
-        error: "Algún producto de tu carrito ya no está disponible. Revisa tu carrito.",
+        error: "Algún producto de tu bolsa ya no está disponible. Revisa tu bolsa.",
       }
     }
 

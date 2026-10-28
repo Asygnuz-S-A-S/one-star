@@ -3,12 +3,14 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { AnimatePresence, motion } from "motion/react";
 import { useSession } from "@/lib/auth-client";
 import { useCart } from "@/store";
 import { usePathname } from "next/navigation";
 import HeaderSearchPanel from "@/components/HeaderSearchPanel";
 import CartDrawer from "@/components/cart/CartDrawer";
 import TopBannerTicker from "@/components/TopBannerTicker";
+import { shouldShowMobileBottomNav } from "@/components/MobileBottomNav";
 import { NavigationItem, TopBanner, StoreLogo } from "@prisma/client";
 import { safePublicUrl } from "@/lib/safe-url";
 
@@ -124,15 +126,26 @@ export default function Header({
   const { data: session } = useSession();
   const { totalItems, toggleCart } = useCart();
   const pathname = usePathname();
+  const compactMobileNav = shouldShowMobileBottomNav(pathname);
 
   useEffect(() => {
+    const scroller = document.getElementById("public-scroll")
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 10);
+      setIsScrolled((scroller?.scrollTop ?? window.scrollY) > 10);
     };
-    window.addEventListener('scroll', handleScroll, { passive: true });
+    scroller?.addEventListener("scroll", handleScroll, { passive: true });
     handleScroll();
-    return () => window.removeEventListener('scroll', handleScroll);
+    return () => scroller?.removeEventListener("scroll", handleScroll);
   }, []);
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuOpen(false)
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [menuOpen]);
 
   const isCustomer = !!session?.user && (session.user as { userType?: string }).userType === "customer";
   const userInitial =
@@ -160,7 +173,7 @@ export default function Header({
 
       {/* ── Barra de navegación ──────────────────────────────────────── */}
       <div 
-        className={`transition-all duration-300 backdrop-blur-xl ${isScrolled || menuOpen ? "bg-white/95 dark:bg-black/80 shadow-sm" : "bg-white/92 dark:bg-black/78"}`}
+        className={`relative z-10 transition-all duration-300 backdrop-blur-xl ${isScrolled || menuOpen ? "bg-white/95 dark:bg-black/80 shadow-sm" : "bg-white/92 dark:bg-black/78"}`}
         // Margen, relleno y radio de la configuración se ignoran a propósito (HU-11):
         // despegaban la barra del anuncio y la hacían más alta que el espacio que
         // reserva PublicSiteFrame, tapando el contenido. El encabezado es una sola
@@ -179,14 +192,14 @@ export default function Header({
             }}
             aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"}
             aria-expanded={menuOpen}
-            className="p-2 -ml-1 rounded-sm focus-visible:outline-2 focus-visible:outline-[#E31C23]"
+            className="grid h-11 w-11 place-items-center rounded-sm focus-visible:outline-2 focus-visible:outline-[#E31C23]"
             style={{ color: "inherit" }}
           >
             <IconHamburger open={menuOpen} />
           </button>
 
           {/* Logo centrado: 40px de alto deja 8px de aire arriba y abajo en la barra de 56px. */}
-          <Link href="/" aria-label="One Star — Inicio" className="flex items-center px-2">
+          <Link href="/" aria-label="One Star — Inicio" className="flex h-11 min-w-11 items-center justify-center px-2">
             {logos?.mobile?.url ? (
               <div className="relative h-10 w-14">
                 <Image
@@ -217,30 +230,34 @@ export default function Header({
                 aria-label="Buscar"
                 aria-expanded={searchOpen}
                 aria-controls="header-search"
-                className="p-2.5 rounded-sm hover:text-[#E31C23] transition-colors focus-visible:outline-2 focus-visible:outline-[#E31C23]"
+                className="grid h-11 w-11 place-items-center rounded-sm transition-colors hover:text-[#E31C23] focus-visible:outline-2 focus-visible:outline-[#E31C23]"
               >
                 <IconSearch />
               </Link>
             )}
-            <button
-              onClick={toggleCart}
-              aria-label="Carrito de compras"
-              className="relative p-2.5 rounded-sm focus-visible:outline-2 focus-visible:outline-[#E31C23]"
-            >
-              <IconCart />
-              {totalItems > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 flex items-center justify-center bg-[#E31C23] text-white text-[10px] font-montserrat font-medium rounded-full">
-                  {totalItems}
-                </span>
-              )}
-            </button>
-            <Link
-              href={isCustomer ? "/cuenta" : "/login"}
-              aria-label="Mi cuenta"
-              className="p-2.5 rounded-sm focus-visible:outline-2 focus-visible:outline-[#E31C23]"
-            >
-              {isCustomer ? <UserAvatar initial={userInitial} /> : <IconUser />}
-            </Link>
+            {!compactMobileNav && (
+              <>
+                <button
+                  onClick={toggleCart}
+                  aria-label="Bolsa"
+                  className="relative grid h-11 w-11 place-items-center rounded-sm focus-visible:outline-2 focus-visible:outline-[#E31C23]"
+                >
+                  <IconCart />
+                  {totalItems > 0 && (
+                    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#E31C23] font-montserrat text-[10px] font-medium text-white">
+                      {totalItems}
+                    </span>
+                  )}
+                </button>
+                <Link
+                  href={isCustomer ? "/cuenta" : "/login"}
+                  aria-label="Mi cuenta"
+                  className="grid h-11 w-11 place-items-center rounded-sm focus-visible:outline-2 focus-visible:outline-[#E31C23]"
+                >
+                  {isCustomer ? <UserAvatar initial={userInitial} /> : <IconUser />}
+                </Link>
+              </>
+            )}
           </div>
         </div>
 
@@ -277,7 +294,7 @@ export default function Header({
                       <Link
                         href={safePublicUrl(item.href, "/")}
                         className={[
-                          "inline-flex min-h-11 items-center font-barlow font-semibold text-sm tracking-wide uppercase transition-colors duration-150",
+                          "inline-flex min-h-11 min-w-11 items-center px-1 font-barlow text-sm font-semibold uppercase tracking-wide transition-colors duration-150",
                           isActive ? "text-[#E31C23]" : "hover:text-[#E31C23]",
                         ].join(" ")}
                         style={isActive ? { color: "#E31C23" } : { color: "inherit" }}
@@ -303,7 +320,7 @@ export default function Header({
                 aria-label="Buscar"
                 aria-expanded={searchOpen}
                 aria-controls="header-search"
-                className="p-2.5 rounded-sm hover:text-[#E31C23] transition-colors focus-visible:outline-2 focus-visible:outline-[#E31C23]"
+                className="grid h-11 w-11 place-items-center rounded-sm transition-colors hover:text-[#E31C23] focus-visible:outline-2 focus-visible:outline-[#E31C23]"
               >
                 <IconSearch />
               </Link>
@@ -311,8 +328,8 @@ export default function Header({
             {config?.showCart !== false && (
               <button
                 onClick={toggleCart}
-                aria-label="Carrito de compras"
-                className="relative p-2.5 rounded-sm hover:text-[#E31C23] transition-colors focus-visible:outline-2 focus-visible:outline-[#E31C23]"
+                aria-label="Bolsa"
+                className="relative grid h-11 w-11 place-items-center rounded-sm transition-colors hover:text-[#E31C23] focus-visible:outline-2 focus-visible:outline-[#E31C23]"
               >
                 <IconCart />
                 {totalItems > 0 && (
@@ -326,7 +343,7 @@ export default function Header({
               <Link
                 href={isCustomer ? "/cuenta" : "/login"}
                 aria-label="Mi cuenta"
-                className="p-2.5 rounded-sm hover:text-[#E31C23] transition-colors focus-visible:outline-2 focus-visible:outline-[#E31C23]"
+                className="grid h-11 w-11 place-items-center rounded-sm transition-colors hover:text-[#E31C23] focus-visible:outline-2 focus-visible:outline-[#E31C23]"
               >
                 {isCustomer ? <UserAvatar initial={userInitial} /> : <IconUser />}
               </Link>
@@ -337,55 +354,52 @@ export default function Header({
 
       <HeaderSearchPanel open={searchOpen} onClose={() => setSearchOpen(false)} />
 
-      {/* ── Menú desplegable móvil ───────────────────────────────────── */}
-      {menuOpen && (
-        <div className="lg:hidden bg-white border-b border-[#E0E0E0] shadow-lg">
-          <nav aria-label="Menú móvil">
-            <ul>
-              {items.map((item) => (
-                <li key={item.id} className="border-b border-[#E0E0E0] last:border-b-0">
-                  {(() => {
-                    const isActive = pathname === item.href;
+      <AnimatePresence>
+        {menuOpen && (
+          <>
+            <motion.button
+              type="button"
+              aria-label="Cerrar menú"
+              className={`fixed inset-x-0 top-0 z-0 bg-black/40 lg:hidden ${compactMobileNav ? "bottom-[calc(6.75rem+env(safe-area-inset-bottom))]" : "inset-y-0"}`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={() => setMenuOpen(false)}
+            />
+            <motion.div
+              className="relative z-10 origin-top overflow-hidden border-b border-[#E0E0E0] bg-white lg:hidden"
+              initial={{ y: -16, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: -16, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 380, damping: 39 }}
+            >
+              <nav aria-label="Menú móvil">
+                <ul>
+                  {items.map((item) => {
+                    const isActive = pathname === item.href
                     return (
-                      <Link
-                        href={safePublicUrl(item.href, "/")}
-                        onClick={() => setMenuOpen(false)}
-                        className={[
-                          "block px-6 py-4 font-barlow font-semibold text-sm tracking-wide uppercase transition-colors duration-150",
-                          isActive ? "text-[#E31C23]" : "text-[#1C1C1C] hover:text-[#E31C23]",
-                        ].join(" ")}
-                        style={isActive ? { color: "#E31C23" } : undefined}
-                      >
-                        {item.label}
-                      </Link>
-                    );
-                  })()}
-                </li>
-              ))}
-            </ul>
-
-            {/* Acciones secundarias en el menú móvil */}
-            <div className="flex items-center gap-4 px-6 py-4 border-t border-[#E0E0E0] text-[#4A4A4A]">
-              <Link
-                href={isCustomer ? "/cuenta" : "/login"}
-                onClick={() => setMenuOpen(false)}
-                className="flex items-center gap-2 font-montserrat text-sm"
-              >
-                {isCustomer ? <UserAvatar initial={userInitial} /> : <IconUser />}
-                <span>Mi cuenta</span>
-              </Link>
-              <Link
-                href="/buscar"
-                onClick={() => setMenuOpen(false)}
-                className="flex items-center gap-2 font-montserrat text-sm"
-              >
-                <IconSearch />
-                <span>Buscar</span>
-              </Link>
-            </div>
-          </nav>
-        </div>
-      )}
+                      <li key={item.id} className="border-b border-[#E0E0E0] last:border-b-0">
+                        <Link
+                          href={safePublicUrl(item.href, "/")}
+                          onClick={() => setMenuOpen(false)}
+                          className={[
+                            "block px-6 py-4 font-barlow text-sm font-semibold uppercase tracking-wide transition-colors duration-150",
+                            isActive ? "text-[#E31C23]" : "text-[#1C1C1C] hover:text-[#E31C23]",
+                          ].join(" ")}
+                          style={isActive ? { color: "#E31C23" } : undefined}
+                        >
+                          {item.label}
+                        </Link>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </nav>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </header>
     <CartDrawer />
     </>

@@ -44,7 +44,7 @@ export default async function ClientesPage({ searchParams }: Props) {
 
   return (
     <div className="p-6 md:p-8">
-      <div className="flex items-center justify-between mb-6">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="font-['Barlow',sans-serif] text-2xl font-bold text-[#1C1C1C]">
           Clientes
           <span className="ml-2 text-sm font-normal text-[#4A4A4A]">({total})</span>

@@ -90,9 +90,9 @@ export default function SiteContentManager({
 
       {/* 1. Beneficios Globales */}
       <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-        <h2 className="text-lg font-bold text-[#1C1C1C] mb-1">1. Beneficios Globales (Highlights)</h2>
+        <h2 className="text-lg font-bold text-[#1C1C1C] mb-1">1. Beneficios de la tienda</h2>
         <p className="text-xs text-[#4A4A4A] mb-4">
-          Se muestran en productos que no tengan beneficios propios ni de su marca. Formato: una línea por beneficio (opcional &ldquo;Título: Detalle&rdquo;).
+          Aparecen en los productos que no tienen beneficios propios ni de su marca. Una línea por beneficio. Si quieres un título, escríbelo antes de dos puntos: «Título: detalle».
         </p>
         <textarea
           rows={5}
@@ -105,9 +105,9 @@ export default function SiteContentManager({
 
       {/* 2. Preguntas Frecuentes Globales */}
       <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-        <h2 className="text-lg font-bold text-[#1C1C1C] mb-1">2. Preguntas Frecuentes Globales (FAQs)</h2>
+        <h2 className="text-lg font-bold text-[#1C1C1C] mb-1">2. Preguntas frecuentes</h2>
         <p className="text-xs text-[#4A4A4A] mb-4">
-          Se muestran como fallback en la ficha de producto y alimentan el schema FAQPage en Google. Una pregunta por línea separada con &ldquo;|&rdquo;.
+          Se muestran en la ficha cuando el producto no trae las suyas. Una pregunta por línea, y la respuesta después de una barra: «¿Son originales? | Sí, con garantía de marca».
         </p>
         <textarea
           rows={6}
@@ -122,11 +122,11 @@ export default function SiteContentManager({
       <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
         <h2 className="text-lg font-bold text-[#1C1C1C] mb-1">3. Política y Plazo de Devoluciones</h2>
         <p className="text-xs text-[#4A4A4A] mb-4">
-          Plazo en días para cambios y devoluciones. Se sincroniza con el schema MerchantReturnPolicy de Google.
+          Días que el cliente tiene para cambios y devoluciones.
         </p>
 
         <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900 leading-relaxed">
-          <strong>⚠️ Aviso Legal Importante:</strong> El plazo aquí configurado debe coincidir exactamente con la{" "}
+          <strong>Aviso legal:</strong> El plazo aquí configurado debe coincidir exactamente con la{" "}
           <strong>Sección 9 de /terminos</strong> (Términos y Condiciones de Cambios y Devoluciones). Si se modifica este valor, asegúrate de actualizar la política legal para evitar discrepancias ante Google y el consumidor.
         </div>
 
@@ -147,7 +147,7 @@ export default function SiteContentManager({
       {/* 4. Promesas de la Tienda */}
       <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-6">
         <div>
-          <h2 className="text-lg font-bold text-[#1C1C1C] mb-1">4. Promesas de la Tienda (Conversión)</h2>
+          <h2 className="text-lg font-bold text-[#1C1C1C] mb-1">4. Promesas junto al botón de compra</h2>
           <p className="text-xs text-[#4A4A4A]">
             Aparecen junto al botón de compra y en la sección &ldquo;Por qué comprarlo&rdquo;.
           </p>

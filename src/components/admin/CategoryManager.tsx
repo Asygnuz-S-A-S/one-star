@@ -150,7 +150,7 @@ export default function CategoryManager({ initialCategories }: { initialCategori
             <thead>
               <tr className="bg-gray-50 border-b border-[#E0E0E0]">
                 <th className="p-4 font-barlow font-bold text-[#1C1C1C]">Nombre</th>
-                <th className="p-4 font-barlow font-bold text-[#1C1C1C]">URL (Slug)</th>
+                <th className="p-4 font-barlow font-bold text-[#1C1C1C]">Dirección en la tienda</th>
                 <th className="p-4 font-barlow font-bold text-[#1C1C1C] text-right">Acciones</th>
               </tr>
             </thead>
@@ -169,13 +169,13 @@ export default function CategoryManager({ initialCategories }: { initialCategori
                   <td className="p-4 text-right space-x-2">
                     <button
                       onClick={() => startEdit(cat)}
-                      className="text-blue-600 hover:underline text-sm"
+                      className="inline-flex min-h-11 items-center text-sm text-blue-600 hover:underline"
                     >
                       Editar
                     </button>
                     <button
                       onClick={() => handleDelete(cat.id)}
-                      className="text-red-600 hover:underline text-sm"
+                      className="inline-flex min-h-11 items-center text-sm text-red-600 hover:underline"
                     >
                       Eliminar
                     </button>

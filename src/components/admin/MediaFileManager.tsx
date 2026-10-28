@@ -124,8 +124,8 @@ export default function MediaFileManager({ initialAssets }: { initialAssets: Med
       {/* Header & Stats */}
       <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
         <div>
-          <h1 className="text-2xl font-black text-[#1C1C1C] uppercase tracking-tight font-barlow">
-            Gestión de Archivos y Medios
+          <h1 className="font-barlow text-2xl font-black text-[#1C1C1C]">
+            Archivos y medios
           </h1>
           <p className="text-xs text-gray-500 mt-1">
             Administra, sube, explora y elimina imágenes o videos para marcas, banners y catálogo.
@@ -339,35 +339,6 @@ export default function MediaFileManager({ initialAssets }: { initialAssets: Med
                   <span className="absolute top-2 left-2 px-2 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider bg-black/60 text-white backdrop-blur-sm">
                     {asset.fileType}
                   </span>
-
-                  {/* Acciones flotantes */}
-                  <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={() => copyToClipboard(asset.url, asset.id)}
-                      title="Copiar URL"
-                      className="p-1.5 rounded-lg bg-white text-gray-700 hover:text-black shadow-sm transition-colors"
-                    >
-                      {isCopied ? (
-                        <svg className="w-3.5 h-3.5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                      ) : (
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                        </svg>
-                      )}
-                    </button>
-
-                    <button
-                      onClick={() => handleDelete(asset.id)}
-                      title="Eliminar archivo"
-                      className="p-1.5 rounded-lg bg-red-600 text-white hover:bg-red-700 shadow-sm transition-colors"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  </div>
                 </div>
 
                 {/* Info & Footer */}
@@ -382,20 +353,28 @@ export default function MediaFileManager({ initialAssets }: { initialAssets: Med
                     </div>
                   </div>
 
-                  <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between">
+                  <div className="mt-2.5 flex flex-col gap-2 border-t border-gray-100 pt-2">
                     <a
                       href={asset.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-[10px] font-bold text-blue-600 hover:underline truncate max-w-[110px]"
+                      className="inline-flex min-h-11 items-center text-sm font-semibold text-blue-600"
                     >
-                      Ver original ↗
+                      Ver original
                     </a>
                     <button
+                      type="button"
                       onClick={() => copyToClipboard(asset.url, asset.id)}
-                      className="text-[10px] font-bold text-gray-600 hover:text-black uppercase tracking-wider"
+                      className="inline-flex min-h-11 items-center text-sm font-semibold text-[#1C1C1C]"
                     >
-                      {isCopied ? "¡Copiado!" : "Copiar"}
+                      {isCopied ? "Copiado" : "Copiar URL"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(asset.id)}
+                      className="inline-flex min-h-11 items-center text-sm font-semibold text-[#E31C23]"
+                    >
+                      Eliminar
                     </button>
                   </div>
                 </div>

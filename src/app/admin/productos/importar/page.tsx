@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import Link from "next/link"
 import {
   previewProductImportAction,
@@ -21,6 +21,7 @@ const ACTION_LABELS: Record<string, { label: string; className: string }> = {
 }
 
 export default function ImportarProductosPage() {
+  const fileInput = useRef<HTMLInputElement>(null)
   const [file, setFile] = useState<File | null>(null)
   const [onlyReadyRows, setOnlyReadyRows] = useState(true)
   const [textUpdateMode, setTextUpdateMode] = useState<TextUpdateMode>("fill_empty")
@@ -103,17 +104,25 @@ export default function ImportarProductosPage() {
             <a
               href="/plantillas/plantilla_carga_productos_onestar.xlsx"
               download
-              className="text-xs font-medium text-blue-600 hover:underline"
+              className="inline-flex min-h-11 items-center text-xs font-medium text-blue-600 hover:underline"
             >
               Descargar plantilla de ejemplo (.xlsx)
             </a>
           </div>
           <input
+            ref={fileInput}
             type="file"
             accept=".xlsx"
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            className="block w-full text-sm text-gray-700"
+            className="hidden"
           />
+          <button
+            type="button"
+            onClick={() => fileInput.current?.click()}
+            className="inline-flex min-h-11 items-center rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold text-[#1C1C1C]"
+          >
+            {file ? file.name : "Elegir archivo Excel"}
+          </button>
           <label className="mt-3 flex items-center gap-2 text-sm text-gray-700">
             <input
               type="checkbox"

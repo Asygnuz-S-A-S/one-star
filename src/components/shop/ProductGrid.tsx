@@ -147,7 +147,7 @@ export default async function ProductGrid({
             <Link
               key={f.key}
               href={removeParamUrl(currentSearch, f.key)}
-              className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-[#1C1C1C] px-3.5 font-montserrat text-xs text-white transition-colors hover:bg-[#4A4A4A]"
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-[#1C1C1C] px-3.5 font-montserrat text-xs text-white transition-colors hover:bg-[#4A4A4A]"
             >
               {f.label}
               <span className="text-sm leading-none">×</span>
@@ -155,7 +155,7 @@ export default async function ProductGrid({
           ))}
           <Link
             href="?"
-            className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-[#E0E0E0] px-3.5 font-montserrat text-xs text-[#4A4A4A] dark:border-white/15 dark:text-white/50 hover:border-[#1C1C1C] dark:hover:border-white/40 hover:text-[#1C1C1C] dark:hover:text-white/80 transition-colors"
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-[#E0E0E0] px-3.5 font-montserrat text-xs text-[#4A4A4A] transition-colors hover:border-[#1C1C1C] hover:text-[#1C1C1C] dark:border-white/15 dark:text-white/50 dark:hover:border-white/40 dark:hover:text-white/80"
           >
             Limpiar todo
           </Link>
@@ -173,7 +173,7 @@ export default async function ProductGrid({
           </p>
           <Link
             href="/productos"
-            className="bg-[#1C1C1C] text-white font-barlow font-bold uppercase text-xs tracking-widest px-6 py-3 hover:bg-[#4A4A4A] transition-colors"
+            className="inline-flex min-h-11 items-center bg-[#1C1C1C] px-6 font-barlow text-xs font-bold uppercase tracking-widest text-white transition-colors hover:bg-[#4A4A4A]"
           >
             Ver todos los productos
           </Link>
@@ -192,7 +192,7 @@ export default async function ProductGrid({
           {page > 1 ? (
             <Link
               href={`?${buildPaginationParams(currentSearch, page - 1)}`}
-              className="font-barlow font-bold uppercase text-xs tracking-widest border border-[#1C1C1C] dark:border-white/30 dark:text-white/70 px-6 py-3 hover:bg-[#1C1C1C] hover:text-white dark:hover:bg-white dark:hover:text-black transition-colors"
+              className="inline-flex min-h-11 items-center border border-[#1C1C1C] px-6 font-barlow text-xs font-bold uppercase tracking-widest transition-colors hover:bg-[#1C1C1C] hover:text-white dark:border-white/30 dark:text-white/70 dark:hover:bg-white dark:hover:text-black"
             >
               ← Anterior
             </Link>
@@ -209,7 +209,7 @@ export default async function ProductGrid({
           {page < totalPages ? (
             <Link
               href={`?${buildPaginationParams(currentSearch, page + 1)}`}
-              className="font-barlow font-bold uppercase text-xs tracking-widest border border-[#1C1C1C] dark:border-white/30 dark:text-white/70 px-6 py-3 hover:bg-[#1C1C1C] hover:text-white dark:hover:bg-white dark:hover:text-black transition-colors"
+              className="inline-flex min-h-11 items-center border border-[#1C1C1C] px-6 font-barlow text-xs font-bold uppercase tracking-widest transition-colors hover:bg-[#1C1C1C] hover:text-white dark:border-white/30 dark:text-white/70 dark:hover:bg-white dark:hover:text-black"
             >
               Siguiente →
             </Link>

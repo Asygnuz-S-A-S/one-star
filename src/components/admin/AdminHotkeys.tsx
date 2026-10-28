@@ -20,7 +20,7 @@ export default function AdminHotkeys() {
         onClick={handleShowHelp}
         title="Atajos de teclado (?)"
         aria-label="Mostrar atajos de teclado"
-        className="fixed bottom-5 right-5 z-40 w-8 h-8 flex items-center justify-center rounded-full bg-[#1C1C1C]/80 border border-white/10 text-white/50 hover:text-white hover:bg-[#1C1C1C] text-sm font-mono transition-all backdrop-blur-sm shadow-lg"
+        className="fixed bottom-5 right-5 z-40 flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-[#1C1C1C]/80 text-sm font-mono text-white/50 backdrop-blur-sm hover:bg-[#1C1C1C] hover:text-white"
       >
         ?
       </button>

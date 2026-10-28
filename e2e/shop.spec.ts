@@ -393,7 +393,7 @@ test.describe("Regresiones de base editorial", () => {
 
     await expect(page.locator("header")).toBeVisible()
     await expect(page.getByTestId("public-site-spacer")).toBeVisible()
-    await expect(page.getByRole("button", { name: /carrito de compras/i })).toBeVisible()
+    await expect(page.getByRole("button", { name: /^bolsa$/i })).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   })
 })

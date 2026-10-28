@@ -117,10 +117,10 @@ export default async function BrandPage({ params, searchParams }: BrandPageProps
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Breadcrumb */}
-          <nav className="font-montserrat text-xs text-[#4A4A4A] dark:text-gray-400 mb-6 flex gap-2 items-center">
-            <Link href="/" className="hover:text-[#1C1C1C] dark:hover:text-white transition-colors">Inicio</Link>
+          <nav className="mb-6 flex items-center gap-2 font-montserrat text-xs text-[#4A4A4A] dark:text-gray-400">
+            <Link href="/" className="inline-flex min-h-11 min-w-11 items-center justify-center transition-colors hover:text-[#1C1C1C] dark:hover:text-white">Inicio</Link>
             <span>/</span>
-            <Link href="/marcas" className="hover:text-[#1C1C1C] dark:hover:text-white transition-colors">Marcas</Link>
+            <Link href="/marcas" className="inline-flex min-h-11 min-w-11 items-center transition-colors hover:text-[#1C1C1C] dark:hover:text-white">Marcas</Link>
             <span>/</span>
             <span className="text-[#1C1C1C] dark:text-white font-medium">{brand.name}</span>
           </nav>

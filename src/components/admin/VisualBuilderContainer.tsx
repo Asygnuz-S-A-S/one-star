@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, type FormEvent } from "react"
+import { useEffect, useState, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
 import { LandingSection, HomeGridBlock } from "@prisma/client"
 import type { BannerDTO } from "@/server/services/banner.service"
@@ -50,9 +50,15 @@ export default function VisualBuilderContainer({ actions, initialSections, initi
 
   const handleRefresh = () => setRefreshKey(current => current + 1)
 
+  useEffect(() => {
+    const id = window.location.hash.replace("#", "")
+    if (!id) return
+    document.getElementById(id)?.scrollIntoView({ block: "nearest" })
+  }, [])
+
   return (
     <main className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-[#eef0f2]" aria-label="Constructor visual de landings">
-      <header className="flex min-h-16 shrink-0 items-center justify-between gap-3 border-b border-gray-200 bg-white px-4 py-2 md:px-6">
+      <header className="flex min-h-16 shrink-0 flex-col gap-3 border-b border-gray-200 bg-white py-3 pr-4 pl-16 sm:flex-row sm:items-center sm:justify-between md:px-6">
         <div className="min-w-0">
           <nav aria-label="Ruta del constructor" className="mb-0.5 flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.12em] text-gray-500">
             <span>Administración</span><span aria-hidden="true">/</span><span className="text-[#1C1C1C]">Constructor visual</span>
@@ -61,8 +67,8 @@ export default function VisualBuilderContainer({ actions, initialSections, initi
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <Link href={previewPath} target="_blank" rel="noreferrer" className="hidden min-h-11 items-center rounded-md border border-gray-300 px-3 text-xs font-bold text-[#1C1C1C] hover:bg-gray-50 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[#E31C23] sm:inline-flex">Abrir tienda</Link>
-          <button type="button" onClick={handleRefresh} className="min-h-11 rounded-md bg-[#1C1C1C] px-3 text-xs font-bold text-white hover:bg-[#343434] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[#E31C23]">Actualizar vista previa</button>
-          <Link href="/admin" className="min-h-11 items-center rounded-md px-2 text-xs font-bold text-gray-600 hover:bg-gray-100 hover:text-[#1C1C1C] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[#E31C23] sm:inline-flex">Salir al panel</Link>
+          <button type="button" onClick={handleRefresh} className="min-h-11 rounded-md bg-[#E31C23] px-3 text-xs font-bold text-white hover:bg-[#c01018] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[#E31C23]">Actualizar vista previa</button>
+          <Link href="/admin" className="inline-flex min-h-11 items-center rounded-md px-2 text-xs font-bold text-gray-600 hover:bg-gray-100 hover:text-[#1C1C1C] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[#E31C23]">Salir al panel</Link>
         </div>
       </header>
 
