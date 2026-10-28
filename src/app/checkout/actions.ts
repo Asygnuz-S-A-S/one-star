@@ -39,6 +39,9 @@ export interface CheckoutData {
   /** Código de cupón aplicado; el servidor lo revalida y recalcula el descuento */
   couponCode?: string
   termsAccepted?: boolean
+  /** Consentimiento opcional de novedades y promociones (política §8.2) */
+  marketingConsent?: boolean
+  marketingConsentVersion?: string
   items: CheckoutItem[]
   /** Solo informativos — el servidor los ignora y recalcula (ver order.service) */
   subtotal: number
@@ -103,6 +106,8 @@ export async function createOrder(data: CheckoutData): Promise<CreateOrderResult
       }
     }
     const input = parsed.data
+    const marketingConsentAt = input.marketingConsent ? new Date() : null
+    const marketingConsentVersion = input.marketingConsent ? (input.marketingConsentVersion ?? "v2.0") : null
 
     // SEGURIDAD: no se envían precios — placeOrder los resuelve desde la BD
     // y calcula subtotal, envío y total en el servidor.
@@ -115,6 +120,8 @@ export async function createOrder(data: CheckoutData): Promise<CreateOrderResult
       paymentMethod: input.paymentMethod,
       shippingMethod: input.shippingMethod,
       couponCode: input.couponCode,
+      marketingConsentAt,
+      marketingConsentVersion,
       shippingAddress: {
         documentType: input.documentType,
         cedula: input.cedula,
@@ -134,16 +141,26 @@ export async function createOrder(data: CheckoutData): Promise<CreateOrderResult
       })),
     })
 
-    // Actualiza cédula en el perfil del usuario si no la tenía registrada
-    if (userId && input.cedula) {
-      prisma.user
-        .updateMany({
-          where: { id: userId, cedula: null },
-          data: { cedula: input.cedula },
-        })
-        .catch((error: unknown) => {
-          console.error("[createOrder] No se pudo guardar la cédula en el perfil:", error)
-        })
+    // Actualiza cédula y consentimiento de marketing en el perfil del usuario autenticado
+    if (userId) {
+      const userUpdates: { cedula?: string; marketingConsentAt?: Date; marketingConsentVersion?: string } = {}
+      if (input.cedula) {
+        userUpdates.cedula = input.cedula
+      }
+      if (input.marketingConsent) {
+        userUpdates.marketingConsentAt = marketingConsentAt!
+        userUpdates.marketingConsentVersion = marketingConsentVersion!
+      }
+      if (Object.keys(userUpdates).length > 0) {
+        prisma.user
+          .update({
+            where: { id: userId },
+            data: userUpdates,
+          })
+          .catch((error: unknown) => {
+            console.error("[createOrder] No se pudo actualizar el perfil del usuario:", error)
+          })
+      }
     }
 
     // El pedido se creó: los carritos abandonados de este email quedan cerrados.

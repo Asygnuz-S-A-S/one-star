@@ -7,6 +7,7 @@ import StoreIntro, { STORE_INTRO_SCRIPT } from "@/components/StoreIntro";
 import Providers from "@/app/providers";
 import MetaPixel from "@/components/tracking/MetaPixel";
 import GoogleAnalytics from "@/components/tracking/GoogleAnalytics";
+import CookieBanner from "@/components/legal/CookieBanner";
 
 export const metadata: Metadata = {
   title: "One Star | Urban Performance",
@@ -99,6 +100,7 @@ export default async function RootLayout({
           {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (
             <GoogleAnalytics measurementId={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID} />
           )}
+          <CookieBanner />
           <PublicSiteFrame
             items={navigationItems}
             banner={topBanner}

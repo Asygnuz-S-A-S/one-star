@@ -8,9 +8,12 @@ import {
   clubWelcomeEmail,
   guestAccountInvitationEmail,
   linkGuestOrdersEmail,
+  pqrsConfirmationEmail,
+  pqrsAdminNotificationEmail,
   type OrderEmailItem,
   type GiftCardEmailCard,
 } from "@/server/email/templates"
+import { createUnsubscribeToken } from "@/server/services/unsubscribe.service"
 
 export type { OrderEmailItem, GiftCardEmailCard }
 
@@ -71,10 +74,13 @@ export async function sendClubWelcomeEmail(params: {
 }): Promise<SendEmailResult> {
   const baseUrl = (process.env.BETTER_AUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "")
   const copy = await getClubCopy().catch(() => null)
+  const unsubscribeToken = createUnsubscribeToken(params.email)
+  const unsubscribeUrl = `${baseUrl}/baja-publicidad?token=${unsubscribeToken}`
   const { subject, html } = clubWelcomeEmail({
     name: params.name,
     newsletter: params.newsletter,
     clubUrl: `${baseUrl}/club`,
+    unsubscribeUrl,
     subject: copy?.welcomeSubject,
     body: copy?.welcomeBody,
   })
@@ -106,4 +112,33 @@ export async function sendLinkGuestOrdersEmail(params: {
   })
   return sendEmail({ to: params.email, subject, html })
 }
+
+/** Envía la confirmación del radicado PQRS al titular. */
+export async function sendPqrsConfirmationEmail(params: {
+  email: string
+  name: string
+  ticketNumber: string
+  type: string
+  maxDays: number
+  description: string
+}): Promise<SendEmailResult> {
+  const { subject, html } = pqrsConfirmationEmail(params)
+  return sendEmail({ to: params.email, subject, html })
+}
+
+/** Envía el aviso de radicado PQRS al correo del responsable de datos. */
+export async function sendPqrsAdminNotificationEmail(params: {
+  toEmail: string
+  name: string
+  document: string
+  email: string
+  ticketNumber: string
+  type: string
+  maxDays: number
+  description: string
+}): Promise<SendEmailResult> {
+  const { subject, html } = pqrsAdminNotificationEmail(params)
+  return sendEmail({ to: params.toEmail, subject, html })
+}
+
 

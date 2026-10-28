@@ -43,7 +43,7 @@ export const LEGAL_COMPANY: LegalCompanyInfo = {
 }
 
 /** Fecha de última actualización de los documentos legales (ISO 8601). */
-export const LEGAL_LAST_UPDATED = "2026-09-03"
+export const LEGAL_LAST_UPDATED = "2026-10-20"
 
 export function formatLegalDate(isoDate: string): string {
   return new Intl.DateTimeFormat("es-CO", {

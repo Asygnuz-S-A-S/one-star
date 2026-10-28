@@ -9,6 +9,7 @@ vi.mock("@/server/db/prisma", () => ({
   prisma: {
     user: {
       updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      update: vi.fn().mockResolvedValue({ id: "customer-1" }),
     },
   },
 }))
@@ -175,5 +176,41 @@ describe("createOrder", () => {
 
     expect(result).toMatchObject({ success: false, code: "VALIDATION_ERROR" })
     expect(placeOrder).not.toHaveBeenCalled()
+  })
+
+  it("permite la compra sin consentimiento de marketing (casilla separada y opcional)", async () => {
+    vi.mocked(auth.api.getSession).mockResolvedValue(null)
+    vi.mocked(placeOrder).mockResolvedValue({ id: "order-no-mkt", total: 200_000 } as never)
+
+    const result = await createOrder({ ...validCheckoutData, marketingConsent: false })
+
+    expect(result.success).toBe(true)
+    expect(placeOrder).toHaveBeenCalledWith(
+      null,
+      expect.objectContaining({
+        marketingConsentAt: null,
+        marketingConsentVersion: null,
+      })
+    )
+  })
+
+  it("registra marketingConsentAt y versión cuando el usuario lo autoriza", async () => {
+    vi.mocked(auth.api.getSession).mockResolvedValue(null)
+    vi.mocked(placeOrder).mockResolvedValue({ id: "order-with-mkt", total: 200_000 } as never)
+
+    const result = await createOrder({
+      ...validCheckoutData,
+      marketingConsent: true,
+      marketingConsentVersion: "v2.0",
+    })
+
+    expect(result.success).toBe(true)
+    expect(placeOrder).toHaveBeenCalledWith(
+      null,
+      expect.objectContaining({
+        marketingConsentAt: expect.any(Date),
+        marketingConsentVersion: "v2.0",
+      })
+    )
   })
 })
