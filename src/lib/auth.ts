@@ -7,15 +7,17 @@ import { compareSync, hashSync } from "bcryptjs"
 const baseURL =
   process.env.BETTER_AUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? undefined
 
+const googleClientId = process.env.GOOGLE_CLIENT_ID
+const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET
+const socialProviders =
+  googleClientId && googleClientSecret
+    ? { google: { clientId: googleClientId, clientSecret: googleClientSecret } }
+    : undefined
+
 export const auth = betterAuth({
   secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
   baseURL,
-  socialProviders: {
-    google: {
-      clientId: process.env.GOOGLE_CLIENT_ID as string,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
-    },
-  },
+  socialProviders,
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
@@ -53,6 +55,15 @@ export const auth = betterAuth({
   },
   verification: {
     modelName: "AuthVerification",
+  },
+  rateLimit: {
+    enabled: true,
+    storage: "database",
+    customRules: {
+      // Customer sign-in keeps a practical allowance; administrator accounts
+      // receive the stricter per-email rule in the route handler.
+      "/sign-in/email": { window: 15 * 60, max: 10 },
+    },
   },
   emailAndPassword: {
     enabled: true,

@@ -17,6 +17,7 @@ export default function CouponForm({ categories, onClose }: Props) {
   const formRef = useRef<HTMLFormElement>(null)
   const [discountType, setDiscountType] = useState<"PERCENTAGE" | "FIXED_AMOUNT">("PERCENTAGE")
   const [isActive, setIsActive] = useState(true)
+  const [clubOnly, setClubOnly] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
 
@@ -27,6 +28,7 @@ export default function CouponForm({ categories, onClose }: Props) {
     const formData = new FormData(form)
     formData.set("discountType", discountType)
     formData.set("isActive", String(isActive))
+    formData.set("clubOnly", String(clubOnly))
 
     startTransition(async () => {
       const result = await createCoupon(formData)
@@ -175,6 +177,15 @@ export default function CouponForm({ categories, onClose }: Props) {
           />
         </div>
       </div>
+
+      {/* One Star Club */}
+      <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
+        <input type="checkbox" checked={clubOnly} onChange={(e) => setClubOnly(e.target.checked)} className="mt-0.5 h-4 w-4 accent-[#E31C23]" />
+        <span className="text-sm text-[#1C1C1C]">
+          <span className="font-semibold">Solo para One Star Club</span>
+          <span className="block text-xs text-[#4A4A4A]">Se publica en /club y solo lo pueden usar clientes miembros del club.</span>
+        </span>
+      </label>
 
       {/* Activo */}
       <div className="flex items-center gap-3">

@@ -3,6 +3,7 @@ import ProductGrid from "@/components/shop/ProductGrid"
 import FilterSidebar from "@/components/shop/FilterSidebar"
 import ShopLayout from "@/components/shop/ShopLayout"
 import {
+  getCatalogPriceBounds,
   getCategorySectionProductFilter,
   getUniqueBrands,
 } from "@/server/services/product.service"
@@ -55,11 +56,12 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
 
   const sectionFilter = getCategorySectionProductFilter(category.slug)
 
-  const [brands, sizes, colors, colorPalette] = await Promise.all([
+  const [brands, sizes, colors, colorPalette, priceBounds] = await Promise.all([
     getUniqueBrands(),
     getUniqueSizes(),
     getUniqueColors(),
     getColorPalette(),
+    getCatalogPriceBounds(),
   ])
 
   const currentParams = new URLSearchParams(
@@ -70,10 +72,12 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
     <ShopLayout
       sidebar={
         <FilterSidebar
+          key={currentParams.toString()}
           brands={brands}
           sizes={sizes}
           colors={colors}
           colorPalette={colorPalette}
+          priceBounds={priceBounds}
           currentParams={currentParams.toString()}
         />
       }

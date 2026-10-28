@@ -8,6 +8,8 @@ export type CheckoutShippingMethod = "standard" | "express"
 
 export interface CheckoutFormDraft {
   email: string
+  documentType?: "CC" | "CE" | "NIT" | "PP"
+  cedula: string
   newsletter: boolean
   name: string
   lastName: string
@@ -28,6 +30,8 @@ export interface CheckoutDraft {
 
 export interface CheckoutRegistrationPrefill {
   email: string
+  documentType?: "CC" | "CE" | "NIT" | "PP"
+  cedula: string
   newsletter: boolean
   name: string
   lastName: string
@@ -43,6 +47,8 @@ interface CheckoutDraftEnvelope {
 
 const STRING_LIMITS = {
   email: 254,
+  documentType: 10,
+  cedula: 30,
   name: 100,
   lastName: 100,
   phone: 30,
@@ -62,8 +68,11 @@ function isCheckoutFormDraft(value: unknown): value is CheckoutFormDraft {
 
   const form = value as Record<string, unknown>
   const hasValidStrings = Object.entries(STRING_LIMITS).every(
-    ([field, maxLength]) =>
-      typeof form[field] === "string" && (form[field] as string).length <= maxLength,
+    ([field, maxLength]) => {
+      const val = form[field]
+      if (val === undefined && (field === "cedula" || field === "documentType")) return true
+      return typeof val === "string" && val.length <= maxLength
+    },
   )
   const hasValidBooleans =
     typeof form.newsletter === "boolean" && typeof form.saveAddress === "boolean"
@@ -196,8 +205,10 @@ export function peekCheckoutRegistrationPrefill(
     if (!isCurrent) return null
 
     const phone = parsed.data.form.phone.replace(/\D/g, "")
+    const cedula = typeof parsed.data.form.cedula === "string" ? parsed.data.form.cedula.replace(/\D/g, "") : ""
     return {
       email: formEmail,
+      cedula: /^\d{6,12}$/.test(cedula) ? cedula : "",
       newsletter: parsed.data.form.newsletter,
       name: parsed.data.form.name,
       lastName: parsed.data.form.lastName,

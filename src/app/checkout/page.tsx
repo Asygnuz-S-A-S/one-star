@@ -7,12 +7,8 @@ import { useCart, useCartStore } from "@/store"
 import { formatCOP } from "@/lib/shop-utils"
 import { buildMetaCommerceParams, trackMetaEvent } from "@/lib/tracking/meta-pixel"
 import { COLOMBIA_DEPARTMENTS } from "@/lib/colombia-departments"
-import {
-  EXPRESS_SHIPPING_COST,
-  STANDARD_SHIPPING_COST,
-  STANDARD_SHIPPING_THRESHOLD,
-  getShippingCost,
-} from "@/lib/shipping"
+import { getShippingCost } from "@/lib/shipping"
+import { useDeliveryDays, useShippingRates } from "@/components/storefront/ShippingRatesProvider"
 import {
   clearCheckoutDraft,
   getCheckoutSessionStorage,
@@ -48,6 +44,8 @@ type FormErrors = Partial<Record<keyof FormValues, string>>
 
 const INITIAL_FORM_VALUES: FormValues = {
   email: "",
+  documentType: "CC",
+  cedula: "",
   newsletter: false,
   name: "",
   lastName: "",
@@ -71,12 +69,18 @@ function validatePhone(phone: string): boolean {
   return /^[0-9]{7,15}$/.test(phone.replace(/\s/g, ""))
 }
 
+function validateCedula(cedula: string): boolean {
+  return /^[0-9]{6,12}$/.test(cedula.replace(/\s/g, ""))
+}
+
 function validateForm(values: FormValues): FormErrors {
   const errors: FormErrors = {}
   if (!values.email.trim()) errors.email = "El email es requerido"
   else if (!validateEmail(values.email)) errors.email = "Ingresa un email válido"
   if (!values.name.trim()) errors.name = "El nombre es requerido"
   if (!values.lastName.trim()) errors.lastName = "El apellido es requerido"
+  if (!values.cedula.trim()) errors.cedula = "La cédula o NIT es requerida para facturación"
+  else if (!validateCedula(values.cedula)) errors.cedula = "Ingresa un documento válido (6 a 12 dígitos)"
   if (!values.phone.trim()) errors.phone = "El teléfono es requerido"
   else if (!validatePhone(values.phone)) errors.phone = "Ingresa un teléfono válido (solo números)"
   if (!values.address.trim()) errors.address = "La dirección es requerida"
@@ -125,10 +129,25 @@ function Field({ label, error, required, children }: FieldProps) {
   )
 }
 
+// 16 px de texto: con menos, iOS hace zoom al enfocar el campo y desacomoda el formulario.
 const inputClass =
-  "w-full border border-[#E0E0E0] rounded px-3 py-2.5 text-sm font-montserrat text-[#1C1C1C] placeholder-[#9E9E9E] bg-white focus:outline-none focus:border-[#1C1C1C] transition-colors"
+  "w-full min-h-12 border border-[#E0E0E0] rounded-[var(--store-radius-md)] px-3.5 py-3 text-base font-montserrat text-[#1C1C1C] placeholder-[#9E9E9E] bg-white focus:outline-none focus:border-[#1C1C1C] focus:ring-2 focus:ring-[#1C1C1C]/10 transition-colors"
 const inputErrorClass =
-  "w-full border border-[#E31C23] rounded px-3 py-2.5 text-sm font-montserrat text-[#1C1C1C] placeholder-[#9E9E9E] bg-white focus:outline-none focus:border-[#E31C23] transition-colors"
+  "w-full min-h-12 border border-[#E31C23] rounded-[var(--store-radius-md)] px-3.5 py-3 text-base font-montserrat text-[#1C1C1C] placeholder-[#9E9E9E] bg-white focus:outline-none focus:border-[#E31C23] focus:ring-2 focus:ring-[#E31C23]/15 transition-colors"
+
+const sectionClass = "rounded-[var(--store-radius-lg)] border border-[#ECECEA] bg-white p-5 sm:p-6"
+
+function SectionTitle({ step, children, aside }: { step: number; children: React.ReactNode; aside?: React.ReactNode }) {
+  return (
+    <div className="mb-5 flex items-center justify-between gap-3">
+      <h2 className="flex items-center gap-3 font-barlow text-base font-bold uppercase tracking-[0.08em] text-[#1C1C1C]">
+        <span aria-hidden="true" className="grid h-7 w-7 place-items-center rounded-full bg-[#1C1C1C] font-barlow text-xs text-white">{step}</span>
+        {children}
+      </h2>
+      {aside}
+    </div>
+  )
+}
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
@@ -169,6 +188,8 @@ function CheckoutForm({
   onAuthRequired,
 }: CheckoutFormProps) {
   const { items, subtotal } = useCart()
+  const shippingRates = useShippingRates()
+  const deliveryDays = useDeliveryDays()
   const hasEditedForm = useRef(false)
 
   // InitiateCheckout una sola vez por visita al checkout, con el carrito inicial.
@@ -231,7 +252,7 @@ function CheckoutForm({
 
   // Un carrito solo de tarjetas de regalo se entrega por correo: sin envío.
   const digitalOnly = items.length > 0 && items.every((item) => item.kind === "gift_card")
-  const shippingCost = getShippingCost(values.shippingMethod, subtotal, { digitalOnly })
+  const shippingCost = getShippingCost(values.shippingMethod, subtotal, { digitalOnly, rates: shippingRates })
   const discount = appliedCoupon?.discountAmount ?? 0
   const total = subtotal - discount + shippingCost
 
@@ -304,6 +325,8 @@ function CheckoutForm({
 
     const result = await createOrder({
       email: values.email,
+      documentType: values.documentType ?? "CC",
+      cedula: values.cedula,
       name: values.name,
       lastName: values.lastName,
       phone: values.phone,
@@ -355,7 +378,7 @@ function CheckoutForm({
           <Link href="/" className="font-barlow font-bold text-2xl text-[#1C1C1C] tracking-tight">
             ONE STAR
           </Link>
-          <CheckoutStepper currentStep={3} />
+          <div className="mb-8"><CheckoutStepper currentStep={3} /></div>
 
           <div className="bg-white rounded-xl p-8 mt-6 shadow-sm">
             <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
@@ -397,26 +420,25 @@ function CheckoutForm({
 
   // ── Paso 1: formulario ───────────────────────────────────────────────────
   return (
-    <div className="bg-[#F5F5F5] min-h-screen">
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        <div className="text-center mb-6">
-          <Link href="/" className="font-barlow font-bold text-2xl text-[#1C1C1C] tracking-tight">
-            ONE STAR
-          </Link>
+    <div className="min-h-screen bg-[var(--store-canvas)]">
+      <div className="mx-auto max-w-6xl px-4 pb-8 pt-6 sm:px-6 lg:pt-10">
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 className="font-barlow text-3xl font-extrabold uppercase tracking-[-0.02em] text-[#1C1C1C] sm:text-4xl">Finalizar compra</h1>
+            <p className="mt-1 font-montserrat text-sm text-[#4A4A4A]">Revisa tus datos; el pago se hace en el portal seguro de ePayco.</p>
+          </div>
+          <CheckoutStepper currentStep={2} />
         </div>
 
-        <CheckoutStepper currentStep={2} />
-
         <form onSubmit={handleSubmit} noValidate>
-          <div className="flex flex-col-reverse md:flex-row gap-8 items-start">
+          {/* minmax(0, …) evita que las columnas desborden; en móvil el resumen va primero y plegable. */}
+          <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:gap-10">
             {/* ── LEFT: Form ── */}
-            <div className="w-full md:w-[55%] space-y-6">
+            <div className="order-2 w-full space-y-4 lg:order-1">
 
               {/* Section 1: Contacto */}
-              <motion.section className="bg-white rounded-lg p-6" variants={sectionVariants} initial="hidden" animate="visible" custom={0}>
-                <h2 className="font-barlow font-bold text-sm uppercase tracking-widest text-[#1C1C1C] mb-4">
-                  Información de contacto
-                </h2>
+              <motion.section className={sectionClass} variants={sectionVariants} initial="hidden" animate="visible" custom={0}>
+                <SectionTitle step={1}>Contacto</SectionTitle>
                 <div className="space-y-4">
                   <div data-field="email">
                     <Field label="Email" required error={errors.email}>
@@ -433,10 +455,8 @@ function CheckoutForm({
               </motion.section>
 
               {/* Section 2: Dirección de envío */}
-              <motion.section className="bg-white rounded-lg p-6" variants={sectionVariants} initial="hidden" animate="visible" custom={1}>
-                <h2 className="font-barlow font-bold text-sm uppercase tracking-widest text-[#1C1C1C] mb-4">
-                  Dirección de envío
-                </h2>
+              <motion.section className={sectionClass} variants={sectionVariants} initial="hidden" animate="visible" custom={1}>
+                <SectionTitle step={2}>Dirección de envío</SectionTitle>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div data-field="name">
                     <Field label="Nombre" required error={errors.name}>
@@ -450,7 +470,33 @@ function CheckoutForm({
                         placeholder="Pérez" className={errors.lastName ? inputErrorClass : inputClass} autoComplete="family-name" />
                     </Field>
                   </div>
-                  <div data-field="phone" className="sm:col-span-2">
+                  <div data-field="cedula">
+                    <Field label="Documento (Facturación)" required error={errors.cedula}>
+                      <div className="flex gap-2">
+                        <select
+                          value={values.documentType ?? "CC"}
+                          onChange={(e) => set("documentType", e.target.value as FormValues["documentType"])}
+                          className={`w-28 shrink-0 ${errors.cedula ? inputErrorClass : inputClass} cursor-pointer`}
+                          aria-label="Tipo de documento"
+                        >
+                          <option value="CC">CC</option>
+                          <option value="CE">CE</option>
+                          <option value="NIT">NIT</option>
+                          <option value="PP">PP</option>
+                        </select>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={values.cedula}
+                          onChange={(e) => set("cedula", e.target.value.replace(/\D/g, ""))}
+                          placeholder="Número de documento"
+                          className={errors.cedula ? inputErrorClass : inputClass}
+                          autoComplete="off"
+                        />
+                      </div>
+                    </Field>
+                  </div>
+                  <div data-field="phone">
                     <Field label="Teléfono" required error={errors.phone}>
                       <input type="tel" value={values.phone} onChange={(e) => set("phone", e.target.value)}
                         placeholder="3001234567" className={errors.phone ? inputErrorClass : inputClass} autoComplete="tel" />
@@ -500,10 +546,8 @@ function CheckoutForm({
               </motion.section>
 
               {/* Section 3: Método de envío */}
-              <motion.section className="bg-white rounded-lg p-6" variants={sectionVariants} initial="hidden" animate="visible" custom={2}>
-                <h2 className="font-barlow font-bold text-sm uppercase tracking-widest text-[#1C1C1C] mb-4">
-                  Método de envío
-                </h2>
+              <motion.section className={sectionClass} variants={sectionVariants} initial="hidden" animate="visible" custom={2}>
+                <SectionTitle step={3}>Método de envío</SectionTitle>
                 {digitalOnly ? (
                   <div className="flex items-center justify-between p-4 rounded-lg border border-[#1C1C1C] bg-[#F5F5F5]">
                     <div>
@@ -516,53 +560,52 @@ function CheckoutForm({
                   </div>
                 ) : (
                 <div className="space-y-3">
-                  <label className={`flex items-center justify-between p-4 rounded-lg border cursor-pointer transition-colors ${
-                    values.shippingMethod === "standard" ? "border-[#1C1C1C] bg-[#F5F5F5]" : "border-[#E0E0E0] hover:border-[#4A4A4A]"}`}>
+                  <label className={`flex min-h-16 cursor-pointer items-center justify-between gap-3 rounded-[var(--store-radius-md)] border p-4 transition-[border-color,box-shadow] ${
+                    values.shippingMethod === "standard" ? "border-[#1C1C1C] shadow-[0_0_0_1px_#1C1C1C]" : "border-[#E0E0E0] hover:border-[#4A4A4A]"}`}>
                     <div className="flex items-center gap-3">
                       <input type="radio" name="shippingMethod" value="standard" checked={values.shippingMethod === "standard"}
-                        onChange={() => set("shippingMethod", "standard")} className="accent-[#E31C23]" />
+                        onChange={() => set("shippingMethod", "standard")} className="h-4 w-4 accent-[#E31C23]" />
                       <div>
-                        <p className="text-sm font-montserrat font-medium text-[#1C1C1C]">Envío estándar (3-5 días hábiles)</p>
-                        {subtotal >= STANDARD_SHIPPING_THRESHOLD && (
+                        <p className="text-sm font-montserrat font-medium text-[#1C1C1C]">Envío estándar ({deliveryDays.min}-{deliveryDays.max} días hábiles)</p>
+                        {subtotal >= shippingRates.freeThreshold ? (
                           <p className="text-xs text-green-600 font-montserrat mt-0.5">
-                            ¡Envío gratis por compras mayores a {formatCOP(STANDARD_SHIPPING_THRESHOLD)}!
+                            ¡Envío gratis por compras mayores a {formatCOP(shippingRates.freeThreshold)}!
+                          </p>
+                        ) : (
+                          <p className="mt-0.5 font-montserrat text-xs text-[#4A4A4A]">
+                            Agrega {formatCOP(shippingRates.freeThreshold - subtotal)} más y es gratis
                           </p>
                         )}
                       </div>
                     </div>
                     <span className="text-sm font-montserrat font-medium text-[#1C1C1C]">
-                      {subtotal >= STANDARD_SHIPPING_THRESHOLD
+                      {subtotal >= shippingRates.freeThreshold
                         ? <span className="text-green-600">Gratis</span>
-                        : formatCOP(STANDARD_SHIPPING_COST)}
+                        : formatCOP(shippingRates.standardCost)}
                     </span>
                   </label>
 
-                  <label className={`flex items-center justify-between p-4 rounded-lg border cursor-pointer transition-colors ${
-                    values.shippingMethod === "express" ? "border-[#1C1C1C] bg-[#F5F5F5]" : "border-[#E0E0E0] hover:border-[#4A4A4A]"}`}>
+                  <label className={`flex min-h-16 cursor-pointer items-center justify-between gap-3 rounded-[var(--store-radius-md)] border p-4 transition-[border-color,box-shadow] ${
+                    values.shippingMethod === "express" ? "border-[#1C1C1C] shadow-[0_0_0_1px_#1C1C1C]" : "border-[#E0E0E0] hover:border-[#4A4A4A]"}`}>
                     <div className="flex items-center gap-3">
                       <input type="radio" name="shippingMethod" value="express" checked={values.shippingMethod === "express"}
-                        onChange={() => set("shippingMethod", "express")} className="accent-[#E31C23]" />
-                      <p className="text-sm font-montserrat font-medium text-[#1C1C1C]">Envío express (1-2 días hábiles)</p>
+                        onChange={() => set("shippingMethod", "express")} className="h-4 w-4 accent-[#E31C23]" />
+                      <p className="text-sm font-montserrat font-medium text-[#1C1C1C]">Envío express ({deliveryDays.expressMin}-{deliveryDays.expressMax} días hábiles)</p>
                     </div>
-                    <span className="text-sm font-montserrat font-medium text-[#1C1C1C]">{formatCOP(EXPRESS_SHIPPING_COST)}</span>
+                    <span className="text-sm font-montserrat font-medium text-[#1C1C1C]">{formatCOP(shippingRates.expressCost)}</span>
                   </label>
                 </div>
                 )}
               </motion.section>
 
               {/* Section 4: Pago — solo info, el pago ocurre en paso 2 */}
-              <motion.section className="bg-white rounded-lg p-6" variants={sectionVariants} initial="hidden" animate="visible" custom={3}>
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="font-barlow font-bold text-sm uppercase tracking-widest text-[#1C1C1C]">
-                    Pago seguro
-                  </h2>
-                  <span className="flex items-center gap-1 text-xs font-montserrat text-green-700 bg-green-50 border border-green-200 rounded-full px-2.5 py-1">
+              <motion.section className={sectionClass} variants={sectionVariants} initial="hidden" animate="visible" custom={3}>
+                <SectionTitle step={4} aside={<span className="flex items-center gap-1 text-xs font-montserrat text-green-700 bg-green-50 border border-green-200 rounded-full px-2.5 py-1">
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                     </svg>
                     Pago 100% seguro
-                  </span>
-                </div>
+                  </span>}>Pago</SectionTitle>
                 <div className="bg-[#F5F5F5] rounded-lg p-4 flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-[#E31C23]/10 flex items-center justify-center shrink-0">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E31C23" strokeWidth="2" strokeLinecap="round">
@@ -588,10 +631,12 @@ function CheckoutForm({
                 </div>
               )}
 
+              {/* En móvil el botón queda fijo abajo: el total y la acción siempre a la vista. */}
+              <div className="sticky bottom-0 z-10 -mx-4 border-t border-[#ECECEA] bg-[var(--store-canvas)]/95 px-4 pt-3 backdrop-blur sm:-mx-6 sm:px-6 lg:static lg:mx-0 lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
               <button
                 type="submit"
                 disabled={submitting || isSessionPending}
-                className="w-full bg-[#E31C23] hover:bg-[#c21920] disabled:bg-[#4A4A4A] text-white font-barlow font-bold text-base uppercase tracking-wider py-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+                className="flex min-h-14 w-full items-center justify-center gap-2 rounded-[var(--store-radius-md)] bg-[#E31C23] font-barlow text-base font-bold uppercase tracking-wider text-white transition-colors hover:bg-[#c21920] disabled:bg-[#4A4A4A]"
               >
                 {submitting ? (
                   <>
@@ -612,6 +657,7 @@ function CheckoutForm({
                   </>
                 )}
               </button>
+              </div>
 
               <p className="text-center text-xs font-montserrat text-[#4A4A4A]">
                 Al confirmar aceptas nuestros{" "}
@@ -623,7 +669,7 @@ function CheckoutForm({
             </div>
 
             {/* ── RIGHT: Order Summary ── */}
-            <div className="w-full md:w-[45%] md:sticky md:top-28">
+            <div className="order-1 w-full lg:sticky lg:top-28 lg:order-2">
               <OrderSummary
                 shippingCost={shippingCost}
                 appliedCoupon={appliedCoupon}

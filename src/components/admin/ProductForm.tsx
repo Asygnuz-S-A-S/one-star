@@ -112,6 +112,11 @@ export default function ProductForm({
   const productId = product?.id
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
+  const errorRef = useRef<HTMLDivElement>(null)
+  // El botón de guardar está al final del formulario: sin esto el error quedaba fuera de vista.
+  useEffect(() => {
+    if (error) errorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })
+  }, [error])
   const [success, setSuccess] = useState(false)
 
   // Basic fields
@@ -557,7 +562,7 @@ export default function ProductForm({
   return (
     <div className="max-w-4xl">
       {error && (
-        <div className="mb-4 bg-red-50 border border-red-200 text-[#E31C23] text-sm rounded-lg px-4 py-3">
+        <div ref={errorRef} role="alert" className="mb-4 scroll-mt-24 bg-red-50 border border-red-200 text-[#E31C23] text-sm rounded-lg px-4 py-3">
           {error}
         </div>
       )}

@@ -89,6 +89,7 @@ describe("prepareAdminSignIn", () => {
       email,
       name: "Admin",
       passwordHash: "stored-hash",
+      isActive: true,
     })
     mocks.comparePassword.mockReturnValue(true)
     await expect(prepareAdminSignIn(email, "correcta")).resolves.toEqual({ success: true })
@@ -193,6 +194,7 @@ describe("prepareAdminSignIn", () => {
       email,
       name: "Admin",
       passwordHash: "stored-hash",
+      isActive: true,
     })
     mocks.comparePassword.mockReturnValue(true)
     mocks.upsertAuthUser.mockRejectedValueOnce(new Error("auth sync failed"))

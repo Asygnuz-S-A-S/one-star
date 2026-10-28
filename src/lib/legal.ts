@@ -22,6 +22,12 @@ export interface LegalCompanyInfo {
   contactEmail: string | null
   /** Teléfono de atención al consumidor. */
   contactPhone: string | null
+  /** Ciudad del domicilio. */
+  city: string | null
+  /** Matrícula mercantil u otro registro. */
+  commercialRegistry: string | null
+  /** Correo de habeas data. Si no hay, se usa el de contacto. */
+  dataProtectionEmail: string | null
 }
 
 export const LEGAL_COMPANY: LegalCompanyInfo = {
@@ -31,6 +37,9 @@ export const LEGAL_COMPANY: LegalCompanyInfo = {
   address: PENDING,
   contactEmail: PENDING,
   contactPhone: PENDING,
+  city: PENDING,
+  commercialRegistry: PENDING,
+  dataProtectionEmail: PENDING,
 }
 
 /** Fecha de última actualización de los documentos legales (ISO 8601). */

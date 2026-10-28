@@ -3,19 +3,16 @@ import "server-only"
 import crypto from "node:crypto"
 import * as fflate from "fflate"
 import * as XLSX from "xlsx"
-import type { Gender, Prisma } from "@prisma/client"
-
-import { slugify } from "@/lib/utils"
-import { parseSku } from "@/lib/sku"
-import { prisma } from "@/server/db/prisma"
 import { findManyCategories } from "@/server/repositories/category.repository"
 import { findManyBrands } from "@/server/repositories/brand.repository"
+import { parseSku } from "@/lib/sku"
 import {
   findProductsByBaseSkus,
   findProductsByIdsForImport,
   findVariantsBySkus,
   type ProductForImport,
 } from "@/server/repositories/product.repository"
+import { persistProductImport } from "@/server/repositories/product-import.repository"
 import { isErpCatalogOwner } from "@/server/services/catalog-source.service"
 import {
   isSkippedBrand,
@@ -39,7 +36,6 @@ export function normalizeVariantSize(size: string): string {
   return clean.toLowerCase()
 }
 
-type TxClient = Prisma.TransactionClient
 
 export const MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024 // 2 MB
 export const MAX_ENTRY_UNCOMPRESSED_SIZE_BYTES = 20 * 1024 * 1024 // 20 MB
@@ -66,7 +62,8 @@ export const TEMPLATE_COLUMNS = [
   "sku", "name", "brandName", "categoryName", "gender", "price", "isOnSale", "salePrice",
   "description", "extendedDescription", "size", "sizeUS", "sizeCM", "sizeEUR", "color", "stock",
   "image1", "image2", "image3", "image4", "image5", "image6", "image7", "image8", "videoUrl",
-  "photosFolderUrl", "readyFlag", "isPublished", "availableOnline", "availableInStores",
+  "photosFolderUrl", "readyFlag", "colorGroup", "isPublished", "availableOnline", "availableInStores",
+  "isFeatured", "isLaunch", "highlights", "faqs",
 ] as const
 
 /**
@@ -277,6 +274,35 @@ export const COLUMN_HEADER_ALIASES: Record<string, string> = {
   IMAGE7: "image7",
   "URL IMAGEN 8": "image8",
   IMAGE8: "image8",
+  // Grupo de color / Modelo
+  "GRUPO COLOR": "colorGroup",
+  "GRUPO DE COLOR": "colorGroup",
+  "COLOR GROUP": "colorGroup",
+  COLORGROUP: "colorGroup",
+  "MODELO BASE": "colorGroup",
+  "REFERENCIA COLOR": "colorGroup",
+  "FAMILIA COLOR": "colorGroup",
+  // Lanzamiento
+  LANZAMIENTO: "isLaunch",
+  "¿LANZAMIENTO?": "isLaunch",
+  "ES LANZAMIENTO": "isLaunch",
+  ISLAUNCH: "isLaunch",
+  LAUNCH: "isLaunch",
+  // Destacado
+  DESTACADO: "isFeatured",
+  "¿DESTACADO?": "isFeatured",
+  "ES DESTACADO": "isFeatured",
+  ISFEATURED: "isFeatured",
+  FEATURED: "isFeatured",
+  // Beneficios
+  BENEFICIOS: "highlights",
+  "POR QUE COMPRARLO": "highlights",
+  "¿POR QUÉ COMPRARLO?": "highlights",
+  HIGHLIGHTS: "highlights",
+  // FAQs
+  FAQS: "faqs",
+  FAQ: "faqs",
+  "PREGUNTAS FRECUENTES": "faqs",
 }
 
 export function matchHeader(rawHeader: unknown): string | null {
@@ -325,9 +351,14 @@ export function matchHeader(rawHeader: unknown): string | null {
     videourl: "videoUrl",
     photosfolderurl: "photosFolderUrl",
     readyflag: "readyFlag",
+    colorgroup: "colorGroup",
     ispublished: "isPublished",
     availableonline: "availableOnline",
     availableinstores: "availableInStores",
+    isfeatured: "isFeatured",
+    islaunch: "isLaunch",
+    highlights: "highlights",
+    faqs: "faqs",
   }
   if (Object.prototype.hasOwnProperty.call(directMap, lowerKey)) {
     return directMap[lowerKey]
@@ -351,6 +382,7 @@ export interface ProductImportSummary {
   updatedVariants: number
   errors: number
   skipped?: number
+  deactivatedProducts?: number
 }
 
 export interface ProductImportProductSummary {
@@ -364,6 +396,7 @@ export interface ProductImportProductSummary {
   stockAfter: number
   addedSizesCount: number
   updatedVariantsCount: number
+  isDeactivated?: boolean
 }
 
 export interface ProductImportPreview {
@@ -381,7 +414,7 @@ export interface ProductImportOptions {
   textUpdateMode?: TextUpdateMode
 }
 
-interface PlannedVariant {
+export interface PlannedVariant {
   row: ProductImportRow
   rowNumber: number
   kind: "create" | "update"
@@ -389,12 +422,13 @@ interface PlannedVariant {
   isRecoveredFromDate?: boolean
 }
 
-interface PlannedGroup {
+export interface PlannedGroup {
   groupKey: string
   name: string
   brandName: string
   categoryName: string
   baseSku?: string
+  colorGroup?: string
   existingProductId: string | null
   variants: PlannedVariant[]
 }
@@ -597,6 +631,7 @@ async function planImport(
   fingerprint: string
   hasReadyColumn: boolean
   existingProductsMap: Map<string, ProductForImport>
+  productsToDeactivateIds: string[]
 }> {
   const { rows: rawRows, hasReadyColumn } = parseWorkbook(buffer)
   const onlyReady = options?.onlyReadyRows ?? (hasReadyColumn ? true : false)
@@ -610,7 +645,13 @@ async function planImport(
     isRecoveredFromDate: boolean
   }
 
+  interface NotReadyCandidate {
+    rawSku: string
+    baseSku: string
+  }
+
   const validCandidates: ValidCandidate[] = []
+  const notReadyCandidates: NotReadyCandidate[] = []
 
   for (const { rowNumber, rowObj, rawSizeCell, cellMetaForSize } of rawRows) {
     const rawSku = String(rowObj.sku ?? "").trim()
@@ -641,6 +682,12 @@ async function planImport(
           action: "skip",
           message: "Fila omitida (no lista)",
         })
+        if (rawSku) {
+          notReadyCandidates.push({
+            rawSku,
+            baseSku: parseSku(rawSku).baseSku.trim(),
+          })
+        }
         continue
       }
     }
@@ -743,11 +790,25 @@ async function planImport(
     ...new Set(preparedRows.map((r) => parseSku(r.row.sku).baseSku.trim()).filter(Boolean)),
   ]
 
+  const notReadySkus = [...new Set(notReadyCandidates.map((c) => c.rawSku).filter(Boolean))]
+  const notReadyBaseSkus = [
+    ...new Set(notReadyCandidates.map((c) => c.baseSku).filter(Boolean)),
+  ]
+
   const isErpOwner = await isErpCatalogOwner()
 
-  const [existingVariants, productsByBase, categories, brands] = await Promise.all([
+  const [
+    existingVariants,
+    productsByBase,
+    notReadyExistingVariants,
+    notReadyProductsByBase,
+    categories,
+    brands,
+  ] = await Promise.all([
     findVariantsBySkus(skus),
     findProductsByBaseSkus(baseSkus),
+    hasReadyColumn && onlyReady && notReadySkus.length > 0 ? findVariantsBySkus(notReadySkus) : Promise.resolve([]),
+    hasReadyColumn && onlyReady && notReadyBaseSkus.length > 0 ? findProductsByBaseSkus(notReadyBaseSkus) : Promise.resolve([]),
     findManyCategories(),
     findManyBrands(),
   ])
@@ -871,10 +932,13 @@ async function planImport(
         brandName: row.brandName,
         categoryName: row.categoryName,
         baseSku: rowBaseSku || undefined,
+        colorGroup: row.colorGroup?.trim() || undefined,
         existingProductId: existingProduct ? existingProduct.id : null,
         variants: [],
       }
       groups.set(groupKey, group)
+    } else if (!group.colorGroup && row.colorGroup?.trim()) {
+      group.colorGroup = row.colorGroup.trim()
     }
 
     const plannedVariant: PlannedVariant = matchedVariant
@@ -996,6 +1060,54 @@ async function planImport(
     }
   }
 
+  // 10b. Desactivación de productos existentes que en el archivo NO están marcados como listos
+  const plannedExistingProductIds = new Set(
+    [...groups.values()].map((g) => g.existingProductId).filter(Boolean) as string[]
+  )
+
+  const candidateDeactivateIds = new Set<string>()
+  for (const p of notReadyProductsByBase) {
+    if (!plannedExistingProductIds.has(p.id)) {
+      candidateDeactivateIds.add(p.id)
+    }
+  }
+  for (const v of notReadyExistingVariants) {
+    if (!plannedExistingProductIds.has(v.product.id)) {
+      candidateDeactivateIds.add(v.product.id)
+    }
+  }
+
+  const productsToDeactivateIds = [...candidateDeactivateIds]
+  if (productsToDeactivateIds.length > 0) {
+    const missingDeactivateIds = productsToDeactivateIds.filter((id) => !existingProductsMap.has(id))
+    if (missingDeactivateIds.length > 0) {
+      const fetched = await findProductsByIdsForImport(missingDeactivateIds)
+      for (const p of fetched) {
+        existingProductsMap.set(p.id, p)
+      }
+    }
+
+    for (const id of productsToDeactivateIds) {
+      const p = existingProductsMap.get(id)
+      if (!p) continue
+      const totalStock = p.variants.reduce((sum, v) => sum + (v.stock || 0), 0)
+      const price = p.basePrice != null ? Number(p.basePrice) : 0
+      productsSummary.push({
+        productId: p.id,
+        productName: p.name,
+        baseSku: parseSku(p.variants[0]?.sku ?? p.slug).baseSku || p.slug,
+        isExisting: true,
+        priceBefore: price,
+        priceAfter: price,
+        stockBefore: totalStock,
+        stockAfter: totalStock,
+        addedSizesCount: 0,
+        updatedVariantsCount: 0,
+        isDeactivated: true,
+      })
+    }
+  }
+
   // 11. Huella digital del catálogo
   const categoryNames = categories.map((c) => normalizeKey(c.name)).sort()
   const brandNames = brands.map((b) => normalizeKey(b.name)).sort()
@@ -1008,6 +1120,7 @@ async function planImport(
         stock: v.stock,
       }))
       .sort((a, b) => a.id.localeCompare(b.id)),
+    deactivatedProductIds: productsToDeactivateIds.slice().sort(),
     categoryNames,
     brandNames,
     onlyReady,
@@ -1024,6 +1137,7 @@ async function planImport(
     fingerprint,
     hasReadyColumn,
     existingProductsMap,
+    productsToDeactivateIds,
   }
 }
 
@@ -1031,7 +1145,8 @@ export async function previewProductImport(
   buffer: ArrayBuffer,
   options?: ProductImportOptions
 ): Promise<ProductImportPreview> {
-  const { rowResults, productsSummary, fingerprint, hasReadyColumn } = await planImport(buffer, options)
+  const { rowResults, productsSummary, fingerprint, hasReadyColumn, productsToDeactivateIds } =
+    await planImport(buffer, options)
   const rawSummary = rowResults.reduce(
     (acc, r) => {
       if (r.action === "create_product") acc.newProducts++
@@ -1049,6 +1164,7 @@ export async function previewProductImport(
     updatedVariants: rawSummary.updatedVariants,
     errors: rawSummary.errors,
     ...(rawSummary.skipped > 0 ? { skipped: rawSummary.skipped } : {}),
+    ...(productsToDeactivateIds.length > 0 ? { deactivatedProducts: productsToDeactivateIds.length } : {}),
   }
   return {
     fingerprint,
@@ -1059,69 +1175,11 @@ export async function previewProductImport(
   }
 }
 
-async function resolveCategoryId(
-  tx: TxClient,
-  name: string,
-  existing: { id: string; name: string }[],
-  cache: Map<string, string>
-): Promise<string> {
-  const key = normalizeKey(name)
-  const cached = cache.get(key)
-  if (cached) return cached
-  const found = existing.find((c) => normalizeKey(c.name) === key)
-  if (found) {
-    cache.set(key, found.id)
-    return found.id
-  }
-  const slug = slugify(name)
-  const created = await tx.category.upsert({
-    where: { slug },
-    update: {},
-    create: { slug, name, description: `Categoría creada al importar productos desde Excel: ${name}` },
-  })
-  cache.set(key, created.id)
-  return created.id
-}
-
-async function resolveBrandId(
-  tx: TxClient,
-  name: string,
-  existing: { id: string; name: string }[],
-  cache: Map<string, string>
-): Promise<string> {
-  const canonicalName = resolveBrandAlias(name)
-  const key = normalizeKey(canonicalName)
-  const cached = cache.get(key)
-  if (cached) return cached
-  const found = existing.find((b) => normalizeKey(b.name) === key)
-  if (found) {
-    cache.set(key, found.id)
-    return found.id
-  }
-  const slug = slugify(canonicalName)
-  const created = await tx.brand.upsert({
-    where: { slug },
-    update: {},
-    create: { slug, name: canonicalName },
-  })
-  cache.set(key, created.id)
-  return created.id
-}
-
-async function uniqueSlug(tx: TxClient, base: string): Promise<string> {
-  let candidate = base
-  let suffix = 2
-  while (await tx.product.findUnique({ where: { slug: candidate }, select: { id: true } })) {
-    candidate = `${base}-${suffix}`
-    suffix++
-  }
-  return candidate
-}
-
 export interface ProductImportApplyResult {
   newProducts: number
   newVariants: number
   updatedVariants: number
+  deactivatedProducts?: number
 }
 
 export async function applyProductImport(
@@ -1129,217 +1187,20 @@ export async function applyProductImport(
   expectedFingerprint: string,
   options?: ProductImportOptions
 ): Promise<ProductImportApplyResult> {
-  const { groups, fingerprint, existingProductsMap } = await planImport(buffer, options)
+  const { groups, fingerprint, existingProductsMap, productsToDeactivateIds } = await planImport(buffer, options)
   if (fingerprint !== expectedFingerprint) {
     throw new Error(
       "El catálogo cambió desde que generaste la vista previa. Vuelve a subir el archivo para revisar los cambios."
     )
   }
 
-  const textUpdateMode = options?.textUpdateMode ?? "fill_empty"
-  const isOverwrite = textUpdateMode === "overwrite"
-
-  const categories = await findManyCategories()
-  const brands = await findManyBrands()
-  const categoryCache = new Map<string, string>()
-  const brandCache = new Map<string, string>()
-
-  let newProducts = 0
-  let newVariants = 0
-  let updatedVariants = 0
-
-  await prisma.$transaction(
-    async (tx) => {
-      for (const group of groups) {
-        let productId = group.existingProductId
-
-        if (!productId) {
-          const categoryId = await resolveCategoryId(tx, group.categoryName, categories, categoryCache)
-          const brandId = await resolveBrandId(tx, group.brandName, brands, brandCache)
-          const first = group.variants.find((v) => v.kind === "create")!.row
-          const slugBase = group.baseSku ? group.baseSku : slugify(group.name)
-          const slug = await uniqueSlug(tx, slugBase)
-          const images: Prisma.ProductImageCreateWithoutProductInput[] = []
-          const seenUrls = new Set<string>()
-
-          for (const v of group.variants) {
-            const rowImages = [
-              v.row.image1,
-              v.row.image2,
-              v.row.image3,
-              v.row.image4,
-              v.row.image5,
-              v.row.image6,
-              v.row.image7,
-              v.row.image8,
-            ]
-            for (const url of rowImages) {
-              if (url && !seenUrls.has(url)) {
-                seenUrls.add(url)
-                images.push({ url, alt: group.name, position: images.length, color: v.row.color })
-              }
-            }
-          }
-
-          // Si el producto no tiene fotos, se crea como no publicado (isPublished = false)
-          const isPublished = images.length === 0 ? false : (first.isPublished ?? true)
-
-          const created = await tx.product.create({
-            data: {
-              name: group.name,
-              slug,
-              basePrice: first.price,
-              isOnSale: first.isOnSale ?? false,
-              salePrice: first.isOnSale ? (first.salePrice ?? null) : null,
-              description: first.description ?? null,
-              extendedDescription: first.extendedDescription ?? null,
-              videoUrl: first.videoUrl ?? null,
-              photosFolderUrl: first.photosFolderUrl ?? null,
-              gender: (first.gender as Gender | undefined) ?? null,
-              category: { connect: { id: categoryId } },
-              brand: { connect: { id: brandId } },
-              isPublished,
-              availableOnline: first.availableOnline ?? true,
-              availableInStores: first.availableInStores ?? true,
-              images: { create: images },
-            },
-          })
-          productId = created.id
-          newProducts++
-        } else {
-          // Actualización de producto existente en modo ARCHIVO
-          const existingProduct = existingProductsMap.get(productId)
-          const first = group.variants[0].row
-
-          const categoryId =
-            isOverwrite || !existingProduct?.categoryId
-              ? await resolveCategoryId(tx, group.categoryName, categories, categoryCache)
-              : existingProduct.categoryId
-
-          const brandId =
-            isOverwrite || !existingProduct?.brandId
-              ? await resolveBrandId(tx, group.brandName, brands, brandCache)
-              : existingProduct.brandId
-
-          await tx.product.update({
-            where: { id: productId },
-            data: {
-              // Precios y disponibilidad web siempre los manda el archivo en ARCHIVO
-              basePrice: first.price,
-              isOnSale: first.isOnSale ?? false,
-              salePrice: first.isOnSale ? (first.salePrice ?? null) : null,
-              availableOnline: first.availableOnline ?? true,
-              availableInStores: first.availableInStores ?? true,
-              isPublished: first.isPublished ?? true,
-              // Campos de texto: según textUpdateMode ("fill_empty" vs "overwrite")
-              ...(isOverwrite || !existingProduct?.name ? { name: group.name } : {}),
-              ...(isOverwrite || !existingProduct?.description
-                ? { description: first.description ?? null }
-                : {}),
-              ...(isOverwrite || !existingProduct?.extendedDescription
-                ? { extendedDescription: first.extendedDescription ?? null }
-                : {}),
-              ...(isOverwrite || !existingProduct?.videoUrl
-                ? { videoUrl: first.videoUrl ?? null }
-                : {}),
-              ...(isOverwrite || !existingProduct?.gender
-                ? { gender: (first.gender as Gender | undefined) ?? null }
-                : {}),
-              ...(categoryId ? { category: { connect: { id: categoryId } } } : {}),
-              ...(brandId ? { brand: { connect: { id: brandId } } } : {}),
-            },
-          })
-
-          // Conservar fotos existentes e incorporar fotos nuevas sin borrar las actuales
-          const current = await tx.productImage.findMany({
-            where: { productId },
-            select: { url: true },
-          })
-          const seen = new Set(current.map((i) => i.url))
-          let position = current.length
-          const extra: Prisma.ProductImageCreateManyInput[] = []
-          for (const v of group.variants) {
-            const rowImages = [
-              v.row.image1,
-              v.row.image2,
-              v.row.image3,
-              v.row.image4,
-              v.row.image5,
-              v.row.image6,
-              v.row.image7,
-              v.row.image8,
-            ]
-            for (const url of rowImages) {
-              if (url && !seen.has(url)) {
-                seen.add(url)
-                extra.push({
-                  productId,
-                  url,
-                  alt: group.name,
-                  position: position++,
-                  color: v.row.color,
-                })
-              }
-            }
-          }
-          if (extra.length > 0) await tx.productImage.createMany({ data: extra })
-        }
-
-        // Variantes y niveles de inventario web (storeLocationId = null)
-        for (const v of group.variants) {
-          if (v.kind === "update" && v.existingVariantId) {
-            await tx.variant.update({
-              where: { id: v.existingVariantId },
-              data: {
-                size: v.row.size,
-                color: v.row.color,
-                stock: v.row.stock,
-                sizeUS: v.row.sizeUS ?? null,
-                sizeCM: v.row.sizeCM ?? null,
-                sizeEUR: v.row.sizeEUR ?? null,
-              },
-            })
-            await tx.inventoryLevel.deleteMany({
-              where: {
-                variantId: v.existingVariantId,
-                storeLocationId: null,
-              },
-            })
-            await tx.inventoryLevel.create({
-              data: {
-                variantId: v.existingVariantId,
-                storeLocationId: null,
-                stock: v.row.stock,
-              },
-            })
-            updatedVariants++
-          } else {
-            const createdVar = await tx.variant.create({
-              data: {
-                productId,
-                sku: v.row.sku,
-                size: v.row.size,
-                color: v.row.color,
-                stock: v.row.stock,
-                sizeUS: v.row.sizeUS ?? null,
-                sizeCM: v.row.sizeCM ?? null,
-                sizeEUR: v.row.sizeEUR ?? null,
-              },
-            })
-            await tx.inventoryLevel.create({
-              data: {
-                variantId: createdVar.id,
-                storeLocationId: null,
-                stock: v.row.stock,
-              },
-            })
-            newVariants++
-          }
-        }
-      }
-    },
-    { timeout: 120_000, maxWait: 10_000 }
+  const [categories, brands] = await Promise.all([findManyCategories(), findManyBrands()])
+  return persistProductImport(
+    groups,
+    existingProductsMap,
+    categories.map(({ id, name }) => ({ id, name })),
+    brands.map(({ id, name }) => ({ id, name })),
+    options?.textUpdateMode === "overwrite",
+    productsToDeactivateIds,
   )
-
-  return { newProducts, newVariants, updatedVariants }
 }

@@ -48,4 +48,47 @@ test.describe("Ficha de producto — SEO y conversión", () => {
     await bar.getByRole("button", { name: /elige tu talla/i }).click()
     await expect(page.getByText("Selecciona una talla")).toBeVisible()
   })
+
+  test("mantiene título, precio y compra perceptibles sin revelar contenido con Motion", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" })
+    await openFirstProduct(page)
+
+    await expect(page.locator("h1")).toBeVisible()
+    await expect(page.locator("#comprar")).toBeVisible()
+    await expect(page.locator("#comprar").getByRole("button").first()).toBeVisible()
+  })
+
+  test("presenta disponibilidad y compra explícita antes del contenido editorial", async ({ page }) => {
+    await openFirstProduct(page)
+
+    await expect(page.locator("h1")).toBeVisible()
+    await expect(page.getByTestId("product-availability")).toBeVisible()
+    await expect(page.locator("#comprar").getByRole("button", { name: /agregar al carrito/i })).toBeVisible()
+  })
+
+  test("mantiene la compra rápida separada del acceso al chat en móvil", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 })
+    await openFirstProduct(page)
+
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
+    const sticky = page.getByTestId("sticky-buy-bar")
+    const chat = page.getByRole("button", { name: /abrir chat de ventas/i })
+    await expect(sticky).toHaveAttribute("aria-hidden", "false")
+    await expect(chat).toBeVisible()
+
+    const [stickyBox, chatBox] = await Promise.all([sticky.boundingBox(), chat.boundingBox()])
+    expect(stickyBox).not.toBeNull()
+    expect(chatBox).not.toBeNull()
+    expect(chatBox!.y + chatBox!.height).toBeLessThanOrEqual(stickyBox!.y)
+  })
+
+  test("con una talla válida conserva el flujo de agregar al carrito", async ({ page }) => {
+    await openFirstProduct(page)
+
+    await page.locator('#selector-talla button[aria-label^="Talla"]:not([disabled])').first().click()
+    await page.locator("#comprar").getByRole("button", { name: /agregar al carrito/i }).click()
+
+    await expect(page.getByRole("dialog", { name: /carrito de compras/i })).toBeVisible()
+    await expect(page.getByRole("dialog", { name: /carrito de compras/i }).getByText("Talla:")).toBeVisible()
+  })
 })

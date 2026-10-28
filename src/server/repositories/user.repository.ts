@@ -71,3 +71,11 @@ export async function findCustomerProfileById(id: string) {
     },
   })
 }
+
+export async function findNewsletterSubscribers() {
+  return prisma.user.findMany({
+    where: { role: "CUSTOMER", marketingConsentAt: { not: null } },
+    select: { email: true, name: true, lastName: true, clubMember: true, marketingConsentAt: true },
+    orderBy: { marketingConsentAt: "desc" },
+  })
+}

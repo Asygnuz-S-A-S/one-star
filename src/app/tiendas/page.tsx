@@ -27,100 +27,122 @@ export default async function TiendasPage() {
   }, {} as Record<string, typeof stores>)
 
   return (
-    <div className="min-h-screen bg-[#F5F5F5] pt-24 pb-16 px-4">
-      <div className="max-w-6xl mx-auto">
-        
-        <div className="text-center mb-16">
-          <h1 className="text-4xl md:text-5xl font-[var(--font-barlow)] font-bold text-[#1C1C1C] uppercase mb-4">
-            Nuestras Tiendas
-          </h1>
-          <p className="text-gray-600 font-[var(--font-montserrat)] max-w-2xl mx-auto text-lg">
-            Visítanos en nuestras sucursales físicas y descubre todas nuestras colecciones en persona. 
-            Encuentra tu tienda One Star más cercana.
+    <div className="store-section store-gutter mx-auto max-w-6xl">
+      <header className="mb-10 max-w-2xl">
+        <p className="store-eyebrow mb-3">Visítanos</p>
+        <h1 className="font-barlow text-4xl font-extrabold uppercase leading-none tracking-[-0.03em] text-[#1C1C1C] sm:text-5xl">
+          Nuestras tiendas
+        </h1>
+        <span aria-hidden="true" className="mt-3 block h-1 w-12 bg-[#E31C23]" />
+        <p className="mt-4 font-montserrat text-base text-[#4A4A4A]">
+          Visítanos en nuestras sucursales físicas y descubre todas nuestras colecciones en persona.
+          Encuentra tu tienda One Star más cercana.
+        </p>
+      </header>
+
+      {Object.keys(storesByCity).length === 0 ? (
+        <div className="rounded-[var(--store-radius-lg)] border border-[#ECECEA] bg-white p-12 text-center">
+          <h2 className="mb-2 font-barlow text-2xl font-bold">Próximamente</h2>
+          <p className="font-montserrat text-[#4A4A4A]">
+            Estamos preparando la información de nuestras tiendas. Vuelve pronto.
           </p>
         </div>
+      ) : (
+        <div className="space-y-12">
+          {Object.entries(storesByCity).map(([city, cityStores]) => (
+            <section key={city} aria-labelledby={`ciudad-${city}`}>
+              <h2 id={`ciudad-${city}`} className="mb-5 flex items-baseline gap-3 font-barlow text-2xl font-bold uppercase tracking-[-0.01em] text-[#1C1C1C]">
+                {city}
+                <span className="font-montserrat text-sm font-normal normal-case text-[#4A4A4A]">
+                  {cityStores.length} {cityStores.length === 1 ? "tienda" : "tiendas"}
+                </span>
+              </h2>
+              <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                {cityStores.map((store) => {
+                  const coords = resolveStoreCoordinates(store)
+                  // Una sola tienda en la ciudad: tarjeta ancha con el mapa al lado, sin dejar la página vacía.
+                  const wide = cityStores.length === 1
+                  return (
+                    <article
+                      key={store.id}
+                      className={`overflow-hidden rounded-[var(--store-radius-lg)] border border-[#ECECEA] bg-white transition-shadow hover:shadow-[var(--store-elevation-raised)] ${
+                        wide ? "md:col-span-2 xl:col-span-3 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)]" : "flex flex-col"
+                      }`}
+                    >
+                      <div className={`relative z-0 h-56 w-full ${wide ? "sm:h-72 lg:order-2 lg:h-full lg:min-h-[340px]" : ""}`}>
+                        <DynamicStoreMap
+                          position={coords}
+                          query={getStoreMapQuery(store)}
+                          name={store.name}
+                          address={store.address}
+                        />
+                      </div>
 
-        {Object.keys(storesByCity).length === 0 ? (
-          <div className="text-center p-12 bg-white rounded-lg shadow-sm">
-            <h2 className="text-2xl font-[var(--font-barlow)] font-bold mb-2">Próximamente</h2>
-            <p className="text-gray-500 font-[var(--font-montserrat)]">
-              Estamos preparando la información de nuestras tiendas. Vuelve pronto.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-16">
-            {Object.entries(storesByCity).map(([city, cityStores]) => (
-              <div key={city}>
-                <h2 className="text-3xl font-[var(--font-barlow)] font-bold text-[#1C1C1C] border-b-2 border-[#1C1C1C] pb-3 mb-8">
-                  {city}
-                </h2>
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {cityStores.map((store) => {
-                    const coords = resolveStoreCoordinates(store)
-                    return (
-                      <div
-                        key={store.id}
-                        className="bg-white p-6 rounded-2xl shadow-sm border border-[#E0E0E0] hover:shadow-lg transition-all flex flex-col justify-between"
-                      >
+                      <div className="flex flex-1 flex-col justify-between gap-6 p-6 lg:p-8">
                         <div>
-                          <div className="w-12 h-12 bg-[#1C1C1C] text-white flex items-center justify-center rounded-xl mb-4 shadow-sm">
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
-                          </div>
-                          <h3 className="text-xl font-[var(--font-barlow)] font-bold text-[#1C1C1C] mb-3">
+                          <p className="store-eyebrow mb-2">{store.city}</p>
+                          <h3 className="font-barlow text-2xl font-bold uppercase leading-tight text-[#1C1C1C]">
                             {store.name}
                           </h3>
-                          
-                          <div className="space-y-2 text-sm text-gray-600 font-[var(--font-montserrat)] mb-6">
-                            <p className="flex items-start gap-2">
-                              <span className="font-bold text-[#1C1C1C]">Dir:</span>
-                              <span>{store.address}</span>
-                            </p>
-                            {store.phone && (
-                              <p className="flex items-start gap-2">
-                                <span className="font-bold text-[#1C1C1C]">Tel:</span>
-                                <span>{store.phone}</span>
-                              </p>
-                            )}
+                          {store.photos && store.photos.length > 0 && (
+                            <div className={`mt-5 grid gap-2 ${
+                              store.photos.length === 1 ? "grid-cols-1" : store.photos.length === 2 ? "grid-cols-2" : "grid-cols-3"
+                            }`}>
+                              {store.photos.slice(0, 3).map((photoUrl, idx) => (
+                                <div
+                                  key={photoUrl}
+                                  className="relative aspect-[4/3] overflow-hidden rounded-[var(--store-radius)] bg-[#F5F5F5]"
+                                >
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img
+                                    src={photoUrl}
+                                    alt={`${store.name}, foto ${idx + 1}`}
+                                    className="h-full w-full object-cover"
+                                    loading="lazy"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          <dl className="mt-5 space-y-3 font-montserrat text-sm text-[#4A4A4A]">
+                            <div className="flex gap-3">
+                              <dt className="sr-only">Dirección</dt>
+                              <svg aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-[#1C1C1C]" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657 13.414 20.9a2 2 0 0 1-2.827 0l-4.244-4.243a8 8 0 1 1 11.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 1 1-6 0 3 3 0 0 1 6 0z" /></svg>
+                              <dd>{store.address}</dd>
+                            </div>
                             {store.schedule && (
-                              <p className="flex items-start gap-2">
-                                <span className="font-bold text-[#1C1C1C]">Horario:</span>
-                                <span>{store.schedule}</span>
-                              </p>
+                              <div className="flex gap-3">
+                                <dt className="sr-only">Horario</dt>
+                                <svg aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-[#1C1C1C]" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path strokeLinecap="round" d="M12 7v5l3 2" /></svg>
+                                <dd>{store.schedule}</dd>
+                              </div>
                             )}
-                          </div>
+                            {store.phone && (
+                              <div className="flex gap-3">
+                                <dt className="sr-only">Teléfono</dt>
+                                <svg aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-[#1C1C1C]" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2" /></svg>
+                                <dd><a href={`tel:${store.phone.replace(/\s/g, "")}`} className="underline-offset-4 hover:text-[#1C1C1C] hover:underline">{store.phone}</a></dd>
+                              </div>
+                            )}
+                          </dl>
                         </div>
 
-                        <div>
-                          <div className="h-52 w-full rounded-xl overflow-hidden border border-[#E0E0E0] mb-4 relative z-0 shadow-inner">
-                            <DynamicStoreMap
-                              position={coords}
-                              query={getStoreMapQuery(store)}
-                              name={store.name}
-                              address={store.address}
-                            />
-                          </div>
-
-                          <StoreActionButtons 
-                            name={store.name}
-                            address={store.address}
-                            city={store.city}
-                            latitude={coords?.lat}
-                            longitude={coords?.lng}
-                          />
-                        </div>
+                        <StoreActionButtons
+                          name={store.name}
+                          address={store.address}
+                          city={store.city}
+                          latitude={coords?.lat}
+                          longitude={coords?.lng}
+                        />
                       </div>
-                    )
-                  })}
-                </div>
+                    </article>
+                  )
+                })}
               </div>
-            ))}
-          </div>
-        )}
-        
-      </div>
+            </section>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

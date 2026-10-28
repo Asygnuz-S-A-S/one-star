@@ -3,7 +3,7 @@
 import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { motion } from "motion/react"
+import { motion, useReducedMotion } from "motion/react"
 import { useMemo, useRef, useState, useSyncExternalStore } from "react"
 import { useSession } from "@/lib/auth-client"
 import { useWishlistStore } from "@/store"
@@ -48,6 +48,7 @@ function formatPrice(price: number): string {
 
 export default function ProductCard({ id, slug, name, brand, price, salePrice, imageUrl, secondaryImageUrl, gallery, isNew, isOnSale, hasStock = true, rating, reviewCount, priority = false, colorSummary }: ProductCardProps) {
   const href = slug ? `/productos/${slug}` : undefined
+  const shouldReduceMotion = useReducedMotion()
   const router = useRouter()
   const { data: session } = useSession()
   // La sesión solo se conoce en el cliente. Este snapshot mantiene el HTML
@@ -86,6 +87,9 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
   const [activeFrame, setActiveFrame] = useState(0)
   const [activeColorName, setActiveColorName] = useState<string | null>(null)
   const imageFrameRef = useRef<HTMLDivElement | null>(null)
+  const tiltRef = useRef<HTMLDivElement | null>(null)
+  // Solo se anima el cambio de foto tras recorrerla con el cursor, no al cargar la página.
+  const [scrubbed, setScrubbed] = useState(false)
   const imageColorOptions = (colorSummary?.imageOptions ?? []).filter((option) =>
     allFrames.includes(option.imageUrl)
   )
@@ -115,7 +119,15 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
     // Distribuir las N imágenes de forma uniforme a lo largo del ancho.
     // El color activo se conserva: recorrer la imagen no debe reintroducir
     // las fotos de los demás colores.
-    setActiveFrame(Math.floor(x * frames.length))
+    const nextFrame = Math.floor(x * frames.length)
+    // La dirección del cursor decide hacia dónde "gira" la foto que entra.
+    if (nextFrame !== visibleFrame) {
+      tiltRef.current?.style.setProperty("--frame-dir", nextFrame > visibleFrame ? "1" : "-1")
+      setScrubbed(true)
+    }
+    setActiveFrame(nextFrame)
+    // Giro leve en perspectiva que acompaña el cambio de foto: se percibe como rotar el tenis.
+    if (!shouldReduceMotion) tiltRef.current?.style.setProperty("--card-ry", `${(x - 0.5) * 18}deg`)
   }
 
   const handleMouseEnterSequence = () => {
@@ -124,6 +136,8 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
   }
 
   const handleMouseLeaveSequence = () => {
+    setScrubbed(false)
+    tiltRef.current?.style.setProperty("--card-ry", "0deg")
     setActiveColorName(null)
     setActiveFrame(0)
   }
@@ -145,13 +159,10 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
 
   return (
     <motion.article
-      className="group cursor-pointer relative flex flex-col h-full"
+      className="group cursor-pointer relative flex flex-col h-full rounded-store-md bg-store-surface p-2 transition-shadow duration-300 hover:shadow-[var(--store-elevation-raised)] dark:bg-[var(--store-surface)] dark:hover:bg-white/[0.03]"
       data-product-id={id}
-      initial={{ opacity: 0, y: 30 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-50px" }}
-      whileHover={{ y: -6 }}
-      transition={{ duration: 0.5, type: "spring", stiffness: 300, damping: 20 }}
+      whileHover={shouldReduceMotion ? undefined : { y: -6 }}
+      transition={{ duration: shouldReduceMotion ? 0 : 0.5, type: "spring", stiffness: 300, damping: 20 }}
       onMouseMove={handleMouseMoveSequence}
       onMouseEnter={handleMouseEnterSequence}
       onMouseLeave={handleMouseLeaveSequence}
@@ -161,15 +172,11 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
       {href && <Link href={href} className="absolute inset-0 z-20" aria-label={name} />}
       <div 
         ref={imageFrameRef}
-        className={`relative aspect-[3/4] bg-white bg-[radial-gradient(ellipse_at_center,_#ffffff_45%,_#f2f2f4_100%)] border border-gray-200/80 shadow-sm overflow-hidden rounded-xl transition-all duration-300 group-hover:shadow-xl dark:bg-white/5 dark:backdrop-blur-md dark:border-white/10 ${
-          imageColorOptions.length > 0 ? "mb-2" : "mb-4"
-        }`}
+        data-testid="product-card-media"
+        className="relative mb-3 aspect-square overflow-hidden rounded-store-sm bg-white border border-gray-200/80 shadow-sm dark:bg-white/5 dark:border-white/10"
       >
-        <div className="w-full h-full">
-          {/* Subtle overlay gradient on hover */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10 pointer-events-none rounded-xl" />
-          
-          <div className="absolute inset-0 w-full h-full pointer-events-none">
+        <div ref={tiltRef} className="h-full w-full bg-inherit transition-transform duration-500 ease-[cubic-bezier(.22,1,.36,1)] [transform:perspective(900px)_rotateY(var(--card-ry,0deg))_scale(1.08)]">
+          <div className="absolute inset-0 w-full h-full pointer-events-none [mask-image:radial-gradient(ellipse_92%_88%_at_50%_50%,black_80%,transparent_100%)] [-webkit-mask-image:radial-gradient(ellipse_92%_88%_at_50%_50%,black_80%,transparent_100%)]">
             {frames.map((src, index) => (
               <Image
                 key={`frame-${index}`}
@@ -177,11 +184,12 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
                 alt={hasRealImages ? `${name} vista ${index + 1}` : `${name} — sin imagen disponible`}
                 fill
                 priority={priority && index === 0}
-                // object-contain: la foto completa dentro del marco 3:4, sin recortar el
-                // producto (HU-6). El padding deja aire alrededor como en la ficha.
-                className={`object-contain object-center transition-opacity duration-150 ease-in-out ${
-                  src === PLACEHOLDER_IMAGE_URL ? "" : "p-2 mix-blend-multiply dark:mix-blend-normal"
-                } ${index === visibleFrame ? "opacity-100" : "opacity-0"}`}
+                // Conserva la foto completa; la escala compensa el aire propio de los
+                // recortes de catálogo sin deformar el producto.
+                className={`object-contain object-center ${
+                  // El leve realce lleva a blanco puro los fondos casi blancos (≈246) de algunas fotos.
+                  src === PLACEHOLDER_IMAGE_URL ? "" : "scale-[1.18] mix-blend-multiply brightness-[1.05] contrast-[1.05] dark:mix-blend-normal dark:filter-none"
+                } ${index === visibleFrame ? `opacity-100 ${scrubbed ? "motion-safe:animate-[card-frame-in_280ms_cubic-bezier(.22,1,.36,1)]" : ""}` : "opacity-0"}`}
                 sizes="(max-width: 768px) 50vw, 25vw"
               />
             ))}
@@ -191,12 +199,12 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
         {/* Top-Left Badges */}
         <div className="absolute top-2 left-2 z-10 flex flex-col gap-1">
           {isNew && (
-            <span className="bg-[#1C1C1C] text-white text-[10px] font-bold px-2 py-1 uppercase tracking-wider shadow-sm w-max rounded-sm">
+            <span className="bg-[#1C1C1C] text-white text-xs font-bold px-2 py-1 uppercase tracking-wider w-max rounded-full">
               NUEVO
             </span>
           )}
           {isOnSale && discountPercentage > 0 && (
-            <span className="bg-[#E31C23] text-white text-[10px] font-bold px-2 py-1 uppercase tracking-wider shadow-sm w-max rounded-sm">
+            <span className="bg-[#E31C23] text-white text-xs font-bold px-2 py-1 uppercase tracking-wider w-max rounded-full">
               -{discountPercentage}%
             </span>
           )}
@@ -214,15 +222,12 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
             </svg>
           </button>
         )}
-      </div>
 
-      {href && imageColorOptions.length > 0 && colorSummary?.label && (
-        <div
-          className="relative z-30 px-1"
-          onMouseMove={(event) => event.stopPropagation()}
-        >
+        {/* Los colores flotan sobre la foto para que todas las tarjetas midan lo mismo. */}
+        {href && imageColorOptions.length > 1 && (
           <div
-            className="flex min-h-11 items-center gap-1.5 overflow-x-auto overscroll-x-contain pb-1"
+            className="absolute inset-x-1.5 bottom-1.5 z-30 flex items-center gap-1 overflow-x-auto overscroll-x-contain scrollbar-hide"
+            onMouseMove={(event) => event.stopPropagation()}
             role="group"
             aria-label={`Colores disponibles de ${name}`}
           >
@@ -239,10 +244,8 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
                   key={option.name}
                   href={`/productos/${option.slug ?? slug}?color=${encodeURIComponent(option.name)}`}
                   prefetch={false}
-                  className={`relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-transparent transition-all duration-200 focus-visible:outline-none ${
-                    isActive
-                      ? "opacity-100 scale-105"
-                      : "opacity-50 hover:opacity-100 hover:scale-105"
+                  className={`relative isolate h-9 w-9 shrink-0 overflow-hidden rounded-store-sm bg-white transition-opacity duration-200 focus-visible:outline-2 focus-visible:outline-[var(--store-action)] dark:bg-[#2a2a2a] ${
+                    isActive ? "opacity-100" : "opacity-60 hover:opacity-100"
                   }`}
                   aria-label={`Ver ${option.productName ?? name} en color ${option.name}`}
                   aria-current={isActive ? "true" : undefined}
@@ -258,28 +261,40 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
                     alt=""
                     fill
                     sizes="40px"
-                    className="object-contain mix-blend-multiply dark:mix-blend-normal"
+                    className="object-contain mix-blend-multiply brightness-[1.05] contrast-[1.05] dark:mix-blend-normal dark:filter-none"
                   />
+                  {isActive && <span aria-hidden="true" className="absolute inset-x-1.5 bottom-0.5 z-10 h-0.5 rounded-full bg-[var(--store-action)]" />}
                 </Link>
               )
             })}
           </div>
-          <p className="mt-1 text-[10px] font-[var(--font-montserrat)] text-[#6B6B6B] dark:text-white/50">
-            {colorSummary.label}
-          </p>
-        </div>
-      )}
+        )}
+      </div>
 
-      <div className="mt-2 text-left flex flex-col px-1">
+      <div className="flex flex-1 flex-col px-1 text-left">
         {(() => {
           const info = (
             <>
-              <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5 text-[#4A4A4A] dark:text-gray-400">
-                {brand}
+              <p className="mb-0.5 flex items-baseline justify-between gap-2 text-xs font-bold uppercase tracking-wider text-[#4A4A4A] dark:text-gray-400">
+                <span className="truncate">{brand}</span>
+                {colorSummary?.label && colorSummary.total > 1 && (
+                  <span className="shrink-0 font-montserrat font-medium normal-case tracking-normal text-[var(--store-muted)] dark:text-white/50">
+                    {colorSummary.label}
+                  </span>
+                )}
               </p>
-              <h3 className="text-sm font-bold uppercase text-[#1C1C1C] dark:text-white mb-1 line-clamp-1 leading-tight">
+              <h3 className="mb-1 line-clamp-2 min-h-[2.5em] font-barlow text-sm font-semibold uppercase leading-tight text-[var(--store-ink)] dark:text-white">
                 {name}
               </h3>
+              <p
+                data-testid="product-card-stock"
+                className={`mb-1 inline-flex items-center gap-1 text-xs font-medium ${
+                  hasStock ? "text-[var(--store-muted)] dark:text-white/60" : "text-[var(--store-action)]"
+                }`}
+              >
+                <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${hasStock ? "bg-emerald-600" : "bg-[var(--store-action)]"}`} />
+                {hasStock ? "Disponible" : "Agotado"}
+              </p>
             </>
           )
           return href ? (
@@ -312,36 +327,34 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
           </div>
         )}
 
-        <div className="flex items-center justify-between mt-auto pt-1">
-          <div className="flex items-center gap-1.5">
+        <div className="mt-auto flex min-w-0 items-center justify-between gap-2 pt-1">
+          <div className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 leading-none">
             {isOnSale && salePrice ? (
               <>
-                <span className="text-sm font-bold text-[#1C1C1C] dark:text-white">
+                <span data-testid="product-card-price" className="text-base font-bold tracking-tight text-[var(--store-action)]">
                   {formatPrice(Number(salePrice))}
                 </span>
-                <span className="text-[9px] md:text-[10px] text-gray-500 line-through">
+                <span className="text-xs text-[var(--store-muted)] line-through">
                   {formatPrice(Number(price))}
                 </span>
               </>
             ) : (
-              <span className="text-sm font-bold text-[#1C1C1C] dark:text-white">
+              <span data-testid="product-card-price" className="text-base font-bold tracking-tight text-[var(--store-ink)] dark:text-white">
                 {formatPrice(Number(price))}
               </span>
             )}
           </div>
-          
-          {/* La talla se elige en la ficha, así que el botón navega al detalle */}
+
+          {/* La talla se elige en la ficha: el botón compacto no compite con el precio en 2 columnas móviles. */}
           <button
             onClick={goToProduct}
             disabled={!hasStock || !href}
-            aria-label={hasStock ? `Ver ${name}` : `${name} agotado`}
-            className={`relative z-20 py-1.5 px-3 text-[9px] md:text-[10px] font-bold uppercase tracking-widest transition-colors duration-200 rounded-full shrink-0 ${
-              hasStock && href
-                ? "bg-[#1C1C1C] text-white hover:bg-[#E31C23] dark:bg-white dark:text-black dark:hover:bg-gray-200"
-                : "bg-gray-200 text-gray-400 cursor-not-allowed dark:bg-white/10 dark:text-gray-500"
-            }`}
+            aria-label={hasStock ? `Ver ${name} producto` : `${name} agotado`}
+            className="relative z-20 inline-flex h-11 min-h-11 w-11 min-w-11 shrink-0 items-center justify-center rounded-full bg-transparent text-[var(--store-ink)] transition-colors duration-200 group-hover:bg-store-canvas hover:!bg-[var(--store-ink)] hover:text-white disabled:cursor-not-allowed disabled:opacity-40 dark:text-white dark:group-hover:bg-white/10"
           >
-            {hasStock ? "+ ADD" : "AGOTADO"}
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M5 12h14M13 6l6 6-6 6" />
+            </svg>
           </button>
         </div>
       </div>

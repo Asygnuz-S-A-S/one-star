@@ -13,6 +13,7 @@ interface Props {
   currentStatus: string
   paymentStatus: string
   currentTrackingNumber: string
+  currentCarrier?: "ENVIA" | "OTHER" | null
   hasCustomerEmail: boolean
 }
 
@@ -23,10 +24,12 @@ export default function OrderDetailActions({
   currentStatus,
   paymentStatus,
   currentTrackingNumber,
+  currentCarrier,
   hasCustomerEmail,
 }: Props) {
   const [status, setStatus] = useState(currentStatus)
   const [tracking, setTracking] = useState(currentTrackingNumber)
+  const [carrier, setCarrier] = useState<"ENVIA" | "OTHER">(currentCarrier || "ENVIA")
   const [toast, setToast] = useState<Toast | null>(null)
   const [isPending, startTransition] = useTransition()
 
@@ -40,7 +43,7 @@ export default function OrderDetailActions({
 
   function handleSave() {
     startTransition(async () => {
-      const result = await updateOrderStatus(orderId, status, tracking || undefined)
+      const result = await updateOrderStatus(orderId, status, tracking || undefined, carrier)
       if (result.success) {
         showToast("Pedido actualizado correctamente.", "success")
       } else {
@@ -131,8 +134,23 @@ export default function OrderDetailActions({
       </div>
 
       <div>
+        <label htmlFor="order-carrier" className="block text-xs font-semibold text-[#4A4A4A] mb-1">
+          Transportadora
+        </label>
+        <select
+          id="order-carrier"
+          value={carrier}
+          onChange={(e) => setCarrier(e.target.value as "ENVIA" | "OTHER")}
+          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-[#1C1C1C] bg-white focus:outline-none focus:ring-2 focus:ring-[#E31C23]"
+        >
+          <option value="ENVIA">Envía (predeterminada)</option>
+          <option value="OTHER">Otra transportadora</option>
+        </select>
+      </div>
+
+      <div>
         <label htmlFor="order-tracking" className="block text-xs font-semibold text-[#4A4A4A] mb-1">
-          Número de tracking
+          Número de tracking / guía
         </label>
         <input
           id="order-tracking"

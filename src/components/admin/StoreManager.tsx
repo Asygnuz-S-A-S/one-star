@@ -39,11 +39,44 @@ export default function StoreManager({ initialStores, erpLocations = [] }: Store
   const [longitude, setLongitude] = useState<number | null>(null)
   const [isActive, setIsActive] = useState(true)
   const [erpId, setErpId] = useState("")
+  const [photos, setPhotos] = useState<string[]>([])
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const [newPhotoUrl, setNewPhotoUrl] = useState("")
   
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState("")
 
   const [isSearchingMap, setIsSearchingMap] = useState(false)
+
+  const handlePhotoUpload = async (file: File) => {
+    setUploadingPhoto(true)
+    setError("")
+    const fd = new FormData()
+    fd.append("file", file)
+    try {
+      const res = await fetch("/api/upload", { method: "POST", body: fd })
+      const data = await res.json()
+      if (res.ok && data.url) {
+        setPhotos((prev) => [...prev, data.url])
+      } else {
+        setError(data.error ?? "Error al subir la imagen")
+      }
+    } catch {
+      setError("Error de red al subir la imagen")
+    } finally {
+      setUploadingPhoto(false)
+    }
+  }
+
+  const handleAddPhotoUrl = () => {
+    if (!newPhotoUrl.trim()) return
+    setPhotos((prev) => [...prev, newPhotoUrl.trim()])
+    setNewPhotoUrl("")
+  }
+
+  const handleRemovePhoto = (indexToRemove: number) => {
+    setPhotos((prev) => prev.filter((_, idx) => idx !== indexToRemove))
+  }
 
   const startEdit = (store: StoreLocation) => {
     setIsEditing(store.id)
@@ -56,6 +89,7 @@ export default function StoreManager({ initialStores, erpLocations = [] }: Store
     setLongitude(store.longitude)
     setIsActive(store.isActive)
     setErpId(store.erpId ?? "")
+    setPhotos(store.photos || [])
     setError("")
   }
 
@@ -70,6 +104,7 @@ export default function StoreManager({ initialStores, erpLocations = [] }: Store
     setLongitude(null)
     setIsActive(true)
     setErpId("")
+    setPhotos([])
     setError("")
   }
 
@@ -112,6 +147,7 @@ export default function StoreManager({ initialStores, erpLocations = [] }: Store
       longitude,
       isActive,
       erpId: erpId || null,
+      photos,
     }
 
     let result
@@ -152,7 +188,7 @@ export default function StoreManager({ initialStores, erpLocations = [] }: Store
     <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
       {/* Formulario */}
       <div className="bg-white p-6 border border-[#E0E0E0] shadow-sm rounded-md h-fit xl:col-span-1">
-        <h2 className="font-[var(--font-barlow)] font-bold text-xl mb-4">
+        <h2 className="font-barlow font-bold text-xl mb-4">
           {isEditing ? "Editar Sucursal" : "Nueva Sucursal"}
         </h2>
         
@@ -278,6 +314,67 @@ export default function StoreManager({ initialStores, erpLocations = [] }: Store
             </p>
           </div>
 
+          <div>
+            <label className="block text-sm font-bold text-gray-700 mb-1">
+              Fotos de la Sucursal (2 a 3 fotos recomendadas)
+            </label>
+            <p className="text-xs text-gray-500 mb-2">
+              Fotos de la fachada o interior de la tienda física para que los clientes la reconozcan fácilmente en la página web.
+            </p>
+
+            {photos.length > 0 && (
+              <div className="grid grid-cols-3 gap-2 mb-3">
+                {photos.map((url, idx) => (
+                  <div key={idx} className="relative group rounded border border-gray-200 overflow-hidden aspect-video bg-gray-50">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={url} alt={`Foto ${idx + 1}`} className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => handleRemovePhoto(idx)}
+                      className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 opacity-80 hover:opacity-100 transition-opacity"
+                      title="Eliminar foto"
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex gap-2 mb-2">
+              <input
+                type="text"
+                value={newPhotoUrl}
+                onChange={(e) => setNewPhotoUrl(e.target.value)}
+                placeholder="https://... o sube una imagen"
+                className="flex-1 p-2 border border-gray-300 rounded text-sm"
+              />
+              <button
+                type="button"
+                onClick={handleAddPhotoUrl}
+                disabled={!newPhotoUrl.trim()}
+                className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded text-xs font-semibold disabled:opacity-50"
+              >
+                Añadir URL
+              </button>
+              <label className="bg-[#1C1C1C] hover:bg-gray-800 text-white px-3 py-2 rounded text-xs font-semibold cursor-pointer flex items-center justify-center disabled:opacity-50">
+                <span>{uploadingPhoto ? "Subiendo..." : "Subir Foto"}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) handlePhotoUpload(file)
+                  }}
+                  disabled={uploadingPhoto}
+                  className="hidden"
+                />
+              </label>
+            </div>
+          </div>
+
           <div className="flex items-center gap-2 pt-2">
             <input
               type="checkbox"
@@ -325,7 +422,7 @@ export default function StoreManager({ initialStores, erpLocations = [] }: Store
             <div key={store.id} className="bg-white border border-[#E0E0E0] shadow-sm rounded-md overflow-hidden flex flex-col h-full">
               <div className="p-5 flex-1 flex flex-col">
                 <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-[var(--font-barlow)] font-bold text-lg text-[#1C1C1C] leading-tight">
+                  <h3 className="font-barlow font-bold text-lg text-[#1C1C1C] leading-tight">
                     {store.name}
                   </h3>
                   <button
@@ -351,6 +448,19 @@ export default function StoreManager({ initialStores, erpLocations = [] }: Store
                     <p className="text-xs font-semibold text-amber-700 bg-amber-50 px-2 py-1 rounded">
                       Creada por la sincronización: completa dirección y ciudad antes de activarla.
                     </p>
+                  )}
+                  {store.photos && store.photos.length > 0 && (
+                    <div className="flex gap-1.5 py-1.5 overflow-x-auto">
+                      {store.photos.map((photo, idx) => (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img
+                          key={idx}
+                          src={photo}
+                          alt=""
+                          className="w-12 h-10 object-cover rounded border border-gray-200"
+                        />
+                      ))}
+                    </div>
                   )}
                   <p><strong>Dirección:</strong> {store.address}, {store.city}</p>
                   {store.schedule && <p><strong>Horario:</strong> {store.schedule}</p>}

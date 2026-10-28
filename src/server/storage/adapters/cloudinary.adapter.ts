@@ -22,10 +22,11 @@ export class CloudinaryAdapter implements IStorageAdapter {
   }
 
   async uploadImage(base64: string, options?: UploadOptions): Promise<UploadResult> {
+    const isPdf = base64.startsWith("data:application/pdf")
     const result = await cloudinary.uploader.upload(base64, {
       folder: options?.folder || "one-star/productos",
-      resource_type: "auto",
-      transformation: [{ quality: "auto", fetch_format: "auto" }],
+      resource_type: isPdf ? "raw" : "auto",
+      ...(isPdf ? {} : { transformation: [{ quality: "auto", fetch_format: "auto" }] }),
     })
 
     return {

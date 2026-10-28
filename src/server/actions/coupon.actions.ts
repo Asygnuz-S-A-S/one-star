@@ -1,26 +1,12 @@
 "use server"
 
 import { headers } from "next/headers"
+import { consumePublicRateLimit } from "@/server/services/public-rate-limit.service"
 import { z } from "zod"
 import { validateCouponForOrder } from "@/server/services/coupon.service"
+import { isClubMember } from "@/server/services/club.service"
+import { auth } from "@/lib/auth"
 import { findVariantsForPricing } from "@/server/repositories/variant.repository"
-
-/** Rate limiting en memoria por IP (se reinicia al reiniciar el proceso). */
-const attempts = new Map<string, { count: number; resetAt: number }>()
-const WINDOW_MS = 60_000
-const MAX_ATTEMPTS = 15
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now()
-  const record = attempts.get(ip)
-  if (record && now < record.resetAt) {
-    if (record.count >= MAX_ATTEMPTS) return true
-    record.count++
-    return false
-  }
-  attempts.set(ip, { count: 1, resetAt: now + WINDOW_MS })
-  return false
-}
 
 const inputSchema = z.object({
   code: z.string().trim().min(1).max(40),
@@ -59,8 +45,8 @@ export async function validateCouponAction(
   }
 
   const headerList = await headers()
-  const ip = headerList.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown"
-  if (isRateLimited(ip)) {
+  const rateLimit = await consumePublicRateLimit("coupon-validation", headerList, { max: 15, windowMs: 60_000 })
+  if (!rateLimit.allowed) {
     return { valid: false, error: "Demasiados intentos. Espera un minuto." }
   }
 
@@ -87,7 +73,10 @@ export async function validateCouponAction(
       return { categoryId: variant.product.categoryId, unitPrice, quantity }
     })
 
-    const result = await validateCouponForOrder(parsed.data.code, resolvedItems)
+    const session = await auth.api.getSession({ headers: headerList })
+    const result = await validateCouponForOrder(parsed.data.code, resolvedItems, {
+      isClubMember: await isClubMember(session?.user?.id),
+    })
     if (!result.valid) {
       return { valid: false, error: result.reason }
     }

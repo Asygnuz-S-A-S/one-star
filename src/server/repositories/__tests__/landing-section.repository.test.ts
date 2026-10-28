@@ -45,9 +45,19 @@ describe("landing-section.repository", () => {
     await getActiveLandingSections()
 
     expect(m.findMany).toHaveBeenCalledWith({
-      where: { isActive: true },
+      where: { page: "home", isActive: true },
       orderBy: ordenEstable,
     })
+  })
+
+  it("cada landing de campaña solo ve sus propias secciones", async () => {
+    m.findMany.mockResolvedValue([])
+
+    await getActiveLandingSections("hoka-running")
+    await getAllLandingSections("hoka-running")
+
+    expect(m.findMany).toHaveBeenNthCalledWith(1, { where: { page: "hoka-running", isActive: true }, orderBy: ordenEstable })
+    expect(m.findMany).toHaveBeenNthCalledWith(2, { where: { page: "hoka-running" }, orderBy: ordenEstable })
   })
 
   it("el builder ve también las secciones desactivadas", async () => {
@@ -55,7 +65,7 @@ describe("landing-section.repository", () => {
 
     await getAllLandingSections()
 
-    expect(m.findMany).toHaveBeenCalledWith({ orderBy: ordenEstable })
+    expect(m.findMany).toHaveBeenCalledWith({ where: { page: "home" }, orderBy: ordenEstable })
   })
 
   it("reordena todas las secciones en una sola transacción", async () => {

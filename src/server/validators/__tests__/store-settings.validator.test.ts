@@ -8,23 +8,60 @@ import {
   StoreInfoInputSchema,
 } from "../store-settings.validator"
 
+const baseStoreInfo = {
+  storeName: "One Star",
+  contactEmail: "",
+  whatsapp: "",
+  freeShippingThreshold: "200000",
+  standardShippingCost: "15000",
+  expressShippingCost: "25000",
+  legalName: "",
+  taxId: "",
+  legalAddress: "",
+  contactPhone: "",
+  hideImagelessProducts: true,
+  newArrivalDays: 30,
+  chatEnabled: true,
+  chatWelcome: "",
+  giftCardMinAmount: "20000",
+  giftCardMaxAmount: "2000000",
+  giftCardValidityMonths: 12,
+  clubHeadline: "",
+  clubIntro: "",
+  clubBenefits: "",
+  clubWelcomeSubject: "",
+  clubWelcomeBody: "",
+  footerLinks: "",
+  bottomNav: "",
+  deliveryMinDays: 3,
+  deliveryMaxDays: 5,
+  expressDeliveryMinDays: 1,
+  expressDeliveryMaxDays: 2,
+  legalCity: "",
+  commercialRegistry: "",
+  dataProtectionEmail: "",
+  giftCardAmounts: "",
+}
+
 describe("StoreInfoInputSchema", () => {
   it("normaliza campos vacíos a null y limpia el WhatsApp", () => {
     const result = StoreInfoInputSchema.parse({
+      ...baseStoreInfo,
       storeName: "  One Star ",
       contactEmail: "",
       whatsapp: "+57 (300) 123-4567",
     })
 
-    expect(result).toEqual({
-      storeName: "One Star",
-      contactEmail: null,
-      whatsapp: "+573001234567",
-    })
+    expect(result.storeName).toBe("One Star")
+    expect(result.contactEmail).toBeNull()
+    expect(result.whatsapp).toBe("+573001234567")
+    expect(result.legalName).toBeNull()
+    expect(result.freeShippingThreshold).toBe(200_000)
   })
 
   it("rechaza un email inválido", () => {
     const result = StoreInfoInputSchema.safeParse({
+      ...baseStoreInfo,
       storeName: "One Star",
       contactEmail: "no-es-email",
       whatsapp: "",
@@ -35,6 +72,7 @@ describe("StoreInfoInputSchema", () => {
 
   it("rechaza un WhatsApp con letras", () => {
     const result = StoreInfoInputSchema.safeParse({
+      ...baseStoreInfo,
       storeName: "One Star",
       contactEmail: "",
       whatsapp: "+57abc",

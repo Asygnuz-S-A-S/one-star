@@ -1,6 +1,7 @@
 import "server-only"
 import { getUniqueSizes as fetchSizes, getUniqueColors as fetchColors, countVariants as fetchCount } from "../repositories/variant.repository"
 import type { Variant } from "@prisma/client"
+import { compareSizes, dedupeColors } from "@/lib/catalog-facets"
 
 export interface VariantDTO {
   id: string
@@ -27,11 +28,11 @@ export function mapVariantToDTO(variant: Variant): VariantDTO {
 }
 
 export async function getUniqueSizes(): Promise<string[]> {
-  return fetchSizes()
+  return (await fetchSizes()).sort(compareSizes)
 }
 
 export async function getUniqueColors(): Promise<string[]> {
-  return fetchColors()
+  return dedupeColors(await fetchColors())
 }
 
 export async function getTotalVariantsCount(): Promise<number> {

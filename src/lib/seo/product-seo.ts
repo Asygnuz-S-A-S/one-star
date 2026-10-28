@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import { formatCOP } from "@/lib/shop-utils"
-import { STANDARD_SHIPPING_COST, STANDARD_SHIPPING_THRESHOLD } from "@/lib/shipping"
+import { DEFAULT_SHIPPING_RATES, type ShippingRates } from "@/lib/shipping"
 import { DELIVERY_BUSINESS_DAYS } from "@/lib/conversion-signals"
 import { RETURN_WINDOW_DAYS } from "@/lib/store-promises"
 import { isRealColor } from "@/lib/colors"
@@ -39,6 +39,9 @@ export interface SeoContext {
   reviews: SeoReview[]
   reviewStats: { avg: number; count: number }
   returnWindowDays?: number
+  /** Tarifas vigentes. Si no llegan, se usan los valores de respaldo. */
+  shipping?: ShippingRates
+  delivery?: { min: number; max: number }
   /** Para fijar `priceValidUntil` de forma determinista en pruebas. */
   now?: Date
 }
@@ -124,6 +127,7 @@ function priceValidUntil(now: Date): string {
 
 export function buildProductJsonLd(product: SeoProduct, ctx: SeoContext): Record<string, unknown> {
   const returnDays = ctx.returnWindowDays ?? RETURN_WINDOW_DAYS
+  const shipping = ctx.shipping ?? DEFAULT_SHIPPING_RATES
   const url = buildProductUrl(product.slug, ctx.siteUrl)
   const price = getDisplayPrice(product)
   const inStock = product.variants.some((v) => v.stock > 0)
@@ -143,7 +147,7 @@ export function buildProductJsonLd(product: SeoProduct, ctx: SeoContext): Record
       "@type": "OfferShippingDetails",
       shippingRate: {
         "@type": "MonetaryAmount",
-        value: price >= STANDARD_SHIPPING_THRESHOLD ? 0 : STANDARD_SHIPPING_COST,
+        value: price >= shipping.freeThreshold ? 0 : shipping.standardCost,
         currency: "COP",
       },
       shippingDestination: { "@type": "DefinedRegion", addressCountry: "CO" },
@@ -152,8 +156,8 @@ export function buildProductJsonLd(product: SeoProduct, ctx: SeoContext): Record
         handlingTime: { "@type": "QuantitativeValue", minValue: 0, maxValue: 1, unitCode: "DAY" },
         transitTime: {
           "@type": "QuantitativeValue",
-          minValue: DELIVERY_BUSINESS_DAYS.min,
-          maxValue: DELIVERY_BUSINESS_DAYS.max,
+          minValue: (ctx.delivery ?? DELIVERY_BUSINESS_DAYS).min,
+          maxValue: (ctx.delivery ?? DELIVERY_BUSINESS_DAYS).max,
           unitCode: "DAY",
         },
       },

@@ -192,8 +192,9 @@ async function main() {
         { label: "SALE", href: "/sale", isSale: true, position: 5 },
         { label: "Accesorios", href: "/c/accesorios", isSale: false, position: 6 },
         { label: "Marcas", href: "/marcas", isSale: false, position: 7 },
-        { label: "Tarjeta regalo", href: "/tarjeta-regalo", isSale: false, position: 8 },
-        { label: "Tiendas", href: "/tiendas", isSale: false, position: 9 },
+        { label: "One Star Club", href: "/club", isSale: false, position: 8 },
+        { label: "Tarjeta regalo", href: "/tarjeta-regalo", isSale: false, position: 9 },
+        { label: "Tiendas", href: "/tiendas", isSale: false, position: 10 },
       ],
     });
     console.log("✓ 8 ítems de navegación creados");

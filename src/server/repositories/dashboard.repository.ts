@@ -47,7 +47,7 @@ export async function getDashboardData() {
     }),
     prisma.variant.findMany({
       where: { stock: { lte: 3 } },
-      include: { product: { select: { name: true, brand: true } } },
+      include: { product: { select: { id: true, name: true, brand: true } } },
       orderBy: { stock: "asc" },
       take: 20,
     }),

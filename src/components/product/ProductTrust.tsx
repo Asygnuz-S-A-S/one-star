@@ -33,7 +33,7 @@ export default function ProductTrust({ promises, whatsappUrl }: ProductTrustProp
             <span className="mt-0.5 text-[#1C1C1C] dark:text-white">
               <PromiseIcon icon={promise.icon} />
             </span>
-            <span className="font-[var(--font-montserrat)] text-xs leading-snug">
+            <span className="font-montserrat text-xs leading-snug">
               <strong className="block text-[#1C1C1C] dark:text-white">{promise.title}</strong>
               <span className="text-[#4A4A4A] dark:text-gray-400">{promise.text}</span>
             </span>
@@ -45,7 +45,7 @@ export default function ProductTrust({ promises, whatsappUrl }: ProductTrustProp
           href={whatsappUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center justify-center gap-2 rounded-xl border border-[#1C1C1C] px-4 py-3 font-[var(--font-barlow)] text-xs font-bold uppercase tracking-widest text-[#1C1C1C] transition-colors hover:bg-[#1C1C1C] hover:text-white dark:border-white dark:text-white dark:hover:bg-white dark:hover:text-black"
+          className="flex items-center justify-center gap-2 rounded-xl border border-[#1C1C1C] px-4 py-3 font-barlow text-xs font-bold uppercase tracking-widest text-[#1C1C1C] transition-colors hover:bg-[#1C1C1C] hover:text-white dark:border-white dark:text-white dark:hover:bg-white dark:hover:text-black"
         >
           <PromiseIcon icon="chat" className="h-4 w-4" />
           ¿Dudas con la talla? Escríbenos por WhatsApp

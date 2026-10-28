@@ -33,6 +33,7 @@ test.describe("Admin — auditoría E2E integral", () => {
       { path: "/admin/marcas", heading: /^Catálogo de Marcas$/ },
       { path: "/admin/colores", heading: /^Colores de producto$/ },
       { path: "/admin/landing-builder", heading: /^Constructor Visual$/ },
+      { path: "/admin/contenido", heading: /^Contenido y Promesas Globales$/ },
       { path: "/admin/tiendas", heading: /^Gestor de Sucursales Físicas$/ },
       { path: "/admin/configuracion", heading: /^Configuración$/ },
       { path: "/admin/integraciones", heading: /^Integraciones$/ },
@@ -66,9 +67,19 @@ test.describe("Admin — auditoría E2E integral", () => {
     ]) {
       await page.goto(legacyRoute)
       await expect(page).toHaveURL(/\/admin\/landing-builder$/)
-      await expect(page.getByRole("heading", { name: "Constructor Visual", exact: true })).toBeVisible()
+      await expect(page.getByRole("heading", { name: "Inicio · editor visual", exact: true })).toBeVisible()
       await page.waitForTimeout(2_500)
     }
+  })
+
+  test("muestra los editores de contenido sin un lienzo en blanco", async ({ adminPage: page }) => {
+    await page.goto("/admin/contenido")
+    await expect(page.getByTestId("site-content-form")).toBeVisible()
+    await expect(page.getByRole("heading", { name: "1. Beneficios Globales (Highlights)", exact: true })).toBeVisible()
+
+    await page.goto("/admin/landing-builder")
+    await expect(page.getByRole("heading", { name: "Inicio · editor visual", exact: true })).toBeVisible()
+    await expect(page.locator('iframe[title="Vista previa de escritorio"]')).toBeVisible()
   })
 
   test("crea, edita y elimina una categoría aislada de prueba", async ({ adminPage: page }) => {
@@ -139,6 +150,51 @@ test.describe("Admin — auditoría E2E integral", () => {
     await expect(page.getByRole("button", { name: "Guardar cambios", exact: true })).toBeVisible()
   })
 
+  test("mantiene la navegación y acciones del builder dentro del espacio de trabajo", async ({ adminPage: page }) => {
+    await page.goto("/admin/landing-builder")
+
+    await expect(page.getByText("Administración", { exact: true })).toBeVisible()
+    await expect(page.getByText("Constructor visual", { exact: true }).first()).toBeVisible()
+    await expect(page.getByRole("link", { name: "Salir al panel", exact: true })).toBeVisible()
+    await expect(page.getByRole("link", { name: "Abrir tienda", exact: true })).toBeVisible()
+    await expect(page.getByRole("button", { name: "Actualizar vista previa", exact: true })).toBeVisible()
+
+    await page.getByRole("button", { name: /configurar/i }).first().click()
+    await expect(page.getByText("Secciones de la página", { exact: true })).toBeVisible()
+    await expect(page.getByRole("button", { name: "Volver a secciones", exact: true })).toBeVisible()
+    await expect(page.getByRole("button", { name: "Guardar cambios", exact: true })).toBeVisible()
+  })
+
+  test("configura las tres imágenes responsive directamente desde el Hero", async ({ adminPage: page }) => {
+    await page.goto("/admin/landing-builder")
+    await page.getByRole("button", { name: /configurar/i }).first().click()
+
+    const legacyUpgrade = page.getByRole("button", { name: "Configurar imágenes por dispositivo", exact: true })
+    if (await legacyUpgrade.count()) await legacyUpgrade.click()
+
+    await expect(page.getByText("Imágenes adaptadas por pantalla", { exact: true })).toBeVisible()
+    await expect(page.getByRole("textbox", { name: "Imagen Web / escritorio URL", exact: true })).toBeVisible()
+    await expect(page.getByRole("textbox", { name: "Imagen Tablet URL", exact: true })).toBeVisible()
+    await expect(page.getByRole("textbox", { name: "Imagen Móvil URL", exact: true })).toBeVisible()
+
+    await page.getByRole("button", { name: "Biblioteca", exact: true }).first().click()
+    await expect(page.getByRole("dialog", { name: "Seleccionar Imagen Web / escritorio", exact: true })).toBeVisible()
+  })
+
+  test("lleva la campaña principal al Hero y explica los banners heredados", async ({ adminPage: page }) => {
+    await page.goto("/admin/landing-builder")
+
+    await page.getByRole("button", { name: /campaña principal \(hero\)/i }).click()
+    await expect(page.getByRole("heading", { name: "Hero Banner (Principal)", exact: true })).toBeVisible()
+    await expect(page.getByRole("button", { name: "Guardar cambios", exact: true })).toBeVisible()
+
+    await page.getByRole("button", { name: "Volver a secciones", exact: true }).click()
+    await page.getByRole("button", { name: /banners heredados/i }).click()
+    await expect(page.getByRole("heading", { name: "Banners heredados (respaldo)", exact: true })).toBeVisible()
+    await expect(page.getByText(/solo se muestra si el hero principal/i)).toBeVisible()
+    await expect(page.getByRole("button", { name: "Configurar Hero principal", exact: true })).toBeVisible()
+  })
+
   test("integra Landing Builder con su previsualización pública", async ({ adminPage: page }) => {
     await page.goto("/admin/landing-builder")
 
@@ -146,7 +202,7 @@ test.describe("Admin — auditoría E2E integral", () => {
     await expect(page.getByText("Explora One Star", { exact: true })).toBeVisible()
     await expect(page.getByText("Sé parte de One Star", { exact: true })).toBeVisible()
 
-    const preview = page.frameLocator('iframe[title="Live Preview"]')
+    const preview = page.frameLocator('iframe[title="Vista previa de escritorio"]')
     await expect(preview.getByRole("heading", { name: "NUEVA ERA", exact: true })).toBeVisible()
     await expect(preview.getByRole("heading", { name: "Explora One Star", exact: true })).toBeVisible()
     await expect(preview.getByRole("heading", { name: "Sé parte de One Star", exact: true })).toBeVisible()
@@ -208,5 +264,20 @@ test.describe("Admin — auditoría E2E integral", () => {
       await expect(page.getByRole("button", { name: "Guardar programación" })).toBeEnabled()
       await expect(page.getByRole("button", { name: "Sincronizar catálogo" })).toBeEnabled()
     }
+  })
+})
+
+test.describe("Landing Builder — medios de banners", () => {
+  test.skip(!adminEmail || !adminPassword, "Requiere TEST_ADMIN_EMAIL y TEST_ADMIN_PASSWORD")
+
+  test("permite elegir un archivo existente desde el nuevo slide", async ({ adminPage: page }) => {
+    await page.goto("/admin/landing-builder")
+    await page.getByRole("button", { name: /banners heredados/i }).click()
+    await page.getByRole("button", { name: /añadir banner heredado/i }).click()
+
+    await expect(page.getByRole("button", { name: /biblioteca de medios/i })).toBeVisible()
+    await page.getByRole("button", { name: /biblioteca de medios/i }).click()
+    await expect(page.getByRole("dialog", { name: /biblioteca de medios/i })).toBeVisible()
+    await expect(page.getByPlaceholder(/buscar archivo por nombre/i)).toBeVisible()
   })
 })

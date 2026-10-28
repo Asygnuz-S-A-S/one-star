@@ -45,3 +45,12 @@ export async function decrementCouponUsage(id: string): Promise<void> {
     data: { usedCount: { decrement: 1 } },
   })
 }
+
+/** Cupones exclusivos del club vigentes hoy (activos, en fecha y con usos disponibles). */
+export async function findActiveClubCoupons(now: Date) {
+  const coupons = await prisma.coupon.findMany({
+    where: { clubOnly: true, isActive: true, validFrom: { lte: now }, validUntil: { gte: now } },
+    orderBy: { validUntil: "asc" },
+  })
+  return coupons.filter((coupon) => coupon.maxUses === null || coupon.usedCount < coupon.maxUses)
+}

@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useRef } from "react"
 import Image from "next/image"
+import MediaLibraryModal from "@/components/admin/MediaLibraryModal"
 import { safePublicUrl } from "@/lib/safe-url"
 import { toColombiaDateInput } from "@/lib/colombia-date"
 import type { LandingBuilderActions } from "@/types/landing-builder-actions"
@@ -24,7 +25,7 @@ interface Props {
   onClose: () => void
 }
 
-type MediaSource = "upload" | "url"
+type MediaSource = "upload" | "library" | "url"
 
 export default function BannerForm({ actions, initial, onClose }: Props) {
   const { createBanner, updateBanner } = actions
@@ -34,6 +35,7 @@ export default function BannerForm({ actions, initial, onClose }: Props) {
   const [isActive, setIsActive] = useState(initial?.isActive ?? true)
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle")
 
   // Media state
   const [mediaSource, setMediaSource] = useState<MediaSource>("upload")
@@ -43,6 +45,7 @@ export default function BannerForm({ actions, initial, onClose }: Props) {
   )
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
+  const [isMediaLibraryOpen, setIsMediaLibraryOpen] = useState(false)
 
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -83,6 +86,7 @@ export default function BannerForm({ actions, initial, onClose }: Props) {
     e.preventDefault()
     if (!mediaUrl.trim()) {
       setError("Debes subir un archivo o ingresar una URL.")
+      setSaveState("error")
       return
     }
     const form = formRef.current
@@ -92,18 +96,22 @@ export default function BannerForm({ actions, initial, onClose }: Props) {
     formData.set("imageUrl", mediaUrl)
     formData.set("mediaType", mediaType)
 
+    setSaveState("saving")
     startTransition(async () => {
       try {
         const result = initial?.id
           ? await updateBanner(initial.id, formData)
           : await createBanner(formData)
         if (result.success) {
-          onClose()
+          setSaveState("saved")
+          window.setTimeout(onClose, 500)
         } else {
           setError(result.error ?? "Error desconocido.")
+          setSaveState("error")
         }
       } catch {
         setError("No se pudo guardar el banner. Intenta de nuevo.")
+        setSaveState("error")
       }
     })
   }
@@ -153,6 +161,20 @@ export default function BannerForm({ actions, initial, onClose }: Props) {
           </button>
           <button
             type="button"
+            onClick={() => {
+              setMediaSource("library")
+              setIsMediaLibraryOpen(true)
+            }}
+            className={`flex-1 py-2 text-xs font-bold border-l border-gray-200 transition-colors ${
+              mediaSource === "library"
+                ? "bg-[#1C1C1C] text-white"
+                : "bg-white text-gray-500 hover:bg-gray-50"
+            }`}
+          >
+            🗂 Biblioteca de medios
+          </button>
+          <button
+            type="button"
             onClick={() => setMediaSource("url")}
             className={`flex-1 py-2 text-xs font-bold border-l border-gray-200 transition-colors ${
               mediaSource === "url"
@@ -160,7 +182,7 @@ export default function BannerForm({ actions, initial, onClose }: Props) {
                 : "bg-white text-gray-500 hover:bg-gray-50"
             }`}
           >
-            🔗 Ingresar URL
+            🔗 URL
           </button>
         </div>
 
@@ -191,6 +213,18 @@ export default function BannerForm({ actions, initial, onClose }: Props) {
             {uploadError && (
               <p className="text-xs text-red-500 mt-2">{uploadError}</p>
             )}
+          </div>
+        ) : mediaSource === "library" ? (
+          <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4 text-center">
+            <p className="text-sm font-semibold text-[#1C1C1C]">Elige un archivo ya cargado</p>
+            <p className="mt-1 text-xs text-gray-500">Busca imágenes y videos de la biblioteca; no se sube ni elimina nada al seleccionarlos.</p>
+            <button
+              type="button"
+              onClick={() => setIsMediaLibraryOpen(true)}
+              className="mt-3 min-h-11 rounded-lg bg-[#1C1C1C] px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-gray-800"
+            >
+              Abrir biblioteca de medios
+            </button>
           </div>
         ) : (
           <div className="space-y-2">
@@ -263,14 +297,19 @@ export default function BannerForm({ actions, initial, onClose }: Props) {
 
       {/* Link URL */}
       <div>
-        <label className={labelClass}>URL de destino (link)</label>
+        <label className={labelClass}>Destino del CTA</label>
         <input
           type="text"
           name="linkUrl"
+          list="banner-destinations"
           defaultValue={initial?.linkUrl ?? ""}
-          placeholder="https://..."
+          placeholder="Selecciona una ruta interna o escribe una URL externa"
           className={inputClass}
         />
+        <datalist id="banner-destinations">
+          <option value="/">Inicio</option><option value="/lanzamientos">Lanzamientos</option><option value="/sale">Sale</option><option value="/productos">Catálogo</option><option value="/accesorios">Accesorios</option><option value="/tarjeta-regalo">Tarjeta regalo</option>
+        </datalist>
+        <p className="mt-1 text-xs text-gray-500">Usa una ruta interna primero. Las URLs https externas se guardan como destino externo.</p>
       </div>
 
       {/* Posición */}
@@ -326,6 +365,10 @@ export default function BannerForm({ actions, initial, onClose }: Props) {
         <span className="text-sm text-[#4A4A4A]">{isActive ? "Activo" : "Inactivo"}</span>
       </div>
 
+      <p role="status" aria-live="polite" className={`text-xs ${saveState === "error" ? "text-red-700" : saveState === "saved" ? "text-emerald-700" : "text-gray-500"}`}>
+        {saveState === "saving" ? "Guardando cambios…" : saveState === "saved" ? "Guardado. Actualizando vista previa…" : saveState === "error" ? "No se guardaron los cambios." : "Los cambios se publican al guardar."}
+      </p>
+
       {/* Actions */}
       <div className="flex gap-3 pt-2">
         <button
@@ -343,6 +386,19 @@ export default function BannerForm({ actions, initial, onClose }: Props) {
           Cancelar
         </button>
       </div>
+
+      <MediaLibraryModal
+        isOpen={isMediaLibraryOpen}
+        onClose={() => setIsMediaLibraryOpen(false)}
+        acceptedType="all"
+        title="Biblioteca de medios"
+        onSelect={(media) => {
+          setMediaUrl(media.url)
+          setMediaType(media.fileType === "video" ? "video" : "image")
+          setMediaSource("library")
+          setIsMediaLibraryOpen(false)
+        }}
+      />
     </form>
   )
 }

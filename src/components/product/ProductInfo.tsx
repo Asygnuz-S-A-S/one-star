@@ -2,11 +2,11 @@
 
 import { useState, useCallback } from "react"
 import Link from "next/link"
-import Image from "next/image"
+import { getColorSwatchStyle } from "@/lib/colors"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence, MotionConfig, type Transition, type Variants } from "motion/react"
 import type { ProductWithRelations, Variant } from "@/types/shop"
-import SizeGuideModal from "./SizeGuideModal"
+import SizeGuideModal, { type BrandSizeGuide } from "./SizeGuideModal"
 import { formatCOP } from "@/lib/shop-utils"
 import { filterImagesByColor, getPrimaryImageUrl } from "@/lib/product-image"
 import { useCart } from "@/store"
@@ -22,8 +22,8 @@ import ProductTrust from "./ProductTrust"
 import { splitHighlight } from "@/lib/product-faq"
 import StickyBuyBar from "./StickyBuyBar"
 import { RETURN_WINDOW_DAYS, type StorePromise } from "@/lib/store-promises"
-import { STANDARD_SHIPPING_THRESHOLD } from "@/lib/shipping"
-import { DELIVERY_BUSINESS_DAYS } from "@/lib/conversion-signals"
+import { useDeliveryDays, useShippingRates } from "@/components/storefront/ShippingRatesProvider"
+import { getProductAvailability } from "@/lib/product-availability"
 
 interface ProductInfoProps {
   product: ProductWithRelations
@@ -31,7 +31,7 @@ interface ProductInfoProps {
   /** Garantías reales de la tienda (envío, entrega, cambios, pago) que se muestran junto al botón. */
   promises?: StorePromise[]
   whatsappUrl?: string | null
-  brand?: { name?: string | null; sizeGuideImageUrl?: string | null; sizeGuideNote?: string | null } | null
+  brand?: BrandSizeGuide | null
   /** Color controlado desde el padre para sincronizar la galería. */
   selectedColor?: string
   onColorChange?: (color: string) => void
@@ -71,26 +71,6 @@ function isAvailable(variants: Variant[], color: string, size: string): boolean 
   return variants.some((v) => v.color === color && v.size === size && v.stock > 0)
 }
 
-/** Converts a color name string to a CSS-compatible color for the swatch */
-function colorToCSS(color: string): string {
-  const map: Record<string, string> = {
-    negro: "#1C1C1C",
-    blanco: "#FFFFFF",
-    rojo: "#E31C23",
-    azul: "#1A55A0",
-    verde: "#2D7A2D",
-    gris: "#9E9E9E",
-    amarillo: "#F5C518",
-    naranja: "#F07B20",
-    morado: "#7B2D8B",
-    rosado: "#E91E8C",
-    beige: "#D4B896",
-    café: "#795548",
-    marron: "#795548",
-  }
-  return map[color.toLowerCase()] ?? "#9E9E9E"
-}
-
 export default function ProductInfo({
   product,
   reviewStats,
@@ -111,7 +91,7 @@ export default function ProductInfo({
   const [justAdded, setJustAdded] = useState(false)
 
   const { addItem, openCart } = useCart()
-  const { toasts, showToast, dismissToast } = useToast()
+  const { toasts, dismissToast } = useToast()
   const router = useRouter()
 
   const basePrice = Number(product.basePrice)
@@ -123,6 +103,10 @@ export default function ProductInfo({
     ...(product.colorSiblings ?? []),
   ])
   const sizesForColor = selectedColor ? getUniqueSizes(product.variants, selectedColor) : []
+  const availability = getProductAvailability(
+    product.availableOnline !== false,
+    product.variants.some((variant) => variant.stock > 0)
+  )
 
   const handleColorSelect = useCallback((color: string) => {
     setInternalColor(color)
@@ -179,11 +163,11 @@ export default function ProductInfo({
       value: cartItem.price,
       currency: META_CURRENCY,
     })
+    // El drawer abierto ya confirma la acción; un aviso encima tapaba su botón de checkout en móvil.
     openCart()
-    showToast("¡Agregado al carrito!", "success")
     setJustAdded(true)
     setTimeout(() => setJustAdded(false), 1600)
-  }, [selectedSize, triggerShake, buildCartItem, addItem, openCart, showToast])
+  }, [selectedSize, triggerShake, buildCartItem, addItem, openCart])
 
   const handleBuyNow = useCallback(() => {
     if (!selectedSize) {
@@ -219,6 +203,8 @@ export default function ProductInfo({
   const storeStock = selectedVariant ? getVariantStoreStock(selectedVariant.inventory) : []
 
   // Mensajes de confianza y urgencia (HU-12), calculados con datos reales.
+  const shippingRates = useShippingRates()
+  const deliveryDays = useDeliveryDays()
   const conversionSignals = getConversionSignals({
     price: salePrice ?? basePrice,
     selectedVariantStock: selectedVariant ? selectedVariant.stock : null,
@@ -227,6 +213,8 @@ export default function ProductInfo({
       .filter((v) => v.color === selectedColor)
       .reduce((sum, v) => sum + Math.max(0, v.stock), 0),
     isDigital: product.category?.slug === GIFT_CARD_CATEGORY_SLUG,
+    freeThreshold: shippingRates.freeThreshold,
+    delivery: deliveryDays,
   })
 
   return (
@@ -234,7 +222,7 @@ export default function ProductInfo({
       <motion.div
         className="flex flex-col gap-5"
         variants={containerVariants}
-        initial="hidden"
+        initial={false}
         animate="show"
       >
         {/* Brand */}
@@ -242,7 +230,7 @@ export default function ProductInfo({
           <motion.div variants={itemVariants}>
             <Link
               href={`/buscar?marca=${encodeURIComponent(product.brand)}`}
-              className="font-[var(--font-montserrat)] text-xs uppercase tracking-widest text-[#4A4A4A] hover:text-[#1C1C1C] transition-colors w-fit"
+              className="font-montserrat text-xs uppercase tracking-widest text-[#4A4A4A] hover:text-[#1C1C1C] transition-colors w-fit"
             >
               {product.brand}
             </Link>
@@ -251,21 +239,21 @@ export default function ProductInfo({
 
         {/* Name + badge */}
         <motion.div variants={itemVariants} className="flex items-start gap-3 flex-wrap">
-          <h1 className="font-[var(--font-barlow)] font-bold text-2xl md:text-3xl text-[#1C1C1C] dark:text-white leading-tight flex-1">
+          <h1 className="font-barlow font-bold text-2xl md:text-3xl text-[#1C1C1C] dark:text-white leading-tight flex-1">
             {product.name}
           </h1>
           {product.isOnSale && (
-            <span className="flex-shrink-0 mt-1 bg-[#E31C23] text-white font-[var(--font-barlow)] font-bold text-[10px] uppercase tracking-widest px-2 py-1 rounded-sm">
+            <span className="flex-shrink-0 mt-1 bg-[#E31C23] text-white font-barlow font-bold text-xs uppercase tracking-widest px-2 py-1 rounded-sm">
               SALE
             </span>
           )}
           {!product.isOnSale && product.isNew && (
-            <span className="flex-shrink-0 mt-1 bg-[#1C1C1C] dark:bg-white text-white dark:text-black font-[var(--font-barlow)] font-bold text-[10px] uppercase tracking-widest px-2 py-1 rounded-sm">
+            <span className="flex-shrink-0 mt-1 bg-[#1C1C1C] dark:bg-white text-white dark:text-black font-barlow font-bold text-xs uppercase tracking-widest px-2 py-1 rounded-sm">
               NUEVO
             </span>
           )}
           {product.availableOnline === false && (
-            <span className="flex-shrink-0 mt-1 bg-[#F5C518] text-[#1C1C1C] font-[var(--font-barlow)] font-bold text-[10px] uppercase tracking-widest px-2 py-1 rounded-sm">
+            <span className="flex-shrink-0 mt-1 bg-[#F5C518] text-[#1C1C1C] font-barlow font-bold text-xs uppercase tracking-widest px-2 py-1 rounded-sm">
               SÓLO EN TIENDAS
             </span>
           )}
@@ -288,12 +276,12 @@ export default function ProductInfo({
                 </motion.svg>
               ))}
             </div>
-            <span className="font-[var(--font-montserrat)] text-sm font-semibold text-[#1C1C1C] dark:text-white">
+            <span className="font-montserrat text-sm font-semibold text-[#1C1C1C] dark:text-white">
               {reviewStats.avg.toFixed(1)}
             </span>
             <a
               href="#resenas"
-              className="font-[var(--font-montserrat)] text-xs text-[#4A4A4A] underline underline-offset-2 hover:text-[#1C1C1C] dark:text-gray-400 dark:hover:text-white"
+              className="font-montserrat text-xs text-[#4A4A4A] underline underline-offset-2 hover:text-[#1C1C1C] dark:text-gray-400 dark:hover:text-white"
             >
               Ver {reviewStats.count} reseña{reviewStats.count !== 1 ? "s" : ""}
             </a>
@@ -304,30 +292,45 @@ export default function ProductInfo({
         <motion.div variants={itemVariants} className="flex flex-col gap-1">
           {product.isOnSale && salePrice ? (
             <div className="flex items-center gap-3">
-              <span className="font-[var(--font-barlow)] font-bold text-3xl text-[#E31C23]">
+              <span className="font-barlow font-bold text-3xl text-[#E31C23]">
                 {formatCOP(salePrice)}
               </span>
-              <span className="font-[var(--font-montserrat)] text-[#4A4A4A] text-lg line-through">
+              <span className="font-montserrat text-[#4A4A4A] text-lg line-through">
                 {formatCOP(basePrice)}
               </span>
             </div>
           ) : (
-            <span className="font-[var(--font-barlow)] font-bold text-3xl text-[#1C1C1C] dark:text-white">
+            <span className="font-barlow font-bold text-3xl text-[#1C1C1C] dark:text-white">
               {formatCOP(basePrice)}
             </span>
           )}
           {savings && savings > 0 && (
-            <p className="font-[var(--font-montserrat)] text-sm text-green-600 font-medium">
+            <p className="font-montserrat text-sm text-green-600 font-medium">
               Ahorras {formatCOP(savings)}
             </p>
           )}
         </motion.div>
 
+        <div
+          data-testid="product-availability"
+          className={`rounded-[var(--store-radius-md)] border px-3 py-2 font-montserrat text-sm ${
+            availability.tone === "available"
+              ? "border-emerald-700/25 bg-emerald-50 text-emerald-950"
+              : availability.tone === "store-only"
+                ? "border-amber-600/30 bg-amber-50 text-amber-950"
+                : "border-[var(--store-line)] bg-[var(--store-surface-muted)] text-[var(--store-ink)]"
+          }`}
+          aria-live="polite"
+        >
+          <span className="font-semibold">{availability.label}</span>
+          <span className="ml-1 text-xs">{availability.detail}</span>
+        </div>
+
         {/* Beneficios clave: lo que el cliente gana, a la vista antes de decidir */}
         {product.highlights.length > 0 && (
           <motion.ul variants={itemVariants} className="flex flex-col gap-2" aria-label="Beneficios principales">
             {product.highlights.slice(0, 4).map(splitHighlight).map(({ title: text }) => (
-              <li key={text} className="flex items-start gap-2 font-[var(--font-montserrat)] text-sm text-[#1C1C1C] dark:text-gray-200">
+              <li key={text} className="flex items-start gap-2 font-montserrat text-sm text-[#1C1C1C] dark:text-gray-200">
                 <svg viewBox="0 0 24 24" className="mt-0.5 h-4 w-4 shrink-0 text-[#E31C23]" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M20 6 9 17l-5-5" />
                 </svg>
@@ -340,26 +343,35 @@ export default function ProductInfo({
         {/* Color selector */}
         {familyColorSummary.total > 0 && (
           <motion.div variants={itemVariants} className="flex flex-col gap-2">
-            <p className="font-[var(--font-montserrat)] text-sm font-medium text-[#1C1C1C] dark:text-white">
+            <p className="font-montserrat text-sm font-medium text-[#1C1C1C] dark:text-white">
               Color:{" "}
-              <span className="font-normal text-[#4A4A4A] dark:text-gray-400 capitalize">{selectedColor}</span>
+              <span className="font-normal capitalize text-[#4A4A4A] dark:text-gray-400">{selectedColor.toLowerCase()}</span>
+              {familyColorSummary.options.length > 1 && (
+                <span className="font-normal text-[#4A4A4A]/70"> · {familyColorSummary.options.length} colores</span>
+              )}
             </p>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-3">
               {familyColorSummary.options.map((option) => {
                 const belongsToCurrentProduct = option.productId === product.id
                 const active = belongsToCurrentProduct && selectedColor === option.name
-                const className = `relative h-12 w-12 overflow-hidden rounded-lg bg-transparent transition-all duration-200 focus-visible:outline-none ${
+                // Punto de color (como en las fichas de referencia) con anillo cuando está activo;
+                // el nombre aparece al pasar el cursor y lo anuncia el lector de pantalla.
+                const className = `group relative grid h-11 w-11 place-items-center rounded-full transition-shadow duration-200 ${
                   active
-                    ? "opacity-100 scale-105"
-                    : "opacity-50 hover:opacity-100 hover:scale-105"
+                    ? "ring-2 ring-[#1C1C1C] ring-offset-2 ring-offset-[var(--store-canvas)]"
+                    : "hover:ring-1 hover:ring-[#1C1C1C]/40 hover:ring-offset-2 hover:ring-offset-[var(--store-canvas)]"
                 }`
-                const content = option.imageUrl ? (
-                  <Image src={option.imageUrl} alt="" fill sizes="48px" className="object-contain mix-blend-multiply dark:mix-blend-normal" />
-                ) : (
-                  <span
-                    className="block h-full w-full rounded-md"
-                    style={{ backgroundColor: colorToCSS(option.name) }}
-                  />
+                const content = (
+                  <>
+                    <span
+                      aria-hidden="true"
+                      className="block h-8 w-8 rounded-full border border-black/10 shadow-inner"
+                      style={getColorSwatchStyle(option.name)}
+                    />
+                    <span aria-hidden="true" className="pointer-events-none absolute -bottom-7 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded bg-[#1C1C1C] px-2 py-0.5 text-xs capitalize text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+                      {option.name.toLowerCase()}
+                    </span>
+                  </>
                 )
 
                 if (belongsToCurrentProduct) {
@@ -398,12 +410,12 @@ export default function ProductInfo({
         {/* Size selector */}
         <motion.div id="selector-talla" variants={itemVariants} className="flex flex-col gap-2 scroll-mt-24">
           <div className="flex items-center justify-between">
-            <p className="font-[var(--font-montserrat)] text-sm font-medium text-[#1C1C1C] dark:text-white">
+            <p className="font-montserrat text-sm font-medium text-[#1C1C1C] dark:text-white">
               Talla
             </p>
             <button
               onClick={() => setSizeModalOpen(true)}
-              className="font-[var(--font-montserrat)] text-xs text-[#4A4A4A] dark:text-gray-400 underline hover:text-[#1C1C1C] dark:hover:text-white transition-colors"
+              className="inline-flex min-h-11 items-center font-montserrat text-sm text-[#4A4A4A] underline underline-offset-2 hover:text-[#1C1C1C] dark:text-gray-400 dark:hover:text-white"
             >
               Guía de tallas
             </button>
@@ -428,7 +440,7 @@ export default function ProductInfo({
                   animate={{ scale: isActive ? 1.06 : 1 }}
                   transition={springy}
                   className={`
-                    py-2 border font-[var(--font-montserrat)] text-sm font-medium
+                    min-h-11 rounded-store-md border font-montserrat text-sm font-medium
                     ${isActive
                       ? "bg-[#1C1C1C] text-white border-[#1C1C1C] dark:bg-white dark:text-black dark:border-white"
                       : available
@@ -449,7 +461,7 @@ export default function ProductInfo({
                 initial={{ opacity: 0, y: -6 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
-                className="font-[var(--font-montserrat)] text-xs text-[#E31C23] font-semibold"
+                className="font-montserrat text-xs text-[#E31C23] font-semibold"
               >
                 Selecciona una talla
               </motion.p>
@@ -462,7 +474,7 @@ export default function ProductInfo({
               aria-live="polite"
               data-testid="store-stock"
             >
-              <p className="font-[var(--font-montserrat)] text-xs font-semibold text-[#1C1C1C] dark:text-white">
+              <p className="font-montserrat text-xs font-semibold text-[#1C1C1C] dark:text-white">
                 Talla {selectedSize}: {selectedVariant.stock > 0
                   ? `${selectedVariant.stock} disponible${selectedVariant.stock !== 1 ? "s" : ""} en total`
                   : "sin unidades disponibles"}
@@ -473,19 +485,19 @@ export default function ProductInfo({
                     {storeStock.map((store) => (
                       <li
                         key={store.id}
-                        className="font-[var(--font-montserrat)] text-xs text-[#4A4A4A] dark:text-gray-300"
+                        className="font-montserrat text-xs text-[#4A4A4A] dark:text-gray-300"
                       >
                         <span className="font-semibold text-[#1C1C1C] dark:text-white">{store.name}</span>
                         {store.city ? ` (${store.city})` : ""}: {store.stock}
                       </li>
                     ))}
                   </ul>
-                  <p className="mt-1 font-[var(--font-montserrat)] text-[11px] text-[#4A4A4A] dark:text-gray-400">
+                  <p className="mt-1 font-montserrat text-[11px] text-[#4A4A4A] dark:text-gray-400">
                     El stock de tienda es para compra presencial: la web no lo aparta ni lo reserva.
                   </p>
                 </>
               ) : (
-                <p className="mt-1 font-[var(--font-montserrat)] text-[11px] text-[#4A4A4A] dark:text-gray-400">
+                <p className="mt-1 font-montserrat text-[11px] text-[#4A4A4A] dark:text-gray-400">
                   Sin existencias en tiendas físicas para esta talla.
                 </p>
               )}
@@ -496,7 +508,7 @@ export default function ProductInfo({
         {/* Action buttons */}
         <motion.div id="comprar" variants={itemVariants} className="flex flex-col gap-3 scroll-mt-24">
           {product.availableOnline === false ? (
-            <div className="w-full py-4 text-center border-2 border-[#1C1C1C] text-[#1C1C1C] font-[var(--font-barlow)] font-bold uppercase tracking-widest text-sm bg-[#F5F5F5] dark:border-white dark:text-white dark:bg-white/5">
+            <div className="w-full py-4 text-center border-2 border-[#1C1C1C] text-[#1C1C1C] font-barlow font-bold uppercase tracking-widest text-sm bg-[#F5F5F5] dark:border-white dark:text-white dark:bg-white/5">
               Producto exclusivo de tiendas físicas
             </div>
           ) : (
@@ -508,7 +520,7 @@ export default function ProductInfo({
                 whileTap={canAct ? { scale: 0.95 } : undefined}
                 animate={justAdded ? { scale: [1, 1.08, 0.96, 1] } : { scale: 1 }}
                 transition={justAdded ? popTween : springy}
-                className={`relative w-full py-4 font-[var(--font-barlow)] font-bold uppercase tracking-widest text-sm overflow-hidden ${
+                className={`relative w-full py-4 font-barlow font-bold uppercase tracking-widest text-sm overflow-hidden ${
                   justAdded
                     ? "bg-green-600 text-white"
                     : canAct
@@ -554,7 +566,7 @@ export default function ProductInfo({
                 whileHover={canAct ? { scale: 1.03 } : undefined}
                 whileTap={canAct ? { scale: 0.95 } : undefined}
                 transition={springy}
-                className={`w-full py-4 font-[var(--font-barlow)] font-bold uppercase tracking-widest text-sm ${
+                className={`w-full py-4 font-barlow font-bold uppercase tracking-widest text-sm ${
                   canAct
                     ? "bg-[#E31C23] text-white hover:bg-[#C01920]"
                     : "bg-[#E31C23] text-white"
@@ -572,7 +584,7 @@ export default function ProductInfo({
         <motion.div variants={itemVariants} className="flex flex-col divide-y divide-[#E0E0E0] dark:divide-white/10 border-t border-[#E0E0E0] dark:border-white/10">
           {product.description && (
             <AccordionItem title="Descripción">
-              <p className="font-[var(--font-montserrat)] text-sm text-[#4A4A4A] dark:text-gray-300 leading-relaxed">
+              <p className="font-montserrat text-sm text-[#4A4A4A] dark:text-gray-300 leading-relaxed">
                 {product.description}
               </p>
             </AccordionItem>
@@ -580,16 +592,16 @@ export default function ProductInfo({
 
           {product.extendedDescription && (
             <AccordionItem title="Descripción extendida">
-              <p className="font-[var(--font-montserrat)] text-sm text-[#4A4A4A] dark:text-gray-300 leading-relaxed whitespace-pre-line">
+              <p className="font-montserrat text-sm text-[#4A4A4A] dark:text-gray-300 leading-relaxed whitespace-pre-line">
                 {product.extendedDescription}
               </p>
             </AccordionItem>
           )}
 
           <AccordionItem title="Envío y devoluciones">
-            <p className="font-[var(--font-montserrat)] text-sm text-[#4A4A4A] dark:text-gray-300 leading-relaxed">
-              Envío gratis en compras desde {formatCOP(STANDARD_SHIPPING_THRESHOLD)}. Entregas en todo Colombia de{" "}
-              {DELIVERY_BUSINESS_DAYS.min} a {DELIVERY_BUSINESS_DAYS.max} días hábiles. Devoluciones gratuitas dentro de los{" "}
+            <p className="font-montserrat text-sm text-[#4A4A4A] dark:text-gray-300 leading-relaxed">
+              Envío gratis en compras desde {formatCOP(shippingRates.freeThreshold)}. Entregas en todo Colombia de{" "}
+              {deliveryDays.min} a {deliveryDays.max} días hábiles. Devoluciones gratuitas dentro de los{" "}
               {RETURN_WINDOW_DAYS} días siguientes a la compra, siempre que el producto esté en su estado original y sin uso.
             </p>
           </AccordionItem>
@@ -614,6 +626,7 @@ export default function ProductInfo({
         isOpen={sizeModalOpen}
         onClose={() => setSizeModalOpen(false)}
         brand={brand ?? (product.brand ? { name: product.brand } : null)}
+        initialGender={product.gender}
       />
     </MotionConfig>
   )
@@ -628,7 +641,7 @@ function AccordionItem({ title, children }: AccordionItemProps) {
   return (
     <details className="group py-4">
       <summary className="flex items-center justify-between cursor-pointer list-none">
-        <span className="font-[var(--font-barlow)] font-semibold text-sm uppercase tracking-wider text-[#1C1C1C] dark:text-white">
+        <span className="font-barlow font-semibold text-sm uppercase tracking-wider text-[#1C1C1C] dark:text-white">
           {title}
         </span>
         <span className="text-[#4A4A4A] dark:text-gray-400 transition-transform group-open:rotate-45 ml-2 text-xl leading-none select-none">

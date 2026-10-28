@@ -1,4 +1,7 @@
+import Link from "next/link"
+
 interface LowStockVariant {
+  productId: string
   sku: string
   productName: string
   size: string
@@ -44,9 +47,11 @@ export default function LowStockAlerts({ variants }: LowStockAlertsProps) {
       ) : (
         <div className="divide-y divide-[#F0F0F0] max-h-72 overflow-y-auto">
           {variants.map((variant) => (
-            <div
+            <Link
               key={variant.sku}
+              href={`/admin/productos/${variant.productId}`}
               className="flex items-center justify-between px-5 py-3 hover:bg-[#F9F9F9] transition-colors"
+              aria-label={`Editar ${variant.productName}, variante ${variant.sku}`}
             >
               <div className="flex-1 min-w-0">
                 <p className="font-montserrat text-sm font-medium text-[#1C1C1C] truncate">
@@ -70,7 +75,7 @@ export default function LowStockAlerts({ variants }: LowStockAlertsProps) {
                   </span>
                 )}
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}

@@ -15,10 +15,10 @@ export default async function StoresAdminPage() {
   return (
     <div className="max-w-7xl mx-auto py-8 px-4">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold font-[var(--font-barlow)] text-[#1C1C1C]">
+        <h1 className="text-3xl font-bold font-barlow text-[#1C1C1C]">
           Gestor de Sucursales Físicas
         </h1>
-        <p className="text-gray-500 mt-2 font-[var(--font-montserrat)]">
+        <p className="text-gray-500 mt-2 font-montserrat">
           Añade o edita las tiendas de la marca. Esta información aparecerá automáticamente
           en la página pública de <code>/tiendas</code> y en la disponibilidad por sede de cada
           producto. Vincula cada sucursal con su sede del ERP para que el stock por tienda se

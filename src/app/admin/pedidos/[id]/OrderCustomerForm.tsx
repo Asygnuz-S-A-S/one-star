@@ -7,6 +7,7 @@ import { COLOMBIA_DEPARTMENTS } from "@/lib/colombia-departments"
 export interface OrderCustomerFormValues {
   customerName: string
   customerEmail: string
+  cedula?: string
   phone: string
   address: string
   apartment: string
@@ -85,6 +86,10 @@ export default function OrderCustomerForm({ orderId, initial }: Props) {
         <div>
           <label htmlFor={field("customerEmail")} className="block text-xs font-semibold text-[#4A4A4A] mb-1">Email</label>
           <input id={field("customerEmail")} type="email" className={inputClass} value={values.customerEmail} onChange={(e) => set("customerEmail", e.target.value)} required />
+        </div>
+        <div>
+          <label htmlFor={field("cedula")} className="block text-xs font-semibold text-[#4A4A4A] mb-1">Cédula / NIT</label>
+          <input id={field("cedula")} className={inputClass} value={values.cedula ?? ""} onChange={(e) => set("cedula", e.target.value)} placeholder="123456789" />
         </div>
         <div>
           <label htmlFor={field("phone")} className="block text-xs font-semibold text-[#4A4A4A] mb-1">Teléfono</label>

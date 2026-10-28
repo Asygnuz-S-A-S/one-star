@@ -39,7 +39,7 @@ export default function StoreActionButtons({ name, address, city, latitude, long
         href={directionsUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex-1 text-center bg-[#1C1C1C] text-white hover:bg-[#E31C23] transition-colors py-2.5 px-3 font-[var(--font-barlow)] font-bold text-xs uppercase tracking-wider rounded-lg flex items-center justify-center gap-1.5 shadow-sm"
+        className="flex-1 text-center bg-[#1C1C1C] text-white hover:bg-[#E31C23] transition-colors py-2.5 px-3 font-barlow font-bold text-xs uppercase tracking-wider rounded-lg flex items-center justify-center gap-1.5 shadow-sm"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
@@ -49,7 +49,7 @@ export default function StoreActionButtons({ name, address, city, latitude, long
       
       <button 
         onClick={handleShare}
-        className="flex-1 text-center border border-[#1C1C1C] text-[#1C1C1C] hover:bg-gray-100 transition-colors py-2.5 px-3 font-[var(--font-barlow)] font-bold text-xs uppercase tracking-wider rounded-lg flex items-center justify-center gap-1.5"
+        className="flex-1 text-center border border-[#1C1C1C] text-[#1C1C1C] hover:bg-gray-100 transition-colors py-2.5 px-3 font-barlow font-bold text-xs uppercase tracking-wider rounded-lg flex items-center justify-center gap-1.5"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />

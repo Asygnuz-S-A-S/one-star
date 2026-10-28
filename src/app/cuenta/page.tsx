@@ -8,8 +8,9 @@ import { updateProfile } from "./actions"
 import { formatDateLong, formatCurrency } from "@/lib/dates"
 import { orderStatusBadge, orderStatusLabel } from "@/lib/order-status"
 import { PLACEHOLDER_IMAGE_URL } from "@/lib/product-image"
+import ClubAccountTab from "@/components/club/ClubAccountTab"
 
-type Tab = "perfil" | "pedidos" | "direcciones" | "salir"
+type Tab = "perfil" | "club" | "pedidos" | "direcciones" | "salir"
 
 interface Order {
   id: string
@@ -120,6 +121,7 @@ export default function CuentaPage() {
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "perfil", label: "Mi perfil" },
+    { id: "club", label: "One Star Club" },
     { id: "pedidos", label: "Mis pedidos" },
     { id: "direcciones", label: "Mis direcciones" },
     { id: "salir", label: "Cerrar sesión" },
@@ -307,6 +309,8 @@ export default function CuentaPage() {
         )}
 
         {/* Tab: Mis pedidos */}
+        {activeTab === "club" && <ClubAccountTab />}
+
         {activeTab === "pedidos" && (
           <div className="bg-white rounded-xl shadow-sm p-6">
             <h2 className="font-barlow font-bold text-lg text-[#1C1C1C] uppercase mb-6">Mis pedidos</h2>

@@ -6,13 +6,14 @@ import ProductGallery from "./ProductGallery"
 import ProductInfo from "./ProductInfo"
 import { filterImagesByColor } from "@/lib/product-image"
 import type { StorePromise } from "@/lib/store-promises"
+import type { BrandSizeGuide } from "./SizeGuideModal"
 
 interface ProductDetailProps {
   product: ProductWithRelations
   reviewStats?: { avg: number; count: number; distribution: number[] }
   promises?: StorePromise[]
   whatsappUrl?: string | null
-  brand?: { name?: string | null; sizeGuideImageUrl?: string | null; sizeGuideNote?: string | null } | null
+  brand?: BrandSizeGuide | null
   /**
    * Color con el que abrir la ficha, tomado de `?color=` en la URL. Permite
    * que una miniatura del catálogo lleve directo a ese color. Si no coincide
@@ -39,7 +40,8 @@ export default function ProductDetail({ product, reviewStats, promises, whatsapp
   )
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-[60%_40%] gap-8 md:gap-12 mb-16">
+    // minmax(0, …): con porcentajes + gap las columnas sumaban más del 100 % y aparecía scroll horizontal.
+    <div className="mb-16 grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:gap-12">
       {/* key: al cambiar de color la galería vuelve a su primera foto */}
       <ProductGallery
         key={selectedColor}

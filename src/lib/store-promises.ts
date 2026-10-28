@@ -36,7 +36,7 @@ export const DEFAULT_SITE_FAQS: Array<{ q: string; a: string }> = [
   },
   {
     q: "¿Cuánto tarda en llegar mi pedido?",
-    a: `El tiempo estimado de entrega es de ${DELIVERY_BUSINESS_DAYS.min} a ${DELIVERY_BUSINESS_DAYS.max} días hábiles a nivel nacional.`,
+    a: "El tiempo estimado de entrega es el que muestra la ficha del producto y el checkout.",
   },
 ]
 
@@ -54,7 +54,10 @@ export function getStorePromises(options: {
   hasWhatsapp: boolean
   returnWindowDays?: number
   customPromises?: unknown
+  freeThreshold?: number
+  delivery?: { min: number; max: number }
 }): StorePromise[] {
+  const delivery = options.delivery ?? DELIVERY_BUSINESS_DAYS
   const returnDays = options.returnWindowDays ?? RETURN_WINDOW_DAYS
   const customMap: Record<string, { title?: string; text?: string; icon?: StorePromiseIcon }> = {}
 
@@ -73,12 +76,12 @@ export function getStorePromises(options: {
       id: "shipping",
       icon: "truck",
       title: "Envío a todo Colombia",
-      text: `Gratis en compras desde ${formatCOP(STANDARD_SHIPPING_THRESHOLD)}.`,
+      text: `Gratis en compras desde ${formatCOP(options.freeThreshold ?? STANDARD_SHIPPING_THRESHOLD)}.`,
     },
     {
       id: "delivery",
       icon: "clock",
-      title: `Entrega en ${DELIVERY_BUSINESS_DAYS.min} a ${DELIVERY_BUSINESS_DAYS.max} días hábiles`,
+      title: `Entrega en ${delivery.min} a ${delivery.max} días hábiles`,
       text: "Recibes número de guía apenas se despacha.",
     },
     {

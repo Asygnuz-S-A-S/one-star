@@ -13,10 +13,14 @@ interface Props {
 export default function HomeGridForm({ actions, initial, onClose }: Props) {
   const { createGridBlock, updateGridBlock } = actions
   const [error, setError] = useState<string | null>(null)
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle")
   const [isPending, startTransition] = useTransition()
+  const presetAppearances = ["bg-white", "bg-[#1C1C1C]", "bg-[#E31C23]"]
+  const usesLegacyAppearance = Boolean(initial?.bgColor && !presetAppearances.includes(initial.bgColor))
 
   async function actionHandler(formData: FormData) {
     setError(null)
+    setSaveState("saving")
     startTransition(async () => {
       try {
         const res = initial
@@ -24,12 +28,15 @@ export default function HomeGridForm({ actions, initial, onClose }: Props) {
           : await createGridBlock(formData)
 
         if (res.success) {
-          onClose()
+          setSaveState("saved")
+          window.setTimeout(onClose, 500)
         } else {
           setError(res.error || "Ocurrió un error inesperado.")
+          setSaveState("error")
         }
       } catch {
         setError("No se pudo guardar el bloque. Intenta de nuevo.")
+        setSaveState("error")
       }
     })
   }
@@ -65,27 +72,34 @@ export default function HomeGridForm({ actions, initial, onClose }: Props) {
           id="href"
           name="href"
           type="text"
+          list="collection-destinations"
           defaultValue={initial?.href}
           required
           placeholder="Ej: /sale"
           className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-black"
         />
+        <datalist id="collection-destinations"><option value="/">Inicio</option><option value="/sale">Sale</option><option value="/lanzamientos">Lanzamientos</option><option value="/productos">Catálogo</option><option value="/accesorios">Accesorios</option></datalist>
+        <p className="mt-1 text-xs text-gray-500">Elige una ruta interna. Una URL https se mostrará como enlace externo.</p>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label htmlFor="bgColor" className="block text-sm font-medium text-[#4A4A4A] mb-1">
-            Color de Fondo *
+            Apariencia *
           </label>
-          <input
+          <select
             id="bgColor"
             name="bgColor"
-            type="text"
             defaultValue={initial?.bgColor || "bg-[#1C1C1C]"}
             required
-            placeholder="Clase Tailwind o Hex"
             className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-black"
-          />
+          >
+            {usesLegacyAppearance && <option value={initial?.bgColor}>Estilo avanzado existente</option>}
+            <option value="bg-white">Claro</option>
+            <option value="bg-[#1C1C1C]">Carbón</option>
+            <option value="bg-[#E31C23]">One Star rojo</option>
+          </select>
+          <p className="mt-1 text-xs text-gray-500">Los estilos avanzados existentes se conservan; los nuevos usan estos presets.</p>
         </div>
         <div>
           <label htmlFor="emoji" className="block text-sm font-medium text-[#4A4A4A] mb-1">
@@ -143,6 +157,9 @@ export default function HomeGridForm({ actions, initial, onClose }: Props) {
         </div>
       </div>
 
+      <p role="status" aria-live="polite" className={`text-xs ${saveState === "error" ? "text-red-700" : saveState === "saved" ? "text-emerald-700" : "text-gray-500"}`}>
+        {saveState === "saving" ? "Guardando cambios…" : saveState === "saved" ? "Guardado. Actualizando vista previa…" : saveState === "error" ? "No se guardaron los cambios." : "Los cambios se publican al guardar."}
+      </p>
       <div className="pt-4 flex justify-end gap-3 border-t border-gray-100">
         <button
           type="button"

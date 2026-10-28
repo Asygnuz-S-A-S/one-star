@@ -1,7 +1,8 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import LegalDocument, { LegalList, LegalSection } from "@/components/legal/LegalDocument"
-import { LEGAL_COMPANY, LEGAL_LAST_UPDATED } from "@/lib/legal"
+import { LEGAL_LAST_UPDATED } from "@/lib/legal"
+import { getLegalCompany, getLegalDocuments } from "@/server/services/store-settings.service"
 
 export const metadata: Metadata = {
   title: "Términos y Condiciones | One Star",
@@ -9,24 +10,29 @@ export const metadata: Metadata = {
     "Términos y condiciones de uso y de compra en la tienda en línea de One Star, conforme al Estatuto del Consumidor colombiano.",
 }
 
-const responsable = LEGAL_COMPANY.legalName ?? LEGAL_COMPANY.tradeName
-const canalContacto =
-  LEGAL_COMPANY.contactEmail ?? "los canales de atención publicados en este sitio"
+export default async function TerminosPage() {
+  const [company, documents] = await Promise.all([getLegalCompany(), getLegalDocuments()])
+  const responsable = company.legalName ?? company.tradeName
+  const canalContacto = company.contactEmail ?? "los canales de atención publicados en este sitio"
 
-export default function TerminosPage() {
   return (
     <LegalDocument
       title="Términos y Condiciones"
-      intro={`Estos términos regulan el uso de la tienda en línea de ${LEGAL_COMPANY.tradeName} y las compras que se realicen a través de ella. Al navegar o comprar en el sitio, aceptas lo aquí descrito.`}
+      intro={`Estos términos regulan el uso de la tienda en línea de ${company.tradeName} y las compras que se realicen a través de ella. Al navegar o comprar en el sitio, aceptas lo aquí descrito.`}
       lastUpdated={LEGAL_LAST_UPDATED}
+      company={company}
+      documentUrl={documents.terms}
     >
       <LegalSection id="identificacion" heading="1. Identificación del proveedor">
         <p>
           La tienda en línea es operada por {responsable}
-          {LEGAL_COMPANY.taxId ? `, NIT ${LEGAL_COMPANY.taxId}` : ""}
-          {LEGAL_COMPANY.address ? `, con domicilio en ${LEGAL_COMPANY.address}` : ""}. Para
+          {company.taxId ? `, NIT ${company.taxId}` : ""}
+          {company.address ? `, con domicilio en ${company.address}` : ""}
+          {company.city ? `, ${company.city}` : ""}
+          {company.commercialRegistry ? `, matrícula mercantil ${company.commercialRegistry}` : ""}. Para
           cualquier solicitud, petición o reclamo puedes escribir a {canalContacto}
-          {LEGAL_COMPANY.contactPhone ? ` o llamar al ${LEGAL_COMPANY.contactPhone}` : ""}.
+          {company.contactPhone ? ` o llamar al ${company.contactPhone}` : ""}
+          {company.dataProtectionEmail ? `. Para datos personales: ${company.dataProtectionEmail}` : ""}.
         </p>
       </LegalSection>
 

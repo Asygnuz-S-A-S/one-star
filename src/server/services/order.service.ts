@@ -19,7 +19,8 @@ import type { Prisma, OrderStatus, PaymentStatus } from "@prisma/client"
 import { getERPAdapter } from "../erp"
 import { sendOrderConfirmationEmail } from "./email.service"
 import { issueAndSendGiftCardsForOrder } from "./gift-card.service"
-import { getShippingCost, type ShippingMethod } from "@/lib/shipping"
+import { DEFAULT_SHIPPING_RATES, getShippingCost, type ShippingMethod } from "@/lib/shipping"
+import { getShippingRates } from "./store-settings.service"
 import { isGiftCardSku } from "@/lib/gift-card"
 import {
   validateCouponForOrder,
@@ -27,6 +28,7 @@ import {
   releaseCouponUsage,
   releaseCouponUsageByCode,
 } from "./coupon.service"
+import { isClubMember } from "./club.service"
 import type { OrderCustomerDataInput } from "../validators/order.validator"
 
 /**
@@ -56,8 +58,12 @@ export interface OrderDTO {
   total: number
   paymentMethod: string | null
   trackingNumber: string | null
+  carrier?: "ENVIA" | "OTHER" | null
   customerEmail: string | null
   customerName: string | null
+  customerDocumentType?: string | null
+  customerDocument?: string | null
+  customerPhone?: string | null
   shippingAddress: unknown
   userId: string | null
   userEmail: string | null
@@ -75,8 +81,12 @@ function mapToDTO(raw: {
   total: { toNumber: () => number }
   paymentMethod: string | null
   trackingNumber: string | null
+  carrier?: string | null
   customerEmail: string | null
   customerName: string | null
+  customerDocumentType?: string | null
+  customerDocument?: string | null
+  customerPhone?: string | null
   shippingAddress: unknown
   userId: string | null
   user?: { email: string } | null
@@ -100,8 +110,12 @@ function mapToDTO(raw: {
     total: raw.total.toNumber(),
     paymentMethod: raw.paymentMethod,
     trackingNumber: raw.trackingNumber,
+    carrier: (raw.carrier as "ENVIA" | "OTHER" | null) ?? null,
     customerEmail: raw.customerEmail,
     customerName: raw.customerName,
+    customerDocumentType: raw.customerDocumentType ?? null,
+    customerDocument: raw.customerDocument ?? null,
+    customerPhone: raw.customerPhone ?? null,
     shippingAddress: raw.shippingAddress,
     userId: raw.userId,
     userEmail: raw.user?.email ?? null,
@@ -196,6 +210,10 @@ export async function placeOrder(
     shippingAddress?: unknown
     customerName?: string
     customerEmail?: string
+    customerDocumentType?: string
+    customerDocument?: string
+    customerPhone?: string
+    carrier?: "ENVIA" | "OTHER"
     paymentMethod?: string
     /** Código de cupón; el descuento se valida y recalcula en servidor */
     couponCode?: string
@@ -207,14 +225,19 @@ export async function placeOrder(
   // El envío gratis se decide sobre el subtotal antes del descuento. Un pedido
   // solo de tarjetas de regalo es digital: se entrega por correo, sin envío.
   const digitalOnly = pricedItems.every((i) => isGiftCardSku(i.sku))
-  const shippingCost = getShippingCost(data.shippingMethod, subtotal, { digitalOnly })
+  const shippingRates = await getShippingRates().catch((error: unknown) => {
+    console.error("[order] no se pudieron leer las tarifas de envío:", error)
+    return DEFAULT_SHIPPING_RATES
+  })
+  const shippingCost = getShippingCost(data.shippingMethod, subtotal, { digitalOnly, rates: shippingRates })
 
   // 0.2 Cupón: se revalida en servidor y el descuento se recalcula desde la BD.
   let appliedCoupon: { id: string; code: string; discountAmount: number } | null = null
   if (data.couponCode) {
     const validation = await validateCouponForOrder(
       data.couponCode,
-      pricedItems.map((i) => ({ categoryId: i.categoryId, unitPrice: i.unitPrice, quantity: i.quantity }))
+      pricedItems.map((i) => ({ categoryId: i.categoryId, unitPrice: i.unitPrice, quantity: i.quantity })),
+      { isClubMember: await isClubMember(userId) }
     )
     if (!validation.valid) {
       throw new Error(`El cupón "${data.couponCode}" ya no es válido: ${validation.reason}`)
@@ -277,12 +300,37 @@ export async function placeOrder(
       : {}),
   }
 
+  const rawPhone = data.customerPhone
+    ?? (typeof data.shippingAddress === "object" && data.shippingAddress && "phone" in data.shippingAddress
+      ? String((data.shippingAddress as Record<string, unknown>).phone)
+      : null)
+  const customerPhone = rawPhone ? rawPhone.replace(/\D/g, "").slice(-10) : null
+
+  const rawDocument = data.customerDocument
+    ?? (typeof data.shippingAddress === "object" && data.shippingAddress && "cedula" in data.shippingAddress
+      ? String((data.shippingAddress as Record<string, unknown>).cedula)
+      : null)
+  const customerDocument = rawDocument ? rawDocument.replace(/\D/g, "") : null
+
+  const customerDocumentType = data.customerDocumentType
+    ?? (typeof data.shippingAddress === "object" && data.shippingAddress && "documentType" in data.shippingAddress
+      ? String((data.shippingAddress as Record<string, unknown>).documentType)
+      : customerDocument
+        ? "CC"
+        : null)
+
+  const carrier = data.carrier ?? "ENVIA"
+
   const orderInput: Prisma.OrderCreateInput = {
     ...(userId ? { user: { connect: { id: userId } } } : {}),
     total,
     shippingAddress: shippingAddress as Prisma.InputJsonValue,
     customerName: data.customerName,
     customerEmail: data.customerEmail,
+    customerDocumentType: customerDocumentType || null,
+    customerDocument: customerDocument || null,
+    customerPhone: customerPhone || null,
+    carrier,
     paymentMethod: data.paymentMethod,
     items: {
       create: pricedItems.map((i) => ({
@@ -517,10 +565,15 @@ export async function changeOrderStatus(
 export async function changeOrderStatusAndTracking(
   id: string,
   status: string,
-  trackingNumber?: string
+  trackingNumber?: string,
+  carrier?: "ENVIA" | "OTHER" | null
 ): Promise<void> {
   if (status === "PAID") {
-    await markOrderPaidWithStock(id, trackingNumber)
+    if (carrier !== undefined) {
+      await markOrderPaidWithStock(id, trackingNumber, carrier)
+    } else {
+      await markOrderPaidWithStock(id, trackingNumber)
+    }
     // Marcar como pagado a mano (transferencia) también debe entregar las
     // tarjetas de regalo. Es idempotente: si el webhook ya las emitió, no repite.
     const paid = await getOrderById(id)
@@ -541,7 +594,11 @@ export async function changeOrderStatusAndTracking(
       return
     }
   }
-  await updateOrderStatusAndTracking(id, status, trackingNumber)
+  if (carrier !== undefined) {
+    await updateOrderStatusAndTracking(id, status, trackingNumber, carrier)
+  } else {
+    await updateOrderStatusAndTracking(id, status, trackingNumber)
+  }
 }
 
 /**
@@ -563,6 +620,8 @@ export async function updateOrderCustomerData(
 
   const shippingAddress = {
     ...current,
+    ...(input.customerDocumentType !== undefined ? { documentType: input.customerDocumentType } : {}),
+    ...(input.cedula !== undefined ? { cedula: input.cedula } : {}),
     phone: input.phone,
     address: input.address,
     apartment: input.apartment ?? null,
@@ -571,11 +630,22 @@ export async function updateOrderCustomerData(
     postalCode: input.postalCode ?? null,
   }
 
-  await updateOrderCustomerDataRecord(id, {
+  const updateData: Parameters<typeof updateOrderCustomerDataRecord>[1] = {
     customerName: input.customerName,
     customerEmail: input.customerEmail,
     shippingAddress: shippingAddress as Prisma.InputJsonValue,
-  })
+  }
+  if (input.customerDocumentType !== undefined) {
+    updateData.customerDocumentType = input.customerDocumentType
+  }
+  if (input.cedula !== undefined) {
+    updateData.customerDocument = input.cedula ? input.cedula.replace(/\D/g, "") : null
+  }
+  if (input.phone !== undefined) {
+    updateData.customerPhone = input.phone ? input.phone.replace(/\D/g, "").slice(-10) : null
+  }
+
+  await updateOrderCustomerDataRecord(id, updateData)
 }
 
 export async function getDashboardOrderStats() {

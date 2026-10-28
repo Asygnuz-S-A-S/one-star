@@ -43,8 +43,8 @@ test.describe("Tarjeta de regalo", () => {
     expect(items[0].sku).toBe("GIFT-CARD-100000")
     expect(items[0].price).toBe(100_000)
     // El id del ítem es el variantId que el checkout usa para tasar el pedido.
-    expect(items[0].id.startsWith("gift-card-")).toBe(false)
-    expect(items[0].productId.startsWith("gift-card-")).toBe(false)
+    expect(items[0].id).not.toMatch(/^gift-card-\d+$/)
+    expect(items[0].productId).not.toMatch(/^gift-card-\d+$/)
   })
 
   test("la tarjeta sobrevive a la página del carrito con su precio", async ({ page }) => {

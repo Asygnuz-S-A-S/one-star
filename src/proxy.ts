@@ -29,8 +29,9 @@ function createCspContext(request: NextRequest): CspContext {
   const policy = buildContentSecurityPolicy({
     nonce,
     isDevelopment: process.env.NODE_ENV === "development",
+    // El constructor visual previsualiza la home y las landings de campaña en un iframe propio.
     allowSameOriginFraming:
-      request.nextUrl.pathname === "/" &&
+      (request.nextUrl.pathname === "/" || /^\/campanas\/[a-z0-9-]+$/.test(request.nextUrl.pathname)) &&
       request.nextUrl.searchParams.get("preview") === "true",
   })
   const requestHeaders = new Headers(request.headers)

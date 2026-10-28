@@ -16,6 +16,7 @@ export interface CouponInput {
   minOrderAmount?: number | null
   maxUses?: number | null
   categoryId?: string | null
+  clubOnly?: boolean
   validFrom: Date
   validUntil: Date
   isActive?: boolean
@@ -31,6 +32,7 @@ export interface CouponDTO {
   usedCount: number
   validUntil: string
   isActive: boolean
+  clubOnly: boolean
 }
 
 export async function getAllCoupons(): Promise<CouponDTO[]> {
@@ -45,6 +47,7 @@ export async function getAllCoupons(): Promise<CouponDTO[]> {
     usedCount: c.usedCount,
     validUntil: c.validUntil.toISOString(),
     isActive: c.isActive,
+    clubOnly: c.clubOnly,
   }))
 }
 
@@ -96,13 +99,17 @@ export interface CouponOrderItemInput {
  */
 export async function validateCouponForOrder(
   code: string,
-  items: CouponOrderItemInput[]
+  items: CouponOrderItemInput[],
+  options: { isClubMember?: boolean } = {}
 ): Promise<CouponOrderValidation> {
   const coupon = await findCouponByCode(code.trim().toUpperCase())
   const now = new Date()
 
   if (!coupon || !coupon.isActive) {
     return { valid: false, reason: "Cupón no válido" }
+  }
+  if (coupon.clubOnly && !options.isClubMember) {
+    return { valid: false, reason: "Este cupón es exclusivo para miembros de One Star Club" }
   }
   if (coupon.validFrom > now || coupon.validUntil < now) {
     return { valid: false, reason: "El cupón está vencido o aún no es válido" }
@@ -157,6 +164,7 @@ export async function createCoupon(input: CouponInput): Promise<void> {
     minOrderAmount: input.minOrderAmount ?? null,
     maxUses: input.maxUses ?? null,
     categoryId: input.categoryId ?? null,
+    clubOnly: input.clubOnly ?? false,
     validFrom: input.validFrom,
     validUntil: input.validUntil,
     isActive: input.isActive ?? true,

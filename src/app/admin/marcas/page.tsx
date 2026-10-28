@@ -9,7 +9,7 @@ export default async function MarcasPage() {
       <h1 className="font-['Barlow',sans-serif] text-2xl font-bold text-[#1C1C1C] mb-6">
         Catálogo de Marcas
       </h1>
-      <p className="text-gray-500 -mt-4 mb-6 font-[var(--font-montserrat)] text-sm">
+      <p className="text-gray-500 -mt-4 mb-6 font-montserrat text-sm">
         Administra la información, historia, SEO, beneficios propios y preguntas frecuentes de cada marca.
         En Loggro las marcas aparecen como «Categoría». La columna <strong>ID ERP</strong> es el
         código de categoría de Loggro con el que se asigna la marca al sincronizar.

@@ -1,21 +1,16 @@
 "use server"
 
-import { requireAdmin } from "@/server/auth/require-admin"
+import { requireSuperAdmin } from "@/server/auth/require-admin"
 import { updateSiteContent } from "@/server/services/site-content.service"
 import { updateSiteContentSchema } from "@/server/validators/site-content.validator"
 import { faqsFromText, highlightsFromText } from "@/lib/product-faq"
 import type { StorePromise, StorePromiseIcon } from "@/lib/store-promises"
 import type { ActionResult } from "@/types/admin"
 
-/**
- * NOTA DE ARQUITECTURA:
- * Cuando se integre el PR de roles de administración (#43), esta acción
- * debe pasar a requerir rol SUPER_ADMIN.
- */
 
 export async function updateSiteContentAction(formData: FormData): Promise<ActionResult> {
   try {
-    await requireAdmin()
+    await requireSuperAdmin()
 
     const rawHighlights = (formData.get("highlights") as string) || ""
     const rawFaqs = (formData.get("faqs") as string) || ""
