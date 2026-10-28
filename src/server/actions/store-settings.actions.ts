@@ -50,6 +50,7 @@ export async function updateStoreInfoAction(
       legalAddress: text(formData, "legalAddress"),
       contactPhone: text(formData, "contactPhone"),
       hideImagelessProducts: checkbox(formData, "hideImagelessProducts"),
+      groupColorsInCatalog: checkbox(formData, "groupColorsInCatalog"),
       newArrivalDays: text(formData, "newArrivalDays").trim(),
       chatEnabled: checkbox(formData, "chatEnabled"),
       chatWelcome: text(formData, "chatWelcome"),
@@ -82,6 +83,7 @@ export async function updateStoreInfoAction(
     }
     revalidatePath("/admin/configuracion")
     revalidatePath("/", "layout")
+    revalidatePath("/productos")
     revalidatePath("/terminos")
     revalidatePath("/privacidad")
     revalidatePath("/cambios")

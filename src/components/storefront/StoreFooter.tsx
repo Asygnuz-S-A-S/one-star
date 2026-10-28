@@ -40,7 +40,9 @@ export default function StoreFooter({
           <CookiePreferencesButton />
         </nav>
       </div>
-      <p className="store-gutter mx-auto max-w-6xl pb-4 text-right font-montserrat text-xs text-white/40">vs2</p>
+      <div className="border-t border-white/10 py-4 text-center font-montserrat text-xs text-white/50">
+        <p>© {new Date().getFullYear()} {storeName}. Todos los derechos reservados. · Versión 3</p>
+      </div>
     </footer>
   )
 }

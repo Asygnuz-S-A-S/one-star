@@ -62,7 +62,12 @@ export async function findProductCatalogCandidates(
   return prisma.product.findMany({
     where,
     orderBy,
-    select: { id: true, colorFamilyId: true },
+    select: {
+      id: true,
+      colorFamilyId: true,
+      images: { select: { id: true }, take: 1 },
+      variants: { select: { stock: true } },
+    },
   })
 }
 
@@ -205,6 +210,8 @@ const productImportSelect = {
   isLaunch: true,
   highlights: true,
   faqs: true,
+  metaTitle: true,
+  metaDescription: true,
   variants: {
     select: {
       id: true,

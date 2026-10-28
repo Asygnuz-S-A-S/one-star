@@ -219,6 +219,10 @@ export default function StoreInfoForm({ settings }: StoreInfoFormProps) {
           <input type="checkbox" name="hideImagelessProducts" defaultChecked={settings.hideImagelessProducts} className="h-4 w-4 accent-[#E31C23]" />
           Ocultar productos sin foto
         </label>
+        <label className="mb-4 flex items-center gap-2 text-sm text-[#1C1C1C]">
+          <input type="checkbox" name="groupColorsInCatalog" defaultChecked={settings.groupColorsInCatalog} className="h-4 w-4 accent-[#E31C23]" />
+          Agrupar colores del mismo modelo en el catálogo
+        </label>
         <div>
           <label htmlFor="new-arrival-days" className={labelClass}>Días que un producto cuenta como lanzamiento</label>
           <input id="new-arrival-days" name="newArrivalDays" inputMode="numeric" defaultValue={settings.newArrivalDays} className={inputClass} />

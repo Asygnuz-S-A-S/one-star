@@ -92,7 +92,7 @@ export default async function ProductGrid({
 }: ProductGridProps) {
   const page = Math.max(1, Number(searchParams.page ?? 1))
 
-  const catalogRules = await getCatalogRules().catch(() => ({ hideImagelessProducts: true, newArrivalDays: 30 }))
+  const catalogRules = await getCatalogRules().catch(() => ({ hideImagelessProducts: true, newArrivalDays: 30, groupColorsInCatalog: true }))
   const filterParams = {
     ...searchParams,
     // La prop categorySlug (rutas /hombre, etc.) tiene prioridad; si no,
@@ -104,6 +104,7 @@ export default async function ProductGrid({
     isOnSaleOnly,
     requireImage: catalogRules.hideImagelessProducts,
     createdWithinDays: newArrivals ? catalogRules.newArrivalDays : undefined,
+    groupColors: catalogRules.groupColorsInCatalog,
   }
 
   const { products, total } = await getProducts(filterParams, PAGE_SIZE)

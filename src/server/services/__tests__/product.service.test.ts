@@ -112,8 +112,15 @@ describe("getProducts", () => {
     mockFindProductsByIds.mockResolvedValue([])
   })
 
+  const makeCandidate = (id: string, colorFamilyId: string | null = null) => ({
+    id,
+    colorFamilyId,
+    images: [{ id: `img-${id}` }],
+    variants: [{ stock: 10 }],
+  })
+
   it("retorna productos y total correctamente", async () => {
-    mockFindCatalogCandidates.mockResolvedValue([{ id: "prod-1", colorFamilyId: null }])
+    mockFindCatalogCandidates.mockResolvedValue([makeCandidate("prod-1")])
     mockFindProductsByIds.mockResolvedValue([rawProduct] as never)
 
     const result = await getProducts({})
@@ -163,9 +170,9 @@ describe("getProducts", () => {
 
   it("colapsa los productos de una familia antes de paginar", async () => {
     mockFindCatalogCandidates.mockResolvedValue([
-      { id: "prod-1", colorFamilyId: "family-1" },
-      { id: "prod-2", colorFamilyId: "family-1" },
-      { id: "prod-3", colorFamilyId: null },
+      makeCandidate("prod-1", "family-1"),
+      makeCandidate("prod-2", "family-1"),
+      makeCandidate("prod-3", null),
     ])
     mockFindProductsByIds.mockResolvedValue([
       rawProduct,
@@ -179,14 +186,14 @@ describe("getProducts", () => {
   })
 
   it("convierte basePrice a número", async () => {
-    mockFindCatalogCandidates.mockResolvedValue([{ id: "prod-1", colorFamilyId: null }])
+    mockFindCatalogCandidates.mockResolvedValue([makeCandidate("prod-1")])
     mockFindProductsByIds.mockResolvedValue([rawProduct] as never)
     const { products } = await getProducts({})
     expect(products[0].basePrice).toBe(150000)
   })
 
   it("salePrice es null cuando no hay oferta", async () => {
-    mockFindCatalogCandidates.mockResolvedValue([{ id: "prod-1", colorFamilyId: null }])
+    mockFindCatalogCandidates.mockResolvedValue([makeCandidate("prod-1")])
     mockFindProductsByIds.mockResolvedValue([rawProduct] as never)
     const { products } = await getProducts({})
     expect(products[0].salePrice).toBeNull()
@@ -195,17 +202,14 @@ describe("getProducts", () => {
 
   it("pagina las unidades visibles después de colapsar familias", async () => {
     mockFindCatalogCandidates.mockResolvedValue(
-      Array.from({ length: 13 }, (_, index) => ({
-        id: `prod-${index + 1}`,
-        colorFamilyId: null,
-      }))
+      Array.from({ length: 13 }, (_, index) => makeCandidate(`prod-${index + 1}`))
     )
     await getProducts({ page: "2" }, 12)
     expect(mockFindProductsByIds).toHaveBeenCalledWith(["prod-13"])
   })
 
   it("la página mínima es 1 aunque se pase 0 o negativo", async () => {
-    mockFindCatalogCandidates.mockResolvedValue([{ id: "prod-1", colorFamilyId: null }])
+    mockFindCatalogCandidates.mockResolvedValue([makeCandidate("prod-1")])
     await getProducts({ page: "0" }, 10)
     expect(mockFindProductsByIds).toHaveBeenCalledWith(["prod-1"])
   })

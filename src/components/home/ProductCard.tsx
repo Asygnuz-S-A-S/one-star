@@ -277,9 +277,12 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
             <>
               <p className="mb-0.5 flex items-baseline justify-between gap-2 text-xs font-bold uppercase tracking-wider text-[#4A4A4A] dark:text-gray-400">
                 <span className="truncate">{brand}</span>
-                {colorSummary?.label && colorSummary.total > 1 && (
-                  <span className="shrink-0 font-montserrat font-medium normal-case tracking-normal text-[var(--store-muted)] dark:text-white/50">
-                    {colorSummary.label}
+                {(colorSummary?.extraColorsLabel || colorSummary?.label) && colorSummary.total > 1 && (
+                  <span
+                    data-testid="extra-colors-indicator"
+                    className="shrink-0 font-montserrat font-medium normal-case tracking-normal text-[var(--store-muted)] dark:text-white/50"
+                  >
+                    {colorSummary.extraColorsLabel ?? colorSummary.label}
                   </span>
                 )}
               </p>
