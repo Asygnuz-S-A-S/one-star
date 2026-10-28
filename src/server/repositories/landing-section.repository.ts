@@ -1,6 +1,6 @@
 import "server-only"
 import { prisma } from "../db/prisma"
-import type { LandingSection, Prisma } from "@prisma/client"
+import { Prisma, type LandingSection } from "@prisma/client"
 
 export const HOME_LANDING_PAGE = "home"
 
@@ -40,6 +40,25 @@ export async function getMaximumLandingSectionPosition(page: string = HOME_LANDI
 
 export async function updateLandingSection(id: string, data: Prisma.LandingSectionUpdateInput) {
   return prisma.landingSection.update({ where: { id }, data })
+}
+
+/** Copia el borrador de cada sección de la landing sobre lo publicado y lo limpia. */
+export async function publishLandingDrafts(page: string): Promise<number> {
+  const sections = await prisma.landingSection.findMany({ where: { page } })
+  const drafts = sections.filter((section) => section.draftConfig != null)
+  if (drafts.length === 0) return 0
+  await prisma.$transaction(
+    drafts.map((section) =>
+      prisma.landingSection.update({
+        where: { id: section.id },
+        data: {
+          config: section.draftConfig ?? Prisma.DbNull,
+          draftConfig: Prisma.DbNull,
+        },
+      })
+    )
+  )
+  return drafts.length
 }
 
 export async function createLandingSection(data: Prisma.LandingSectionCreateInput) {

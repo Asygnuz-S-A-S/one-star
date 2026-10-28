@@ -5,8 +5,12 @@ vi.mock("server-only", () => ({}))
 import { GET as getProducts } from "../products/route"
 import { GET as getStock } from "../stock/route"
 import { GET as getOrder } from "../order/route"
+import { POST as postLead } from "../leads/route"
+import { POST as postLeadEvent } from "../leads/event/route"
+import { POST as postLeadLink } from "../leads/link/route"
 import * as assistantAuthService from "@/server/services/assistant-auth.service"
 import * as assistantService from "@/server/services/assistant.service"
+import * as leadService from "@/server/services/lead.service"
 
 describe("Assistant API Routes", () => {
   beforeEach(() => {
@@ -216,6 +220,117 @@ describe("Assistant API Routes", () => {
       const data = await res.json()
       expect(data.orders).toHaveLength(1)
       expect(data.orders[0].number).toBe("OS-1001")
+    })
+  })
+
+  describe("POST /api/assistant/leads, /event y /link", () => {
+    it("crea o actualiza un lead normalizando waPhone a dígitos y descartando email/cedula", async () => {
+      vi.spyOn(assistantAuthService, "authenticateAssistantRequest").mockResolvedValueOnce({
+        authorized: true,
+        apiKey: "valid-key",
+      })
+      vi.spyOn(assistantAuthService, "checkLeadPhoneRateLimit").mockResolvedValueOnce({
+        allowed: true,
+      })
+      const upsertSpy = vi.spyOn(leadService, "upsertLeadByPhone").mockResolvedValueOnce({
+        id: "lead_1",
+        waPhone: "573001234567",
+        name: "Valentina",
+        stage: "NUEVO",
+        ctwaClid: "ctwa_1",
+        consentAt: "2026-10-27T15:00:00.000Z",
+        optedOut: false,
+      })
+
+      const req = new Request("https://onestar.com.co/api/assistant/leads", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          waPhone: "+57 (300) 123-4567",
+          name: "Valentina",
+          ctwaClid: "ctwa_1",
+          consentimiento: true,
+          email: "no-guardar@test.com",
+          cedula: "10203040",
+        }),
+      })
+
+      const res = await postLead(req)
+      expect(res.status).toBe(200)
+      const data = await res.json()
+      expect(data.lead.waPhone).toBe("573001234567")
+      expect(upsertSpy).toHaveBeenCalledWith({
+        waPhone: "573001234567",
+        name: "Valentina",
+        ctwaClid: "ctwa_1",
+        consent: true,
+        optedOut: undefined,
+      })
+    })
+
+    it("registra un evento en POST /api/assistant/leads/event", async () => {
+      vi.spyOn(assistantAuthService, "authenticateAssistantRequest").mockResolvedValueOnce({
+        authorized: true,
+        apiKey: "valid-key",
+      })
+      vi.spyOn(assistantAuthService, "checkLeadPhoneRateLimit").mockResolvedValueOnce({
+        allowed: true,
+      })
+      vi.spyOn(leadService, "recordLeadEvent").mockResolvedValueOnce({
+        eventId: "ev_10",
+        leadId: "lead_1",
+        stage: "INTERESADO",
+      })
+
+      const req = new Request("https://onestar.com.co/api/assistant/leads/event", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          waPhone: "+57 300 123 4567",
+          type: "PRODUCT_INTEREST",
+          stage: "INTERESADO",
+          metadata: { brand: "Vans" },
+        }),
+      })
+
+      const res = await postLeadEvent(req)
+      expect(res.status).toBe(200)
+      await expect(res.json()).resolves.toEqual({
+        ok: true,
+        eventId: "ev_10",
+        stage: "INTERESADO",
+      })
+    })
+
+    it("devuelve { url } en POST /api/assistant/leads/link", async () => {
+      vi.spyOn(assistantAuthService, "authenticateAssistantRequest").mockResolvedValueOnce({
+        authorized: true,
+        apiKey: "valid-key",
+      })
+      vi.spyOn(assistantAuthService, "checkLeadPhoneRateLimit").mockResolvedValueOnce({
+        allowed: true,
+      })
+      vi.spyOn(leadService, "createShortLink").mockResolvedValueOnce({
+        url: "https://onestar.com.co/r/abc12345",
+        code: "abc12345",
+        leadId: "lead_1",
+      })
+
+      const req = new Request("https://onestar.com.co/api/assistant/leads/link", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          waPhone: "+57 300 123 4567",
+          productSlug: "vans-knu-skool",
+          utmCampaign: "promo_wa",
+        }),
+      })
+
+      const res = await postLeadLink(req)
+      expect(res.status).toBe(200)
+      const data = await res.json()
+      expect(data.url).toBe("https://onestar.com.co/r/abc12345")
+      expect(data.code).toBe("abc12345")
     })
   })
 })

@@ -3,13 +3,21 @@ import * as crypto from "crypto"
 
 vi.mock("server-only", () => ({}))
 
-const mocks = vi.hoisted(() => ({ applyPaymentNotification: vi.fn() }))
+const mocks = vi.hoisted(() => ({
+  applyPaymentNotification: vi.fn(),
+  linkOrderToLead: vi.fn(),
+}))
 
 vi.mock("@/server/services/payment.service", () => ({
   applyPaymentNotification: mocks.applyPaymentNotification,
 }))
 
+vi.mock("@/server/services/lead.service", () => ({
+  linkOrderToLead: mocks.linkOrderToLead,
+}))
+
 import { GET, POST } from "./route"
+import { LEAD_COOKIE_NAME, signLeadCookieValue } from "@/lib/lead-cookie"
 import type { NextRequest } from "next/server"
 
 const CUSTOMER_ID = "123456"
@@ -39,11 +47,17 @@ function epaycoForm(overrides: Record<string, string> = {}): Record<string, stri
   return { ...fields, x_signature: fields.x_signature ?? sign(fields) }
 }
 
-function request(fields: Record<string, string>): NextRequest {
+function request(
+  fields: Record<string, string>,
+  extraHeaders: Record<string, string> = {}
+): NextRequest {
   const body = new URLSearchParams(fields)
   return new Request("http://localhost/api/epayco/webhook", {
     method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
+    headers: {
+      "content-type": "application/x-www-form-urlencoded",
+      ...extraHeaders,
+    },
     body,
   }) as unknown as NextRequest
 }
@@ -53,12 +67,20 @@ describe("POST /api/epayco/webhook", () => {
     vi.clearAllMocks()
     vi.stubEnv("EPAYCO_CUSTOMER_ID", CUSTOMER_ID)
     vi.stubEnv("EPAYCO_PRIVATE_KEY", PRIVATE_KEY)
+    vi.stubEnv("AUTH_SECRET", "test-secret")
     vi.stubEnv("NODE_ENV", "test")
-    mocks.applyPaymentNotification.mockResolvedValue({ outcome: "paid", order: { id: "order-abc" } })
+    mocks.applyPaymentNotification.mockResolvedValue({
+      outcome: "paid",
+      order: { id: "order-abc", customerPhone: "3001234567" },
+    })
+    mocks.linkOrderToLead.mockResolvedValue({ id: "lead_1", stage: "COMPRO" })
   })
 
-  it("acepta el formulario real de ePayco (x_id_invoice) y aplica el pago", async () => {
-    const response = await POST(request(epaycoForm()))
+  it("acepta el formulario real de ePayco (x_id_invoice), aplica el pago y avanza el lead a COMPRO", async () => {
+    const signedCookie = signLeadCookieValue("lead_cookie_1")
+    const response = await POST(
+      request(epaycoForm(), { cookie: `${LEAD_COOKIE_NAME}=${signedCookie}` })
+    )
 
     expect(response.status).toBe(200)
     await expect(response.json()).resolves.toEqual({ received: true, outcome: "paid" })
@@ -68,6 +90,21 @@ describe("POST /api/epayco/webhook", () => {
       amount: "150000.00",
       codResponse: "1",
     })
+    expect(mocks.linkOrderToLead).toHaveBeenCalledWith("order-abc", {
+      leadId: "lead_cookie_1",
+      waPhone: "3001234567",
+      advanceToStage: "COMPRO",
+    })
+  })
+
+  it("no falla el webhook si el lead no existe o si linkOrderToLead lanza error", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {})
+    mocks.linkOrderToLead.mockRejectedValueOnce(new Error("lead db timeout"))
+
+    const response = await POST(request(epaycoForm()))
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({ received: true, outcome: "paid" })
   })
 
   it("responde 400 si no llega la factura", async () => {

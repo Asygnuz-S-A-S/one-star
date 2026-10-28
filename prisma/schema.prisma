@@ -246,6 +246,7 @@ model User {
   clubJoinedAt       DateTime?
   /// Consentimiento explícito para recibir el newsletter (null = no aceptó o lo retiró).
   marketingConsentAt DateTime?
+  marketingConsentVersion String?
   cart           Cart?
   orders         Order[]
   createdAt      DateTime  @default(now())
@@ -319,14 +320,20 @@ model Order {
   customerDocument     String?
   customerPhone        String?
   shippingAddress      Json?
+  /// Consentimiento de publicidad separado (null = no aceptó o lo retiró).
+  marketingConsentAt   DateTime?
+  marketingConsentVersion String?
   userId               String?
   user                 User?            @relation(fields: [userId], references: [id])
+  leadId               String?
+  lead                 Lead?            @relation(fields: [leadId], references: [id], onDelete: SetNull)
   items                OrderItem[]
   createdAt            DateTime         @default(now())
   updatedAt            DateTime         @updatedAt
 
   @@index([customerDocument])
   @@index([customerPhone])
+  @@index([leadId])
 }
 
 // unitPrice se congela al momento de la compra (no varía si el producto cambia de precio)
@@ -421,9 +428,11 @@ model LandingSection {
   page      String             @default("home")
   type      LandingSectionType
   position  Int                @default(0)
-  isActive  Boolean            @default(true)
-  config    Json?
-  createdAt DateTime           @default(now())
+  isActive    Boolean            @default(true)
+  config      Json?
+  /// Cambios aún no publicados. Null: la tienda muestra `config`.
+  draftConfig Json?
+  createdAt   DateTime           @default(now())
   updatedAt DateTime           @updatedAt
 
   @@index([page, isActive, position])
@@ -458,6 +467,54 @@ model AbandonedCart {
   userId      String?
   recoveredAt DateTime?
   createdAt   DateTime  @default(now())
+}
+
+enum LeadStage {
+  NUEVO
+  INTERESADO
+  CARRITO
+  CHECKOUT
+  COMPRO
+  ABANDONO
+}
+
+model Lead {
+  id                String      @id @default(cuid())
+  waPhone           String      @unique
+  name              String?
+  source            String      @default("WHATSAPP")
+  stage             LeadStage   @default(NUEVO)
+  ctwaClid          String?
+  consentAt         DateTime?
+  optedOut          Boolean     @default(false)
+  optedOutAt        DateTime?
+  shortCode         String?     @unique
+  productSlug       String?
+  utmSource         String?
+  utmMedium         String?
+  utmCampaign       String?
+  utmContent        String?
+  lastInteractionAt DateTime    @default(now())
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  events            LeadEvent[]
+  orders            Order[]
+
+  @@index([stage])
+  @@index([optedOut])
+  @@index([createdAt])
+}
+
+model LeadEvent {
+  id        String     @id @default(cuid())
+  leadId    String
+  lead      Lead       @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  type      String
+  stage     LeadStage?
+  metadata  Json?
+  createdAt DateTime   @default(now())
+
+  @@index([leadId, createdAt])
 }
 
 // ─────────────────────────────────────────────
@@ -726,4 +783,38 @@ model MediaAsset {
 
   @@index([fileType])
   @@index([createdAt])
+}
+
+enum PqrsType {
+  CONSULTA
+  RECLAMO
+  SUPRESION
+  RETIRO_PUBLICIDAD
+}
+
+enum PqrsStatus {
+  PENDIENTE
+  EN_TRAMITE
+  RESUELTO
+}
+
+model PqrsRequest {
+  id             String     @id @default(cuid())
+  ticketNumber   String     @unique
+  name           String
+  documentType   String     @default("CC")
+  documentNumber String
+  email          String
+  phone          String?
+  type           PqrsType
+  description    String
+  status         PqrsStatus @default(PENDIENTE)
+  responseNotes  String?
+  respondedAt    DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@index([email])
+  @@index([documentNumber])
+  @@index([status])
 }

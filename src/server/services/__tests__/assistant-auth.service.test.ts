@@ -4,6 +4,7 @@ vi.mock("server-only", () => ({}))
 
 import {
   authenticateAssistantRequest,
+  checkLeadPhoneRateLimit,
   checkOrderRateLimits,
   recordOrderFailedAttempt,
 } from "../assistant-auth.service"
@@ -23,7 +24,7 @@ describe("assistant-auth.service", () => {
     process.env = originalEnv
   })
 
-  it("responde 405 Method Not Allowed si el método no es GET", async () => {
+  it("responde 405 Method Not Allowed si el método no es GET en rutas de consulta", async () => {
     process.env.ASSISTANT_API_KEY = "test-secret-key"
 
     const req = new Request("https://onestar.com.co/api/assistant/products", {
@@ -38,6 +39,37 @@ describe("assistant-auth.service", () => {
       expect(result.response.headers.get("Allow")).toBe("GET")
       const data = await result.response.json()
       expect(data.error).toMatch(/no permitido/i)
+    }
+  })
+
+  it("permite POST únicamente en /api/assistant/leads, /api/assistant/leads/event y /api/assistant/leads/link", async () => {
+    process.env.ASSISTANT_API_KEY = "test-secret-key"
+    vi.spyOn(publicRateLimitService, "consumePublicRateLimit").mockResolvedValue({
+      allowed: true,
+    })
+
+    for (const path of [
+      "/api/assistant/leads",
+      "/api/assistant/leads/event",
+      "/api/assistant/leads/link",
+    ]) {
+      const postReq = new Request(`https://onestar.com.co${path}`, {
+        method: "POST",
+        headers: { "x-assistant-key": "test-secret-key" },
+      })
+      const postRes = await authenticateAssistantRequest(postReq)
+      expect(postRes.authorized).toBe(true)
+
+      const getReq = new Request(`https://onestar.com.co${path}`, {
+        method: "GET",
+        headers: { "x-assistant-key": "test-secret-key" },
+      })
+      const getRes = await authenticateAssistantRequest(getReq)
+      expect(getRes.authorized).toBe(false)
+      if (!getRes.authorized) {
+        expect(getRes.response.status).toBe(405)
+        expect(getRes.response.headers.get("Allow")).toBe("POST")
+      }
     }
   })
 
@@ -131,6 +163,24 @@ describe("assistant-auth.service", () => {
       const data = await result.response.json()
       expect(data.error).toMatch(/límite/i)
     }
+  })
+
+  it("checkLeadPhoneRateLimit aplica rate limit normalizando waPhone a dígitos", async () => {
+    const spy = vi
+      .spyOn(publicRateLimitService, "consumePublicRateLimit")
+      .mockResolvedValueOnce({ allowed: true })
+
+    const headers = new Headers({ "x-real-ip": "190.25.1.1" })
+    const res = await checkLeadPhoneRateLimit(headers, "+57 (300) 123-4567")
+
+    expect(res.allowed).toBe(true)
+    expect(spy).toHaveBeenCalledWith(
+      "assistant-lead-phone",
+      headers,
+      expect.objectContaining({
+        subject: "573001234567",
+      })
+    )
   })
 
   describe("order rate limiting (5 intentos fallidos por hora)", () => {

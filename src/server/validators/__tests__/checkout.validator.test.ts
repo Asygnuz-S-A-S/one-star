@@ -16,6 +16,7 @@ describe("checkoutSchema", () => {
     department: "Antioquia",
     shippingMethod: "standard" as const,
     paymentMethod: "epayco" as const,
+    termsAccepted: true as const,
     items: [
       {
         productId: "prod-1",
@@ -86,5 +87,15 @@ describe("checkoutSchema", () => {
   it("rechaza tipo de documento inválido", () => {
     const result = checkoutSchema.safeParse({ ...validPayload, documentType: "INVALID" })
     expect(result.success).toBe(false)
+  })
+
+  it("rechaza si termsAccepted no está presente o es false", () => {
+    const withoutTerms = { ...validPayload }
+    delete (withoutTerms as Record<string, unknown>).termsAccepted
+    const resultMissing = checkoutSchema.safeParse(withoutTerms)
+    expect(resultMissing.success).toBe(false)
+
+    const resultFalse = checkoutSchema.safeParse({ ...validPayload, termsAccepted: false })
+    expect(resultFalse.success).toBe(false)
   })
 })

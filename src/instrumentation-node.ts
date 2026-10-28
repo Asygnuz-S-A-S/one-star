@@ -60,7 +60,8 @@ if (!isInternalCronDisabled && !globalWithCron.__cronInitialized) {
       }
     })
 
-    // Vence los pedidos que quedaron PENDING sin notificación de la pasarela.
+    // Vence los pedidos que quedaron PENDING sin notificación de la pasarela
+    // y marca como ABANDONO los leads de WhatsApp con 24 h sin pago.
     // Mismo horario que tenía la programación externa: 07:30 en la zona horaria
     // del proceso. Es idempotente: una segunda pasada no encuentra nada.
     cron.schedule("30 7 * * *", async () => {
@@ -75,6 +76,18 @@ if (!isInternalCronDisabled && !globalWithCron.__cronInitialized) {
         }
       } catch (err) {
         console.error("[Cron] Error venciendo pedidos abandonados:", err)
+      }
+
+      try {
+        const { markAbandonedLeads } = await import(
+          "./server/services/lead.service"
+        )
+        const abandoned = await markAbandonedLeads()
+        if (abandoned.length > 0) {
+          console.log(`[Cron] Leads marcados en ABANDONO: ${abandoned.length}.`)
+        }
+      } catch (err) {
+        console.error("[Cron] Error marcando leads abandonados:", err)
       }
     })
   })()

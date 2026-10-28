@@ -25,11 +25,13 @@ type ViewState =
  * mal sobre nuestro `?orderId=`, el id llega como "abc?ref_payco=xyz"; se
  * separa aquí para no depender de cómo arme la URL la pasarela.
  */
-function readParams(search: URLSearchParams): { orderId: string; refPayco: string } {
+function readParams(search: URLSearchParams): { orderId: string; refPayco: string; token: string } {
   const rawOrderId = search.get("orderId") ?? ""
   const [orderId, tail = ""] = rawOrderId.split("?")
   const refFromTail = new URLSearchParams(tail).get("ref_payco") ?? ""
-  return { orderId, refPayco: search.get("ref_payco") ?? refFromTail }
+  const rawToken = search.get("token") ?? ""
+  const [token] = rawToken.split("?")
+  return { orderId, refPayco: search.get("ref_payco") ?? refFromTail, token }
 }
 
 export default function CheckoutSuccessPage() {
@@ -53,7 +55,7 @@ function CheckoutSuccessContent() {
     if (hasVerified.current) return
     hasVerified.current = true
 
-    const { orderId, refPayco } = readParams(searchParams)
+    const { orderId, refPayco, token } = readParams(searchParams)
     // Snapshot del carrito antes de vaciarlo: se muestra en el resumen.
     setSavedItems(
       items.map((i) => ({
@@ -66,7 +68,7 @@ function CheckoutSuccessContent() {
     )
 
     let cancelled = false
-    checkPaymentStatus({ refPayco, orderId })
+    checkPaymentStatus({ refPayco, orderId, token })
       .catch((): PaymentStatusResult => ({ status: "unknown", orderId: orderId || null, total: null }))
       .then((result) => {
         if (cancelled) return

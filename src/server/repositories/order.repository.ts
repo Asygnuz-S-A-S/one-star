@@ -269,3 +269,37 @@ export async function getOrderStats() {
 export async function updateOrderPaymentReference(id: string, paymentReference: string) {
   return prisma.order.update({ where: { id }, data: { paymentReference } })
 }
+
+/**
+ * Vincula los pedidos anteriores de un correo invitado a la cuenta creada.
+ * Solo afecta pedidos donde userId sea null.
+ */
+export async function linkGuestOrdersByEmail(email: string, userId: string): Promise<number> {
+  const result = await prisma.order.updateMany({
+    where: {
+      customerEmail: { equals: email.trim(), mode: "insensitive" },
+      userId: null,
+    },
+    data: { userId },
+  })
+  return result.count
+}
+
+export async function findGuestOrdersByEmail(email: string) {
+  return prisma.order.findMany({
+    where: {
+      customerEmail: { equals: email.trim(), mode: "insensitive" },
+      userId: null,
+    },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      customerName: true,
+      customerEmail: true,
+      customerPhone: true,
+      customerDocument: true,
+      createdAt: true,
+    },
+  })
+}
+

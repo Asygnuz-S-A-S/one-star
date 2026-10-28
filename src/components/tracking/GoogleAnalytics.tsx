@@ -2,8 +2,9 @@
 
 import Script from "next/script"
 import { usePathname } from "next/navigation"
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useCspNonce } from "@/app/providers"
+import { COOKIE_CONSENT_EVENT, getCookieConsent } from "@/lib/cookies/consent"
 
 interface GoogleAnalyticsProps {
   measurementId: string
@@ -21,16 +22,32 @@ declare global {
 }
 
 /**
- * Componente oficial de Google Analytics 4 (GA4) con soporte para nonce CSP.
- * Dispara PageView en la carga inicial y en cada navegación de cliente (Next.js App Router).
+ * Componente oficial de Google Analytics 4 (GA4) con soporte para nonce CSP y Consent Mode.
+ * Solo se carga y rastrea si el usuario otorgó su consentimiento de analítica/cookies.
  * Omite el tracking en rutas administrativas (/admin/*).
  */
 export default function GoogleAnalytics({ measurementId }: GoogleAnalyticsProps) {
   const nonce = useCspNonce()
   const pathname = usePathname()
   const isInitialPath = useRef(true)
+  const [hasConsent, setHasConsent] = useState<boolean>(() => {
+    return typeof document !== "undefined" && getCookieConsent() === "accepted"
+  })
 
   useEffect(() => {
+    const handleConsent = (event: Event) => {
+      const custom = event as CustomEvent<{ consent: string }>
+      setHasConsent(custom.detail?.consent === "accepted")
+    }
+
+    window.addEventListener(COOKIE_CONSENT_EVENT, handleConsent)
+    return () => {
+      window.removeEventListener(COOKIE_CONSENT_EVENT, handleConsent)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!hasConsent) return
     if (isInitialPath.current) {
       isInitialPath.current = false
       return
@@ -41,9 +58,9 @@ export default function GoogleAnalytics({ measurementId }: GoogleAnalyticsProps)
       page_location: window.location.href,
       page_title: document.title,
     })
-  }, [pathname])
+  }, [pathname, hasConsent])
 
-  if (isAdminPath(pathname) || !measurementId) return null
+  if (!hasConsent || isAdminPath(pathname) || !measurementId) return null
 
   const snippet = `window.dataLayer = window.dataLayer || [];
 function gtag(){dataLayer.push(arguments);}

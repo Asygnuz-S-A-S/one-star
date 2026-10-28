@@ -1,12 +1,17 @@
 "use server"
 
 import "server-only"
-import { headers } from "next/headers"
+import { cookies, headers } from "next/headers"
 import { auth } from "@/lib/auth"
+import { LEAD_COOKIE_NAME, verifyLeadCookieValue } from "@/lib/lead-cookie"
 import { prisma } from "@/server/db/prisma"
 import { placeOrder } from "@/server/services/order.service"
+import { linkOrderToLead } from "@/server/services/lead.service"
 import { markCartsRecoveredForEmail } from "@/server/services/abandoned-cart.service"
+import { getUserById } from "@/server/services/user.service"
 import { checkoutSchema } from "@/server/validators/checkout.validator"
+import { consumePublicRateLimit } from "@/server/services/public-rate-limit.service"
+import { signGuestOrderSuccessToken } from "@/server/services/guest-order.service"
 import type { EpaycoCheckoutData } from "@/components/checkout/EpaycoButton"
 
 interface CheckoutItem {
@@ -35,6 +40,10 @@ export interface CheckoutData {
   paymentMethod: "epayco" | "mercadopago" | "addi"
   /** Código de cupón aplicado; el servidor lo revalida y recalcula el descuento */
   couponCode?: string
+  termsAccepted?: boolean
+  /** Consentimiento opcional de novedades y promociones (política §8.2) */
+  marketingConsent?: boolean
+  marketingConsentVersion?: string
   items: CheckoutItem[]
   /** Solo informativos — el servidor los ignora y recalcula (ver order.service) */
   subtotal: number
@@ -53,12 +62,38 @@ interface CreateOrderResult {
 
 export async function createOrder(data: CheckoutData): Promise<CreateOrderResult> {
   try {
-    const session = await auth.api.getSession({ headers: await headers() })
-    if (!session?.user?.id || session.user.userType !== "customer") {
-      return {
-        success: false,
-        code: "AUTH_REQUIRED",
-        error: "Debes iniciar sesión como cliente para completar la compra.",
+    const reqHeaders = await headers()
+    const session = await auth.api.getSession({ headers: reqHeaders })
+    const isCustomer = Boolean(session?.user?.id && session.user.userType === "customer")
+    const userId = isCustomer && session?.user?.id ? session.user.id : null
+
+    // Si es compra como invitado, aplicamos límites de intentos por IP y por correo
+    if (!userId) {
+      const ipLimit = await consumePublicRateLimit("guest_order_ip", reqHeaders, {
+        max: 15,
+        windowMs: 60 * 60 * 1000,
+      })
+      if (!ipLimit.allowed) {
+        return {
+          success: false,
+          code: "ORDER_ERROR",
+          error: "Demasiados intentos de pedido desde esta conexión. Por favor intenta más tarde.",
+        }
+      }
+
+      if (data.email) {
+        const emailLimit = await consumePublicRateLimit("guest_order_email", reqHeaders, {
+          max: 5,
+          windowMs: 60 * 60 * 1000,
+          subject: data.email,
+        })
+        if (!emailLimit.allowed) {
+          return {
+            success: false,
+            code: "ORDER_ERROR",
+            error: "Demasiados intentos de pedido para este correo. Por favor intenta más tarde.",
+          }
+        }
       }
     }
 
@@ -73,10 +108,12 @@ export async function createOrder(data: CheckoutData): Promise<CreateOrderResult
       }
     }
     const input = parsed.data
+    const marketingConsentAt = input.marketingConsent ? new Date() : null
+    const marketingConsentVersion = input.marketingConsent ? (input.marketingConsentVersion ?? "v2.0") : null
 
     // SEGURIDAD: no se envían precios — placeOrder los resuelve desde la BD
     // y calcula subtotal, envío y total en el servidor.
-    const order = await placeOrder(session.user.id, {
+    const order = await placeOrder(userId, {
       customerEmail: input.email,
       customerName: `${input.name} ${input.lastName}`,
       customerDocumentType: input.documentType,
@@ -85,6 +122,8 @@ export async function createOrder(data: CheckoutData): Promise<CreateOrderResult
       paymentMethod: input.paymentMethod,
       shippingMethod: input.shippingMethod,
       couponCode: input.couponCode,
+      marketingConsentAt,
+      marketingConsentVersion,
       shippingAddress: {
         documentType: input.documentType,
         cedula: input.cedula,
@@ -104,16 +143,26 @@ export async function createOrder(data: CheckoutData): Promise<CreateOrderResult
       })),
     })
 
-    // Actualiza cédula en el perfil del usuario si no la tenía registrada
-    if (session.user.id && input.cedula) {
-      prisma.user
-        .updateMany({
-          where: { id: session.user.id, cedula: null },
-          data: { cedula: input.cedula },
-        })
-        .catch((error: unknown) => {
-          console.error("[createOrder] No se pudo guardar la cédula en el perfil:", error)
-        })
+    // Actualiza cédula y consentimiento de marketing en el perfil del usuario autenticado
+    if (userId) {
+      const userUpdates: { cedula?: string; marketingConsentAt?: Date; marketingConsentVersion?: string } = {}
+      if (input.cedula) {
+        userUpdates.cedula = input.cedula
+      }
+      if (input.marketingConsent) {
+        userUpdates.marketingConsentAt = marketingConsentAt!
+        userUpdates.marketingConsentVersion = marketingConsentVersion!
+      }
+      if (Object.keys(userUpdates).length > 0) {
+        prisma.user
+          .update({
+            where: { id: userId },
+            data: userUpdates,
+          })
+          .catch((error: unknown) => {
+            console.error("[createOrder] No se pudo actualizar el perfil del usuario:", error)
+          })
+      }
     }
 
     // El pedido se creó: los carritos abandonados de este email quedan cerrados.
@@ -121,6 +170,22 @@ export async function createOrder(data: CheckoutData): Promise<CreateOrderResult
     markCartsRecoveredForEmail(input.email).catch((err) => {
       console.error("[createOrder] No se pudo marcar carrito recuperado:", err)
     })
+
+    // Vincula el pedido al lead de WhatsApp (por cookie os_lead o teléfono) y avanza a CHECKOUT.
+    // Nunca debe romper la creación del pedido si falla.
+    try {
+      const cookieStore = await cookies()
+      const cookieLeadId = verifyLeadCookieValue(cookieStore.get(LEAD_COOKIE_NAME)?.value)
+      await linkOrderToLead(order.id, {
+        leadId: cookieLeadId,
+        waPhone: input.phone,
+        advanceToStage: "CHECKOUT",
+      })
+    } catch (leadError) {
+      console.error("[createOrder] Error al vincular lead en checkout:", leadError)
+    }
+
+    const guestToken = !userId ? signGuestOrderSuccessToken(order.id) : undefined
 
     const epaycoData: EpaycoCheckoutData = {
       orderId: order.id,
@@ -134,6 +199,7 @@ export async function createOrder(data: CheckoutData): Promise<CreateOrderResult
       address: input.address,
       city: input.city,
       department: input.department,
+      ...(guestToken ? { guestToken } : {}),
     }
 
     return { success: true, orderId: order.id, epaycoData }
@@ -154,3 +220,27 @@ export async function createOrder(data: CheckoutData): Promise<CreateOrderResult
     }
   }
 }
+
+/**
+ * Obtiene los datos del perfil del cliente autenticado para autocompletar el formulario de checkout.
+ */
+export async function getCustomerCheckoutProfile(): Promise<{
+  email: string
+  name?: string
+  lastName?: string
+  phone?: string
+  cedula?: string
+} | null> {
+  const session = await auth.api.getSession({ headers: await headers() })
+  if (!session?.user?.id || session.user.userType !== "customer") return null
+  const user = await getUserById(session.user.id)
+  if (!user) return null
+  return {
+    email: user.email,
+    name: user.name ?? undefined,
+    lastName: user.lastName ?? undefined,
+    phone: user.phone ?? undefined,
+    cedula: user.cedula ?? undefined,
+  }
+}
+

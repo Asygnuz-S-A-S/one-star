@@ -51,7 +51,8 @@ export default async function TerminosPage() {
       <LegalSection id="cuenta" heading="3. Registro y cuenta de usuario">
         <LegalList
           items={[
-            "Puedes comprar como invitado o crear una cuenta. La información que registres debe ser veraz, completa y actualizada.",
+            "Puedes comprar como invitado o crear una cuenta. Para compras como invitado, solicitamos los datos de facturación y despacho necesarios para procesar el pedido y emitir el comprobante correspondiente.",
+            "Al comprar como invitado y tras la confirmación de pago aprobado, recibirás por correo electrónico una invitación con un enlace de un solo uso para crear tu contraseña y activar tu cuenta; al verificarlo, se vincularán tus pedidos a tu perfil.",
             "Eres responsable de la confidencialidad de tus credenciales y de toda actividad realizada desde tu cuenta.",
             "Podemos suspender o cancelar cuentas que incumplan estos términos, que registren datos falsos o que se usen con fines fraudulentos.",
           ]}
@@ -73,6 +74,7 @@ export default async function TerminosPage() {
         <LegalList
           items={[
             "El pedido se perfecciona cuando el pago es aprobado por la pasarela y recibes la confirmación por correo electrónico.",
+            "Antes de finalizar y pagar, es obligatorio aceptar expresamente estos términos y condiciones y autorizar el tratamiento de datos personales.",
             "Los pagos se procesan a través de pasarelas autorizadas; no almacenamos los datos completos de tu medio de pago.",
             "Nos reservamos el derecho de rechazar o cancelar un pedido cuando existan indicios de fraude, imposibilidad de verificar la identidad del comprador o falta de inventario, con reembolso íntegro del valor pagado.",
           ]}
@@ -124,13 +126,40 @@ export default async function TerminosPage() {
       <LegalSection id="tarjeta-regalo" heading="10. Tarjetas de regalo">
         <LegalList
           items={[
-            "Las tarjetas de regalo se emiten por el valor adquirido, en pesos colombianos, y no son canjeables por dinero en efectivo.",
-            "Su vigencia y sus condiciones de uso se informan al momento de la compra y en el mensaje de entrega.",
+            "Emisión y valor: Las tarjetas de regalo se emiten por el valor adquirido en pesos colombianos (COP) tras la confirmación del pago correspondiente.",
+            "Vigencia: Tienen una vigencia de doce (12) meses contados a partir de su fecha de emisión y entrega digital, salvo que se estipule expresamente un plazo superior.",
+            "No reembolsables: Las tarjetas de regalo no son canjeables ni reembolsables total ni parcialmente por dinero en efectivo, transferencias ni cheques.",
+            "Condiciones de uso: Pueden ser redimidas exclusivamente para la compra de productos disponibles en la tienda en línea y en las tiendas físicas de One Star. El saldo puede utilizarse en una o varias transacciones hasta agotar su valor total o hasta el vencimiento de su vigencia. Si el valor de la compra excede el saldo de la tarjeta de regalo, el comprador deberá pagar el excedente a través de cualquiera de los demás medios de pago aceptados.",
+            "Custodia del código: El código alfanumérico enviado al correo electrónico constituye el único instrumento para redimir el saldo. El comprador o beneficiario es el único responsable de su custodia; One Star no responderá por saldos ya utilizados por terceros debido a pérdida o divulgación no autorizada del código.",
           ]}
         />
       </LegalSection>
 
-      <LegalSection id="propiedad" heading="11. Propiedad intelectual">
+      <LegalSection id="one-star-club" heading="11. One Star Club">
+        <div className="rounded-lg border-l-4 border-amber-500 bg-amber-50 dark:bg-amber-950/30 p-3.5 text-xs font-montserrat text-amber-900 dark:text-amber-200">
+          <strong>Aviso:</strong> Pendiente del reglamento oficial de One Star. Las condiciones particulares y definitivas del programa One Star Club se publicarán y actualizarán una vez sean formalizadas por One Star.
+        </div>
+        <LegalList
+          items={[
+            "Naturaleza del programa: One Star Club es un programa de fidelización voluntario y gratuito para clientes de la tienda.",
+            "Beneficios: Da acceso a promociones exclusivas, cupones para miembros, lanzamientos prioritarios y comunicaciones especiales.",
+            "Retiro voluntario: El miembro puede darse de baja del programa o revocar su autorización para recibir novedades en cualquier momento desde su perfil de usuario o a través de nuestros canales de atención.",
+          ]}
+        />
+      </LegalSection>
+
+      <LegalSection id="financiacion-terceros" heading="12. Financiación con Addi y Sistecrédito">
+        <LegalList
+          items={[
+            "Proveedores independientes: One Star pone a disposición de sus clientes métodos de pago a crédito financiados por terceros especializados e independientes: Adelante Soluciones Financieras S.A.S. (Addi) y Sistecrédito S.A.S. (Sistecrédito).",
+            "Términos propios del crédito: La relación crediticia, estudio de crédito, aprobación, tasas de interés, número de cuotas, cobro de avales y políticas de cobranza se rigen de manera exclusiva por los términos y condiciones y contratos celebrados directamente entre el cliente y Addi o Sistecrédito.",
+            "Independencia de One Star: One Star no actúa como entidad financiera, otorgante del crédito ni fiador, y no interviene ni se responsabiliza por la aprobación o rechazo de las solicitudes de crédito.",
+            "Reclamaciones sobre el crédito: Cualquier duda, consulta o inconformidad sobre cobros de cuotas, intereses o estados de cuenta crediticios debe ser dirigida directamente a los canales de atención de Addi o Sistecrédito según corresponda.",
+          ]}
+        />
+      </LegalSection>
+
+      <LegalSection id="propiedad" heading="13. Propiedad intelectual">
         <p>
           Las marcas, logotipos, textos, fotografías, diseños y demás contenidos del sitio son
           propiedad de {responsable} o de sus titulares legítimos y están protegidos por la
@@ -139,7 +168,7 @@ export default async function TerminosPage() {
         </p>
       </LegalSection>
 
-      <LegalSection id="uso" heading="12. Uso permitido del sitio">
+      <LegalSection id="uso" heading="14. Uso permitido del sitio">
         <LegalList
           items={[
             "No está permitido interferir con el funcionamiento del sitio, realizar extracción automatizada de datos ni intentar acceder a áreas restringidas.",
@@ -148,7 +177,7 @@ export default async function TerminosPage() {
         />
       </LegalSection>
 
-      <LegalSection id="responsabilidad" heading="13. Limitación de responsabilidad">
+      <LegalSection id="responsabilidad" heading="15. Limitación de responsabilidad">
         <p>
           Hacemos nuestro mejor esfuerzo para mantener el sitio disponible y la información
           actualizada, pero no garantizamos la ausencia de interrupciones, errores u omisiones. Esta
@@ -157,11 +186,15 @@ export default async function TerminosPage() {
         </p>
       </LegalSection>
 
-      <LegalSection id="ley" heading="14. Ley aplicable y solución de controversias">
+      <LegalSection id="ley" heading="16. Ley aplicable y solución de controversias">
         <p>
           Estos términos se rigen por la ley colombiana. Cualquier controversia se tramitará ante
           las autoridades competentes de Colombia, sin perjuicio de las facultades jurisdiccionales
-          de la Superintendencia de Industria y Comercio en materia de protección al consumidor.
+          de la Superintendencia de Industria y Comercio en materia de protección al consumidor o
+          a través de nuestro canal de{" "}
+          <Link href="/pqrs" className="text-[#E31C23] underline underline-offset-2">
+            PQRS
+          </Link>.
         </p>
       </LegalSection>
     </LegalDocument>
