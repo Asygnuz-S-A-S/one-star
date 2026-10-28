@@ -1,6 +1,6 @@
 "use client"
 
-import type { ComponentProps, CSSProperties, ReactNode } from "react"
+import { useLayoutEffect, type ComponentProps, type CSSProperties, type ReactNode } from "react"
 import { usePathname } from "next/navigation"
 
 import Header from "@/components/Header"
@@ -33,6 +33,11 @@ export default function PublicSiteFrame({
   ...headerProps
 }: PublicSiteFrameProps) {
   const pathname = usePathname()
+
+  useLayoutEffect(() => {
+    if (isAdminPathname(pathname)) return
+    document.getElementById("public-scroll")?.scrollTo({ top: 0, left: 0, behavior: "instant" })
+  }, [pathname])
 
   if (isAdminPathname(pathname)) {
     return <div className="flex-1">{children}</div>

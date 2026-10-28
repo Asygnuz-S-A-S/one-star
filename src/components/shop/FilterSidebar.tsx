@@ -3,7 +3,7 @@
 import { useRouter, usePathname } from "next/navigation"
 import { GENDER_FILTER_OPTIONS } from "@/lib/gender-filter"
 import { DEFAULT_PRODUCT_SORT, PRODUCT_SORT_OPTIONS } from "@/lib/product-sort"
-import { useEffect, useLayoutEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 import { createPortal } from "react-dom"
 import { AnimatePresence, motion } from "motion/react"
 import {
@@ -35,6 +35,21 @@ const chevron = "text-[#4A4A4A] dark:text-white/40"
 
 const optionText = "font-montserrat text-sm text-[#4A4A4A] dark:text-white/60"
 
+function subscribeToFilterSlot(onStoreChange: () => void) {
+  // El slot lo pinta SortBar después de este componente. Un aviso en el
+  // siguiente frame vuelve a leer el nodo ya montado, también al cambiar de página.
+  const frame = requestAnimationFrame(onStoreChange)
+  return () => cancelAnimationFrame(frame)
+}
+
+function readFilterSlot() {
+  return document.getElementById("catalog-filter-slot")
+}
+
+function readServerFilterSlot() {
+  return null
+}
+
 export default function FilterSidebar({
   brands,
   sizes,
@@ -48,13 +63,9 @@ export default function FilterSidebar({
   const router = useRouter()
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
-  const [filterSlot, setFilterSlot] = useState<HTMLElement | null>(null)
+  const filterSlot = useSyncExternalStore(subscribeToFilterSlot, readFilterSlot, readServerFilterSlot)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const dialogRef = useRef<HTMLDivElement>(null)
-
-  useLayoutEffect(() => {
-    setFilterSlot(document.getElementById("catalog-filter-slot"))
-  }, [])
 
   const closeFilters = () => {
     setIsOpen(false)
@@ -404,7 +415,7 @@ export default function FilterSidebar({
       aria-haspopup="dialog"
       aria-expanded={isOpen}
       aria-controls="filter-dialog"
-      className="inline-flex min-h-11 items-center rounded-full border border-[#1C1C1C] px-4 font-barlow text-sm font-bold uppercase tracking-widest text-[#1C1C1C] dark:border-white dark:text-white"
+      className="inline-flex min-h-11 items-center rounded-full border border-[#1C1C1C] px-4 font-barlow text-sm font-bold uppercase tracking-widest text-[#1C1C1C] lg:hidden dark:border-white dark:text-white"
     >
       Filtros
     </button>
