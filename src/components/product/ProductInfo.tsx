@@ -24,6 +24,7 @@ import StickyBuyBar from "./StickyBuyBar"
 import { RETURN_WINDOW_DAYS, type StorePromise } from "@/lib/store-promises"
 import { useDeliveryDays, useShippingRates } from "@/components/storefront/ShippingRatesProvider"
 import { getProductAvailability } from "@/lib/product-availability"
+import AddiWidget from "@/components/product/AddiWidget"
 
 interface ProductInfoProps {
   product: ProductWithRelations
@@ -309,6 +310,9 @@ export default function ProductInfo({
               Ahorras {formatCOP(savings)}
             </p>
           )}
+          <div className="mt-1">
+            <AddiWidget price={salePrice ?? basePrice} />
+          </div>
         </motion.div>
 
         <div

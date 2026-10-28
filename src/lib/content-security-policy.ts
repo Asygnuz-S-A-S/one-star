@@ -20,6 +20,8 @@ export function buildContentSecurityPolicy({
     "https://*.epayco.co",
     // Píxel de Meta: fallback para navegadores sin 'strict-dynamic'.
     "https://connect.facebook.net",
+    // Google Analytics 4
+    "https://www.googletagmanager.com",
   ]
   const connectSources = ["'self'"]
 
@@ -32,6 +34,10 @@ export function buildContentSecurityPolicy({
     // Píxel de Meta: fbevents.js reporta a facebook.com vía fetch/beacon.
     "https://connect.facebook.net",
     "https://www.facebook.com",
+    // Google Analytics 4
+    "https://www.googletagmanager.com",
+    "https://*.google-analytics.com",
+    "https://*.analytics.google.com",
   )
 
   if (isDevelopment) {
