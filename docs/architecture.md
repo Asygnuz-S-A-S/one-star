@@ -424,6 +424,15 @@ CLOUDINARY_API_SECRET=...        # API Secret (solo servidor)
 # Chatbot de ventas (ver src/server/services/ai-chat.service.ts)
 ANTHROPIC_API_KEY=...            # Sin esto, el chat responde "no disponible" en vez de romper la página
 ANTHROPIC_MODEL=claude-sonnet-5  # Opcional; ya es el default
+
+# API del Asistente WhatsApp (n8n — ver /api/assistant/* y src/server/services/assistant-auth.service.ts)
+ASSISTANT_API_KEY=...            # Clave requerida en x-assistant-key (sin ella los endpoints responden 503)
+ASSISTANT_RATE_LIMIT_PER_MIN=60  # Rate limit general por minuto (default: 60)
+
+# Seguimiento de Envíos (Envía — ver src/server/shipping/tracking/)
+ENVIA_API_URL=...                # URL del servicio de tracking de Envía (opcional, sin ella tracking=null)
+ENVIA_API_TOKEN=...              # Token Bearer de autenticación para Envía (opcional)
+ENVIA_TRACKING_URL_TEMPLATE="https://envia.co/rastreo?guia={guia}" # Plantilla para trackingUrl público
 ```
 
 **Nota sobre el IVA de Loggro (`LOGGRO_IVA_RATE`).** Loggro entrega el precio

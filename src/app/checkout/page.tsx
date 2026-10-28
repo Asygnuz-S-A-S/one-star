@@ -44,6 +44,7 @@ type FormErrors = Partial<Record<keyof FormValues, string>>
 
 const INITIAL_FORM_VALUES: FormValues = {
   email: "",
+  documentType: "CC",
   cedula: "",
   newsletter: false,
   name: "",
@@ -324,6 +325,7 @@ function CheckoutForm({
 
     const result = await createOrder({
       email: values.email,
+      documentType: values.documentType ?? "CC",
       cedula: values.cedula,
       name: values.name,
       lastName: values.lastName,
@@ -469,16 +471,29 @@ function CheckoutForm({
                     </Field>
                   </div>
                   <div data-field="cedula">
-                    <Field label="Cédula / NIT (Facturación)" required error={errors.cedula}>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        value={values.cedula}
-                        onChange={(e) => set("cedula", e.target.value.replace(/\D/g, ""))}
-                        placeholder="123456789"
-                        className={errors.cedula ? inputErrorClass : inputClass}
-                        autoComplete="off"
-                      />
+                    <Field label="Documento (Facturación)" required error={errors.cedula}>
+                      <div className="flex gap-2">
+                        <select
+                          value={values.documentType ?? "CC"}
+                          onChange={(e) => set("documentType", e.target.value as FormValues["documentType"])}
+                          className={`w-28 shrink-0 ${errors.cedula ? inputErrorClass : inputClass} cursor-pointer`}
+                          aria-label="Tipo de documento"
+                        >
+                          <option value="CC">CC</option>
+                          <option value="CE">CE</option>
+                          <option value="NIT">NIT</option>
+                          <option value="PP">PP</option>
+                        </select>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={values.cedula}
+                          onChange={(e) => set("cedula", e.target.value.replace(/\D/g, ""))}
+                          placeholder="Número de documento"
+                          className={errors.cedula ? inputErrorClass : inputClass}
+                          autoComplete="off"
+                        />
+                      </div>
                     </Field>
                   </div>
                   <div data-field="phone">
