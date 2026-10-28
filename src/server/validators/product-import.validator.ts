@@ -233,6 +233,8 @@ export const productImportRowSchema = z
     isLaunch: yesNo,
     highlights: optionalString,
     faqs: optionalString,
+    metaTitle: optionalString,
+    metaDescription: optionalString,
   })
   .refine((data) => !data.isOnSale || data.salePrice !== undefined, {
     message: "Precio de oferta requerido cuando ¿En oferta? = SI",

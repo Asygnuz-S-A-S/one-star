@@ -64,6 +64,7 @@ export const StoreInfoInputSchema = z.object({
     )
     .transform(emptyToNull),
   hideImagelessProducts: z.boolean(),
+  groupColorsInCatalog: z.boolean().default(true),
   newArrivalDays: z.coerce.number().int().min(1, "Usa al menos 1 día").max(365, "No puede superar 365 días"),
   chatEnabled: z.boolean(),
   chatWelcome: optionalText(400),

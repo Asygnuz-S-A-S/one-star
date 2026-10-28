@@ -5,6 +5,10 @@ import {
   findStoreSettingsReadOnly,
   updateStoreSettingsRecord,
 } from "@/server/repositories/store-settings.repository"
+import {
+  getCatalogSettingsRecord,
+  upsertCatalogSettingsRecord,
+} from "@/server/repositories/site-content.repository"
 import { normalizeCatalogSource, type CatalogSource } from "@/lib/catalog-source"
 import { DEFAULT_GIFT_CARD_LIMITS, type GiftCardLimits } from "@/lib/gift-card"
 import { LEGAL_COMPANY, type LegalCompanyInfo } from "@/lib/legal"
@@ -71,6 +75,7 @@ export interface StoreSettingsDTO {
   privacyDocumentUrl: string | null
   returnsDocumentUrl: string | null
   giftCardAmounts: string
+  groupColorsInCatalog: boolean
 }
 
 /** Lo único del píxel que puede viajar al navegador. */
@@ -128,7 +133,7 @@ function toDTO(raw: {
   privacyDocumentUrl?: string | null
   returnsDocumentUrl?: string | null
   giftCardAmounts?: string | null
-}): StoreSettingsDTO {
+}, catalogRules?: { groupColorsInCatalog?: boolean }): StoreSettingsDTO {
   return {
     storeName: raw.storeName,
     contactEmail: raw.contactEmail,
@@ -173,6 +178,7 @@ function toDTO(raw: {
     privacyDocumentUrl: raw.privacyDocumentUrl ?? null,
     returnsDocumentUrl: raw.returnsDocumentUrl ?? null,
     giftCardAmounts: raw.giftCardAmounts ?? "",
+    groupColorsInCatalog: catalogRules?.groupColorsInCatalog ?? true,
   }
 }
 
@@ -195,46 +201,52 @@ export async function getPublicStoreInfo(): Promise<{ storeName: string; whatsap
 }
 
 export async function getStoreSettings(): Promise<StoreSettingsDTO> {
-  return toDTO(await findStoreSettings())
+  const [raw, catalogSettings] = await Promise.all([
+    findStoreSettings(),
+    getCatalogSettingsRecord().catch(() => ({ groupColorsInCatalog: true })),
+  ])
+  return toDTO(raw, catalogSettings)
 }
 
 export async function updateStoreInfo(input: StoreInfoInput): Promise<StoreSettingsDTO> {
-  return toDTO(
-    await updateStoreSettingsRecord({
-      storeName: input.storeName,
-      contactEmail: input.contactEmail,
-      whatsapp: input.whatsapp,
-      freeShippingThreshold: input.freeShippingThreshold,
-      standardShippingCost: input.standardShippingCost,
-      expressShippingCost: input.expressShippingCost,
-      legalName: input.legalName,
-      taxId: input.taxId,
-      legalAddress: input.legalAddress,
-      contactPhone: input.contactPhone,
-      hideImagelessProducts: input.hideImagelessProducts,
-      newArrivalDays: input.newArrivalDays,
-      chatEnabled: input.chatEnabled,
-      chatWelcome: input.chatWelcome,
-      giftCardMinAmount: input.giftCardMinAmount,
-      giftCardMaxAmount: input.giftCardMaxAmount,
-      giftCardValidityMonths: input.giftCardValidityMonths,
-      clubHeadline: input.clubHeadline,
-      clubIntro: input.clubIntro,
-      clubBenefits: input.clubBenefits,
-      clubWelcomeSubject: input.clubWelcomeSubject,
-      clubWelcomeBody: input.clubWelcomeBody,
-      footerLinks: input.footerLinks,
-      bottomNav: input.bottomNav,
-      deliveryMinDays: input.deliveryMinDays,
-      deliveryMaxDays: input.deliveryMaxDays,
-      expressDeliveryMinDays: input.expressDeliveryMinDays,
-      expressDeliveryMaxDays: input.expressDeliveryMaxDays,
-      legalCity: input.legalCity,
-      commercialRegistry: input.commercialRegistry,
-      dataProtectionEmail: input.dataProtectionEmail,
-      giftCardAmounts: input.giftCardAmounts,
-    }),
-  )
+  if (input.groupColorsInCatalog !== undefined) {
+    await upsertCatalogSettingsRecord({ groupColorsInCatalog: input.groupColorsInCatalog })
+  }
+  const updated = await updateStoreSettingsRecord({
+    storeName: input.storeName,
+    contactEmail: input.contactEmail,
+    whatsapp: input.whatsapp,
+    freeShippingThreshold: input.freeShippingThreshold,
+    standardShippingCost: input.standardShippingCost,
+    expressShippingCost: input.expressShippingCost,
+    legalName: input.legalName,
+    taxId: input.taxId,
+    legalAddress: input.legalAddress,
+    contactPhone: input.contactPhone,
+    hideImagelessProducts: input.hideImagelessProducts,
+    newArrivalDays: input.newArrivalDays,
+    chatEnabled: input.chatEnabled,
+    chatWelcome: input.chatWelcome,
+    giftCardMinAmount: input.giftCardMinAmount,
+    giftCardMaxAmount: input.giftCardMaxAmount,
+    giftCardValidityMonths: input.giftCardValidityMonths,
+    clubHeadline: input.clubHeadline,
+    clubIntro: input.clubIntro,
+    clubBenefits: input.clubBenefits,
+    clubWelcomeSubject: input.clubWelcomeSubject,
+    clubWelcomeBody: input.clubWelcomeBody,
+    footerLinks: input.footerLinks,
+    bottomNav: input.bottomNav,
+    deliveryMinDays: input.deliveryMinDays,
+    deliveryMaxDays: input.deliveryMaxDays,
+    expressDeliveryMinDays: input.expressDeliveryMinDays,
+    expressDeliveryMaxDays: input.expressDeliveryMaxDays,
+    legalCity: input.legalCity,
+    commercialRegistry: input.commercialRegistry,
+    dataProtectionEmail: input.dataProtectionEmail,
+    giftCardAmounts: input.giftCardAmounts,
+  })
+  return toDTO(updated, { groupColorsInCatalog: input.groupColorsInCatalog ?? true })
 }
 
 const DOCUMENT_FIELDS = {
@@ -293,11 +305,19 @@ export async function getPublicStorefrontConfig(): Promise<PublicStorefrontConfi
   }
 }
 
-export async function getCatalogRules(): Promise<{ hideImagelessProducts: boolean; newArrivalDays: number }> {
-  const settings = await findStoreSettingsReadOnly()
+export async function getCatalogRules(): Promise<{
+  hideImagelessProducts: boolean
+  newArrivalDays: number
+  groupColorsInCatalog: boolean
+}> {
+  const [settings, catalogSettings] = await Promise.all([
+    findStoreSettingsReadOnly(),
+    getCatalogSettingsRecord().catch(() => ({ groupColorsInCatalog: true })),
+  ])
   return {
     hideImagelessProducts: settings?.hideImagelessProducts ?? true,
     newArrivalDays: settings?.newArrivalDays ?? 30,
+    groupColorsInCatalog: catalogSettings.groupColorsInCatalog,
   }
 }
 

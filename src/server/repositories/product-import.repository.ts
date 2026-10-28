@@ -165,6 +165,8 @@ export async function persistProductImport(
               isLaunch: first.isLaunch ?? false,
               highlights: parsedHighlights,
               ...(parsedFaqs.length > 0 ? { faqs: parsedFaqs as unknown as Prisma.InputJsonValue } : {}),
+              metaTitle: first.metaTitle ?? null,
+              metaDescription: first.metaDescription ?? null,
               images: { create: images },
             },
           })
@@ -216,6 +218,12 @@ export async function persistProductImport(
                 : {}),
               ...(isOverwrite || !existingProduct?.gender
                 ? { gender: (first.gender as Gender | undefined) ?? null }
+                : {}),
+              ...(isOverwrite || !existingProduct?.metaTitle
+                ? { metaTitle: first.metaTitle ?? null }
+                : {}),
+              ...(isOverwrite || !existingProduct?.metaDescription
+                ? { metaDescription: first.metaDescription ?? null }
                 : {}),
               ...(categoryId ? { category: { connect: { id: categoryId } } } : {}),
               ...(brandId ? { brand: { connect: { id: brandId } } } : {}),

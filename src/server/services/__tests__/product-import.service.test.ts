@@ -838,6 +838,35 @@ describe("applyProductImport", () => {
     )
   })
 
+  it("advierte si el título SEO excede 60 caracteres o la descripción 160 caracteres sin bloquear", async () => {
+    const customHeaders = [...COLUMNS, "TITULO SEO", "DESCRIPCION SEO"]
+    const row = [
+      ...baseRow(),
+      "Este es un título SEO excesivamente largo que sobrepasa el límite sugerido de sesenta caracteres",
+      "Esta es una meta descripción excesivamente larga diseñada específicamente para sobrepasar los ciento sesenta caracteres recomendados para motores de búsqueda como Google y Bing.",
+    ]
+    const buffer = buildBuffer([row], customHeaders, false)
+    const preview = await previewProductImport(buffer)
+
+    expect(preview.rows[0].action).toBe("create_product")
+    expect(preview.rows[0].warnings).toEqual(
+      expect.arrayContaining([
+        "Título SEO excede los 60 caracteres recomendados",
+        "Descripción SEO excede los 160 caracteres recomendados",
+      ])
+    )
+
+    await applyProductImport(buffer, preview.fingerprint)
+    expect(txMock.product.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          metaTitle: row[row.length - 2],
+          metaDescription: row[row.length - 1],
+        }),
+      })
+    )
+  })
+
   it("falla sin escribir si el catálogo cambió desde la vista previa", async () => {
     const buffer = buildBuffer([baseRow()])
     await previewProductImport(buffer)

@@ -9,8 +9,8 @@ export default async function FeaturedProducts({ config = {} }: { config?: Recor
   const limit = config.limit ? Number(config.limit) : 8
   const theme = config.theme === "dark" ? "dark" : "light"
 
-  const rules = await getCatalogRules().catch(() => ({ hideImagelessProducts: true, newArrivalDays: 30 }))
-  const { products } = await getProducts({ orden: "reciente", requireImage: rules.hideImagelessProducts }, limit)
+  const rules = await getCatalogRules().catch(() => ({ hideImagelessProducts: true, newArrivalDays: 30, groupColorsInCatalog: true }))
+  const { products } = await getProducts({ orden: "reciente", requireImage: rules.hideImagelessProducts, groupColors: rules.groupColorsInCatalog }, limit)
 
   if (products.length === 0) return null
 
