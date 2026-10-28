@@ -702,6 +702,7 @@ Basado en `MANUAL_MARCA.md` (rojo 10 % solo para acentos y CTA, grises 60 %, neg
 ### Landings y secciones (landing builder)
 
 - `LandingSection.page` agrupa secciones por landing: `home` es `/`; cualquier otro slug (`^[a-z0-9-]+$`) se publica en `/campanas/<slug>` cuando tiene al menos una sección activa. Se crean desde `/admin/landing-builder?page=<slug>` (selector "Landing que editas").
+- Guardar una sección escribe `draftConfig`. La vista previa (`?preview=true`, solo con sesión de admin) muestra ese borrador. `publishLandingPage` lo copia a `config` y limpia el borrador. Sin sesión, `?preview=true` sigue mostrando lo publicado.
 - `src/components/landing/LandingSections.tsx` es el registro de secciones: agregar un tipo = valor en `LandingSectionType` + entrada en `SECTION_RENDERERS` + campos en el editor.
 - **Hero escenario de producto:** un `campaignHero` con `foregroundMedia` (PNG sin fondo) y sin imágenes de fondo se muestra con el producto flotando sobre la primera palabra del titular en gigante, sombra elíptica y flecha de rotación.
 - **Intro de marca:** `StoreIntro` cubre la home ~1 s solo en la primera visita de la sesión (`sessionStorage`), sin `?preview` y sin movimiento reducido. La página ya está renderizada debajo; la capa se activa con un script con nonce antes del primer pintado.

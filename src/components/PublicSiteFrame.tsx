@@ -36,7 +36,16 @@ export default function PublicSiteFrame({
 
   useLayoutEffect(() => {
     if (isAdminPathname(pathname)) return
-    document.getElementById("public-scroll")?.scrollTo({ top: 0, left: 0, behavior: "instant" })
+    const scroller = document.getElementById("public-scroll")
+    if (!scroller) return
+    const id = window.location.hash.replace("#", "")
+    const target = id.startsWith("landing-section-") ? document.getElementById(id) : null
+    if (!target) {
+      scroller.scrollTo({ top: 0, left: 0, behavior: "instant" })
+      return
+    }
+    const top = target.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop
+    scroller.scrollTo({ top, left: 0, behavior: "instant" })
   }, [pathname])
 
   if (isAdminPathname(pathname)) {
