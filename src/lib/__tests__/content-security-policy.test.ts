@@ -15,7 +15,7 @@ describe("buildContentSecurityPolicy", () => {
       .find((directive) => directive.startsWith("script-src "))
 
     expect(scriptDirective).toBe(
-      "script-src 'self' 'nonce-request-nonce' 'strict-dynamic' https://*.epayco.co https://connect.facebook.net",
+      "script-src 'self' 'nonce-request-nonce' 'strict-dynamic' https://*.epayco.co https://connect.facebook.net https://www.googletagmanager.com",
     )
     expect(scriptDirective).not.toContain("'unsafe-inline'")
     expect(scriptDirective).not.toContain("'unsafe-eval'")
