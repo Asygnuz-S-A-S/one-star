@@ -2,7 +2,7 @@
 
 import { headers } from "next/headers"
 import { revalidatePath } from "next/cache"
-import { requireAdmin } from "@/server/auth/require-admin"
+import { getAdminSession, UnauthorizedError } from "@/server/auth/require-admin"
 import {
   requestRecoverySchema,
   resetPasswordSchema,
@@ -106,7 +106,9 @@ export async function changeAdminOwnPasswordAction(
   formData: FormData
 ): Promise<ActionState> {
   try {
-    const session = await requireAdmin()
+    // "Mi cuenta" es de CUALQUIER rol (cambiar la propia contraseña), no solo Super Admin.
+    const session = await getAdminSession()
+    if (!session) throw new UnauthorizedError()
 
     const currentPassword = String(formData.get("currentPassword") ?? "")
     const newPassword = String(formData.get("newPassword") ?? "")

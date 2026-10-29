@@ -8,9 +8,10 @@ import {
   changeAdminOwnPasswordAction,
 } from "../admin-recovery.actions"
 
-const mockRequireAdmin = vi.fn()
+const mockGetAdminSession = vi.fn()
 vi.mock("@/server/auth/require-admin", () => ({
-  requireAdmin: () => mockRequireAdmin(),
+  getAdminSession: () => mockGetAdminSession(),
+  UnauthorizedError: class UnauthorizedError extends Error {},
 }))
 
 const mockRequestReset = vi.fn()
@@ -92,8 +93,21 @@ describe("admin-recovery.actions", () => {
   })
 
   describe("changeAdminOwnPasswordAction", () => {
+    it("rechaza sin sesión (cualquier rol, no solo Super Admin, debe poder intentarlo)", async () => {
+      mockGetAdminSession.mockResolvedValue(null)
+
+      const fd = new FormData()
+      fd.set("currentPassword", "claveActual123")
+      fd.set("newPassword", "nuevaClave123")
+      fd.set("confirmPassword", "nuevaClave123")
+
+      const res = await changeAdminOwnPasswordAction(null, fd)
+      expect(res.success).toBe(false)
+      expect(mockChangeOwnPassword).not.toHaveBeenCalled()
+    })
+
     it("falla si las contraseñas nuevas no coinciden", async () => {
-      mockRequireAdmin.mockResolvedValue({
+      mockGetAdminSession.mockResolvedValue({
         user: { id: "admin-1", email: "admin@onestar.com" },
         session: { id: "sess-1" },
       })
@@ -110,7 +124,7 @@ describe("admin-recovery.actions", () => {
     })
 
     it("actualiza contraseña propia exitosamente", async () => {
-      mockRequireAdmin.mockResolvedValue({
+      mockGetAdminSession.mockResolvedValue({
         user: { id: "admin-1", email: "admin@onestar.com" },
         session: { id: "sess-1" },
       })

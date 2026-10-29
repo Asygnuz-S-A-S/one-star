@@ -75,7 +75,7 @@ describe("buildContentSecurityPolicy", () => {
     })
 
     expect(policy).toContain(
-      "connect-src 'self' https://*.epayco.co https://*.epayco.io https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://nominatim.openstreetmap.org https://connect.facebook.net https://www.facebook.com https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://*.addi.com https://*.addi-staging.com https://s3.amazonaws.com https://*.split.io",
+      "connect-src 'self' https://*.epayco.co https://*.epayco.io https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://nominatim.openstreetmap.org https://connect.facebook.net https://www.facebook.com https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://*.addi.com https://*.addi-staging.com https://s3.amazonaws.com/widgets.addi.com/ https://*.split.io",
     )
     expect(policy).toContain(
       "frame-src 'self' https://*.epayco.co https://www.google.com https://maps.google.com https://*.addi.com https://*.addi-staging.com",

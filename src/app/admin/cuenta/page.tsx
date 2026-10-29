@@ -1,11 +1,15 @@
-import { requireAdmin } from "@/server/auth/require-admin"
+import { getAdminSession } from "@/server/auth/require-admin"
 import { findAdminById } from "@/server/repositories/admin.repository"
 import ChangePasswordForm from "./ChangePasswordForm"
 
 export const dynamic = "force-dynamic"
 
 export default async function AdminCuentaPage() {
-  const session = await requireAdmin()
+  // "Mi cuenta" es de CUALQUIER rol (cambiar la propia contraseña), no solo Super Admin.
+  const session = await getAdminSession()
+  if (!session) {
+    return <div className="p-8 text-gray-600">No autorizado.</div>
+  }
   const admin = await findAdminById(session.user.id)
 
   const roleLabel =

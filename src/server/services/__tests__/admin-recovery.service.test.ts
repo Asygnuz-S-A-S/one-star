@@ -91,6 +91,25 @@ describe("admin-recovery.service", () => {
       )
     })
 
+    it("sigue devolviendo la respuesta neutra (no filtra que el correo existe) si falla la firma del token", async () => {
+      // Simula AUTH_SECRET ausente u otro fallo al firmar: no debe filtrar que
+      // el correo SÍ es un admin activo devolviendo un error distinto al normal.
+      mockFindAdminByEmail.mockResolvedValue({
+        id: "admin-1",
+        email: "admin@onestar.com",
+        name: "Admin One",
+        isActive: true,
+      })
+      mockCreateAuthVerification.mockRejectedValueOnce(new Error("fallo de base de datos"))
+
+      const headers = new Headers({ "x-real-ip": "190.25.10.5" })
+      const res = await requestAdminPasswordReset("admin@onestar.com", headers)
+
+      expect(res.success).toBe(true)
+      expect(res.message).toBe(RECOVERY_SUCCESS_MESSAGE)
+      expect(mockSendAdminPasswordResetEmail).not.toHaveBeenCalled()
+    })
+
     it("devuelve exactamente la misma respuesta neutra sin enviar correo si el correo NO existe", async () => {
       mockFindAdminByEmail.mockResolvedValue(null)
 
