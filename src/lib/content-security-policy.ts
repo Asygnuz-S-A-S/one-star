@@ -47,6 +47,8 @@ export function buildContentSecurityPolicy({
     "https://*.addi.com",
     "https://*.addi-staging.com",
     "https://s3.amazonaws.com",
+    // El widget de Addi consulta sus banderas de funciones en Split.io; bloqueado, no se pinta.
+    "https://*.split.io",
   )
 
   if (isDevelopment) {
