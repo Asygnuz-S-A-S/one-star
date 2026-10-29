@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 }
 
 export default async function AdminPqrsPage() {
-  await requireAdmin()
+  await requireAdmin("sales")
   const { items } = await listPqrsRequests({ take: 100 })
 
   return (
