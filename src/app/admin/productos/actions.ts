@@ -83,7 +83,7 @@ export async function updateProduct(
   formData: FormData
 ): Promise<ActionResult> {
   try {
-    await requireAdmin()
+    await requireAdmin("inventory")
 
     const raw = extractFormData(formData)
     const parsed = productFormSchema.safeParse(raw)
@@ -127,7 +127,7 @@ export async function updateProduct(
 
 export async function deleteProduct(id: string): Promise<ActionResult> {
   try {
-    await requireAdmin()
+    await requireAdmin("inventory")
     await deleteProductService(id)
     revalidatePath("/admin/productos")
     return { success: true }
@@ -149,7 +149,7 @@ export async function searchProducts(
   imageUrl: string | null
   color: string | null
 }>> {
-  await requireAdmin()
+  await requireAdmin("inventory")
   return searchProductsService(q, excludeId)
 }
 
@@ -158,7 +158,7 @@ export async function bulkToggleProductsPublishStatus(
   isPublished: boolean
 ): Promise<ActionResult> {
   try {
-    await requireAdmin()
+    await requireAdmin("inventory")
     const parsed = bulkProductPublishStatusSchema.safeParse({ ids, isPublished })
     if (!parsed.success) {
       return {

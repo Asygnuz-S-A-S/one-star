@@ -27,7 +27,7 @@ function revalidateColorSurfaces(): void {
 
 export async function createColorAction(formData: FormData): Promise<ActionResult> {
   try {
-    await requireAdmin()
+    await requireAdmin("inventory")
     const parsed = productColorSchema.safeParse({
       name: formData.get("name"),
       hex: formData.get("hex"),
@@ -47,7 +47,7 @@ export async function createColorAction(formData: FormData): Promise<ActionResul
 
 export async function updateColorAction(id: string, formData: FormData): Promise<ActionResult> {
   try {
-    await requireAdmin()
+    await requireAdmin("inventory")
     const parsed = productColorSchema.safeParse({
       name: formData.get("name"),
       hex: formData.get("hex"),
@@ -67,7 +67,7 @@ export async function updateColorAction(id: string, formData: FormData): Promise
 
 export async function deleteColorAction(id: string): Promise<ActionResult> {
   try {
-    await requireAdmin()
+    await requireAdmin("inventory")
     await deleteProductColor(id)
     revalidateColorSurfaces()
     return { success: true }

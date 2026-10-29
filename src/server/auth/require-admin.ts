@@ -1,7 +1,7 @@
 import "server-only"
 import { headers } from "next/headers"
 import { auth } from "@/lib/auth"
-import type { AdminRole } from "@/lib/admin-access"
+import { roleCanAccessArea, type AdminArea, type AdminRole } from "@/lib/admin-access"
 import { resolveActiveAdminRole } from "@/server/services/admin-role.service"
 
 /**
@@ -23,10 +23,11 @@ export class UnauthorizedError extends Error {
  * conociendo su ID, por lo que NO basta con el middleware (`proxy.ts`) que solo
  * filtra por ruta. Toda mutación de admin DEBE verificar la sesión aquí.
  *
- * Lanza {@link UnauthorizedError} si no hay sesión de administrador o si su
- * rol activo no es válido (fail-closed).
+ * Lanza {@link UnauthorizedError} si no hay sesión de administrador, si su rol
+ * activo no es válido o si su rol no tiene el `area` pedida (fail-closed).
+ * Sin argumento exige Super Admin: las áreas "inventory" y "sales" se piden a propósito.
  */
-export async function requireAdmin() {
+export async function requireAdmin(area: AdminArea = "superadmin") {
   const session = await auth.api.getSession({ headers: await headers() })
   const userType = (session?.user as { userType?: string } | undefined)?.userType
   if (!session || userType !== "admin") {
@@ -39,6 +40,11 @@ export async function requireAdmin() {
   )
   if (!role) {
     throw new UnauthorizedError()
+  }
+  if (!roleCanAccessArea(role, area)) {
+    throw new UnauthorizedError(
+      area === "superadmin" ? "Esta acción requiere el rol Super Admin." : "Tu rol no tiene permiso para esta acción."
+    )
   }
 
   return {
@@ -99,9 +105,5 @@ export async function getAdminRole(): Promise<AdminRole | null> {
  * si un usuario fue degradado a INVENTORY_OPERATOR o si su rol no es válido.
  */
 export async function requireSuperAdmin() {
-  const session = await requireAdmin()
-  if (session.user.adminRole !== "SUPER_ADMIN") {
-    throw new UnauthorizedError("Esta acción requiere el rol Super Admin.")
-  }
-  return session
+  return requireAdmin("superadmin")
 }

@@ -11,11 +11,10 @@ import { linkGuestOrdersByEmail } from "@/server/repositories/order.repository"
 const GUEST_INVITE_PREFIX = "guest_invite:"
 
 function getHmacSecret(): string {
-  return (
-    process.env.AUTH_SECRET ??
-    process.env.NEXTAUTH_SECRET ??
-    "onestar-guest-order-secret-change-in-production"
-  )
+  const secret = (process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET)?.trim()
+  // Sin secreto no se firma nada: un valor por defecto en el repo permitiría falsificar tokens.
+  if (!secret) throw new Error("AUTH_SECRET no está configurado.")
+  return secret
 }
 
 /**

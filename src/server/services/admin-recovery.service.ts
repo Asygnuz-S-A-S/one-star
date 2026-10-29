@@ -30,11 +30,10 @@ const MAX_IP_ATTEMPTS = 5
 const MAX_EMAIL_ATTEMPTS = 3
 
 function getHmacSecret(): string {
-  return (
-    process.env.AUTH_SECRET ??
-    process.env.NEXTAUTH_SECRET ??
-    "onestar-admin-recovery-secret"
-  )
+  const secret = process.env.AUTH_SECRET?.trim()
+  // Sin secreto no se firma nada: un valor por defecto en el repo permitiría falsificar enlaces.
+  if (!secret) throw new Error("AUTH_SECRET no está configurado.")
+  return secret
 }
 
 function getBaseUrl(): string {

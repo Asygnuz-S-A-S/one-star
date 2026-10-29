@@ -16,7 +16,7 @@ function revalidateCategories() {
 
 export async function createCategoryAction(name: string, slug: string) {
   try {
-    await requireAdmin()
+    await requireAdmin("inventory")
     const parsed = categoryInputSchema.safeParse({ name, slug })
     if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" }
 
@@ -31,7 +31,7 @@ export async function createCategoryAction(name: string, slug: string) {
 
 export async function updateCategoryAction(id: string, name: string, slug: string) {
   try {
-    await requireAdmin()
+    await requireAdmin("inventory")
     const parsedId = categoryIdSchema.safeParse(id)
     const parsed = categoryInputSchema.safeParse({ name, slug })
     if (!parsedId.success) {
@@ -52,7 +52,7 @@ export async function updateCategoryAction(id: string, name: string, slug: strin
 
 export async function deleteCategoryAction(id: string) {
   try {
-    await requireAdmin()
+    await requireAdmin("inventory")
     const parsedId = categoryIdSchema.safeParse(id)
     if (!parsedId.success) return { success: false, error: parsedId.error.issues[0]?.message ?? "Datos inválidos" }
 
