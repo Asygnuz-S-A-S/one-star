@@ -85,7 +85,7 @@ ON CONFLICT ("email") DO UPDATE SET
 
 -- Cerrar sesiones activas previas y sincronizar ba_accounts si existe
 DELETE FROM "ba_sessions" WHERE "userId" IN (SELECT "id" FROM "ba_users" WHERE "email" = '${safeEmail}');
-UPDATE "ba_accounts" SET "password" = '${hash}', "updatedAt" = NOW() WHERE "accountId" = '${safeEmail}' AND "providerId" = 'credential';
+UPDATE "ba_accounts" SET "password" = '${hash}', "accountId" = "userId", "updatedAt" = NOW() WHERE "providerId" = 'credential' AND "userId" IN (SELECT "id" FROM "ba_users" WHERE "email" = '${safeEmail}');
 `);
 }
 

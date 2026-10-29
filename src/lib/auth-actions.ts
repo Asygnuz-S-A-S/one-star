@@ -136,11 +136,14 @@ async function upsertAuthRecords({
     where: { userId: authUser.id, providerId: "credential" },
   })
 
+  // Better Auth >= 1.7 solo acepta la cuenta "credential" si accountId === user.id
+  // (antes bastaba el providerId). Con accountId = email el login falla con
+  // "User not found" aunque la clave sea correcta.
   if (!existingAccount) {
     await prisma.authAccount.create({
       data: {
         id: crypto.randomUUID(),
-        accountId: email,
+        accountId: authUser.id,
         providerId: "credential",
         userId: authUser.id,
         password: passwordHash,
@@ -148,11 +151,11 @@ async function upsertAuthRecords({
         updatedAt: now,
       },
     })
-  } else if (existingAccount.password !== passwordHash) {
-    // Keep in sync if the password was changed outside BA
+  } else if (existingAccount.password !== passwordHash || existingAccount.accountId !== authUser.id) {
+    // Mantiene la clave sincronizada y repara cuentas viejas creadas con accountId = email.
     await prisma.authAccount.update({
       where: { id: existingAccount.id },
-      data: { password: passwordHash, updatedAt: now },
+      data: { password: passwordHash, accountId: authUser.id, updatedAt: now },
     })
   }
 }

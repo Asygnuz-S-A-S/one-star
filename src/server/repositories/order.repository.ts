@@ -270,6 +270,10 @@ export async function updateOrderPaymentReference(id: string, paymentReference: 
   return prisma.order.update({ where: { id }, data: { paymentReference } })
 }
 
+export async function updateOrderPaymentMethod(id: string, paymentMethod: string) {
+  return prisma.order.update({ where: { id }, data: { paymentMethod } })
+}
+
 /**
  * Vincula los pedidos anteriores de un correo invitado a la cuenta creada.
  * Solo afecta pedidos donde userId sea null.

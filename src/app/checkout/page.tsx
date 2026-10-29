@@ -20,6 +20,7 @@ import {
 import CheckoutStepper from "@/components/checkout/CheckoutStepper"
 import OrderSummary, { type AppliedCoupon } from "@/components/checkout/OrderSummary"
 import EpaycoButton, { type EpaycoCheckoutData } from "@/components/checkout/EpaycoButton"
+import AddiPayButton from "@/components/checkout/AddiPayButton"
 import { useSession } from "@/lib/auth-client"
 import { captureAbandonedCartAction } from "@/server/actions/abandoned-cart.actions"
 import { trackLeadCheckoutStageAction } from "@/server/actions/lead-stage.actions"
@@ -414,6 +415,11 @@ function CheckoutForm({
             </p>
 
             <EpaycoButton {...epaycoData} />
+            <AddiPayButton
+              orderId={epaycoData.orderId}
+              amount={epaycoData.amount}
+              guestToken={epaycoData.guestToken}
+            />
 
             <button
               onClick={() => setEpaycoData(null)}
