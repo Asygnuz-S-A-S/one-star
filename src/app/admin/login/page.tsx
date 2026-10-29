@@ -4,6 +4,7 @@ import { useActionState, useState } from "react"
 import { useRouter } from "next/navigation"
 import { prepareAdminSignIn } from "@/lib/auth-actions"
 import { authClient } from "@/lib/auth-client"
+import { signInErrorMessage } from "@/lib/sign-in-error"
 import { requestAdminPasswordResetAction } from "@/server/actions/admin-recovery.actions"
 
 export default function AdminLoginPage() {
@@ -41,7 +42,7 @@ export default function AdminLoginPage() {
       })
 
       if (signInError) {
-        setError("Credenciales incorrectas. Verifica tu email y contraseña.")
+        setError(signInErrorMessage(signInError))
         return
       }
 
