@@ -4,6 +4,7 @@ import { Suspense, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { prepareCustomerSignIn } from "@/lib/auth-actions"
+import { signInErrorMessage } from "@/lib/sign-in-error"
 import { authClient } from "@/lib/auth-client"
 import { getSafeCallbackUrl } from "@/lib/auth-redirect"
 
@@ -87,7 +88,7 @@ function LoginForm() {
     })
 
     if (signInError) {
-      setError("Email o contraseña incorrectos.")
+      setError(signInErrorMessage(signInError))
       return
     }
 
