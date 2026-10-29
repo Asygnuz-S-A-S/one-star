@@ -7,7 +7,7 @@ interface AdminRow {
   id: string
   email: string
   name: string
-  role: "SUPER_ADMIN" | "INVENTORY_OPERATOR"
+  role: "SUPER_ADMIN" | "INVENTORY_OPERATOR" | "SALES_OPERATOR"
   isActive: boolean
 }
 
@@ -25,6 +25,7 @@ function RoleForm({ admin }: { admin: AdminRow }) {
       <select name="role" defaultValue={admin.role} className={`${inputClass} max-w-[220px]`}>
         <option value="SUPER_ADMIN">Super Admin</option>
         <option value="INVENTORY_OPERATOR">Operador de inventario</option>
+        <option value="SALES_OPERATOR">Operador de ventas</option>
       </select>
       <button type="submit" disabled={pending} className="shrink-0 rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold">
         Guardar
@@ -127,6 +128,7 @@ export default function UsuariosManager({ admins }: { admins: AdminRow[] }) {
           <label htmlFor="admin-role" className="mb-1 block text-xs font-semibold text-[#4A4A4A]">Rol</label>
           <select id="admin-role" name="role" defaultValue="INVENTORY_OPERATOR" className={inputClass}>
             <option value="INVENTORY_OPERATOR">Operador de inventario</option>
+            <option value="SALES_OPERATOR">Operador de ventas</option>
             <option value="SUPER_ADMIN">Super Admin</option>
           </select>
         </div>

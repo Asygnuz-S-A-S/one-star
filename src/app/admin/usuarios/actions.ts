@@ -19,12 +19,12 @@ const createSchema = z.object({
   name: z.string().trim().min(2, "El nombre es obligatorio").max(80),
   email: z.email("El correo no es válido").max(120),
   password: z.string().min(10, "La contraseña debe tener al menos 10 caracteres").max(80),
-  role: z.enum(["SUPER_ADMIN", "INVENTORY_OPERATOR"]),
+  role: z.enum(["SUPER_ADMIN", "INVENTORY_OPERATOR", "SALES_OPERATOR"]),
 })
 
 const roleSchema = z.object({
   id: z.string().min(1),
-  role: z.enum(["SUPER_ADMIN", "INVENTORY_OPERATOR"]),
+  role: z.enum(["SUPER_ADMIN", "INVENTORY_OPERATOR", "SALES_OPERATOR"]),
 })
 
 function message(error: unknown, fallback: string) {

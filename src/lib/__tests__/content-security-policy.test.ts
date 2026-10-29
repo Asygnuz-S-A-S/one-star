@@ -15,10 +15,12 @@ describe("buildContentSecurityPolicy", () => {
       .find((directive) => directive.startsWith("script-src "))
 
     expect(scriptDirective).toBe(
-      "script-src 'self' 'nonce-request-nonce' 'strict-dynamic' https://*.epayco.co https://connect.facebook.net https://www.googletagmanager.com https://s3.amazonaws.com https://cdn.addi.com https://cdn.addi-staging.com https://unpkg.com",
+      "script-src 'self' 'nonce-request-nonce' 'strict-dynamic' https://*.epayco.co https://connect.facebook.net https://www.googletagmanager.com https://s3.amazonaws.com/widgets.addi.com/ https://cdn.addi.com",
     )
     expect(scriptDirective).not.toContain("'unsafe-inline'")
     expect(scriptDirective).not.toContain("'unsafe-eval'")
+    expect(scriptDirective).not.toContain("unpkg.com")
+    expect(scriptDirective).not.toContain("addi-staging")
   })
 
   it("adds development-only exceptions for source maps and hot reload", () => {
@@ -73,7 +75,7 @@ describe("buildContentSecurityPolicy", () => {
     })
 
     expect(policy).toContain(
-      "connect-src 'self' https://*.epayco.co https://*.epayco.io https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://nominatim.openstreetmap.org https://connect.facebook.net https://www.facebook.com https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://*.addi.com https://*.addi-staging.com https://s3.amazonaws.com",
+      "connect-src 'self' https://*.epayco.co https://*.epayco.io https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://nominatim.openstreetmap.org https://connect.facebook.net https://www.facebook.com https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://*.addi.com https://*.addi-staging.com https://s3.amazonaws.com/widgets.addi.com/ https://*.split.io",
     )
     expect(policy).toContain(
       "frame-src 'self' https://*.epayco.co https://www.google.com https://maps.google.com https://*.addi.com https://*.addi-staging.com",

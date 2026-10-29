@@ -4,7 +4,7 @@ import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { motion, useReducedMotion } from "motion/react"
-import { INVENTORY_OPERATOR_HREFS, type AdminRole } from "@/lib/admin-access"
+import { OPERATOR_HREFS, type AdminRole } from "@/lib/admin-access"
 import { signOut } from "@/lib/auth-client"
 
 interface AdminSidebarProps {
@@ -225,6 +225,7 @@ const navGroups = [
 const roleLabel: Record<string, string> = {
   SUPER_ADMIN: "Super Admin",
   INVENTORY_OPERATOR: "Operador de Inventario",
+  SALES_OPERATOR: "Operador de Ventas",
 }
 
 export default function AdminSidebar({ userName, userRole }: AdminSidebarProps) {
@@ -235,11 +236,13 @@ export default function AdminSidebar({ userName, userRole }: AdminSidebarProps) 
   const visibleGroups =
     userRole === "SUPER_ADMIN"
       ? navGroups
-      : userRole === "INVENTORY_OPERATOR"
+      : userRole && userRole in OPERATOR_HREFS
         ? navGroups
             .map((group) => ({
               ...group,
-              items: group.items.filter((item) => INVENTORY_OPERATOR_HREFS.has(item.href)),
+              items: group.items.filter((item) =>
+                OPERATOR_HREFS[userRole as keyof typeof OPERATOR_HREFS].has(item.href)
+              ),
             }))
             .filter((group) => group.items.length > 0)
         : []

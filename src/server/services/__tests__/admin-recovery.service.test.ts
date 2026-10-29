@@ -56,6 +56,7 @@ vi.mock("@/server/services/admin-role.service", () => ({
 
 describe("admin-recovery.service", () => {
   beforeEach(() => {
+    vi.stubEnv("AUTH_SECRET", "secreto-de-prueba")
     vi.clearAllMocks()
     mockConsumeRequestRateLimit.mockResolvedValue({ count: 1, resetAt: new Date(Date.now() + 60000) })
     mockSendAdminPasswordResetEmail.mockResolvedValue({ success: true })
@@ -88,6 +89,25 @@ describe("admin-recovery.service", () => {
           resetUrl: expect.stringContaining("/admin/restablecer-contrasena?token="),
         })
       )
+    })
+
+    it("sigue devolviendo la respuesta neutra (no filtra que el correo existe) si falla la firma del token", async () => {
+      // Simula AUTH_SECRET ausente u otro fallo al firmar: no debe filtrar que
+      // el correo SÍ es un admin activo devolviendo un error distinto al normal.
+      mockFindAdminByEmail.mockResolvedValue({
+        id: "admin-1",
+        email: "admin@onestar.com",
+        name: "Admin One",
+        isActive: true,
+      })
+      mockCreateAuthVerification.mockRejectedValueOnce(new Error("fallo de base de datos"))
+
+      const headers = new Headers({ "x-real-ip": "190.25.10.5" })
+      const res = await requestAdminPasswordReset("admin@onestar.com", headers)
+
+      expect(res.success).toBe(true)
+      expect(res.message).toBe(RECOVERY_SUCCESS_MESSAGE)
+      expect(mockSendAdminPasswordResetEmail).not.toHaveBeenCalled()
     })
 
     it("devuelve exactamente la misma respuesta neutra sin enviar correo si el correo NO existe", async () => {
@@ -142,6 +162,11 @@ describe("admin-recovery.service", () => {
       expect(res.error).toContain("Demasiados intentos")
       expect(mockFindAdminByEmail).not.toHaveBeenCalled()
     })
+  })
+
+  it("no firma enlaces si falta AUTH_SECRET (sin secreto por defecto en el repositorio)", () => {
+    vi.stubEnv("AUTH_SECRET", "")
+    expect(() => signResetToken("abc")).toThrow("AUTH_SECRET no está configurado.")
   })
 
   describe("verifyAdminPasswordResetToken", () => {

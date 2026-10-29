@@ -25,7 +25,7 @@ export async function previewProductImportAction(
   formData: FormData
 ): Promise<ImportActionResult<ProductImportPreview>> {
   try {
-    await requireAdmin()
+    await requireAdmin("inventory")
     const file = formData.get("file")
     if (!file || !(file instanceof File)) {
       return { success: false, error: "No se recibió ningún archivo." }
@@ -48,7 +48,7 @@ export async function applyProductImportAction(
   formData: FormData
 ): Promise<ImportActionResult<ProductImportApplyResult>> {
   try {
-    await requireAdmin()
+    await requireAdmin("inventory")
     const file = formData.get("file")
     const fingerprint = formData.get("fingerprint")
     if (!file || !(file instanceof File)) {

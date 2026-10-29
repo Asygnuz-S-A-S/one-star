@@ -7,12 +7,6 @@ import { brandInputSchema } from "@/server/validators/brand.validator"
 import { faqsFromText, highlightsFromText } from "@/lib/product-faq"
 import type { ActionResult } from "@/types/admin"
 
-/**
- * NOTA DE ARQUITECTURA:
- * Cuando se integre el PR de roles de administración (#43), estas acciones
- * deben pasar a requerir rol SUPER_ADMIN.
- */
-
 function parseBrandFormData(formData: FormData) {
   const rawHighlights = (formData.get("highlights") as string) || ""
   const rawFaqs = (formData.get("faqs") as string) || ""
@@ -42,7 +36,7 @@ function parseBrandFormData(formData: FormData) {
 
 export async function createBrandAction(formData: FormData): Promise<ActionResult> {
   try {
-    await requireAdmin()
+    await requireAdmin("inventory")
     const parsed = parseBrandFormData(formData)
     const validated = brandInputSchema.safeParse(parsed)
 
@@ -66,7 +60,7 @@ export async function createBrandAction(formData: FormData): Promise<ActionResul
 
 export async function updateBrandAction(id: string, formData: FormData): Promise<ActionResult> {
   try {
-    await requireAdmin()
+    await requireAdmin("inventory")
     const parsed = parseBrandFormData(formData)
     const validated = brandInputSchema.safeParse(parsed)
 
@@ -93,7 +87,7 @@ export async function updateBrandAction(id: string, formData: FormData): Promise
 
 export async function deleteBrandAction(id: string): Promise<ActionResult> {
   try {
-    await requireAdmin()
+    await requireAdmin("inventory")
     await deleteBrand(id)
     revalidatePath("/admin/marcas")
     revalidatePath("/admin/productos")

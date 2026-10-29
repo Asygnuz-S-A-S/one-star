@@ -11,7 +11,7 @@ export async function updatePqrsStatusAction(
   responseNotes?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    await requireAdmin()
+    await requireAdmin("sales")
     await updatePqrsStatus(id, {
       status,
       responseNotes: responseNotes?.trim() || null,

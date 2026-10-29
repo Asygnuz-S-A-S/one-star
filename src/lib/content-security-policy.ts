@@ -22,11 +22,9 @@ export function buildContentSecurityPolicy({
     "https://connect.facebook.net",
     // Google Analytics 4
     "https://www.googletagmanager.com",
-    // Widget oficial de Addi
-    "https://s3.amazonaws.com",
+    // Widget oficial de Addi: solo su CDN y su bucket (no todo S3 ni unpkg).
+    "https://s3.amazonaws.com/widgets.addi.com/",
     "https://cdn.addi.com",
-    "https://cdn.addi-staging.com",
-    "https://unpkg.com",
   ]
   const connectSources = ["'self'"]
 
@@ -46,7 +44,10 @@ export function buildContentSecurityPolicy({
     // API y servicios de Addi
     "https://*.addi.com",
     "https://*.addi-staging.com",
-    "https://s3.amazonaws.com",
+    // Mismo bucket que script-src: el widget solo necesita esa ruta, no todo S3.
+    "https://s3.amazonaws.com/widgets.addi.com/",
+    // El widget de Addi consulta sus banderas de funciones en Split.io.
+    "https://*.split.io",
   )
 
   if (isDevelopment) {

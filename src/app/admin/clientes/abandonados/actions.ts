@@ -2,13 +2,13 @@
 
 import { revalidatePath } from "next/cache"
 import { recoverAbandonedCart } from "@/server/services/abandoned-cart.service"
-import { requireSuperAdmin } from "@/server/auth/require-admin"
+import { requireAdmin } from "@/server/auth/require-admin"
 
 export async function markCartRecovered(
   cartId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    await requireSuperAdmin()
+    await requireAdmin("sales")
     await recoverAbandonedCart(cartId)
     revalidatePath("/admin/clientes/abandonados")
     return { success: true }

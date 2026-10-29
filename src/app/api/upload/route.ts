@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getStorageAdapter } from "@/server/storage/storage.container"
 import { getAdminSession } from "@/server/auth/require-admin"
+import { roleCanAccessArea } from "@/lib/admin-access"
 
 export async function POST(request: NextRequest) {
   try {
@@ -9,6 +10,10 @@ export async function POST(request: NextRequest) {
     const session = await getAdminSession()
     if (!session) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 })
+    }
+    // Subir archivos es del catálogo y del contenido: un Operador de Ventas no.
+    if (!roleCanAccessArea(session.user.adminRole, "inventory")) {
+      return NextResponse.json({ error: "Tu rol no puede subir archivos" }, { status: 403 })
     }
 
     const storage = getStorageAdapter()
