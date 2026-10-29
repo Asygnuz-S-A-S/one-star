@@ -728,4 +728,6 @@ Basado en `MANUAL_MARCA.md` (rojo 10 % solo para acentos y CTA, grises 60 %, neg
   - Si el monto se encuentra fuera del rango crediticio (`[minAmount, maxAmount]`), se despliega un aviso accesible ("Addi aplica para compras entre X y Y") sin inventar cuotas ni ocultar la información.
   - El campo `policy.discount` es meramente visual y nunca altera el precio del producto o carrito.
 - **Variables de Entorno:**
-  - `ADDI_ALLY_SLUG`: Slug del aliado comercial asignado por Addi (por defecto `onestar-ecommerce`). En esta fase no se manejan llaves privadas ni client secrets.
+  - `ADDI_ALLY_SLUG`: Slug del aliado comercial asignado por Addi (por defecto `onestar-ecommerce`). Solo para el widget.
+  - Pago (`src/server/services/addi-payment.service.ts`): `ADDI_API_URL`, `ADDI_AUTH_URL`, `ADDI_AUDIENCE` (solo staging), `ADDI_CLIENT_ID`, `ADDI_CLIENT_SECRET`. Sin ellas el botón "Pagar a cuotas con Addi" responde error y no se llama a Addi.
+  - Callback `POST /api/addi/callback`: `ADDI_CALLBACK_USER` y `ADDI_CALLBACK_PASSWORD` (Basic auth). Sin ellas responde 503. Reutiliza `applyPaymentNotification` (idempotente) y devuelve el mismo JSON recibido.
