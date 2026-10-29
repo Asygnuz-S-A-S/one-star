@@ -7,12 +7,6 @@ import { brandInputSchema } from "@/server/validators/brand.validator"
 import { faqsFromText, highlightsFromText } from "@/lib/product-faq"
 import type { ActionResult } from "@/types/admin"
 
-/**
- * NOTA DE ARQUITECTURA:
- * Cuando se integre el PR de roles de administración (#43), estas acciones
- * deben pasar a requerir rol SUPER_ADMIN.
- */
-
 function parseBrandFormData(formData: FormData) {
   const rawHighlights = (formData.get("highlights") as string) || ""
   const rawFaqs = (formData.get("faqs") as string) || ""

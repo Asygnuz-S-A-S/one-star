@@ -44,8 +44,9 @@ export function buildContentSecurityPolicy({
     // API y servicios de Addi
     "https://*.addi.com",
     "https://*.addi-staging.com",
-    "https://s3.amazonaws.com",
-    // El widget de Addi consulta sus banderas de funciones en Split.io; bloqueado, no se pinta.
+    // Mismo bucket que script-src: el widget solo necesita esa ruta, no todo S3.
+    "https://s3.amazonaws.com/widgets.addi.com/",
+    // El widget de Addi consulta sus banderas de funciones en Split.io.
     "https://*.split.io",
   )
 

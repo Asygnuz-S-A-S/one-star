@@ -132,28 +132,30 @@ export async function requestAdminPasswordReset(
     `[admin-security] Solicitud de restablecimiento de contraseña: email="${normEmail}", ip="${ip}", adminActivo=${isActive}, fecha="${new Date().toISOString()}"`
   )
 
-  // 5. Si es administrador activo, crear token y enviar correo
+  // 5. Si es administrador activo, crear token y enviar correo.
+  // Todo este bloque va en try/catch: si falla (p. ej. AUTH_SECRET ausente), la
+  // respuesta sigue siendo la misma neutra del paso 6. Sin esto, un correo real
+  // produciría un error distinto al de un correo inexistente (fuga de existencia).
   if (admin && admin.isActive) {
-    const rawToken = randomBytes(32).toString("hex")
-    const signedToken = signResetToken(rawToken)
-    const identifier = `${ADMIN_RESET_PREFIX}${normEmail}`
-    const expiresAt = new Date(Date.now() + TOKEN_TTL_MS)
-
-    // Invalidar tokens previos de recuperación para este correo
-    await deleteAuthVerificationsByIdentifier(identifier)
-
-    // Guardar nuevo token de un solo uso
-    await createAuthVerification({
-      id: randomUUID(),
-      identifier,
-      value: signedToken,
-      expiresAt,
-    })
-
-    const resetUrl = `${getBaseUrl()}/admin/restablecer-contrasena?token=${encodeURIComponent(signedToken)}`
-
-    // Enviar correo (fire-and-forget o await)
     try {
+      const rawToken = randomBytes(32).toString("hex")
+      const signedToken = signResetToken(rawToken)
+      const identifier = `${ADMIN_RESET_PREFIX}${normEmail}`
+      const expiresAt = new Date(Date.now() + TOKEN_TTL_MS)
+
+      // Invalidar tokens previos de recuperación para este correo
+      await deleteAuthVerificationsByIdentifier(identifier)
+
+      // Guardar nuevo token de un solo uso
+      await createAuthVerification({
+        id: randomUUID(),
+        identifier,
+        value: signedToken,
+        expiresAt,
+      })
+
+      const resetUrl = `${getBaseUrl()}/admin/restablecer-contrasena?token=${encodeURIComponent(signedToken)}`
+
       await sendAdminPasswordResetEmail({
         email: admin.email,
         name: admin.name,
@@ -161,7 +163,7 @@ export async function requestAdminPasswordReset(
       })
     } catch (err) {
       console.error(
-        `[admin-security] Error enviando correo de restablecimiento a ${admin.email}:`,
+        `[admin-security] Error generando/enviando el restablecimiento para ${admin.email}:`,
         err
       )
     }
