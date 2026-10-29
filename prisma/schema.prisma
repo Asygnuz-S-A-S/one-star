@@ -192,6 +192,7 @@ model InventoryLevel {
 enum AdminRole {
   SUPER_ADMIN
   INVENTORY_OPERATOR
+  SALES_OPERATOR
 }
 
 model RateLimit {

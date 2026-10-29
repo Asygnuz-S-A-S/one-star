@@ -35,7 +35,7 @@ export async function updateOrderStatus(
   carrier?: "ENVIA" | "OTHER"
 ): Promise<ActionResult> {
   try {
-    await requireAdmin()
+    await requireAdmin("sales")
     if (!isOrderStatus(status)) {
       return { success: false, error: "Estado de pedido inválido." }
     }
@@ -51,7 +51,7 @@ export async function updateOrderStatus(
 /** Cierra un pedido que nunca se pagó (el cliente no completó el pago en ePayco). */
 export async function cancelUnpaidOrderAction(orderId: string): Promise<ActionResult> {
   try {
-    await requireAdmin()
+    await requireAdmin("sales")
     await cancelUnpaidOrder(orderId)
     revalidateOrder(orderId)
     return { success: true }
@@ -63,7 +63,7 @@ export async function cancelUnpaidOrderAction(orderId: string): Promise<ActionRe
 
 export async function resendOrderConfirmationAction(orderId: string): Promise<ActionResult> {
   try {
-    await requireAdmin()
+    await requireAdmin("sales")
     await resendOrderConfirmation(orderId)
     return { success: true }
   } catch (error: unknown) {
@@ -83,7 +83,7 @@ export async function updateOrderCustomerDataAction(
   input: unknown
 ): Promise<ActionResult> {
   try {
-    await requireAdmin()
+    await requireAdmin("sales")
     const parsed = orderCustomerDataSchema.safeParse(input)
     if (!parsed.success) {
       return { success: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos." }

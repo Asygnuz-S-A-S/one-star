@@ -56,6 +56,7 @@ vi.mock("@/server/services/admin-role.service", () => ({
 
 describe("admin-recovery.service", () => {
   beforeEach(() => {
+    vi.stubEnv("AUTH_SECRET", "secreto-de-prueba")
     vi.clearAllMocks()
     mockConsumeRequestRateLimit.mockResolvedValue({ count: 1, resetAt: new Date(Date.now() + 60000) })
     mockSendAdminPasswordResetEmail.mockResolvedValue({ success: true })
@@ -142,6 +143,11 @@ describe("admin-recovery.service", () => {
       expect(res.error).toContain("Demasiados intentos")
       expect(mockFindAdminByEmail).not.toHaveBeenCalled()
     })
+  })
+
+  it("no firma enlaces si falta AUTH_SECRET (sin secreto por defecto en el repositorio)", () => {
+    vi.stubEnv("AUTH_SECRET", "")
+    expect(() => signResetToken("abc")).toThrow("AUTH_SECRET no está configurado.")
   })
 
   describe("verifyAdminPasswordResetToken", () => {

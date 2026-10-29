@@ -42,7 +42,7 @@ function parseBrandFormData(formData: FormData) {
 
 export async function createBrandAction(formData: FormData): Promise<ActionResult> {
   try {
-    await requireAdmin()
+    await requireAdmin("inventory")
     const parsed = parseBrandFormData(formData)
     const validated = brandInputSchema.safeParse(parsed)
 
@@ -66,7 +66,7 @@ export async function createBrandAction(formData: FormData): Promise<ActionResul
 
 export async function updateBrandAction(id: string, formData: FormData): Promise<ActionResult> {
   try {
-    await requireAdmin()
+    await requireAdmin("inventory")
     const parsed = parseBrandFormData(formData)
     const validated = brandInputSchema.safeParse(parsed)
 
@@ -93,7 +93,7 @@ export async function updateBrandAction(id: string, formData: FormData): Promise
 
 export async function deleteBrandAction(id: string): Promise<ActionResult> {
   try {
-    await requireAdmin()
+    await requireAdmin("inventory")
     await deleteBrand(id)
     revalidatePath("/admin/marcas")
     revalidatePath("/admin/productos")

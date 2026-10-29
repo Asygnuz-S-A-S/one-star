@@ -15,10 +15,12 @@ describe("buildContentSecurityPolicy", () => {
       .find((directive) => directive.startsWith("script-src "))
 
     expect(scriptDirective).toBe(
-      "script-src 'self' 'nonce-request-nonce' 'strict-dynamic' https://*.epayco.co https://connect.facebook.net https://www.googletagmanager.com https://s3.amazonaws.com https://cdn.addi.com https://cdn.addi-staging.com https://unpkg.com",
+      "script-src 'self' 'nonce-request-nonce' 'strict-dynamic' https://*.epayco.co https://connect.facebook.net https://www.googletagmanager.com https://s3.amazonaws.com/widgets.addi.com/ https://cdn.addi.com",
     )
     expect(scriptDirective).not.toContain("'unsafe-inline'")
     expect(scriptDirective).not.toContain("'unsafe-eval'")
+    expect(scriptDirective).not.toContain("unpkg.com")
+    expect(scriptDirective).not.toContain("addi-staging")
   })
 
   it("adds development-only exceptions for source maps and hot reload", () => {

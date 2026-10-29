@@ -44,10 +44,17 @@ import {
 
 describe("guest-order.service", () => {
   beforeEach(() => {
+    vi.stubEnv("AUTH_SECRET", "secreto-de-prueba")
     vi.clearAllMocks()
   })
 
   describe("signGuestOrderSuccessToken & verifyGuestOrderSuccessToken", () => {
+    it("no firma si falta AUTH_SECRET (sin secreto por defecto en el repositorio)", () => {
+      vi.stubEnv("AUTH_SECRET", "")
+      vi.stubEnv("NEXTAUTH_SECRET", "")
+      expect(() => signGuestOrderSuccessToken("ord_1")).toThrow("AUTH_SECRET no está configurado.")
+    })
+
     it("firma y valida correctamente un token de éxito para un pedido de invitado", () => {
       const orderId = "order_12345"
       const token = signGuestOrderSuccessToken(orderId, 3600)

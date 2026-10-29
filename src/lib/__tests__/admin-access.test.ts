@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { canAccessAdminPath, normalizeAdminRole } from "@/lib/admin-access"
+import { canAccessAdminPath, normalizeAdminRole, roleCanAccessArea } from "@/lib/admin-access"
 
 describe("canAccessAdminPath", () => {
   it("SUPER_ADMIN entra a todo", () => {
@@ -7,11 +7,9 @@ describe("canAccessAdminPath", () => {
     expect(canAccessAdminPath("SUPER_ADMIN", "/admin/clientes/abc")).toBe(true)
   })
 
-  it("INVENTORY_OPERATOR entra a inventario, pedidos y sus subrutas", () => {
+  it("INVENTORY_OPERATOR entra solo al catálogo y sus subrutas", () => {
     for (const p of [
       "/admin",
-      "/admin/pedidos",
-      "/admin/pedidos/ped_1",
       "/admin/productos",
       "/admin/productos/importar",
       "/admin/productos/abc/editar",
@@ -25,6 +23,9 @@ describe("canAccessAdminPath", () => {
 
   it("INVENTORY_OPERATOR no entra a lo demás, incluidas páginas nuevas", () => {
     for (const p of [
+      "/admin/pedidos",
+      "/admin/pedidos/ped_1",
+      "/admin/leads",
       "/admin/cupones",
       "/admin/clientes",
       "/admin/clientes/abc",
@@ -36,6 +37,30 @@ describe("canAccessAdminPath", () => {
       "/admin/productosx",
     ]) {
       expect(canAccessAdminPath("INVENTORY_OPERATOR", p), p).toBe(false)
+    }
+  })
+
+  it("SALES_OPERATOR entra solo a pedidos, clientes y leads", () => {
+    for (const p of ["/admin", "/admin/cuenta", "/admin/pedidos", "/admin/pedidos/ped_1", "/admin/clientes", "/admin/clientes/abc", "/admin/leads"]) {
+      expect(canAccessAdminPath("SALES_OPERATOR", p), p).toBe(true)
+    }
+  })
+
+  it("SALES_OPERATOR no entra a catálogo, configuración ni páginas nuevas", () => {
+    for (const p of [
+      "/admin/productos",
+      "/admin/productos/importar",
+      "/admin/categorias",
+      "/admin/marcas",
+      "/admin/colores",
+      "/admin/cupones",
+      "/admin/usuarios",
+      "/admin/configuracion",
+      "/admin/pqrs",
+      "/admin/pagina-futura",
+      "/admin/leadsx",
+    ]) {
+      expect(canAccessAdminPath("SALES_OPERATOR", p), p).toBe(false)
     }
   })
 
@@ -56,10 +81,39 @@ describe("canAccessAdminPath", () => {
   })
 })
 
+describe("roleCanAccessArea", () => {
+  it("SUPER_ADMIN accede a todas las áreas", () => {
+    for (const area of ["inventory", "sales", "superadmin"] as const) {
+      expect(roleCanAccessArea("SUPER_ADMIN", area), area).toBe(true)
+    }
+  })
+
+  it("INVENTORY_OPERATOR solo inventario", () => {
+    expect(roleCanAccessArea("INVENTORY_OPERATOR", "inventory")).toBe(true)
+    expect(roleCanAccessArea("INVENTORY_OPERATOR", "sales")).toBe(false)
+    expect(roleCanAccessArea("INVENTORY_OPERATOR", "superadmin")).toBe(false)
+  })
+
+  it("SALES_OPERATOR solo ventas", () => {
+    expect(roleCanAccessArea("SALES_OPERATOR", "sales")).toBe(true)
+    expect(roleCanAccessArea("SALES_OPERATOR", "inventory")).toBe(false)
+    expect(roleCanAccessArea("SALES_OPERATOR", "superadmin")).toBe(false)
+  })
+
+  it("falla cerrado con rol nulo o desconocido", () => {
+    for (const role of [null, undefined, "MODERATOR", ""] as never[]) {
+      for (const area of ["inventory", "sales", "superadmin"] as const) {
+        expect(roleCanAccessArea(role, area), `${role} -> ${area}`).toBe(false)
+      }
+    }
+  })
+})
+
 describe("normalizeAdminRole", () => {
   it("devuelve los roles de admin conocidos cuando coinciden exactamente", () => {
     expect(normalizeAdminRole("SUPER_ADMIN")).toBe("SUPER_ADMIN")
     expect(normalizeAdminRole("INVENTORY_OPERATOR")).toBe("INVENTORY_OPERATOR")
+    expect(normalizeAdminRole("SALES_OPERATOR")).toBe("SALES_OPERATOR")
   })
 
   it("falla cerrado y devuelve null para valores nulos, indefinidos o vacíos", () => {

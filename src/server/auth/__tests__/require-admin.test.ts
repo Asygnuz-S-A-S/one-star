@@ -44,12 +44,39 @@ describe("require-admin", () => {
       expect(mockResolveActiveAdminRole).toHaveBeenCalledWith("adm_1", "admin@onestar.com.co")
     })
 
-    it("pasa cuando el rol activo en base de datos es INVENTORY_OPERATOR", async () => {
+    it("pasa cuando el rol activo en base de datos es INVENTORY_OPERATOR y pide el área inventory", async () => {
       mockGetSession.mockResolvedValue(sessionWith("admin", "INVENTORY_OPERATOR"))
       mockResolveActiveAdminRole.mockResolvedValue("INVENTORY_OPERATOR")
 
-      const session = await requireAdmin()
+      const session = await requireAdmin("inventory")
       expect(session.user.adminRole).toBe("INVENTORY_OPERATOR")
+    })
+
+    it("sin área exige Super Admin: un operador no pasa por defecto", async () => {
+      for (const role of ["INVENTORY_OPERATOR", "SALES_OPERATOR"] as const) {
+        mockGetSession.mockResolvedValue(sessionWith("admin", role))
+        mockResolveActiveAdminRole.mockResolvedValue(role)
+        await expect(requireAdmin(), role).rejects.toThrow("Esta acción requiere el rol Super Admin.")
+      }
+    })
+
+    it("cada operador solo pasa por su propia área", async () => {
+      const cases = [
+        ["INVENTORY_OPERATOR", "inventory", true],
+        ["INVENTORY_OPERATOR", "sales", false],
+        ["SALES_OPERATOR", "sales", true],
+        ["SALES_OPERATOR", "inventory", false],
+        ["SUPER_ADMIN", "inventory", true],
+        ["SUPER_ADMIN", "sales", true],
+        ["SUPER_ADMIN", "superadmin", true],
+      ] as const
+      for (const [role, area, allowed] of cases) {
+        mockGetSession.mockResolvedValue(sessionWith("admin", role))
+        mockResolveActiveAdminRole.mockResolvedValue(role)
+        const call = requireAdmin(area)
+        if (allowed) await expect(call, `${role}/${area}`).resolves.toBeTruthy()
+        else await expect(call, `${role}/${area}`).rejects.toThrow(UnauthorizedError)
+      }
     })
 
     it("rechaza sin sesión", async () => {
