@@ -43,6 +43,7 @@ export const SALES_OPERATOR_HREFS: ReadonlySet<string> = new Set([
   "/admin/pedidos",
   "/admin/clientes",
   "/admin/leads",
+  "/admin/pqrs",
 ])
 
 /** Lista blanca de páginas por rol limitado. SUPER_ADMIN no aparece: entra a todo. */

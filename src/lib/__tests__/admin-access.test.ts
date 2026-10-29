@@ -40,8 +40,8 @@ describe("canAccessAdminPath", () => {
     }
   })
 
-  it("SALES_OPERATOR entra solo a pedidos, clientes y leads", () => {
-    for (const p of ["/admin", "/admin/cuenta", "/admin/pedidos", "/admin/pedidos/ped_1", "/admin/clientes", "/admin/clientes/abc", "/admin/leads"]) {
+  it("SALES_OPERATOR entra solo a pedidos, clientes, leads y pqrs", () => {
+    for (const p of ["/admin", "/admin/cuenta", "/admin/pedidos", "/admin/pedidos/ped_1", "/admin/clientes", "/admin/clientes/abc", "/admin/leads", "/admin/pqrs"]) {
       expect(canAccessAdminPath("SALES_OPERATOR", p), p).toBe(true)
     }
   })
@@ -56,7 +56,6 @@ describe("canAccessAdminPath", () => {
       "/admin/cupones",
       "/admin/usuarios",
       "/admin/configuracion",
-      "/admin/pqrs",
       "/admin/pagina-futura",
       "/admin/leadsx",
     ]) {
