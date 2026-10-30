@@ -1,6 +1,9 @@
 import { isSafePublicUrl } from "@/lib/safe-url"
 
 export type EditorialAppearance = "light" | "carbon" | "oneStarRed"
+/** Cómo se mueve el producto con fotos del giro: quieto, girando solo o siguiendo el mouse. */
+export type HeroSpinMode = "static" | "auto" | "mouse"
+export const HERO_SPIN_MODES: HeroSpinMode[] = ["auto", "mouse", "static"]
 
 type EditorialCta = { href: string; label: string }
 type EditorialMedia = { alt: string; src: string }
@@ -13,6 +16,8 @@ export type CampaignHeroSlide = {
   foregroundMedia?: EditorialMedia
   /** Tomas en orden para recorrer el producto. Hacen falta al menos dos. */
   angles?: EditorialMedia[]
+  /** Sin valor: "auto". */
+  spinMode?: HeroSpinMode
   headline: string
   id: string
   mobileMedia?: EditorialMedia
@@ -28,6 +33,7 @@ export type CampaignHeroConfig = {
   eyebrow?: string
   foregroundMedia?: EditorialMedia
   angles?: EditorialMedia[]
+  spinMode?: HeroSpinMode
   headline: string
   kind: "campaignHero"
   mobileMedia?: EditorialMedia
@@ -125,6 +131,7 @@ export function parseEditorialConfig(value: unknown): EditorialConfig {
         ...(media(slide?.tabletMedia) ? { tabletMedia: media(slide?.tabletMedia) } : {}),
         ...(media(slide?.foregroundMedia) ? { foregroundMedia: media(slide?.foregroundMedia) } : {}),
         ...(angleList(slide?.angles, headline) ? { angles: angleList(slide?.angles, headline) } : {}),
+        ...(HERO_SPIN_MODES.includes(slide?.spinMode as HeroSpinMode) ? { spinMode: slide?.spinMode as HeroSpinMode } : {}),
       }
     }
     const slides = Array.isArray(config.slides) ? config.slides.flatMap((slide, index) => {
@@ -196,5 +203,6 @@ export function resolveCampaignSlides(campaign: CampaignHeroConfig): CampaignHer
     ...(campaign.mobileMedia ? { mobileMedia: campaign.mobileMedia } : {}),
     ...(campaign.foregroundMedia ? { foregroundMedia: campaign.foregroundMedia } : {}),
     ...(campaign.angles?.length ? { angles: campaign.angles } : {}),
+    ...(campaign.spinMode ? { spinMode: campaign.spinMode } : {}),
   }]
 }

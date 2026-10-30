@@ -104,3 +104,14 @@ describe("ángulos del giro 360", () => {
     expect(config.kind === "campaignHero" && config.slides?.[0]?.angles).toHaveLength(36)
   })
 })
+
+describe("modo de movimiento del producto", () => {
+  it("guarda solo modos válidos", () => {
+    const slide = (spinMode: unknown) => parseEditorialConfig({ version: 1, kind: "campaignHero", slides: [{ headline: "Mafate 5", primaryCta: { label: "Comprar", href: "/productos" }, spinMode }] })
+    const mode = (spinMode: unknown) => { const config = slide(spinMode); return config.kind === "campaignHero" ? config.slides?.[0]?.spinMode : "error" }
+
+    expect(mode("mouse")).toBe("mouse")
+    expect(mode("static")).toBe("static")
+    expect(mode("volar")).toBeUndefined()
+  })
+})

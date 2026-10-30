@@ -28,6 +28,8 @@ const CampaignSlideSchema = z.object({
   tabletMedia: MediaSchema.optional(),
   mobileMedia: MediaSchema.optional(),
   foregroundMedia: MediaSchema.optional(),
+  angles: z.array(MediaSchema).max(36).optional(),
+  spinMode: z.enum(["auto", "mouse", "static"]).optional(),
 })
 
 const CampaignHeroSchema = z.object({

@@ -4,7 +4,7 @@
 import { useState } from "react"
 
 import { EDITORIAL_APPEARANCES, EDITORIAL_DESTINATIONS } from "@/lib/editorial-builder-form"
-import { MAX_HERO_ANGLES, type CampaignHeroSlide, type EditorialAppearance } from "@/lib/editorial-config"
+import { MAX_HERO_ANGLES, type CampaignHeroSlide, type EditorialAppearance, type HeroSpinMode } from "@/lib/editorial-config"
 
 type Config = Record<string, any>
 type Update = (next: Config) => void
@@ -119,6 +119,14 @@ export function CampaignHeroSlideFields({ config, onChange, onPickMedia }: Props
         placeholder="https://.../frente.png"
       />
       <p className="mt-1 text-xs text-gray-500">Con dos o más fotos del mismo zapato, en orden, el escenario las recorre. Desde 8 fotos (hasta {MAX_HERO_ANGLES}, PNG sin fondo del mismo tamaño) gira como un 360 continuo. Una sola foto no se convierte en un video 3D.</p>
+    </div>
+    <div>
+      <label className={label} htmlFor="campaign-spin-mode">Movimiento del producto</label>
+      <select id="campaign-spin-mode" value={config.spinMode ?? "auto"} onChange={(event) => onChange({ ...config, spinMode: event.target.value as HeroSpinMode })} className={input}>
+        <option value="auto">Gira solo (y se puede arrastrar)</option>
+        <option value="mouse">Gira al pasar el mouse (en celular, arrastrando)</option>
+        <option value="static">Quieto (solo la foto en primer plano)</option>
+      </select>
     </div>
   </div>
 }
