@@ -73,7 +73,7 @@ const SPIN_MIN_FRAMES = 8
 const SPIN_LOOP_MS = 7000
 /** Píxeles de arrastre por cuadro: con 72 cuadros, una vuelta completa ≈ 290 px. */
 const SPIN_DRAG_PX = 4
-// El giro usa cuadros recortados al zapato, así que puede ocupar más que la foto suelta.
+// El giro (y el modo quieto, que muestra su primer cuadro) usa imágenes recortadas al zapato: pueden ocupar más que la foto suelta.
 const SPIN_IMAGE_CLASSES = "h-auto w-full max-w-[min(96%,720px)] max-h-[min(34svh,300px)] object-contain lg:max-h-[min(54svh,470px)] drop-shadow-[0_28px_22px_rgba(0,0,0,0.22)]"
 const PRODUCT_IMAGE_CLASSES = "h-auto max-h-[min(26svh,240px)] w-auto max-w-[min(88%,560px)] object-contain lg:max-h-[min(46svh,420px)] drop-shadow-[0_28px_22px_rgba(0,0,0,0.22)]"
 
@@ -135,7 +135,7 @@ function ProductStage({ slide }: { slide: CampaignHeroSlide }) {
           >
             {unique.map((frame, index) => <Image key={frame.src} src={frame.src} alt={index === 0 ? frame.alt : ""} aria-hidden={index === 0 ? undefined : true} width={1120} height={720} priority={index === 0} loading={index === 0 ? undefined : "eager"} sizes="(max-width: 1024px) 96vw, 720px" unoptimized={!canUseNextImageOptimization(frame.src)} draggable={false} className={`[grid-area:1/1] ${SPIN_IMAGE_CLASSES} ${index === frameIndex ? "opacity-100" : "opacity-0"}`} />)}
           </div>
-          : <Image key={media.src} src={media.src} alt={media.alt} width={1120} height={720} priority sizes="(max-width: 1024px) 88vw, 560px" unoptimized={!canUseNextImageOptimization(media.src)} className={`${PRODUCT_IMAGE_CLASSES} motion-safe:animate-[hero-product-enter_900ms_cubic-bezier(.22,1,.36,1)_both]`} />}
+          : <Image key={media.src} src={media.src} alt={media.alt} width={1120} height={720} priority sizes="(max-width: 1024px) 88vw, 560px" unoptimized={!canUseNextImageOptimization(media.src)} className={`${mode === "static" ? SPIN_IMAGE_CLASSES : PRODUCT_IMAGE_CLASSES} motion-safe:animate-[hero-product-enter_900ms_cubic-bezier(.22,1,.36,1)_both]`} />}
       </div>
     </div>
     <div aria-hidden="true" style={SHADOW_DEPTH} className="-mt-2 h-6 w-[42%] max-w-sm shrink-0 blur-xl">

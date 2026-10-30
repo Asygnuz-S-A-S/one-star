@@ -59,6 +59,7 @@ describe("EditorialCampaignHero", () => {
     expect(html).not.toContain('data-testid="editorial-hero-spin"')
     expect(html.match(/<img/g)).toHaveLength(1)
     expect(html).toContain("Tenis quieto")
+    expect(html).toContain("max-w-[min(96%,720px)]")
   })
 
   it("modo mouse: arma el giro con todos los cuadros y se controla como deslizador", () => {
