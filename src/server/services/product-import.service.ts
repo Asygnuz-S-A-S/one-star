@@ -300,7 +300,6 @@ export const COLUMN_HEADER_ALIASES: Record<string, string> = {
   "POR QUE COMPRARLO": "highlights",
   "¿POR QUÉ COMPRARLO?": "highlights",
   HIGHLIGHTS: "highlights",
-  // FAQs
   // Ventas cruzadas ("Combínalo con"): referencias separadas por coma
   "VENTAS CRUZADAS": "crossSells",
   "VENTA CRUZADA": "crossSells",
@@ -308,6 +307,7 @@ export const COLUMN_HEADER_ALIASES: Record<string, string> = {
   "COMBÍNALO CON": "crossSells",
   CROSSSELLS: "crossSells",
   "CROSS SELLS": "crossSells",
+  // FAQs
   FAQS: "faqs",
   FAQ: "faqs",
   "PREGUNTAS FRECUENTES": "faqs",
