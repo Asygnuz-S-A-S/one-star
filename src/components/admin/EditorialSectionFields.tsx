@@ -4,7 +4,7 @@
 import { useState } from "react"
 
 import { EDITORIAL_APPEARANCES, EDITORIAL_DESTINATIONS } from "@/lib/editorial-builder-form"
-import type { CampaignHeroSlide, EditorialAppearance } from "@/lib/editorial-config"
+import { MAX_HERO_ANGLES, type CampaignHeroSlide, type EditorialAppearance } from "@/lib/editorial-config"
 
 type Config = Record<string, any>
 type Update = (next: Config) => void
@@ -111,14 +111,14 @@ export function CampaignHeroSlideFields({ config, onChange, onPickMedia }: Props
       <textarea
         value={Array.isArray(config.angles) ? config.angles.map((item: { src?: string }) => item.src ?? "").filter(Boolean).join("\n") : ""}
         onChange={(event) => {
-          const angles = event.target.value.split("\n").map((line) => line.trim()).filter(Boolean).slice(0, 12).map((src) => ({ src, alt: config.headline || "Producto" }))
+          const angles = event.target.value.split("\n").map((line) => line.trim()).filter(Boolean).slice(0, MAX_HERO_ANGLES).map((src) => ({ src, alt: config.headline || "Producto" }))
           onChange({ ...config, angles: angles.length ? angles : undefined })
         }}
         rows={4}
         className={input}
         placeholder="https://.../frente.png"
       />
-      <p className="mt-1 text-xs text-gray-500">Con dos o más fotos del mismo zapato, en orden, el escenario las recorre. Una sola foto no se convierte en un video 3D.</p>
+      <p className="mt-1 text-xs text-gray-500">Con dos o más fotos del mismo zapato, en orden, el escenario las recorre. Desde 8 fotos (hasta {MAX_HERO_ANGLES}, PNG sin fondo del mismo tamaño) gira como un 360 continuo. Una sola foto no se convierte en un video 3D.</p>
     </div>
   </div>
 }

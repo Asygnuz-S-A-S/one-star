@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { parseEditorialConfig, resolveCollectionTiles } from "./editorial-config"
+import { MAX_HERO_ANGLES, parseEditorialConfig, resolveCollectionTiles } from "./editorial-config"
 
 describe("editorial configuration", () => {
   it("maps a v1 campaign hero without changing the source configuration", () => {
@@ -89,4 +89,18 @@ it("parses an editorial campaign carousel while keeping legacy single campaigns 
   })
 
   expect(result).toMatchObject({ kind: "campaignHero", slides: [{ id: "drop-1" }, { id: "drop-2" }] })
+})
+
+describe("ángulos del giro 360", () => {
+  it("acepta hasta MAX_HERO_ANGLES fotos por slide y descarta el resto", () => {
+    const angles = Array.from({ length: 40 }, (_, i) => `https://res.cloudinary.com/demo/image/upload/giro/${i}.png`)
+    const config = parseEditorialConfig({
+      version: 1,
+      kind: "campaignHero",
+      slides: [{ headline: "Tecton X 3", primaryCta: { label: "Comprar", href: "/marcas/hoka" }, angles }],
+    })
+
+    expect(MAX_HERO_ANGLES).toBe(36)
+    expect(config.kind === "campaignHero" && config.slides?.[0]?.angles).toHaveLength(36)
+  })
 })

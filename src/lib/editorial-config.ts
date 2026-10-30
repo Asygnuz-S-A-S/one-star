@@ -70,6 +70,9 @@ function appearance(value: unknown): EditorialAppearance {
   return typeof value === "string" && appearances.has(value as EditorialAppearance) ? value as EditorialAppearance : "carbon"
 }
 
+/** Fotos del giro: 36 alcanzan para una vuelta de 10° por cuadro. */
+export const MAX_HERO_ANGLES = 36
+
 function angleList(value: unknown, fallbackAlt: string): EditorialMedia[] | undefined {
   if (!Array.isArray(value)) return undefined
   const items = value.flatMap((item) => {
@@ -78,7 +81,7 @@ function angleList(value: unknown, fallbackAlt: string): EditorialMedia[] | unde
     const src = typeof item === "string" ? text(item) : undefined
     return src && isSafePublicUrl(src) ? [{ src, alt: fallbackAlt }] : []
   })
-  return items.length > 0 ? items.slice(0, 12) : undefined
+  return items.length > 0 ? items.slice(0, MAX_HERO_ANGLES) : undefined
 }
 
 function media(value: unknown): EditorialMedia | undefined {

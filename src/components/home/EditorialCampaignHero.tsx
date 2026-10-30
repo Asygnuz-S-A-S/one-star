@@ -69,17 +69,24 @@ const WATERMARK_DEPTH: CSSProperties = { transform: "translate3d(calc(var(--px, 
 const PRODUCT_DEPTH: CSSProperties = { transform: "translate3d(calc(var(--px, 0) * 22px), calc(var(--py, 0) * 12px), 0) rotateY(calc(var(--px, 0) * 10deg)) rotateX(calc(var(--py, 0) * -6deg))" }
 const SHADOW_DEPTH: CSSProperties = { transform: "translate3d(calc(var(--px, 0) * 14px), 0, 0)" }
 
+const SPIN_MIN_FRAMES = 8
+const SPIN_LOOP_MS = 3000
+const PRODUCT_IMAGE_CLASSES = "h-auto max-h-[min(26svh,240px)] w-auto max-w-[min(88%,560px)] object-contain lg:max-h-[min(46svh,420px)] drop-shadow-[0_28px_22px_rgba(0,0,0,0.22)]"
+
 /** Producto recortado (PNG sin fondo) flotando sobre una palabra gigante: el "key visual" de lanzamientos. */
 function ProductStage({ slide }: { slide: CampaignHeroSlide }) {
   const frames = [slide.foregroundMedia, ...(slide.angles ?? [])].filter((item): item is NonNullable<typeof slide.foregroundMedia> => Boolean(item))
   const unique = frames.filter((frame, index) => frames.findIndex((item) => item.src === frame.src) === index)
   const frameKey = unique.map((frame) => frame.src).join("|")
   const [frameIndex, setFrameIndex] = useState(0)
+  // Con muchos ángulos es un giro 360: una vuelta cada SPIN_LOOP_MS en vez de pasar foto por foto.
+  const isSpin = unique.length >= SPIN_MIN_FRAMES
   useEffect(() => {
     if (unique.length < 2 || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return
-    const timer = window.setInterval(() => setFrameIndex((current) => (current + 1) % unique.length), 1400)
+    const stepMs = isSpin ? Math.max(40, Math.round(SPIN_LOOP_MS / unique.length)) : 1400
+    const timer = window.setInterval(() => setFrameIndex((current) => (current + 1) % unique.length), stepMs)
     return () => window.clearInterval(timer)
-  }, [frameKey, unique.length])
+  }, [frameKey, unique.length, isSpin])
   const media = unique[frameIndex] ?? slide.foregroundMedia!
   const watermark = slide.headline.split(/\s+/)[0] ?? slide.headline
   const isLight = slide.accent === "light"
@@ -93,7 +100,12 @@ function ProductStage({ slide }: { slide: CampaignHeroSlide }) {
     <span aria-hidden="true" style={WATERMARK_DEPTH} className={`pointer-events-none absolute inset-x-0 top-1/2 select-none text-center font-barlow text-[clamp(5rem,30vw,16rem)] font-black uppercase leading-none tracking-[-0.06em] ${isLight ? "text-store-ink/[0.07]" : "text-white/[0.08]"}`}>{watermark}</span>
     <div style={PRODUCT_DEPTH} className="relative flex w-full items-center justify-center">
       <div className="flex w-full items-center justify-center motion-safe:animate-[hero-levitate_6s_ease-in-out_infinite]">
-        <Image key={media.src} src={media.src} alt={media.alt} width={1120} height={720} priority sizes="(max-width: 1024px) 88vw, 560px" unoptimized={!canUseNextImageOptimization(media.src)} className="h-auto max-h-[min(26svh,240px)] w-auto max-w-[min(88%,560px)] object-contain lg:max-h-[min(46svh,420px)] drop-shadow-[0_28px_22px_rgba(0,0,0,0.22)] motion-safe:animate-[hero-product-enter_900ms_cubic-bezier(.22,1,.36,1)_both]" />
+        {isSpin
+          // Cuadros apilados y ya cargados: cambiar solo la opacidad evita parpadeos y la animación de entrada en cada cuadro.
+          ? <div className="grid w-full place-items-center motion-safe:animate-[hero-product-enter_900ms_cubic-bezier(.22,1,.36,1)_both]" data-testid="editorial-hero-spin">
+            {unique.map((frame, index) => <Image key={frame.src} src={frame.src} alt={index === 0 ? frame.alt : ""} aria-hidden={index === 0 ? undefined : true} width={1120} height={720} priority={index === 0} loading={index === 0 ? undefined : "eager"} sizes="(max-width: 1024px) 88vw, 560px" unoptimized={!canUseNextImageOptimization(frame.src)} className={`[grid-area:1/1] ${PRODUCT_IMAGE_CLASSES} ${index === frameIndex ? "opacity-100" : "opacity-0"}`} />)}
+          </div>
+          : <Image key={media.src} src={media.src} alt={media.alt} width={1120} height={720} priority sizes="(max-width: 1024px) 88vw, 560px" unoptimized={!canUseNextImageOptimization(media.src)} className={`${PRODUCT_IMAGE_CLASSES} motion-safe:animate-[hero-product-enter_900ms_cubic-bezier(.22,1,.36,1)_both]`} />}
       </div>
     </div>
     <div aria-hidden="true" style={SHADOW_DEPTH} className="-mt-2 h-6 w-[42%] max-w-sm shrink-0 blur-xl">
