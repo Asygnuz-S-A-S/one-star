@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react"
 import { useCartStore } from "@/store"
 import { sendChatMessageAction } from "@/server/actions/chat.actions"
 import { DEFAULT_CHAT_WELCOME } from "@/lib/storefront-copy"
+import ChatMarkdown from "./ChatMarkdown"
 
 interface DisplayMessage {
   role: "user" | "assistant"
@@ -115,7 +116,7 @@ export default function ChatWidget({ welcome = DEFAULT_CHAT_WELCOME }: { welcome
                       : "bg-gray-100 text-[#1C1C1C]"
                   }`}
                 >
-                  {m.content}
+                  {m.role === "user" ? m.content : <ChatMarkdown text={m.content} />}
                 </div>
               </div>
             ))}
