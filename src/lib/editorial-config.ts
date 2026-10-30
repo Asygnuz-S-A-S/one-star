@@ -76,8 +76,8 @@ function appearance(value: unknown): EditorialAppearance {
   return typeof value === "string" && appearances.has(value as EditorialAppearance) ? value as EditorialAppearance : "carbon"
 }
 
-/** Fotos del giro: 36 alcanzan para una vuelta de 10° por cuadro. */
-export const MAX_HERO_ANGLES = 36
+/** Fotos del giro: 72 = una vuelta de 5° por cuadro. */
+export const MAX_HERO_ANGLES = 72
 
 function angleList(value: unknown, fallbackAlt: string): EditorialMedia[] | undefined {
   if (!Array.isArray(value)) return undefined

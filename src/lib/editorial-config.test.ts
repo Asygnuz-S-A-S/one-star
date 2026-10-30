@@ -93,15 +93,15 @@ it("parses an editorial campaign carousel while keeping legacy single campaigns 
 
 describe("ángulos del giro 360", () => {
   it("acepta hasta MAX_HERO_ANGLES fotos por slide y descarta el resto", () => {
-    const angles = Array.from({ length: 40 }, (_, i) => `https://res.cloudinary.com/demo/image/upload/giro/${i}.png`)
+    const angles = Array.from({ length: 80 }, (_, i) => `https://res.cloudinary.com/demo/image/upload/giro/${i}.png`)
     const config = parseEditorialConfig({
       version: 1,
       kind: "campaignHero",
       slides: [{ headline: "Tecton X 3", primaryCta: { label: "Comprar", href: "/marcas/hoka" }, angles }],
     })
 
-    expect(MAX_HERO_ANGLES).toBe(36)
-    expect(config.kind === "campaignHero" && config.slides?.[0]?.angles).toHaveLength(36)
+    expect(MAX_HERO_ANGLES).toBe(72)
+    expect(config.kind === "campaignHero" && config.slides?.[0]?.angles).toHaveLength(72)
   })
 })
 

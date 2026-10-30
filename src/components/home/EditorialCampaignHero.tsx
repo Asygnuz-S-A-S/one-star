@@ -71,8 +71,8 @@ const SHADOW_DEPTH: CSSProperties = { transform: "translate3d(calc(var(--px, 0) 
 
 const SPIN_MIN_FRAMES = 8
 const SPIN_LOOP_MS = 7000
-/** Píxeles de arrastre por cuadro: una vuelta completa ≈ 36 × 8 px. */
-const SPIN_DRAG_PX = 8
+/** Píxeles de arrastre por cuadro: con 72 cuadros, una vuelta completa ≈ 290 px. */
+const SPIN_DRAG_PX = 4
 // El giro usa cuadros recortados al zapato, así que puede ocupar más que la foto suelta.
 const SPIN_IMAGE_CLASSES = "h-auto w-full max-w-[min(96%,720px)] max-h-[min(34svh,300px)] object-contain lg:max-h-[min(54svh,470px)] drop-shadow-[0_28px_22px_rgba(0,0,0,0.22)]"
 const PRODUCT_IMAGE_CLASSES = "h-auto max-h-[min(26svh,240px)] w-auto max-w-[min(88%,560px)] object-contain lg:max-h-[min(46svh,420px)] drop-shadow-[0_28px_22px_rgba(0,0,0,0.22)]"
