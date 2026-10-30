@@ -13,7 +13,7 @@ const sql = readFileSync(
 )
 
 describe("migración del Hero HOKA de la home", () => {
-  const blocks = [...sql.matchAll(/\$hero\$(.*?)\$hero\$/gs)].map((m) => m[1])
+  const blocks = [...sql.matchAll(/\$hero\$([\s\S]*?)\$hero\$/g)].map((m) => m[1])
 
   it("usa el mismo JSON en el UPDATE y en el INSERT", () => {
     expect(blocks).toHaveLength(2)
