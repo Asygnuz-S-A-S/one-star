@@ -111,6 +111,7 @@ function ProductStage({ slide }: { slide: CampaignHeroSlide }) {
       <div className="flex w-full items-center justify-center motion-safe:animate-[hero-levitate_6s_ease-in-out_infinite]">
         {isSpin
           // Cuadros apilados y ya cargados: cambiar solo la opacidad evita parpadeos y la animación de entrada en cada cuadro.
+          // unoptimized: los cuadros ya vienen livianos (~20 KB); pasarlos por el optimizador de Next los cargaba uno a uno.
           ? <div
             className={`grid w-full touch-pan-y select-none place-items-center outline-none motion-safe:animate-[hero-product-enter_900ms_cubic-bezier(.22,1,.36,1)_both] ${dragging ? "cursor-grabbing" : "cursor-grab"}`}
             data-testid="editorial-hero-spin"
@@ -133,7 +134,7 @@ function ProductStage({ slide }: { slide: CampaignHeroSlide }) {
             onPointerCancel={() => { drag.current = null; setDragging(false) }}
             onKeyDown={(event) => { if (event.key === "ArrowRight" || event.key === "ArrowLeft") { event.preventDefault(); spinTo(frameIndex + (event.key === "ArrowRight" ? 1 : -1)) } }}
           >
-            {unique.map((frame, index) => <Image key={frame.src} src={frame.src} alt={index === 0 ? frame.alt : ""} aria-hidden={index === 0 ? undefined : true} width={1120} height={720} priority={index === 0} loading={index === 0 ? undefined : "eager"} sizes="(max-width: 1024px) 96vw, 720px" unoptimized={!canUseNextImageOptimization(frame.src)} draggable={false} className={`[grid-area:1/1] ${SPIN_IMAGE_CLASSES} ${index === frameIndex ? "opacity-100" : "opacity-0"}`} />)}
+            {unique.map((frame, index) => <Image key={frame.src} src={frame.src} alt={index === 0 ? frame.alt : ""} aria-hidden={index === 0 ? undefined : true} width={1120} height={720} priority={index === 0} loading={index === 0 ? undefined : "eager"} sizes="(max-width: 1024px) 96vw, 720px" unoptimized draggable={false} className={`[grid-area:1/1] ${SPIN_IMAGE_CLASSES} ${index === frameIndex ? "opacity-100" : "opacity-0"}`} />)}
           </div>
           : <Image key={media.src} src={media.src} alt={media.alt} width={1120} height={720} priority sizes="(max-width: 1024px) 88vw, 560px" unoptimized={!canUseNextImageOptimization(media.src)} className={`${mode === "static" ? SPIN_IMAGE_CLASSES : PRODUCT_IMAGE_CLASSES} motion-safe:animate-[hero-product-enter_900ms_cubic-bezier(.22,1,.36,1)_both]`} />}
       </div>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { MAX_HERO_ANGLES, parseEditorialConfig, resolveCollectionTiles } from "./editorial-config"
+import { MAX_HERO_ANGLES, expandFrameSequence, parseEditorialConfig, resolveCollectionTiles } from "./editorial-config"
 
 describe("editorial configuration", () => {
   it("maps a v1 campaign hero without changing the source configuration", () => {
@@ -113,5 +113,22 @@ describe("modo de movimiento del producto", () => {
     expect(mode("mouse")).toBe("mouse")
     expect(mode("static")).toBe("static")
     expect(mode("volar")).toBeUndefined()
+  })
+})
+
+describe("expandFrameSequence", () => {
+  const first = "https://res.cloudinary.com/demo/image/upload/v17/one-star/giros/hoka/hoka-giro-00.webp"
+
+  it("arma la secuencia desde el primer cuadro conservando los ceros", () => {
+    const frames = expandFrameSequence(first, 72)!
+    expect(frames).toHaveLength(72)
+    expect(frames[1]).toBe("https://res.cloudinary.com/demo/image/upload/v17/one-star/giros/hoka/hoka-giro-01.webp")
+    expect(frames[71]).toMatch(/hoka-giro-71\.webp$/)
+  })
+
+  it("no pasa del máximo y rechaza links sin número o inseguros", () => {
+    expect(expandFrameSequence(first, 500)).toHaveLength(MAX_HERO_ANGLES)
+    expect(expandFrameSequence("https://res.cloudinary.com/demo/tenis.webp", 10)).toBeNull()
+    expect(expandFrameSequence("javascript:alert(00.webp)", 10)).toBeNull()
   })
 })

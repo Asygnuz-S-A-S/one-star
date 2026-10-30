@@ -79,6 +79,19 @@ function appearance(value: unknown): EditorialAppearance {
 /** Fotos del giro: 72 = una vuelta de 5° por cuadro. */
 export const MAX_HERO_ANGLES = 72
 
+/**
+ * Arma la secuencia del giro a partir del link del primer cuadro: cambia el último número del
+ * nombre (`…-00.webp` → `…-01.webp` …) conservando los ceros. Null si el link no termina en número.
+ */
+export function expandFrameSequence(firstUrl: string, count: number): string[] | null {
+  const match = /^(.*?)(\d+)(\.[a-z0-9]+)(\?.*)?$/i.exec(firstUrl.trim())
+  if (!match || !isSafePublicUrl(firstUrl.trim())) return null
+  const [, head, digits, ext, query = ""] = match
+  const start = Number(digits)
+  const total = Math.min(Math.max(Math.trunc(count), 1), MAX_HERO_ANGLES)
+  return Array.from({ length: total }, (_, i) => `${head}${String(start + i).padStart(digits.length, "0")}${ext}${query}`)
+}
+
 function angleList(value: unknown, fallbackAlt: string): EditorialMedia[] | undefined {
   if (!Array.isArray(value)) return undefined
   const items = value.flatMap((item) => {
