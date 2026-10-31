@@ -49,6 +49,7 @@ conviven varias, para no forzar a un consumidor a una API que no espera.
 | `qs@6` | `epayco-sdk-node` → `superagent` | El SDK de ePayco no ha publicado la actualización |
 | `sharp` | `next` (dependencia opcional) | Next declara `^0.34.5`, pero libvips solo queda parcheado en 0.35.x (0.35.5) |
 | `axios` | `epayco-sdk-node` | Subdependencia desactualizada en el SDK de ePayco fijada a 1.20.0 |
+| `follow-redirects` | `epayco-sdk-node` → `axios` | 1.16.1 vulnerable (GHSA-mrwp-f3q8-3g9p, high); fijada a ≥1.16.2 |
 | `source-map-js` | `postcss` | Corrección transitiva a 1.2.2 |
 | `vitest` | `better-auth` (peer/runtime dependency) | Asegura que `better-auth` resuelva Vitest 4.1.12 parcheado ante GHSA-82fw-gwwq-j7x9 |
 
