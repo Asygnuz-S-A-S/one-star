@@ -59,11 +59,17 @@ export async function syncGiftCardCatalog(
   for (const amount of allowed) await upsertGiftCardProduct(amount, category.id)
 }
 
-/** Producto + variante de la tarjeta de un monto: así el checkout la tasa desde la base de datos. */
-async function upsertGiftCardProduct(amount: number, categoryId: string) {
+/**
+ * Producto + variante de la tarjeta de un monto: así el checkout la tasa desde la base de datos.
+ * `publish: false` (montos que escribe el cliente): no aparece en catálogo, búsqueda ni sitemap,
+ * y no despublica un monto del admin que ya exista.
+ */
+async function upsertGiftCardProduct(amount: number, categoryId: string, publish = true) {
   const product = await prisma.product.upsert({
     where: { slug: giftCardSlug(amount) },
-    update: { basePrice: new Prisma.Decimal(amount), isPublished: true, availableOnline: true },
+    update: publish
+      ? { basePrice: new Prisma.Decimal(amount), isPublished: true, availableOnline: true }
+      : { availableOnline: true },
     create: {
       slug: giftCardSlug(amount),
       name: `Tarjeta de Regalo $${formatGiftCardAmount(amount)}`,
@@ -73,7 +79,7 @@ async function upsertGiftCardProduct(amount: number, categoryId: string) {
       categoryId,
       availableOnline: true,
       availableInStores: false,
-      isPublished: true,
+      isPublished: publish,
     },
   })
   const variant = await prisma.variant.upsert({
@@ -90,7 +96,7 @@ async function upsertGiftCardProduct(amount: number, categoryId: string) {
 export const GIFT_CARD_CUSTOM_STEP = 1_000
 
 /**
- * Tarjeta con el monto que escribe el cliente. Crea (o reutiliza) el producto de ese
+ * Tarjeta con el monto que escribe el cliente. Crea (o reutiliza) el producto oculto de ese
  * monto; el precio queda en la base de datos como cualquier otro, no viene del navegador.
  * Devuelve null si el monto está fuera de los límites del admin.
  */
@@ -102,7 +108,7 @@ export async function ensureCustomGiftCardOption(amount: number): Promise<GiftCa
     update: {},
     create: { name: "Tarjetas de regalo", slug: GIFT_CARD_CATEGORY_SLUG },
   })
-  return upsertGiftCardProduct(amount, category.id)
+  return upsertGiftCardProduct(amount, category.id, false)
 }
 
 export async function getGiftCardOptions(): Promise<GiftCardOption[]> {

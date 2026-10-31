@@ -20,8 +20,8 @@ import { getERPAdapter } from "../erp"
 import { sendOrderConfirmationEmail } from "./email.service"
 import { issueAndSendGiftCardsForOrder } from "./gift-card.service"
 import { DEFAULT_SHIPPING_RATES, getShippingCost, type ShippingMethod } from "@/lib/shipping"
-import { getShippingRates } from "./store-settings.service"
-import { isGiftCardSku } from "@/lib/gift-card"
+import { getGiftCardLimits, getShippingRates } from "./store-settings.service"
+import { DEFAULT_GIFT_CARD_LIMITS, isGiftCardSku, isValidGiftCardAmount } from "@/lib/gift-card"
 import {
   validateCouponForOrder,
   registerCouponUsage,
@@ -172,6 +172,12 @@ async function priceItemsFromDatabase(
   const variants = await findVariantsForPricing(variantIds)
   const variantMap = new Map(variants.map((v) => [v.id, v]))
 
+  // Tarjetas de regalo (incluidas las de monto personalizado, que no se publican):
+  // solo se cobran si el monto sigue dentro de los límites del admin.
+  const giftCardLimits = variants.some((v) => isGiftCardSku(v.sku))
+    ? await getGiftCardLimits().catch(() => DEFAULT_GIFT_CARD_LIMITS)
+    : null
+
   return items.map((item) => {
     const variant = item.variantId ? variantMap.get(item.variantId) : undefined
     if (!variant) {
@@ -185,6 +191,9 @@ async function priceItemsFromDatabase(
       product.isOnSale && product.salePrice !== null
         ? product.salePrice.toNumber()
         : product.basePrice.toNumber()
+    if (giftCardLimits && isGiftCardSku(variant.sku) && !isValidGiftCardAmount(unitPrice, giftCardLimits)) {
+      throw new Error(`La variante del producto "${item.productName}" ya no está disponible.`)
+    }
     return {
       productId: product.id,
       variantId: variant.id,

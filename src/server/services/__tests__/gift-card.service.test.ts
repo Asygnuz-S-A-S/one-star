@@ -91,6 +91,13 @@ describe("montos personalizados", () => {
     expect(db.prisma.product.upsert).toHaveBeenCalledWith(expect.objectContaining({ where: { slug: "tarjeta-regalo-137000" } }))
   })
 
+  it("el monto personalizado queda oculto: no se publica ni despublica uno del admin", async () => {
+    await ensureCustomGiftCardOption(100_000)
+    const args = db.prisma.product.upsert.mock.calls[0][0] as unknown as { create: { isPublished: boolean }; update: Record<string, unknown> }
+    expect(args.create.isPublished).toBe(false)
+    expect(args.update).not.toHaveProperty("isPublished")
+  })
+
   it("rechaza montos fuera de los límites o que no están en miles", async () => {
     db.settings = { giftCardMinAmount: 20_000, giftCardMaxAmount: 2_000_000 }
     expect(await ensureCustomGiftCardOption(10_000)).toBeNull()

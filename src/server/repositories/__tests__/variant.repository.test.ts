@@ -29,13 +29,14 @@ describe("variantas públicas", () => {
     }))
   })
 
-  it("cotiza únicamente variantes publicadas y disponibles para compra online", async () => {
+  it("cotiza variantes publicadas (o tarjetas de regalo ocultas) y disponibles online", async () => {
     await findVariantsForPricing(["variant-a"])
 
     expect(findMany).toHaveBeenCalledWith(expect.objectContaining({
       where: {
         id: { in: ["variant-a"] },
-        product: { isPublished: true, availableOnline: true },
+        product: { availableOnline: true },
+        OR: [{ product: { isPublished: true } }, { sku: { startsWith: "GIFT-CARD-" } }],
       },
     }))
   })
