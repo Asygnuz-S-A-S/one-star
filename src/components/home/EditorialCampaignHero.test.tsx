@@ -40,6 +40,44 @@ describe("EditorialCampaignHero", () => {
     expect(html).toContain("Tenis verde en primer plano")
     expect(html).toContain("Ver lanzamientos")
   })
+
+  it("con 8 o más ángulos apila todos los cuadros del giro y muestra solo el primero", () => {
+    const angles = Array.from({ length: 9 }, (_, i) => ({ src: `/giro/${i + 1}.png`, alt: "Tenis" }))
+    const html = renderToStaticMarkup(<EditorialCampaignHero campaign={{ ...campaign, foregroundMedia: { src: "/giro/0.png", alt: "Tenis girando" }, angles }} />)
+
+    expect(html).toContain('data-testid="editorial-hero-spin"')
+    expect(html.match(/<img/g)).toHaveLength(10)
+    expect(html.match(/<img[^>]*opacity-100/g)).toHaveLength(1)
+    expect(html.match(/<img[^>]*opacity-0/g)).toHaveLength(9)
+    expect(html.match(/alt="Tenis girando"/g)).toHaveLength(1)
+  })
+
+  it("modo quieto: muestra solo la foto en primer plano aunque haya fotos del giro", () => {
+    const angles = Array.from({ length: 9 }, (_, i) => ({ src: `/giro/${i + 1}.png`, alt: "Tenis" }))
+    const html = renderToStaticMarkup(<EditorialCampaignHero campaign={{ ...campaign, foregroundMedia: { src: "/giro/0.png", alt: "Tenis quieto" }, angles, spinMode: "static" }} />)
+
+    expect(html).not.toContain('data-testid="editorial-hero-spin"')
+    expect(html.match(/<img/g)).toHaveLength(1)
+    expect(html).toContain("Tenis quieto")
+    expect(html).toContain("max-w-[min(96%,720px)]")
+  })
+
+  it("modo mouse: arma el giro con todos los cuadros y se controla como deslizador", () => {
+    const angles = Array.from({ length: 9 }, (_, i) => ({ src: `/giro/${i + 1}.png`, alt: "Tenis" }))
+    const html = renderToStaticMarkup(<EditorialCampaignHero campaign={{ ...campaign, foregroundMedia: { src: "/giro/0.png", alt: "Tenis" }, angles, spinMode: "mouse" }} />)
+
+    expect(html).toContain('data-testid="editorial-hero-spin"')
+    expect(html).toContain('role="slider"')
+    expect(html.match(/<img/g)).toHaveLength(10)
+  })
+
+  it("con pocos ángulos sigue pasando foto por foto, sin giro", () => {
+    const angles = [{ src: "/lado.png", alt: "Lado" }, { src: "/atras.png", alt: "Atrás" }]
+    const html = renderToStaticMarkup(<EditorialCampaignHero campaign={{ ...campaign, foregroundMedia: { src: "/shoe.png", alt: "Tenis" }, angles }} />)
+
+    expect(html).not.toContain('data-testid="editorial-hero-spin"')
+    expect(html.match(/<img/g)).toHaveLength(1)
+  })
 })
 
 it("renders Web, tablet and mobile campaign art direction without breaking the existing CTA", () => {

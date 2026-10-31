@@ -1,6 +1,7 @@
 import "server-only"
 
 import { faqsFromText, highlightsFromText } from "@/lib/product-faq"
+import { matchCrossSellRefs, parseCrossSellRefs } from "@/lib/cross-sell"
 import { slugify } from "@/lib/utils"
 import type { Gender, Prisma } from "@prisma/client"
 import { prisma } from "@/server/db/prisma"
@@ -107,6 +108,8 @@ export async function persistProductImport(
       }
 
       const colorGroupMap = new Map<string, string[]>()
+      // Ventas cruzadas: se conectan al final, cuando ya existen todos los productos del archivo.
+      const crossSellPlan: { productId: string; refs: string[] }[] = []
 
       for (const group of groups) {
         let productId = group.existingProductId
@@ -317,6 +320,9 @@ export async function persistProductImport(
           }
         }
 
+        const crossSellRefs = parseCrossSellRefs(group.variants.map((v) => v.row.crossSells).find(Boolean))
+        if (productId && crossSellRefs.length > 0) crossSellPlan.push({ productId, refs: crossSellRefs })
+
         if (group.colorGroup && productId) {
           const key = normalizeKey(group.colorGroup)
           const current = colorGroupMap.get(key) ?? []
@@ -344,6 +350,16 @@ export async function persistProductImport(
           data: { colorFamilyId: targetFamilyId },
         })
       }
+
+      if (crossSellPlan.length > 0) {
+        const refs = [...new Set(crossSellPlan.flatMap((plan) => plan.refs))]
+        const byRef = matchCrossSellRefs(refs, await findVariantsForCrossSellRefs(refs, tx))
+        for (const plan of crossSellPlan) {
+          // Celda con valor = lista completa: reemplaza las sugerencias anteriores. Las referencias que no existen se omiten (la vista previa las avisa).
+          const ids = [...new Set(plan.refs.map((ref) => byRef.get(ref)).filter((id): id is string => Boolean(id) && id !== plan.productId))]
+          await tx.product.update({ where: { id: plan.productId }, data: { crossSells: { set: ids.map((id) => ({ id })) } } })
+        }
+      }
     },
     { timeout: 120_000, maxWait: 10_000 }
   )
@@ -354,4 +370,21 @@ export async function persistProductImport(
     updatedVariants,
     ...(productsToDeactivateIds.length > 0 ? { deactivatedProducts: productsToDeactivateIds.length } : {}),
   }
+}
+
+/** Variantes cuyo SKU (o referencia base) coincide con alguna referencia de ventas cruzadas. */
+export async function findVariantsForCrossSellRefs(
+  refs: string[],
+  client: Pick<Prisma.TransactionClient, "variant"> = prisma,
+): Promise<{ sku: string; productId: string }[]> {
+  if (refs.length === 0) return []
+  return client.variant.findMany({
+    where: {
+      OR: [
+        { sku: { in: refs } },
+        ...refs.flatMap((ref) => [{ sku: { startsWith: `${ref}_` } }, { sku: { startsWith: `${ref}-` } }]),
+      ],
+    },
+    select: { sku: true, productId: true },
+  })
 }

@@ -1,6 +1,7 @@
 import "server-only"
 
 import { z } from "zod"
+import { MAX_HERO_ANGLES } from "@/lib/editorial-config"
 import { isSafePublicUrl } from "@/lib/safe-url"
 
 const AppearanceSchema = z.enum(["light", "carbon", "oneStarRed"])
@@ -28,6 +29,8 @@ const CampaignSlideSchema = z.object({
   tabletMedia: MediaSchema.optional(),
   mobileMedia: MediaSchema.optional(),
   foregroundMedia: MediaSchema.optional(),
+  angles: z.array(MediaSchema).max(MAX_HERO_ANGLES).optional(),
+  spinMode: z.enum(["auto", "mouse", "static"]).optional(),
 })
 
 const CampaignHeroSchema = z.object({
