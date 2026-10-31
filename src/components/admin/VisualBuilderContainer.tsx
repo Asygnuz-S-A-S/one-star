@@ -175,7 +175,7 @@ export default function VisualBuilderContainer({ actions, initialSections, initi
           </div>
         </aside>
 
-        <section className={`min-h-0 flex-1 bg-[#dfe2e5] ${mobilePanel === "editor" ? "hidden md:flex" : "flex"} flex-col`} aria-label="Vista previa">
+        <section className={`min-h-0 min-w-0 flex-1 bg-[#dfe2e5] ${mobilePanel === "editor" ? "hidden md:flex" : "flex"} flex-col`} aria-label="Vista previa">
           <div className="flex min-h-12 flex-wrap items-center justify-between gap-2 bg-[#1C1C1C] px-3 py-2 text-xs font-medium text-gray-300">
             <span>{draftCount > 0 ? `${previewLabel}. Borrador, aún no está en la tienda.` : `${previewLabel}. Igual que la tienda publicada.`}</span>
             <div className="flex rounded border border-gray-600 p-0.5" aria-label="Formato de vista previa">

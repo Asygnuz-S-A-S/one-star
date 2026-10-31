@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client"
 import { prisma } from "@/server/db/prisma"
 import {
   DEFAULT_GIFT_CARD_LIMITS,
+  GIFT_CARD_AMOUNTS,
   GIFT_CARD_CATEGORY_SLUG,
   formatGiftCardAmount,
   giftCardSku,
@@ -12,7 +13,8 @@ import {
   isValidGiftCardAmount,
   type GiftCardOption,
 } from "@/lib/gift-card"
-import { giftCardExpiry } from "@/lib/storefront-copy"
+import { giftCardExpiry, parseGiftCardAmounts } from "@/lib/storefront-copy"
+import { findStoreSettingsReadOnly } from "@/server/repositories/store-settings.repository"
 import { getGiftCardLimits } from "@/server/services/store-settings.service"
 import { generateGiftCardCode } from "@/lib/gift-card-code"
 import {
@@ -54,40 +56,77 @@ export async function syncGiftCardCatalog(
       await prisma.product.update({ where: { id: product.id }, data: { isPublished: false } })
     }
   }
-  for (const amount of allowed) {
-    const product = await prisma.product.upsert({
-      where: { slug: giftCardSlug(amount) },
-      update: { basePrice: new Prisma.Decimal(amount), isPublished: true, availableOnline: true },
-      create: {
-        slug: giftCardSlug(amount),
-        name: `Tarjeta de Regalo $${formatGiftCardAmount(amount)}`,
-        description: "Tarjeta de regalo digital One Star. Se entrega por correo electrónico después de la compra.",
-        basePrice: new Prisma.Decimal(amount),
-        isOnSale: false,
-        categoryId: category.id,
-        availableOnline: true,
-        availableInStores: false,
-        isPublished: true,
-      },
-    })
-    const variant = await prisma.variant.upsert({
-      where: { sku: giftCardSku(amount) },
-      update: { stock: GIFT_CARD_STOCK, productId: product.id },
-      create: { sku: giftCardSku(amount), size: "Digital", color: "Rojo One Star", stock: GIFT_CARD_STOCK, productId: product.id },
-    })
-    await prisma.inventoryLevel.deleteMany({ where: { variantId: variant.id } })
-    await prisma.inventoryLevel.create({ data: { variantId: variant.id, storeLocationId: null, stock: GIFT_CARD_STOCK } })
-  }
+  for (const amount of allowed) await upsertGiftCardProduct(amount, category.id)
+}
+
+/**
+ * Producto + variante de la tarjeta de un monto: así el checkout la tasa desde la base de datos.
+ * `publish: false` (montos que escribe el cliente): no aparece en catálogo, búsqueda ni sitemap,
+ * y no despublica un monto del admin que ya exista.
+ */
+async function upsertGiftCardProduct(amount: number, categoryId: string, publish = true) {
+  const product = await prisma.product.upsert({
+    where: { slug: giftCardSlug(amount) },
+    update: publish
+      ? { basePrice: new Prisma.Decimal(amount), isPublished: true, availableOnline: true }
+      : { availableOnline: true },
+    create: {
+      slug: giftCardSlug(amount),
+      name: `Tarjeta de Regalo $${formatGiftCardAmount(amount)}`,
+      description: "Tarjeta de regalo digital One Star. Se entrega por correo electrónico después de la compra.",
+      basePrice: new Prisma.Decimal(amount),
+      isOnSale: false,
+      categoryId,
+      availableOnline: true,
+      availableInStores: false,
+      isPublished: publish,
+    },
+  })
+  const variant = await prisma.variant.upsert({
+    where: { sku: giftCardSku(amount) },
+    update: { stock: GIFT_CARD_STOCK, productId: product.id },
+    create: { sku: giftCardSku(amount), size: "Digital", color: "Rojo One Star", stock: GIFT_CARD_STOCK, productId: product.id },
+  })
+  await prisma.inventoryLevel.deleteMany({ where: { variantId: variant.id } })
+  await prisma.inventoryLevel.create({ data: { variantId: variant.id, storeLocationId: null, stock: GIFT_CARD_STOCK } })
+  return { variantId: variant.id, productId: product.id, sku: variant.sku, amount }
+}
+
+/** Montos personalizados: múltiplos de mil, para que no se creen productos por cada peso. */
+export const GIFT_CARD_CUSTOM_STEP = 1_000
+
+/**
+ * Tarjeta con el monto que escribe el cliente. Crea (o reutiliza) el producto oculto de ese
+ * monto; el precio queda en la base de datos como cualquier otro, no viene del navegador.
+ * Devuelve null si el monto está fuera de los límites del admin.
+ */
+export async function ensureCustomGiftCardOption(amount: number): Promise<GiftCardOption | null> {
+  const limits = await getGiftCardLimits().catch(() => DEFAULT_GIFT_CARD_LIMITS)
+  if (!isValidGiftCardAmount(amount, limits) || amount % GIFT_CARD_CUSTOM_STEP !== 0) return null
+  const category = await prisma.category.upsert({
+    where: { slug: GIFT_CARD_CATEGORY_SLUG },
+    update: {},
+    create: { name: "Tarjetas de regalo", slug: GIFT_CARD_CATEGORY_SLUG },
+  })
+  return upsertGiftCardProduct(amount, category.id, false)
 }
 
 export async function getGiftCardOptions(): Promise<GiftCardOption[]> {
-  const variants = await findPurchasableGiftCardVariants()
-  const limits = await getGiftCardLimits().catch(() => DEFAULT_GIFT_CARD_LIMITS)
+  const [variants, limits, settings] = await Promise.all([
+    findPurchasableGiftCardVariants(),
+    getGiftCardLimits().catch(() => DEFAULT_GIFT_CARD_LIMITS),
+    findStoreSettingsReadOnly().catch(() => null),
+  ])
+  // Los botones son solo los montos del admin (o los estándar si no configuró ninguno);
+  // los personalizados que compraron otros clientes no se listan.
+  const admin = parseGiftCardAmounts(settings?.giftCardAmounts)
+  const configured = new Set<number>(admin.length ? admin : GIFT_CARD_AMOUNTS)
 
   return variants
     .flatMap((variant) => {
       const amount = variant.product.basePrice.toNumber()
       if (variant.stock <= 0 || !isValidGiftCardAmount(amount, limits)) return []
+      if (!configured.has(amount)) return []
       return [
         {
           variantId: variant.id,

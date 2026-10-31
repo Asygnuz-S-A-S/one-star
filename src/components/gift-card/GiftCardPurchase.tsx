@@ -5,6 +5,7 @@ import Image from "next/image"
 import { useCart } from "@/store"
 import { createGiftCardCartItem, getGiftCardFinish, type GiftCardFinish, type GiftCardOption } from "@/lib/gift-card"
 import { formatCOP } from "@/lib/shop-utils"
+import { customGiftCardOptionAction } from "@/server/actions/gift-card.actions"
 
 interface GiftCardPurchaseProps {
   /**
@@ -132,33 +133,60 @@ export default function GiftCardPurchase({ options, intro, validityMonths = 12, 
     options[0]?.variantId ?? null
   )
   const [message, setMessage] = useState("")
+  // Monto escrito por el cliente ("Otro valor"); solo cuenta cuando ningún botón está elegido.
+  const [customText, setCustomText] = useState("")
+  const [customError, setCustomError] = useState("")
+  const [adding, setAdding] = useState(false)
 
   const selectedOption = options.find((option) => option.variantId === selectedVariantId) ?? null
+  const customAmount = selectedOption ? null : Number(customText) || null
+  const displayAmount = selectedOption?.amount ?? customAmount
   const amounts = options.map((option) => option.amount)
-  const finish = selectedOption ? getGiftCardFinish(selectedOption.amount, amounts) : "copper"
+  // Un monto escrito se ubica entre los fijos para elegir el metal (cobre, plata, oro).
+  const finish = displayAmount ? getGiftCardFinish(displayAmount, [...amounts, displayAmount]) : "copper"
+  const min = limits?.minAmount ?? 0
+  const max = limits?.maxAmount ?? Number.MAX_SAFE_INTEGER
 
   function selectOption(variantId: string) {
     setSelectedVariantId(variantId)
+    setCustomText("")
+    setCustomError("")
     setMessage("")
   }
 
-  function handleAddToCart() {
-    if (!selectedOption) return
-    addItem(createGiftCardCartItem(selectedOption, limits))
-    setMessage(`Tarjeta de ${formatCOP(selectedOption.amount)} añadida a la bolsa.`)
+  function addToBag(option: GiftCardOption) {
+    addItem(createGiftCardCartItem(option, limits))
+    setMessage(`Tarjeta de ${formatCOP(option.amount)} añadida a la bolsa.`)
     openCart()
+  }
+
+  async function handleAddToCart() {
+    if (selectedOption) return addToBag(selectedOption)
+    if (!customAmount) return
+    if (customAmount < min || customAmount > max || customAmount % 1000 !== 0) {
+      setCustomError(`El monto debe estar entre ${formatCOP(min)} y ${formatCOP(max)}, en miles.`)
+      return
+    }
+    setAdding(true)
+    const result = await customGiftCardOptionAction(customAmount).catch(() => null)
+    setAdding(false)
+    if (!result?.success) {
+      setCustomError(result?.error ?? "No pudimos preparar la tarjeta. Intenta de nuevo.")
+      return
+    }
+    addToBag(result.option)
   }
 
   return (
     <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-16">
       <div className="rounded-[var(--store-radius-xl)] bg-[radial-gradient(ellipse_at_50%_40%,#ffffff_0%,#f2f2f0_70%)] px-6 py-10 sm:px-10 sm:py-14">
-        <GiftCardVisual amount={selectedOption?.amount ?? null} finish={finish} />
+        <GiftCardVisual amount={displayAmount} finish={finish} />
       </div>
 
       <div className="space-y-8">
         {intro}
 
-        {options.length === 0 ? (
+        {options.length === 0 && !limits ? (
           <p
             role="status"
             className="rounded-[var(--store-radius-md)] border border-[#E0E0E0] px-4 py-6 text-center font-montserrat text-sm text-[#4A4A4A] dark:border-white/15 dark:text-white/60"
@@ -194,17 +222,42 @@ export default function GiftCardPurchase({ options, intro, validityMonths = 12, 
                   )
                 })}
               </div>
+              <label htmlFor="gift-card-custom" className="mt-4 mb-2 block font-montserrat text-sm font-semibold text-[#1C1C1C] dark:text-white">
+                Otro valor
+              </label>
+              <div className="relative">
+                <span aria-hidden="true" className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 font-barlow text-lg font-bold text-[#4A4A4A]">$</span>
+                <input
+                  id="gift-card-custom"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  value={customText ? new Intl.NumberFormat("es-CO").format(Number(customText)) : ""}
+                  onChange={(event) => {
+                    setCustomText(event.target.value.replace(/\D/g, "").slice(0, 9))
+                    setSelectedVariantId(null)
+                    setCustomError("")
+                    setMessage("")
+                  }}
+                  placeholder={`Entre ${formatCOP(min)} y ${formatCOP(max)}`}
+                  aria-describedby={customError ? "gift-card-custom-error" : undefined}
+                  aria-invalid={customError ? true : undefined}
+                  className="min-h-14 w-full rounded-[var(--store-radius-md)] border border-[#E0E0E0] bg-white pl-9 pr-4 font-barlow text-lg font-bold text-[#1C1C1C] focus:border-[#1C1C1C] focus:outline-none dark:border-white/20 dark:bg-[#1b1b1b] dark:text-white"
+                />
+              </div>
+              {customError && <p id="gift-card-custom-error" role="alert" className="mt-2 font-montserrat text-xs text-[#E31C23]">{customError}</p>}
             </div>
 
             <button
               type="button"
               onClick={handleAddToCart}
-              disabled={!selectedOption}
+              disabled={!displayAmount || adding}
               className="min-h-14 w-full rounded-[var(--store-radius-md)] bg-[#E31C23] font-barlow text-lg font-bold uppercase tracking-wider text-white transition-colors hover:bg-[#C01920] disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {selectedOption
-                ? `Añadir ${formatCOP(selectedOption.amount)} a la bolsa`
-                : "Selecciona un monto"}
+              {adding
+                ? "Preparando…"
+                : displayAmount
+                  ? `Añadir ${formatCOP(displayAmount)} a la bolsa`
+                  : "Selecciona o escribe un monto"}
             </button>
           </>
         )}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { parseEditorialConfig, resolveCollectionTiles } from "./editorial-config"
+import { MAX_HERO_ANGLES, expandFrameSequence, parseEditorialConfig, resolveCollectionTiles } from "./editorial-config"
 
 describe("editorial configuration", () => {
   it("maps a v1 campaign hero without changing the source configuration", () => {
@@ -89,4 +89,46 @@ it("parses an editorial campaign carousel while keeping legacy single campaigns 
   })
 
   expect(result).toMatchObject({ kind: "campaignHero", slides: [{ id: "drop-1" }, { id: "drop-2" }] })
+})
+
+describe("ángulos del giro 360", () => {
+  it("acepta hasta MAX_HERO_ANGLES fotos por slide y descarta el resto", () => {
+    const angles = Array.from({ length: 80 }, (_, i) => `https://res.cloudinary.com/demo/image/upload/giro/${i}.png`)
+    const config = parseEditorialConfig({
+      version: 1,
+      kind: "campaignHero",
+      slides: [{ headline: "Tecton X 3", primaryCta: { label: "Comprar", href: "/marcas/hoka" }, angles }],
+    })
+
+    expect(MAX_HERO_ANGLES).toBe(72)
+    expect(config.kind === "campaignHero" && config.slides?.[0]?.angles).toHaveLength(72)
+  })
+})
+
+describe("modo de movimiento del producto", () => {
+  it("guarda solo modos válidos", () => {
+    const slide = (spinMode: unknown) => parseEditorialConfig({ version: 1, kind: "campaignHero", slides: [{ headline: "Mafate 5", primaryCta: { label: "Comprar", href: "/productos" }, spinMode }] })
+    const mode = (spinMode: unknown) => { const config = slide(spinMode); return config.kind === "campaignHero" ? config.slides?.[0]?.spinMode : "error" }
+
+    expect(mode("mouse")).toBe("mouse")
+    expect(mode("static")).toBe("static")
+    expect(mode("volar")).toBeUndefined()
+  })
+})
+
+describe("expandFrameSequence", () => {
+  const first = "https://res.cloudinary.com/demo/image/upload/v17/one-star/giros/hoka/hoka-giro-00.webp"
+
+  it("arma la secuencia desde el primer cuadro conservando los ceros", () => {
+    const frames = expandFrameSequence(first, 72)!
+    expect(frames).toHaveLength(72)
+    expect(frames[1]).toBe("https://res.cloudinary.com/demo/image/upload/v17/one-star/giros/hoka/hoka-giro-01.webp")
+    expect(frames[71]).toMatch(/hoka-giro-71\.webp$/)
+  })
+
+  it("no pasa del máximo y rechaza links sin número o inseguros", () => {
+    expect(expandFrameSequence(first, 500)).toHaveLength(MAX_HERO_ANGLES)
+    expect(expandFrameSequence("https://res.cloudinary.com/demo/tenis.webp", 10)).toBeNull()
+    expect(expandFrameSequence("javascript:alert(00.webp)", 10)).toBeNull()
+  })
 })
