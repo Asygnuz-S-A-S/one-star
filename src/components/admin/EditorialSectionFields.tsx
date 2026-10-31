@@ -4,7 +4,7 @@
 import { useState } from "react"
 
 import { EDITORIAL_APPEARANCES, EDITORIAL_DESTINATIONS } from "@/lib/editorial-builder-form"
-import type { CampaignHeroSlide, EditorialAppearance } from "@/lib/editorial-config"
+import { MAX_HERO_ANGLES, expandFrameSequence, type CampaignHeroSlide, type EditorialAppearance, type HeroSpinMode } from "@/lib/editorial-config"
 
 type Config = Record<string, any>
 type Update = (next: Config) => void
@@ -106,19 +106,34 @@ export function CampaignHeroSlideFields({ config, onChange, onPickMedia }: Props
     <div className="border-t pt-3"><label className="flex min-h-11 items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={Boolean(secondary)} onChange={(event) => onChange({ ...config, ...(event.target.checked ? { secondaryCta: { label: "Ver más", href: "/productos" } } : { secondaryCta: undefined }) })} />Añadir un segundo botón</label>{secondary && <div className="mt-3 grid gap-3 sm:grid-cols-2"><div><label className={label}>Segundo botón</label><input value={secondary.label} onChange={(event) => onChange({ ...config, secondaryCta: { ...secondary, label: event.target.value } })} className={input} /></div><div><Destination id="campaign-secondary-destination" value={secondary.href} onChange={(href) => onChange({ ...config, secondaryCta: { ...secondary, href } })} /></div></div>}</div>
     <Media label="Producto en primer plano" media={config.foregroundMedia} onChange={(foregroundMedia) => onChange({ ...config, foregroundMedia })} onPickMedia={onPickMedia} />
     <p className="-mt-2 text-xs text-gray-500">Opcional. Un PNG sin fondo. Si no hay imágenes de fondo, el producto se muestra grande sobre el titular.</p>
+    <SpinSequence
+      onApply={(frames) => onChange({
+        ...config,
+        foregroundMedia: { src: frames[0], alt: config.headline || "Producto" },
+        angles: frames.slice(1).map((src) => ({ src, alt: config.headline || "Producto" })),
+      })}
+    />
     <div>
       <label className={label}>Fotos del giro, una dirección por línea</label>
       <textarea
         value={Array.isArray(config.angles) ? config.angles.map((item: { src?: string }) => item.src ?? "").filter(Boolean).join("\n") : ""}
         onChange={(event) => {
-          const angles = event.target.value.split("\n").map((line) => line.trim()).filter(Boolean).slice(0, 12).map((src) => ({ src, alt: config.headline || "Producto" }))
+          const angles = event.target.value.split("\n").map((line) => line.trim()).filter(Boolean).slice(0, MAX_HERO_ANGLES).map((src) => ({ src, alt: config.headline || "Producto" }))
           onChange({ ...config, angles: angles.length ? angles : undefined })
         }}
         rows={4}
         className={input}
         placeholder="https://.../frente.png"
       />
-      <p className="mt-1 text-xs text-gray-500">Con dos o más fotos del mismo zapato, en orden, el escenario las recorre. Una sola foto no se convierte en un video 3D.</p>
+      <p className="mt-1 text-xs text-gray-500">Con dos o más fotos del mismo zapato, en orden, el escenario las recorre. Desde 8 fotos (hasta {MAX_HERO_ANGLES}, PNG sin fondo del mismo tamaño) gira como un 360 continuo. Una sola foto no se convierte en un video 3D.</p>
+    </div>
+    <div>
+      <label className={label} htmlFor="campaign-spin-mode">Movimiento del producto</label>
+      <select id="campaign-spin-mode" value={config.spinMode ?? "auto"} onChange={(event) => onChange({ ...config, spinMode: event.target.value as HeroSpinMode })} className={input}>
+        <option value="auto">Gira solo (y se puede arrastrar)</option>
+        <option value="mouse">Gira al pasar el mouse (en celular, arrastrando)</option>
+        <option value="static">Quieto (solo la foto en primer plano)</option>
+      </select>
     </div>
   </div>
 }
@@ -144,5 +159,28 @@ export function CollectionTileFields({ config, onChange, onPickMedia, collection
     <div><Destination id="collection-destination" value={tile.href ?? target?.href ?? "/productos"} onChange={(href) => update({ href })} /></div>
     <Appearance value={(tile.appearance ?? "carbon") as EditorialAppearance} onChange={(appearance) => update({ appearance })} />
     <Media label="Imagen de colección" media={tile.media} onChange={(media) => update({ media })} onPickMedia={onPickMedia} />
+  </div>
+}
+
+/** Un solo link: el del primer cuadro (…-00.webp). Llena la foto en primer plano y las fotos del giro. */
+function SpinSequence({ onApply }: { onApply: (frames: string[]) => void }) {
+  const [first, setFirst] = useState("")
+  const [count, setCount] = useState(72)
+  const [error, setError] = useState("")
+  const apply = () => {
+    const frames = expandFrameSequence(first, count)
+    if (!frames || frames.length < 2) return setError("Pega el link del primer cuadro; debe terminar en un número, por ejemplo …-00.webp")
+    setError("")
+    onApply(frames)
+  }
+  return <div className="rounded border border-gray-200 bg-gray-50 p-3">
+    <label className={label} htmlFor="campaign-spin-first">Giro 360: link del primer cuadro</label>
+    <input id="campaign-spin-first" value={first} onChange={(event) => setFirst(event.target.value)} className={input} placeholder="https://res.cloudinary.com/.../hoka-giro-00.webp" />
+    <div className="mt-2 flex items-end gap-2">
+      <div className="w-28"><label className={label} htmlFor="campaign-spin-count">Cuadros</label><input id="campaign-spin-count" type="number" min={2} max={MAX_HERO_ANGLES} value={count} onChange={(event) => setCount(Number(event.target.value))} className={input} /></div>
+      <button type="button" onClick={apply} className="min-h-11 rounded bg-[#1C1C1C] px-4 text-xs font-bold uppercase tracking-wider text-white hover:bg-black">Armar giro</button>
+    </div>
+    {error && <p role="alert" className="mt-2 text-xs text-[#E31C23]">{error}</p>}
+    <p className="mt-1 text-xs text-gray-500">Llena solo la foto en primer plano y la lista de fotos del giro, en orden.</p>
   </div>
 }

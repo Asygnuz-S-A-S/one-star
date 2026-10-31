@@ -41,7 +41,7 @@ export default function StoreFooter({
         </nav>
       </div>
       <div className="border-t border-white/10 py-4 text-center font-montserrat text-xs text-white/50">
-        <p>© {new Date().getFullYear()} {storeName}. Todos los derechos reservados. · Versión 8</p>
+        <p>© {new Date().getFullYear()} {storeName}. Todos los derechos reservados. · Versión 9</p>
       </div>
     </footer>
   )

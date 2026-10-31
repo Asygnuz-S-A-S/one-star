@@ -11,11 +11,28 @@ vi.mock("@/server/repositories/gift-card.repository", () => ({
   redeemGiftCardAmountRecord: vi.fn(),
 }))
 
+const db = vi.hoisted(() => ({
+  settings: null as null | { giftCardAmounts?: string | null; giftCardMinAmount?: number; giftCardMaxAmount?: number; giftCardValidityMonths?: number },
+  prisma: {
+    category: { upsert: vi.fn(async () => ({ id: "cat-gift" })) },
+    product: { upsert: vi.fn(async ({ create }: { create: { slug: string } }) => ({ id: `prod-${create.slug}` })) },
+    variant: { upsert: vi.fn(async ({ create }: { create: { sku: string } }) => ({ id: `var-${create.sku}`, sku: create.sku })) },
+    inventoryLevel: { deleteMany: vi.fn(), create: vi.fn() },
+  },
+}))
+
+vi.mock("@/server/repositories/store-settings.repository", () => ({
+  findStoreSettingsReadOnly: vi.fn(async () => db.settings),
+}))
+
+vi.mock("@/server/db/prisma", () => ({ prisma: db.prisma }))
+
 vi.mock("../email.service", () => ({
   sendGiftCardEmail: vi.fn(async () => ({ success: true })),
 }))
 
 import {
+  ensureCustomGiftCardOption,
   getGiftCardOptions,
   issueGiftCardsForOrder,
   issueAndSendGiftCardsForOrder,
@@ -53,6 +70,41 @@ function variant(overrides: {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  db.settings = null
+})
+
+describe("montos personalizados", () => {
+  it("lista como botones solo los montos que configuró el admin", async () => {
+    db.settings = { giftCardAmounts: "50000\n100000" }
+    findVariants.mockResolvedValue([variant({ id: "a", amount: 50_000 }), variant({ id: "b", amount: 100_000 }), variant({ id: "c", amount: 137_000 })])
+    expect((await getGiftCardOptions()).map((o) => o.amount)).toEqual([50_000, 100_000])
+  })
+
+  it("sin montos en el admin, lista los estándar y oculta los personalizados", async () => {
+    findVariants.mockResolvedValue([variant({ id: "a", amount: 50_000 }), variant({ id: "c", amount: 137_000 })])
+    expect((await getGiftCardOptions()).map((o) => o.amount)).toEqual([50_000])
+  })
+
+  it("crea el producto del monto escrito y lo devuelve con precio de base de datos", async () => {
+    const option = await ensureCustomGiftCardOption(137_000)
+    expect(option).toEqual({ variantId: "var-GIFT-CARD-137000", productId: "prod-tarjeta-regalo-137000", sku: "GIFT-CARD-137000", amount: 137_000 })
+    expect(db.prisma.product.upsert).toHaveBeenCalledWith(expect.objectContaining({ where: { slug: "tarjeta-regalo-137000" } }))
+  })
+
+  it("el monto personalizado queda oculto: no se publica ni despublica uno del admin", async () => {
+    await ensureCustomGiftCardOption(100_000)
+    const args = db.prisma.product.upsert.mock.calls[0][0] as unknown as { create: { isPublished: boolean }; update: Record<string, unknown> }
+    expect(args.create.isPublished).toBe(false)
+    expect(args.update).not.toHaveProperty("isPublished")
+  })
+
+  it("rechaza montos fuera de los límites o que no están en miles", async () => {
+    db.settings = { giftCardMinAmount: 20_000, giftCardMaxAmount: 2_000_000 }
+    expect(await ensureCustomGiftCardOption(10_000)).toBeNull()
+    expect(await ensureCustomGiftCardOption(3_000_000)).toBeNull()
+    expect(await ensureCustomGiftCardOption(150_500)).toBeNull()
+    expect(db.prisma.product.upsert).not.toHaveBeenCalled()
+  })
 })
 
 describe("getGiftCardOptions", () => {

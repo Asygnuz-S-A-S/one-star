@@ -1,6 +1,9 @@
 import { isSafePublicUrl } from "@/lib/safe-url"
 
 export type EditorialAppearance = "light" | "carbon" | "oneStarRed"
+/** Cómo se mueve el producto con fotos del giro: quieto, girando solo o siguiendo el mouse. */
+export type HeroSpinMode = "static" | "auto" | "mouse"
+export const HERO_SPIN_MODES: HeroSpinMode[] = ["auto", "mouse", "static"]
 
 type EditorialCta = { href: string; label: string }
 type EditorialMedia = { alt: string; src: string }
@@ -13,6 +16,8 @@ export type CampaignHeroSlide = {
   foregroundMedia?: EditorialMedia
   /** Tomas en orden para recorrer el producto. Hacen falta al menos dos. */
   angles?: EditorialMedia[]
+  /** Sin valor: "auto". */
+  spinMode?: HeroSpinMode
   headline: string
   id: string
   mobileMedia?: EditorialMedia
@@ -28,6 +33,7 @@ export type CampaignHeroConfig = {
   eyebrow?: string
   foregroundMedia?: EditorialMedia
   angles?: EditorialMedia[]
+  spinMode?: HeroSpinMode
   headline: string
   kind: "campaignHero"
   mobileMedia?: EditorialMedia
@@ -70,6 +76,22 @@ function appearance(value: unknown): EditorialAppearance {
   return typeof value === "string" && appearances.has(value as EditorialAppearance) ? value as EditorialAppearance : "carbon"
 }
 
+/** Fotos del giro: 72 = una vuelta de 5° por cuadro. */
+export const MAX_HERO_ANGLES = 72
+
+/**
+ * Arma la secuencia del giro a partir del link del primer cuadro: cambia el último número del
+ * nombre (`…-00.webp` → `…-01.webp` …) conservando los ceros. Null si el link no termina en número.
+ */
+export function expandFrameSequence(firstUrl: string, count: number): string[] | null {
+  const match = /^(.*?)(\d+)(\.[a-z0-9]+)(\?.*)?$/i.exec(firstUrl.trim())
+  if (!match || !isSafePublicUrl(firstUrl.trim())) return null
+  const [, head, digits, ext, query = ""] = match
+  const start = Number(digits)
+  const total = Math.min(Math.max(Math.trunc(count), 1), MAX_HERO_ANGLES)
+  return Array.from({ length: total }, (_, i) => `${head}${String(start + i).padStart(digits.length, "0")}${ext}${query}`)
+}
+
 function angleList(value: unknown, fallbackAlt: string): EditorialMedia[] | undefined {
   if (!Array.isArray(value)) return undefined
   const items = value.flatMap((item) => {
@@ -78,7 +100,7 @@ function angleList(value: unknown, fallbackAlt: string): EditorialMedia[] | unde
     const src = typeof item === "string" ? text(item) : undefined
     return src && isSafePublicUrl(src) ? [{ src, alt: fallbackAlt }] : []
   })
-  return items.length > 0 ? items.slice(0, 12) : undefined
+  return items.length > 0 ? items.slice(0, MAX_HERO_ANGLES) : undefined
 }
 
 function media(value: unknown): EditorialMedia | undefined {
@@ -122,6 +144,7 @@ export function parseEditorialConfig(value: unknown): EditorialConfig {
         ...(media(slide?.tabletMedia) ? { tabletMedia: media(slide?.tabletMedia) } : {}),
         ...(media(slide?.foregroundMedia) ? { foregroundMedia: media(slide?.foregroundMedia) } : {}),
         ...(angleList(slide?.angles, headline) ? { angles: angleList(slide?.angles, headline) } : {}),
+        ...(HERO_SPIN_MODES.includes(slide?.spinMode as HeroSpinMode) ? { spinMode: slide?.spinMode as HeroSpinMode } : {}),
       }
     }
     const slides = Array.isArray(config.slides) ? config.slides.flatMap((slide, index) => {
@@ -193,5 +216,6 @@ export function resolveCampaignSlides(campaign: CampaignHeroConfig): CampaignHer
     ...(campaign.mobileMedia ? { mobileMedia: campaign.mobileMedia } : {}),
     ...(campaign.foregroundMedia ? { foregroundMedia: campaign.foregroundMedia } : {}),
     ...(campaign.angles?.length ? { angles: campaign.angles } : {}),
+    ...(campaign.spinMode ? { spinMode: campaign.spinMode } : {}),
   }]
 }
