@@ -51,6 +51,12 @@ vi.mock("@/server/services/email.service", () => ({
   sendOrderConfirmationEmail: vi.fn(),
 }))
 
+const giftCardLimits = vi.hoisted(() => ({ value: { minAmount: 20_000, maxAmount: 2_000_000, validityMonths: 12 } }))
+vi.mock("@/server/services/store-settings.service", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/server/services/store-settings.service")>()),
+  getGiftCardLimits: vi.fn(async () => giftCardLimits.value),
+}))
+
 import {
   placeOrder,
   getOrderById,
@@ -253,6 +259,31 @@ describe("placeOrder — productos que no existen en el ERP (tarjetas de regalo)
     const input = mockCreate.mock.calls[0][0]
     expect(input.total).toBe(50000)
     expect((input.shippingAddress as { shippingCost: number }).shippingCost).toBe(0)
+  })
+
+  it("cobra una tarjeta de monto personalizado (no publicada) con el precio de la BD", async () => {
+    const custom = { ...giftCardVariant, id: "var-137", sku: "GIFT-CARD-137000", productId: "prod-137", product: { ...giftCardVariant.product, id: "prod-137", basePrice: makeDecimal(137000) } }
+    mockPricing.mockResolvedValue([custom] as never)
+    mockGetStock.mockResolvedValue([{ id: "var-137", stock: 9999, sku: "GIFT-CARD-137000" }])
+
+    await placeOrder(null, {
+      items: [{ productId: "prod-137", variantId: "var-137", sku: "GIFT-CARD-137000", productName: "Tarjeta", quantity: 1 }],
+      shippingMethod: "standard",
+    })
+
+    expect(mockCreate.mock.calls[0][0].total).toBe(137000)
+  })
+
+  it("rechaza una tarjeta cuyo monto quedó fuera de los límites del admin", async () => {
+    giftCardLimits.value = { minAmount: 100_000, maxAmount: 2_000_000, validityMonths: 12 }
+    mockPricing.mockResolvedValue([giftCardVariant] as never)
+
+    await expect(placeOrder(null, {
+      items: [{ productId: "prod-gift", variantId: "var-gift", sku: "GIFT-CARD-50000", productName: "Tarjeta", quantity: 1 }],
+      shippingMethod: "standard",
+    })).rejects.toThrow(/no está disponible/i)
+    expect(mockCreate).not.toHaveBeenCalled()
+    giftCardLimits.value = { minAmount: 20_000, maxAmount: 2_000_000, validityMonths: 12 }
   })
 
   it("en un carrito mixto solo envía al ERP los SKU vinculados y sí cobra envío", async () => {

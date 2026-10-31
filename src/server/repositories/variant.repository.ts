@@ -1,5 +1,6 @@
 import "server-only"
 import { prisma } from "../db/prisma"
+import { GIFT_CARD_SKU_PREFIX } from "@/lib/gift-card"
 import { isRealColor } from "@/lib/colors"
 import type { Variant } from "@prisma/client"
 
@@ -44,7 +45,10 @@ export async function findVariantsForPricing(variantIds: string[]) {
   return prisma.variant.findMany({
     where: {
       id: { in: variantIds },
-      product: { isPublished: true, availableOnline: true },
+      product: { availableOnline: true },
+      // Las tarjetas de regalo de monto personalizado no se publican (no salen en el catálogo),
+      // pero se pueden pagar; el checkout valida su monto contra los límites del admin.
+      OR: [{ product: { isPublished: true } }, { sku: { startsWith: GIFT_CARD_SKU_PREFIX } }],
     },
     select: {
       id: true,
