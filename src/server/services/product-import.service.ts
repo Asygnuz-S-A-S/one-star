@@ -12,7 +12,8 @@ import {
   findVariantsBySkus,
   type ProductForImport,
 } from "@/server/repositories/product.repository"
-import { persistProductImport } from "@/server/repositories/product-import.repository"
+import { findVariantsForCrossSellRefs, persistProductImport } from "@/server/repositories/product-import.repository"
+import { matchCrossSellRefs, parseCrossSellRefs } from "@/lib/cross-sell"
 import { isErpCatalogOwner } from "@/server/services/catalog-source.service"
 import {
   isSkippedBrand,
@@ -63,7 +64,7 @@ export const TEMPLATE_COLUMNS = [
   "description", "extendedDescription", "size", "sizeUS", "sizeCM", "sizeEUR", "color", "stock",
   "image1", "image2", "image3", "image4", "image5", "image6", "image7", "image8", "videoUrl",
   "photosFolderUrl", "readyFlag", "colorGroup", "isPublished", "availableOnline", "availableInStores",
-  "isFeatured", "isLaunch", "highlights", "faqs", "metaTitle", "metaDescription",
+  "isFeatured", "isLaunch", "highlights", "faqs", "metaTitle", "metaDescription", "crossSells",
 ] as const
 
 /**
@@ -299,6 +300,13 @@ export const COLUMN_HEADER_ALIASES: Record<string, string> = {
   "POR QUE COMPRARLO": "highlights",
   "¿POR QUÉ COMPRARLO?": "highlights",
   HIGHLIGHTS: "highlights",
+  // Ventas cruzadas ("Combínalo con"): referencias separadas por coma
+  "VENTAS CRUZADAS": "crossSells",
+  "VENTA CRUZADA": "crossSells",
+  "COMBINALO CON": "crossSells",
+  "COMBÍNALO CON": "crossSells",
+  CROSSSELLS: "crossSells",
+  "CROSS SELLS": "crossSells",
   // FAQs
   FAQS: "faqs",
   FAQ: "faqs",
@@ -368,6 +376,7 @@ export function matchHeader(rawHeader: unknown): string | null {
     islaunch: "isLaunch",
     highlights: "highlights",
     faqs: "faqs",
+    crosssells: "crossSells",
   }
   if (Object.prototype.hasOwnProperty.call(directMap, lowerKey)) {
     return directMap[lowerKey]
@@ -957,6 +966,15 @@ async function planImport(
   }
 
   // 9. Asignar acciones, conteo de variantes y mensajes detallados
+  // Referencias de ventas cruzadas que existen en la tienda o en el mismo archivo.
+  const crossSellRefs = [...new Set([...groups.values()].flatMap((g) => g.variants.flatMap((v) => parseCrossSellRefs(v.row.crossSells))))]
+  const knownCrossSellRefs = crossSellRefs.length === 0
+    ? new Map<string, string>()
+    : matchCrossSellRefs(crossSellRefs, [
+        ...[...groups.values()].flatMap((g) => g.variants.map((v) => ({ sku: v.row.sku, productId: "archivo" }))),
+        ...(await findVariantsForCrossSellRefs(crossSellRefs)),
+      ])
+
   for (const group of groups.values()) {
     let productAlreadyPlanned = group.existingProductId !== null
     const totalVariants = group.variants.length
@@ -989,6 +1007,10 @@ async function planImport(
       }
       if (v.row.metaDescription && v.row.metaDescription.length > 160) {
         warnings.push("Descripción SEO excede los 160 caracteres recomendados")
+      }
+      const missingCrossSells = parseCrossSellRefs(v.row.crossSells).filter((ref) => !knownCrossSellRefs.has(ref))
+      if (missingCrossSells.length > 0) {
+        warnings.push(`ventas cruzadas sin producto: ${missingCrossSells.join(", ")}`)
       }
 
       let msg = ""
