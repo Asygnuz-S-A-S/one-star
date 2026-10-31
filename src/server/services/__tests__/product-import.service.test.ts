@@ -19,6 +19,7 @@ const txMock = {
     createMany: vi.fn(async () => ({ count: 0 })),
   },
   variant: {
+    findMany: vi.fn(async () => [] as { sku: string; productId: string }[]),
     create: vi.fn(async (args?: { data: Record<string, unknown> }) => ({ id: "new-variant-id", ...(args?.data ?? {}) })),
     update: vi.fn(async (args: { where: { id: string }; data: Record<string, unknown> }) => ({ id: args.where.id, ...args.data })),
   },
@@ -37,6 +38,8 @@ const txMock = {
 vi.mock("@/server/db/prisma", () => ({
   prisma: {
     $transaction: vi.fn(async (cb: (tx: typeof txMock) => unknown) => cb(txMock)),
+    // Vista previa: busca ventas cruzadas fuera de la transacción.
+    variant: { findMany: (...args: unknown[]) => (txMock.variant.findMany as (...a: unknown[]) => unknown)(...args) },
     storeSettings: {
       findUnique: vi.fn(async () => ({ catalogSource: "ARCHIVO" })),
     },
@@ -865,6 +868,51 @@ describe("applyProductImport", () => {
         }),
       })
     )
+  })
+
+  it("VENTAS CRUZADAS: avisa en la vista previa las referencias que no existen ni en la tienda ni en el archivo", async () => {
+    txMock.variant.findMany.mockResolvedValueOnce([{ sku: "VANS-1_40", productId: "p-vans" }])
+    const headers = [...COLUMNS, "VENTAS CRUZADAS"]
+    const buffer = buildBuffer(
+      [
+        [...baseRow(), "NK-2, VANS-1, NO-EXISTE"],
+        [...baseRow({ sku: "NK-2", name: "Nike Vomero 18" }), ""],
+      ],
+      headers,
+      false
+    )
+    const preview = await previewProductImport(buffer)
+    expect(preview.rows[0].warnings).toContain("ventas cruzadas sin producto: NO-EXISTE")
+    expect((preview.rows[1]?.warnings ?? []).join()).not.toContain("ventas cruzadas")
+  })
+
+  it("VENTAS CRUZADAS: al aplicar conecta los productos con crossSells.set (sin incluirse a sí mismo)", async () => {
+    txMock.product.create
+      .mockResolvedValueOnce({ id: "prod-a" } as never)
+      .mockResolvedValueOnce({ id: "prod-b" } as never)
+    const headers = [...COLUMNS, "VENTAS CRUZADAS"]
+    const buffer = buildBuffer(
+      [
+        [...baseRow(), "NK-2, NK-1"],
+        [...baseRow({ sku: "NK-2", name: "Nike Vomero 18" }), ""],
+      ],
+      headers,
+      false
+    )
+    const preview = await previewProductImport(buffer)
+    const inDb = [
+      { sku: "NK-1", productId: "prod-a" },
+      { sku: "NK-2", productId: "prod-b" },
+    ]
+    // apply recalcula la vista previa (1.ª llamada) y luego conecta dentro de la transacción (2.ª).
+    txMock.variant.findMany.mockResolvedValueOnce(inDb).mockResolvedValueOnce(inDb)
+    await applyProductImport(buffer, preview.fingerprint)
+
+    expect(txMock.product.update).toHaveBeenCalledWith({
+      where: { id: "prod-a" },
+      data: { crossSells: { set: [{ id: "prod-b" }] } },
+    })
+    expect(txMock.product.update).not.toHaveBeenCalledWith(expect.objectContaining({ where: { id: "prod-b" }, data: expect.objectContaining({ crossSells: expect.anything() }) }))
   })
 
   it("falla sin escribir si el catálogo cambió desde la vista previa", async () => {
