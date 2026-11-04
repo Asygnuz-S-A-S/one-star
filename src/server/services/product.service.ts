@@ -1,4 +1,5 @@
 import "server-only"
+import { getCatalogRules } from "./store-settings.service"
 import { serializeDecimals, type WithPlainDecimals } from "@/lib/serialize-decimals"
 import {
   findManyProducts,
@@ -629,6 +630,7 @@ export interface ProductSitemapEntry {
 
 /** Entradas de producto para `src/app/sitemap.ts`. */
 export async function getProductSitemapEntries(): Promise<ProductSitemapEntry[]> {
-  const rows = await findPublishedProductSitemapEntries()
+  const { hideImagelessProducts } = await getCatalogRules()
+  const rows = await findPublishedProductSitemapEntries(hideImagelessProducts)
   return rows.map((row) => ({ slug: row.slug, updatedAt: row.updatedAt, imageUrl: row.images[0]?.url ?? null }))
 }

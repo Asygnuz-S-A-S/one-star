@@ -12,17 +12,7 @@ import {
   type CheckoutRegistrationPrefill,
 } from "@/lib/checkout-draft"
 import { registerCustomer } from "./actions"
-
-const BRANDS = [
-  "Nike",
-  "New Balance",
-  "Hoka",
-  "Veja",
-  "On Running",
-  "Adidas",
-  "Asics",
-  "Sin preferencia",
-]
+import { usePreferredBrands } from "@/hooks/usePreferredBrands"
 
 interface FormErrors {
   name?: string
@@ -174,6 +164,7 @@ function RegistroForm() {
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [preferredBrand, setPreferredBrand] = useState("")
+  const brandOptions = usePreferredBrands()
   const [gender, setGender] = useState("")
   const [terms, setTerms] = useState(false)
   const [newsletter, setNewsletter] = useState(false)
@@ -459,7 +450,7 @@ function RegistroForm() {
               className={`${inputClass(errors.preferredBrand)} dark:[color-scheme:dark]`}
             >
               <option value="">Selecciona una marca</option>
-              {BRANDS.map((b) => (
+              {brandOptions.map((b) => (
                 <option key={b} value={b}>
                   {b}
                 </option>

@@ -15,6 +15,8 @@ export interface EpaycoWebhookPayload {
    */
   x_invoice: string
   x_signature?: string
+  /** "TRUE" cuando ePayco procesó la transacción en modo de pruebas. */
+  x_test_request?: string
 }
 
 /** Lo mínimo que un mapa de formulario necesita exponer para ser parseado. */
@@ -50,6 +52,7 @@ export function parseEpaycoWebhookPayload(formData: FormDataLike): EpaycoWebhook
     x_transaction_state: readField(formData, "x_transaction_state"),
     x_invoice: readField(formData, "x_id_invoice", "x_id_factura", "x_invoice"),
     x_signature: readField(formData, "x_signature"),
+    x_test_request: readField(formData, "x_test_request"),
   }
 }
 
@@ -101,6 +104,7 @@ export interface EpaycoTransaction {
   currencyCode: string
   codResponse: string
   transactionState: string
+  testRequest: string
 }
 
 interface EpaycoValidationResponse {
@@ -147,6 +151,7 @@ export async function fetchEpaycoTransaction(refPayco: string): Promise<EpaycoTr
       currencyCode: asString(data.x_currency_code),
       codResponse: asString(data.x_cod_response),
       transactionState: asString(data.x_transaction_state),
+      testRequest: asString(data.x_test_request),
     }
   } catch (error) {
     console.error(`[epayco] No se pudo consultar la referencia ${refPayco}:`, error)

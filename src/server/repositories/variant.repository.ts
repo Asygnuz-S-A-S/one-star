@@ -104,3 +104,11 @@ export async function findVariantForCartDisplay(variantId: string) {
     },
   })
 }
+
+/** Tallas con stock de un producto publicado y vendible en línea (botón "agregar" de las tarjetas). */
+export async function findVariantsForQuickAdd(productId: string) {
+  return prisma.variant.findMany({
+    where: { productId, stock: { gt: 0 }, product: { isPublished: true, availableOnline: true } },
+    select: { id: true, sku: true, size: true, color: true },
+  })
+}

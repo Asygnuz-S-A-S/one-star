@@ -12,7 +12,7 @@ import CookieBanner from "@/components/legal/CookieBanner";
 export const metadata: Metadata = {
   title: "One Star | Urban Performance",
   description:
-    "Tienda de calzado urbano y deportivo premium. Nike, New Balance, Veja y más.",
+    "Tienda de calzado urbano y deportivo premium en Colombia.",
 };
 
 import { getActiveNavigationItems } from "@/server/repositories/navigation.repository";

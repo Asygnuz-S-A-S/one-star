@@ -41,7 +41,8 @@ export async function getDashboardData() {
     prisma.order.count({ where: { status: "PAID" } }),
     prisma.orderItem.groupBy({
       by: ["productId"],
-      _sum: { quantity: true, unitPrice: true },
+      where: { order: paidSale },
+      _sum: { quantity: true },
       orderBy: { _sum: { quantity: "desc" } },
       take: 5,
     }),
@@ -76,13 +77,25 @@ export async function getDashboardData() {
   ])
 
   let products: Array<{ id: string; name: string; brand: string | null }> = []
+  const topProductRevenue: Record<string, number> = {}
   if (orderItemsRaw.length > 0) {
     const productIds = orderItemsRaw.map((oi) => oi.productId)
-    const rows = await prisma.product.findMany({
-      where: { id: { in: productIds } },
-      select: { id: true, name: true, brand: { select: { name: true } } }
-    })
+    const [rows, soldItems] = await Promise.all([
+      prisma.product.findMany({
+        where: { id: { in: productIds } },
+        select: { id: true, name: true, brand: { select: { name: true } } }
+      }),
+      // Precio por cantidad línea a línea: sumar precios y cantidades por separado infla el total.
+      prisma.orderItem.findMany({
+        where: { order: paidSale, productId: { in: productIds } },
+        select: { productId: true, quantity: true, unitPrice: true },
+      }),
+    ])
     products = rows.map((p) => ({ id: p.id, name: p.name, brand: p.brand?.name ?? null }))
+    for (const item of soldItems) {
+      topProductRevenue[item.productId] =
+        (topProductRevenue[item.productId] ?? 0) + Number(item.unitPrice) * item.quantity
+    }
   }
 
   return {
@@ -93,6 +106,7 @@ export async function getDashboardData() {
     orderItemsRaw,
     lowStockRaw,
     topProductsData: products,
+    topProductRevenue,
     revenueByDayRaw,
     ordersByStatusRaw,
     currentPeriodOrders,

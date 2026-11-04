@@ -4,7 +4,7 @@ export const CHECKOUT_DRAFT_TTL_MS = 30 * 60 * 1000
 const CHECKOUT_DRAFT_VERSION = 1
 const MAX_SERIALIZED_DRAFT_LENGTH = 8_192
 
-export type CheckoutShippingMethod = "standard" | "express"
+export type CheckoutShippingMethod = "standard" | "express" | "pickup"
 
 export interface CheckoutFormDraft {
   email: string
@@ -77,7 +77,7 @@ function isCheckoutFormDraft(value: unknown): value is CheckoutFormDraft {
   const hasValidBooleans =
     typeof form.newsletter === "boolean" && typeof form.saveAddress === "boolean"
   const hasValidShipping =
-    form.shippingMethod === "standard" || form.shippingMethod === "express"
+    form.shippingMethod === "standard" || form.shippingMethod === "express" || form.shippingMethod === "pickup"
 
   return hasValidStrings && hasValidBooleans && hasValidShipping
 }

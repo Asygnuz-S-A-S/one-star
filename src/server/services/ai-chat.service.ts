@@ -41,7 +41,7 @@ function getClient(): Anthropic | null {
 }
 
 function systemPrompt(knowledge: string) {
-  return `Eres el asesor de compras virtual exclusivo de One Star, tienda colombiana especializada en ropa y calzado deportivo y urbano premium (Nike, New Balance, Veja, Hoka, Vans, Converse, Skechers, Asics, Adidas).
+  return `Eres el asesor de compras virtual exclusivo de One Star, tienda colombiana especializada en ropa y calzado deportivo y urbano premium. Solo ofrece las marcas y productos que devuelva el catálogo.
 
 Tu único objetivo es guiar al cliente hacia la compra informada de productos de nuestra tienda.
 

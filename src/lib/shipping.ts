@@ -4,7 +4,8 @@
  * lógica; los valores enviados por el cliente son solo informativos.
  */
 
-export type ShippingMethod = "standard" | "express"
+/** "pickup": el cliente paga en línea y recoge en una tienda física, sin costo de envío. */
+export type ShippingMethod = "standard" | "express" | "pickup"
 
 export interface ShippingRates {
   /** Compra desde la que el envío estándar es gratis, en pesos. */
@@ -37,7 +38,7 @@ export function getShippingCost(
   options: ShippingCostOptions = {}
 ): number {
   const rates = options.rates ?? DEFAULT_SHIPPING_RATES
-  if (options.digitalOnly) return 0
+  if (options.digitalOnly || method === "pickup") return 0
   if (method === "express") return rates.expressCost
   return subtotal >= rates.freeThreshold ? 0 : rates.standardCost
 }

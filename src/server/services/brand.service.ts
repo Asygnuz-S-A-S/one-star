@@ -10,6 +10,7 @@ import {
 } from "../repositories/brand.repository"
 import type { Brand } from "@prisma/client"
 import { slugify } from "@/lib/utils"
+import { getCatalogRules } from "./store-settings.service"
 import { parseProductFaqs, type ProductFaq } from "@/lib/product-faq"
 
 export interface BrandDTO {
@@ -102,7 +103,8 @@ export interface StorefrontBrandDTO extends BrandDTO {
 
 /** Marcas para el directorio público: activas y con productos publicados. */
 export async function getStorefrontBrands(): Promise<StorefrontBrandDTO[]> {
-  const brands = await findActiveBrandsWithPublishedProducts()
+  const { hideImagelessProducts } = await getCatalogRules()
+  const brands = await findActiveBrandsWithPublishedProducts(hideImagelessProducts)
   return brands.map((brand) => ({ ...mapToDTO(brand), productCount: brand._count.products }))
 }
 

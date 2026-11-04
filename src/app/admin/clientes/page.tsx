@@ -1,9 +1,9 @@
 import { getCustomers } from "@/server/services/user.service"
+import { getAllBrands } from "@/server/services/brand.service"
 import Link from "next/link"
 import { ClientesTable } from "@/components/admin/ClientesTable"
 
 const PAGE_SIZE = 25
-const BRANDS = ["Nike", "New Balance", "Hoka", "Veja", "On", "Adidas", "Asics"]
 
 interface SearchParams {
   q?: string
@@ -23,7 +23,10 @@ export default async function ClientesPage({ searchParams }: Props) {
   const page = Math.max(1, parseInt(params.page ?? "1") || 1)
   const segment = params.segmento === "club" || params.segmento === "newsletter" ? params.segmento : undefined
 
-  const { customers, total } = await getCustomers({ q, page, pageSize: PAGE_SIZE, segment })
+  const [{ customers, total }, brands] = await Promise.all([
+    getCustomers({ q, page, pageSize: PAGE_SIZE, segment, brand: brand || undefined }),
+    getAllBrands(true),
+  ])
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   function buildUrl(overrides: Record<string, string | undefined>) {
@@ -81,8 +84,8 @@ export default async function ClientesPage({ searchParams }: Props) {
           className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-[#1C1C1C] bg-white focus:outline-none focus:ring-2 focus:ring-[#E31C23]"
         >
           <option value="">Todas las marcas</option>
-          {BRANDS.map((b) => (
-            <option key={b} value={b}>{b}</option>
+          {brands.map((b) => (
+            <option key={b.id} value={b.name}>{b.name}</option>
           ))}
         </select>
         <select

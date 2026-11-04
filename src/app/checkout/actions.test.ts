@@ -23,6 +23,9 @@ vi.mock("@/server/services/user.service", () => ({
 vi.mock("@/server/services/public-rate-limit.service", () => ({
   consumePublicRateLimit: vi.fn(),
 }))
+vi.mock("@/server/services/store.service", () => ({
+  getPickupStores: vi.fn().mockResolvedValue([{ id: "store-fundadores", name: "One Star Fundadores", address: "C.C. Fundadores, local 158", city: "Manizales", department: "Caldas" }]),
+}))
 vi.mock("@/server/services/guest-order.service", () => ({
   signGuestOrderSuccessToken: vi.fn().mockReturnValue("mock-guest-token-123"),
 }))
@@ -212,5 +215,26 @@ describe("createOrder", () => {
         marketingConsentVersion: "v2.0",
       })
     )
+  })
+
+  it("recoger en tienda: el pedido lleva la dirección de la tienda, no la del cliente", async () => {
+    vi.mocked(auth.api.getSession).mockResolvedValue(null)
+    vi.mocked(placeOrder).mockResolvedValue({ id: "order-pickup-1", total: 200_000 } as never)
+
+    const result = await createOrder({ ...validCheckoutData, shippingMethod: "pickup", pickupStoreId: "store-fundadores", address: "", city: "", department: "" })
+
+    expect(result.success).toBe(true)
+    expect(result.epaycoData?.address).toBe("C.C. Fundadores, local 158")
+    expect(placeOrder).toHaveBeenCalledWith(null, expect.objectContaining({
+      shippingMethod: "pickup",
+      shippingAddress: expect.objectContaining({ address: "C.C. Fundadores, local 158", city: "Manizales", department: "Caldas", pickupStoreId: "store-fundadores", pickupStoreName: "One Star Fundadores" }),
+    }))
+  })
+
+  it("recoger en tienda: rechaza una tienda que no existe o está inactiva", async () => {
+    vi.mocked(auth.api.getSession).mockResolvedValue(null)
+    const result = await createOrder({ ...validCheckoutData, shippingMethod: "pickup", pickupStoreId: "store-cerrada" })
+    expect(result).toEqual(expect.objectContaining({ success: false, error: "La tienda elegida no está disponible. Elige otra." }))
+    expect(placeOrder).not.toHaveBeenCalled()
   })
 })

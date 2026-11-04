@@ -27,12 +27,15 @@ export const checkoutSchema = z.object({
     .string()
     .transform((v) => v.replace(/\s/g, ""))
     .pipe(z.string().regex(/^[0-9]{6,12}$/, "Ingresa un documento o cédula válido (6 a 12 dígitos)")),
-  address: z.string().trim().min(1, "La dirección es requerida").max(300),
+  // Dirección, ciudad y departamento solo son obligatorios con envío a domicilio (ver refine abajo).
+  address: z.string().trim().max(300).default(""),
   apartment: z.string().trim().max(120).optional(),
-  city: z.string().trim().min(1, "La ciudad es requerida").max(120),
-  department: z.string().trim().min(1, "El departamento es requerido").max(120),
+  city: z.string().trim().max(120).default(""),
+  department: z.string().trim().max(120).default(""),
   postalCode: z.string().trim().max(20).optional(),
-  shippingMethod: z.enum(["standard", "express"]),
+  shippingMethod: z.enum(["standard", "express", "pickup"]),
+  /** Tienda donde se recoge el pedido; obligatoria con shippingMethod "pickup". */
+  pickupStoreId: z.string().trim().min(1).max(64).optional(),
   paymentMethod: z.enum(["epayco", "mercadopago", "addi"]),
   couponCode: z.string().trim().max(40).optional(),
   termsAccepted: z.boolean().refine((val) => val === true, {
@@ -42,6 +45,14 @@ export const checkoutSchema = z.object({
   marketingConsent: z.boolean().default(false),
   marketingConsentVersion: z.string().trim().max(40).optional(),
   items: z.array(checkoutItemSchema).min(1, "La bolsa está vacía").max(100),
+}).superRefine((data, ctx) => {
+  if (data.shippingMethod === "pickup") {
+    if (!data.pickupStoreId) ctx.addIssue({ code: "custom", path: ["pickupStoreId"], message: "Elige la tienda donde vas a recoger tu pedido" })
+    return
+  }
+  if (!data.address) ctx.addIssue({ code: "custom", path: ["address"], message: "La dirección es requerida" })
+  if (!data.city) ctx.addIssue({ code: "custom", path: ["city"], message: "La ciudad es requerida" })
+  if (!data.department) ctx.addIssue({ code: "custom", path: ["department"], message: "El departamento es requerido" })
 })
 
 export type ValidatedCheckout = z.infer<typeof checkoutSchema>

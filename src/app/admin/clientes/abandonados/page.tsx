@@ -1,3 +1,4 @@
+import { summarizeCartData } from "@/lib/cart-data"
 import Link from "next/link"
 import { getAbandonedCarts } from "@/server/services/abandoned-cart.service"
 import AbandonedCartRow from "./AbandonedCartRow"
@@ -10,20 +11,6 @@ interface SearchParams {
 
 interface Props {
   searchParams: Promise<SearchParams>
-}
-
-function cartValue(cartData: unknown): number {
-  if (!cartData || typeof cartData !== "object") return 0
-  const data = cartData as Record<string, unknown>
-  if (Array.isArray(data.items)) {
-    return (data.items as Array<Record<string, unknown>>).reduce((sum, item) => {
-      const price = Number(item.price ?? item.unitPrice ?? 0)
-      const qty = Number(item.quantity ?? 1)
-      return sum + price * qty
-    }, 0)
-  }
-  if (typeof data.total === "number") return data.total
-  return 0
 }
 
 export default async function AbandonedCartsPage({ searchParams }: Props) {
@@ -72,7 +59,7 @@ export default async function AbandonedCartsPage({ searchParams }: Props) {
                         email: cart.email,
                         createdAt: cart.createdAt,
                         recoveredAt: cart.recoveredAt,
-                        cartValue: cartValue(cart.cartData),
+                        cartValue: summarizeCartData(cart.cartData).value,
                       }}
                     />
                   ))}

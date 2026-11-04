@@ -2,9 +2,9 @@ import { permanentRedirect } from "next/navigation"
 
 /**
  * Ruta heredada: la grilla del inicio y enlaces antiguos apuntan a /ninos,
- * pero la categoría canónica vive en /c/ninos. Se redirige de forma permanente
- * para no dejar 404 ni duplicar la vitrina de `src/app/c/[slug]/page.tsx`.
+ * y el catálogo ya filtra por género. /c/* depende de que exista la categoría, y en
+ * producción no existe: redirigir allá terminaba en 404.
  */
 export default function NinosLegacyPage(): never {
-  permanentRedirect("/c/ninos")
+  permanentRedirect("/productos?genero=ninos")
 }

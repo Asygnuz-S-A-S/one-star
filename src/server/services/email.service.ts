@@ -42,12 +42,14 @@ export async function sendOrderConfirmationEmail(params: {
   orderId: string
   items: OrderEmailItem[]
   total: number
+  pickupStore?: { name: string; address: string }
 }): Promise<SendEmailResult> {
   const { subject, html } = orderConfirmationEmail({
     name: params.name,
     orderId: params.orderId,
     items: params.items,
     total: params.total,
+    pickupStore: params.pickupStore,
   })
   return sendEmail({ to: params.email, subject, html })
 }
