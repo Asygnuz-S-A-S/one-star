@@ -19,7 +19,7 @@ interface OrderSummaryProps {
 }
 
 export default function OrderSummary({ shippingCost, appliedCoupon, onCouponChange }: OrderSummaryProps) {
-  const { items, subtotal } = useCart()
+  const { items, subtotal, removeItem } = useCart()
   const [isExpanded, setIsExpanded] = useState(false)
   const [couponCode, setCouponCode] = useState("")
   const [couponError, setCouponError] = useState("")
@@ -116,10 +116,24 @@ export default function OrderSummary({ shippingCost, appliedCoupon, onCouponChan
                   </p>
                 </div>
 
-                {/* Price */}
-                <span className="font-montserrat text-sm font-medium text-[#1C1C1C] flex-shrink-0">
-                  {formatCOP(item.price * item.quantity)}
-                </span>
+                {/* Price + quitar */}
+                <div className="flex flex-shrink-0 flex-col items-end gap-1">
+                  <span className="font-montserrat text-sm font-medium text-[#1C1C1C]">
+                    {formatCOP(item.price * item.quantity)}
+                  </span>
+                  <button
+                    type="button"
+                    // El descuento del cupón se calculó sobre la bolsa anterior: se vuelve a aplicar.
+                    onClick={() => { removeItem(item.id); if (appliedCoupon) onCouponChange(null) }}
+                    aria-label={`Eliminar ${item.name} talla ${item.size} del pedido`}
+                    className="-mr-1 inline-flex min-h-8 items-center gap-1 rounded px-1 font-montserrat text-xs text-[#4A4A4A] underline-offset-2 transition-colors hover:text-[#E31C23] hover:underline"
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />
+                    </svg>
+                    Eliminar
+                  </button>
+                </div>
               </div>
             ))
           )}

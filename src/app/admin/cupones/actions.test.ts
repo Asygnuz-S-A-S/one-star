@@ -45,7 +45,7 @@ describe("createCoupon", () => {
     ["un máximo de usos decimal", "maxUses", "1.5", "El máximo de usos debe ser un entero."],
     ["una categoría inválida", "categoryId", "cat-1", "La categoría no es válida."],
     ["una fecha inexistente", "validFrom", "2026-02-31", "La fecha no es válida."],
-    ["fechas en orden inválido", "validUntil", "2026-01-01", "La fecha de fin debe ser posterior a la fecha de inicio."],
+    ["fechas en orden inválido", "validUntil", "2025-12-31", "La fecha de fin debe ser posterior a la fecha de inicio."],
   ])("rechaza %s", async (_name, field, value, error) => {
     const formData = validFormData()
     formData.set(field, value)
@@ -58,5 +58,16 @@ describe("createCoupon", () => {
   it("normaliza y crea un cupón válido", async () => {
     await expect(createCoupon(validFormData())).resolves.toEqual({ success: true })
     expect(mockCreateCoupon).toHaveBeenCalledWith(expect.objectContaining({ code: "VERANO20" }))
+  })
+
+  it("las fechas van en hora de Colombia: desde las 00:00 del primer día hasta las 23:59 del último", async () => {
+    const formData = validFormData()
+    formData.set("validFrom", "2026-11-03")
+    formData.set("validUntil", "2026-11-03")
+    await expect(createCoupon(formData)).resolves.toEqual({ success: true })
+    expect(mockCreateCoupon).toHaveBeenCalledWith(expect.objectContaining({
+      validFrom: new Date("2026-11-03T05:00:00.000Z"),
+      validUntil: new Date("2026-11-04T04:59:59.999Z"),
+    }))
   })
 })

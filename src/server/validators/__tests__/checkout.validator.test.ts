@@ -98,4 +98,18 @@ describe("checkoutSchema", () => {
     const resultFalse = checkoutSchema.safeParse({ ...validPayload, termsAccepted: false })
     expect(resultFalse.success).toBe(false)
   })
+
+  it("recoger en tienda: no pide dirección, pero sí la tienda", () => {
+    const pickup = { ...validPayload, shippingMethod: "pickup" as const, address: "", city: "", department: "" }
+    const sinTienda = checkoutSchema.safeParse(pickup)
+    expect(sinTienda.success).toBe(false)
+    if (!sinTienda.success) expect(sinTienda.error.issues[0].message).toBe("Elige la tienda donde vas a recoger tu pedido")
+    expect(checkoutSchema.safeParse({ ...pickup, pickupStoreId: "store-1" }).success).toBe(true)
+  })
+
+  it("envío a domicilio: la dirección sigue siendo obligatoria", () => {
+    const result = checkoutSchema.safeParse({ ...validPayload, address: "  " })
+    expect(result.success).toBe(false)
+    if (!result.success) expect(result.error.issues[0].message).toBe("La dirección es requerida")
+  })
 })

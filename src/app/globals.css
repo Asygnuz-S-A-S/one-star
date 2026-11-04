@@ -239,7 +239,7 @@ body {
 
 /* Public-storefront layer: deliberately scoped so checkout, auth and admin keep their existing controls. */
 .public-storefront {
-  --store-canvas: #f2f2f0;
+  --store-canvas: #ffffff;
   --store-surface: #ffffff;
   --store-surface-muted: #e9e9e6;
   --store-ink: #1c1c1c;
@@ -383,7 +383,7 @@ html[data-intro] .store-intro {
   z-index: 200;
   display: grid !important;
   place-items: center;
-  background: #f2f2f0;
+  background: var(--store-canvas, #ffffff);
   pointer-events: none;
   animation: store-intro-out 550ms var(--store-ease-out, ease) 1750ms forwards;
 }

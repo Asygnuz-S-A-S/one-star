@@ -1,6 +1,7 @@
 "use server"
 
 import { searchProductsByName, findProductBySlug } from "@/server/repositories/product.repository"
+import { findVariantsForQuickAdd } from "@/server/repositories/variant.repository"
 
 export async function searchProductsAction(query: string) {
   if (!query || query.length < 2) return []
@@ -48,6 +49,18 @@ export async function getProductsBySlugsAction(slugs: string[]) {
     }))
   } catch (error) {
     console.error("Error fetching products by slugs:", error)
+    return []
+  }
+}
+
+/** Tallas con stock para agregar al carrito desde la tarjeta del catálogo. Solo datos públicos de la ficha. */
+export async function getQuickAddVariantsAction(productId: string) {
+  if (typeof productId !== "string" || productId.length === 0 || productId.length > 64) return []
+  try {
+    const variants = await findVariantsForQuickAdd(productId)
+    return variants.sort((a, b) => (parseFloat(a.size) || 0) - (parseFloat(b.size) || 0) || a.size.localeCompare(b.size))
+  } catch (error) {
+    console.error("Error loading quick add variants:", error)
     return []
   }
 }

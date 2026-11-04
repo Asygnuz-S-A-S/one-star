@@ -107,3 +107,12 @@ export async function ensureErpStoreLocations(
 
   return result
 }
+
+/** Tiendas físicas activas donde el cliente puede recoger su pedido (la bodega web no cuenta). */
+export async function findPickupStores() {
+  return prisma.storeLocation.findMany({
+    where: { isActive: true, isWebWarehouse: false },
+    orderBy: [{ city: "asc" }, { name: "asc" }],
+    select: { id: true, name: true, address: true, city: true },
+  })
+}

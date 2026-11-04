@@ -2,12 +2,12 @@
 
 import Image from "next/image"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { motion, useReducedMotion } from "motion/react"
 import { useMemo, useRef, useState, useSyncExternalStore } from "react"
 import { useSession } from "@/lib/auth-client"
 import { useWishlistStore } from "@/store"
 import { PLACEHOLDER_IMAGE_URL } from "@/lib/product-image"
+import QuickAddButton from "./QuickAddButton"
 import type { ColorPalette } from "@/lib/colors"
 import type {
   ProductCardColorImageOption,
@@ -49,7 +49,6 @@ function formatPrice(price: number): string {
 export default function ProductCard({ id, slug, name, brand, price, salePrice, imageUrl, secondaryImageUrl, gallery, isNew, isOnSale, hasStock = true, rating, reviewCount, priority = false, colorSummary }: ProductCardProps) {
   const href = slug ? `/productos/${slug}` : undefined
   const shouldReduceMotion = useReducedMotion()
-  const router = useRouter()
   const { data: session } = useSession()
   // La sesión solo se conoce en el cliente. Este snapshot mantiene el HTML
   // inicial del servidor y del cliente alineados antes de mostrar favoritos.
@@ -61,12 +60,6 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
     e.preventDefault()
     e.stopPropagation()
     toggleWishlist(id)
-  }
-
-  const goToProduct = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    if (href) router.push(href)
   }
 
   const hasRating = rating !== undefined && reviewCount !== undefined && reviewCount > 0
@@ -348,17 +341,7 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
             )}
           </div>
 
-          {/* La talla se elige en la ficha: el botón compacto no compite con el precio en 2 columnas móviles. */}
-          <button
-            onClick={goToProduct}
-            disabled={!hasStock || !href}
-            aria-label={hasStock ? `Ver ${name} producto` : `${name} agotado`}
-            className="relative z-20 inline-flex h-11 min-h-11 w-11 min-w-11 shrink-0 items-center justify-center rounded-full bg-transparent text-[var(--store-ink)] transition-colors duration-200 group-hover:bg-store-canvas hover:!bg-[var(--store-ink)] hover:text-white disabled:cursor-not-allowed disabled:opacity-40 dark:text-white dark:group-hover:bg-white/10"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M5 12h14M13 6l6 6-6 6" />
-            </svg>
-          </button>
+          <QuickAddButton id={id} slug={slug} name={name} brand={brand} imageUrl={imageUrl} price={price} salePrice={salePrice} isOnSale={isOnSale} hasStock={hasStock && Boolean(href)} />
         </div>
       </div>
     </motion.article>
