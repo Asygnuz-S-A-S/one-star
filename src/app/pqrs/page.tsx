@@ -17,6 +17,7 @@ export default async function PqrsPage() {
 
   return (
     <LegalDocument
+      downloadable={false}
       title="Canal de Derechos de los Titulares (PQRS)"
       intro={`En cumplimiento del artículo 15 de la Constitución Política de Colombia, la Ley 1581 de 2012 y la Ley 2300 de 2023, ${company.tradeName} pone a tu disposición este canal oficial para radicar consultas, reclamos, rectificaciones y solicitudes de exclusión publicitaria.`}
       lastUpdated={LEGAL_LAST_UPDATED}

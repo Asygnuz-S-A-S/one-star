@@ -668,8 +668,8 @@ model StoreSettings {
   metaPixelEnabled  Boolean  @default(false)
   catalogSource     String   @default("ARCHIVO")
   /// Umbral de envío estándar gratis, en pesos.
-  freeShippingThreshold Int @default(200000)
-  standardShippingCost  Int @default(15000)
+  freeShippingThreshold Int @default(299900)
+  standardShippingCost  Int @default(14900)
   expressShippingCost   Int @default(25000)
   /// Razón social. Vacío hasta que el admin la confirme.
   legalName    String?
