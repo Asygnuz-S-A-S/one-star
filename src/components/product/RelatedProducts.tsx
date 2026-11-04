@@ -1,4 +1,3 @@
-import Link from "next/link"
 import ProductCard from "@/components/home/ProductCard"
 import { getRelatedProducts } from "@/server/services/product.service"
 
@@ -26,9 +25,11 @@ export default async function RelatedProducts({
           const secondaryImage = product.images[1]
           const gallery = product.images.slice(2).map((img) => img.url)
           return (
-            <Link key={product.id} href={`/productos/${product.slug}`}>
-              <ProductCard
+            // Sin <Link> alrededor: la tarjeta trae su propio enlace y el botón de agregar necesita el slug.
+            <ProductCard
+                key={product.id}
                 id={product.id}
+                slug={product.slug}
                 name={product.name}
                 brand={product.brand ?? ""}
                 price={product.basePrice}
@@ -38,7 +39,6 @@ export default async function RelatedProducts({
                 gallery={gallery}
                 isOnSale={product.isOnSale} isNew={product.isNew} hasStock={product.hasStock}
               />
-            </Link>
           )
         })}
       </div>

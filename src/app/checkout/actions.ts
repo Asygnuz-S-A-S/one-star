@@ -10,7 +10,7 @@ import { linkOrderToLead } from "@/server/services/lead.service"
 import { markCartsRecoveredForEmail } from "@/server/services/abandoned-cart.service"
 import { getUserById } from "@/server/services/user.service"
 import { checkoutSchema } from "@/server/validators/checkout.validator"
-import { findPickupStores } from "@/server/repositories/store.repository"
+import { getPickupStores } from "@/server/services/store.service"
 import { consumePublicRateLimit } from "@/server/services/public-rate-limit.service"
 import { signGuestOrderSuccessToken } from "@/server/services/guest-order.service"
 import type { EpaycoCheckoutData } from "@/components/checkout/EpaycoButton"
@@ -114,7 +114,7 @@ export async function createOrder(data: CheckoutData): Promise<CreateOrderResult
     // Recoger en tienda: la dirección del pedido es la de la tienda elegida, leída de la BD.
     // shortcut: no valida que esa tienda tenga la talla (se valida el stock general); usar InventoryLevel por tienda cuando el ERP lo traiga.
     const pickupStore = input.shippingMethod === "pickup"
-      ? (await findPickupStores()).find((store) => store.id === input.pickupStoreId)
+      ? (await getPickupStores()).find((store) => store.id === input.pickupStoreId)
       : undefined
     if (input.shippingMethod === "pickup" && !pickupStore) {
       return { success: false, code: "VALIDATION_ERROR", error: "La tienda elegida no está disponible. Elige otra." }
@@ -259,7 +259,7 @@ export async function getCustomerCheckoutProfile(): Promise<{
 /** Tiendas para "Pagar y recoger en tienda" en el checkout. Solo datos públicos (los mismos de /tiendas). */
 export async function getPickupStoresAction(): Promise<{ id: string; name: string; address: string; city: string }[]> {
   try {
-    return await findPickupStores()
+    return await getPickupStores()
   } catch (error) {
     console.error("[getPickupStoresAction]", error)
     return []

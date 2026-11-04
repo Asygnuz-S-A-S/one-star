@@ -288,8 +288,10 @@ function CheckoutForm({
   const total = subtotal - discount + shippingCost
   const isPickup = values.shippingMethod === "pickup" && !digitalOnly
   const pickupStore = pickupStores.find((store) => store.id === pickupStoreId)
+  const pendingErrors = validateForm(values)
+  const firstPendingError = Object.values(pendingErrors)[0]
   const formReady =
-    items.length > 0 && termsAccepted && (!isPickup || Boolean(pickupStore)) && Object.keys(validateForm(values)).length === 0
+    items.length > 0 && termsAccepted && (!isPickup || Boolean(pickupStore)) && !firstPendingError
 
   // Addi solo se ofrece si acepta el monto del pedido (tiene mínimo y máximo).
   useEffect(() => {
@@ -345,6 +347,13 @@ function CheckoutForm({
     })
   }, [])
 
+  // El botón queda bloqueado hasta completar: al salir de cada campo se muestra su error, para que se vea qué falta.
+  function handleFieldBlur(e: React.FocusEvent<HTMLFormElement>) {
+    const key = (e.target as HTMLElement).closest<HTMLElement>("[data-field]")?.dataset.field as keyof FormErrors | undefined
+    const message = key ? pendingErrors[key] : undefined
+    if (key && message) setErrors((prev) => (prev[key] === message ? prev : { ...prev, [key]: message }))
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setServerError("")
@@ -394,7 +403,8 @@ function CheckoutForm({
       postalCode: isPickup ? undefined : values.postalCode || undefined,
       shippingMethod: isPickup ? "pickup" : values.shippingMethod === "pickup" ? "standard" : values.shippingMethod,
       pickupStoreId: isPickup ? pickupStoreId : undefined,
-      paymentMethod: chosenPayment,
+      // El pedido nace como ePayco; startAddiPaymentAction lo cambia a "addi" solo si Addi acepta la solicitud.
+      paymentMethod: "epayco",
       couponCode: appliedCoupon?.code,
       termsAccepted: true,
       marketingConsent: Boolean(values.newsletter),
@@ -504,7 +514,7 @@ function CheckoutForm({
           <CheckoutStepper currentStep={2} />
         </div>
 
-        <form onSubmit={handleSubmit} noValidate>
+        <form onSubmit={handleSubmit} onBlur={handleFieldBlur} noValidate>
           {/* minmax(0, …) evita que las columnas desborden; en móvil el resumen va primero y plegable. */}
           <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:gap-10">
             {/* ── LEFT: Form ── */}
@@ -815,7 +825,9 @@ function CheckoutForm({
               </button>
               {!formReady && !submitting && (
                 <p id="checkout-pendiente" className="mt-2 text-center font-montserrat text-xs text-[#4A4A4A]">
-                  {termsAccepted ? "Completa los campos obligatorios (*) para continuar." : "Completa tus datos y acepta los términos para continuar."}
+                  {!termsAccepted
+                    ? "Completa tus datos y acepta los términos para continuar."
+                    : firstPendingError ?? (isPickup && !pickupStore ? "Elige la tienda donde vas a recoger tu pedido." : "Completa los campos obligatorios (*) para continuar.")}
                 </p>
               )}
               </div>

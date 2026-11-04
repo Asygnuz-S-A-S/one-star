@@ -23,8 +23,8 @@ vi.mock("@/server/services/user.service", () => ({
 vi.mock("@/server/services/public-rate-limit.service", () => ({
   consumePublicRateLimit: vi.fn(),
 }))
-vi.mock("@/server/repositories/store.repository", () => ({
-  findPickupStores: vi.fn().mockResolvedValue([{ id: "store-fundadores", name: "One Star Fundadores", address: "C.C. Fundadores, local 158", city: "Manizales" }]),
+vi.mock("@/server/services/store.service", () => ({
+  getPickupStores: vi.fn().mockResolvedValue([{ id: "store-fundadores", name: "One Star Fundadores", address: "C.C. Fundadores, local 158", city: "Manizales" }]),
 }))
 vi.mock("@/server/services/guest-order.service", () => ({
   signGuestOrderSuccessToken: vi.fn().mockReturnValue("mock-guest-token-123"),
