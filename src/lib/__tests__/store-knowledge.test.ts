@@ -13,7 +13,7 @@ describe("STORE_KNOWLEDGE", () => {
   })
 
   it("formatea los precios con puntos de miles", () => {
-    expect(cop(STANDARD_SHIPPING_THRESHOLD)).toBe("$200.000")
+    expect(cop(STANDARD_SHIPPING_THRESHOLD)).toBe("$299.900")
   })
 
   it("incluye las políticas confirmadas por One Star", () => {

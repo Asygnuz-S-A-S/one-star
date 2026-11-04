@@ -84,7 +84,7 @@ export default async function RootLayout({
           {STORE_INTRO_SCRIPT}
         </Script>
         <StoreIntro />
-        <a href="#contenido-principal" className="skip-link">
+        <a href="#contenido-principal" className="skip-link print:hidden">
           Saltar al contenido principal
         </a>
         <Providers nonce={nonce}>

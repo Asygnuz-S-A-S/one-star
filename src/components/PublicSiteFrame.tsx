@@ -58,20 +58,26 @@ export default function PublicSiteFrame({
     : { "--public-header-offset": "56px", "--public-header-offset-desktop": "64px" }
 
   return (
-    <div className="public-storefront flex h-dvh min-h-0 flex-col overflow-hidden" style={headerOffset as CSSProperties}>
-      <Header {...headerProps} />
-      <div id="public-scroll" className="min-h-0 flex-1 overflow-y-auto">
-        <div aria-hidden="true" className="h-[var(--public-header-offset)] lg:h-[var(--public-header-offset-desktop)]" data-testid="public-site-spacer" />
-        <main id="contenido-principal">{children}</main>
-        <StoreFooter
-          links={footerLinks}
-          storeName={storeName}
-          contactEmail={contactEmail}
-          whatsapp={whatsapp}
-        />
+    <div className="public-storefront flex h-dvh min-h-0 flex-col overflow-hidden print:block print:h-auto print:overflow-visible" style={headerOffset as CSSProperties}>
+      <div className="contents print:hidden">
+        <Header {...headerProps} />
       </div>
-      {chatEnabled && <ChatWidget welcome={chatWelcome} />}
-      <MobileBottomNav items={bottomNav} />
+      <div id="public-scroll" className="min-h-0 flex-1 overflow-y-auto print:overflow-visible">
+        <div aria-hidden="true" className="print:hidden h-[var(--public-header-offset)] lg:h-[var(--public-header-offset-desktop)]" data-testid="public-site-spacer" />
+        <main id="contenido-principal">{children}</main>
+        <div className="contents print:hidden">
+          <StoreFooter
+            links={footerLinks}
+            storeName={storeName}
+            contactEmail={contactEmail}
+            whatsapp={whatsapp}
+          />
+        </div>
+      </div>
+      <div className="contents print:hidden">
+        {chatEnabled && <ChatWidget welcome={chatWelcome} />}
+        <MobileBottomNav items={bottomNav} />
+      </div>
     </div>
   )
 }
