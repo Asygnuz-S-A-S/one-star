@@ -24,7 +24,7 @@ vi.mock("@/server/services/public-rate-limit.service", () => ({
   consumePublicRateLimit: vi.fn(),
 }))
 vi.mock("@/server/services/store.service", () => ({
-  getPickupStores: vi.fn().mockResolvedValue([{ id: "store-fundadores", name: "One Star Fundadores", address: "C.C. Fundadores, local 158", city: "Manizales" }]),
+  getPickupStores: vi.fn().mockResolvedValue([{ id: "store-fundadores", name: "One Star Fundadores", address: "C.C. Fundadores, local 158", city: "Manizales", department: "Caldas" }]),
 }))
 vi.mock("@/server/services/guest-order.service", () => ({
   signGuestOrderSuccessToken: vi.fn().mockReturnValue("mock-guest-token-123"),
@@ -227,7 +227,7 @@ describe("createOrder", () => {
     expect(result.epaycoData?.address).toBe("C.C. Fundadores, local 158")
     expect(placeOrder).toHaveBeenCalledWith(null, expect.objectContaining({
       shippingMethod: "pickup",
-      shippingAddress: expect.objectContaining({ address: "C.C. Fundadores, local 158", city: "Manizales", pickupStoreId: "store-fundadores", pickupStoreName: "One Star Fundadores" }),
+      shippingAddress: expect.objectContaining({ address: "C.C. Fundadores, local 158", city: "Manizales", department: "Caldas", pickupStoreId: "store-fundadores", pickupStoreName: "One Star Fundadores" }),
     }))
   })
 

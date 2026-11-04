@@ -19,6 +19,7 @@ export const storeLocationSchema = z.object({
   name: z.string().trim().min(1, "El nombre es obligatorio.").max(120),
   address: z.string().trim().min(1, "La dirección es obligatoria.").max(200),
   city: z.string().trim().min(1, "La ciudad es obligatoria.").max(120),
+  department: optionalText(120),
   phone: optionalText(40),
   schedule: optionalText(200),
   googleMapsUrl: optionalText(500),

@@ -120,7 +120,7 @@ export async function createOrder(data: CheckoutData): Promise<CreateOrderResult
       return { success: false, code: "VALIDATION_ERROR", error: "La tienda elegida no está disponible. Elige otra." }
     }
     const delivery = pickupStore
-      ? { address: pickupStore.address, apartment: null, city: pickupStore.city, department: input.department, postalCode: null }
+      ? { address: pickupStore.address, apartment: null, city: pickupStore.city, department: pickupStore.department ?? "", postalCode: null }
       : { address: input.address, apartment: input.apartment ?? null, city: input.city, department: input.department, postalCode: input.postalCode ?? null }
     const marketingConsentAt = input.marketingConsent ? new Date() : null
     const marketingConsentVersion = input.marketingConsent ? (input.marketingConsentVersion ?? "v2.0") : null
@@ -257,7 +257,7 @@ export async function getCustomerCheckoutProfile(): Promise<{
 
 
 /** Tiendas para "Pagar y recoger en tienda" en el checkout. Solo datos públicos (los mismos de /tiendas). */
-export async function getPickupStoresAction(): Promise<{ id: string; name: string; address: string; city: string }[]> {
+export async function getPickupStoresAction(): Promise<{ id: string; name: string; address: string; city: string; department: string | null }[]> {
   try {
     return await getPickupStores()
   } catch (error) {

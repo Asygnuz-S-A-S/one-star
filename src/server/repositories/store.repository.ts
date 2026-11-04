@@ -6,6 +6,7 @@ export interface StoreLocationInput {
   name: string
   address: string
   city: string
+  department?: string | null
   phone?: string | null
   schedule?: string | null
   googleMapsUrl?: string | null
@@ -113,6 +114,6 @@ export async function findPickupStores() {
   return prisma.storeLocation.findMany({
     where: { isActive: true, isWebWarehouse: false },
     orderBy: [{ city: "asc" }, { name: "asc" }],
-    select: { id: true, name: true, address: true, city: true },
+    select: { id: true, name: true, address: true, city: true, department: true },
   })
 }
