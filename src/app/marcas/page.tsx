@@ -5,7 +5,7 @@ import { resolveBrandLogoUrl } from "@/lib/brand-logos"
 
 export const metadata = {
   title: "Marcas | One Star",
-  description: "Explora el catálogo One Star por marca: Converse, Nike, Vans, New Balance y más.",
+  description: "Explora el catálogo One Star por marca.",
 }
 
 /**

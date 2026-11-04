@@ -100,12 +100,11 @@ export async function getAdminDashboardStats(): Promise<DashboardStatsDTO> {
     const topProducts = rawData.orderItemsRaw.map((oi) => {
       const product = productMap.get(oi.productId)
       const sold = oi._sum.quantity ?? 0
-      const unitPrice = Number(oi._sum.unitPrice ?? 0)
       return {
         name: product?.name ?? "Producto eliminado",
         brand: product?.brand ?? "-",
         sold,
-        revenue: Math.round(unitPrice * sold),
+        revenue: Math.round(rawData.topProductRevenue[oi.productId] ?? 0),
       }
     })
 

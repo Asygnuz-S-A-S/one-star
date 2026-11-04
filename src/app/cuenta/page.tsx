@@ -13,6 +13,7 @@ import { formatDateLong, formatCurrency } from "@/lib/dates"
 import { orderStatusBadge, orderStatusLabel } from "@/lib/order-status"
 import { PLACEHOLDER_IMAGE_URL } from "@/lib/product-image"
 import ClubAccountTab from "@/components/club/ClubAccountTab"
+import { usePreferredBrands } from "@/hooks/usePreferredBrands"
 
 type Tab = "perfil" | "club" | "pedidos" | "direcciones" | "salir"
 
@@ -55,6 +56,7 @@ export default function CuentaPage() {
   const [profileLastName, setProfileLastName] = useState("")
   const [profilePhone, setProfilePhone] = useState("")
   const [profileBrand, setProfileBrand] = useState("")
+  const brandOptions = usePreferredBrands(profileBrand)
   const [profileGender, setProfileGender] = useState("")
   const [profileSaving, setProfileSaving] = useState(false)
   const [profileError, setProfileError] = useState("")
@@ -311,7 +313,7 @@ export default function CuentaPage() {
                       className="border border-[#E0E0E0] rounded-lg px-4 py-2.5 font-montserrat text-sm text-[#1C1C1C] focus:outline-none focus:border-[#E31C23] transition-colors"
                     >
                       <option value="">Selecciona una marca</option>
-                      {["Nike","New Balance","Hoka","Veja","On Running","Adidas","Asics","Sin preferencia"].map((b) => (
+                      {brandOptions.map((b) => (
                         <option key={b} value={b}>{b}</option>
                       ))}
                     </select>

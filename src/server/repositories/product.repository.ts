@@ -674,11 +674,11 @@ export async function updateProductsPublishStatus(
  * Slugs de los productos visibles en la vitrina, para el sitemap.
  * Se limita a lo publicado: es lo mismo que deja pasar `getProductBySlug`.
  */
-export async function findPublishedProductSitemapEntries(): Promise<
+export async function findPublishedProductSitemapEntries(requireImage = false): Promise<
   { slug: string; updatedAt: Date; images: { url: string }[] }[]
 > {
   return prisma.product.findMany({
-    where: { isPublished: true },
+    where: { isPublished: true, ...(requireImage ? { images: { some: {} } } : {}) },
     select: {
       slug: true,
       updatedAt: true,
