@@ -112,6 +112,7 @@ export async function createOrder(data: CheckoutData): Promise<CreateOrderResult
     }
     const input = parsed.data
     // Recoger en tienda: la dirección del pedido es la de la tienda elegida, leída de la BD.
+    // shortcut: no valida que esa tienda tenga la talla (se valida el stock general); usar InventoryLevel por tienda cuando el ERP lo traiga.
     const pickupStore = input.shippingMethod === "pickup"
       ? (await findPickupStores()).find((store) => store.id === input.pickupStoreId)
       : undefined
