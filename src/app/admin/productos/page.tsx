@@ -2,6 +2,7 @@ import Link from "next/link"
 import { getAdminProducts } from "@/server/services/product.service"
 import { getAllBrands } from "@/server/services/brand.service"
 import { getCategories } from "@/server/services/category.service"
+import { isErpCatalogOwner } from "@/server/services/catalog-source.service"
 import { parseAdminProductFilters } from "@/server/validators/product.validator"
 import { ProductosTable } from "@/components/admin/ProductosTable"
 
@@ -27,7 +28,7 @@ export default async function ProductosPage({ searchParams }: Props) {
     brand: params.marca,
   })
 
-  const [{ products, total }, categories, brands] = await Promise.all([
+  const [{ products, total }, categories, brands, erpOwnsCatalog] = await Promise.all([
     getAdminProducts(
       {
         q: q || undefined,
@@ -41,6 +42,7 @@ export default async function ProductosPage({ searchParams }: Props) {
     ),
     getCategories(),
     getAllBrands(),
+    isErpCatalogOwner(),
   ])
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
@@ -68,15 +70,16 @@ export default async function ProductosPage({ searchParams }: Props) {
           <span className="ml-2 text-sm font-normal text-[#4A4A4A]">({total})</span>
         </h1>
         <Link
-          href="/admin/integraciones"
+          href={erpOwnsCatalog ? "/admin/integraciones" : "/admin/productos/importar"}
           className="bg-[#E31C23] text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
         >
-          Sincronizar ERP
+          {erpOwnsCatalog ? "Sincronizar ERP" : "Importar desde Excel"}
         </Link>
       </div>
       <p className="mb-6 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
-        Los productos se crean en Loggro y llegan aquí al sincronizar. En la web solo se completa
-        lo que Loggro no tiene: categoría web, género, descripciones, fotos, cross-selling y publicación.
+        {erpOwnsCatalog
+          ? "Los productos se crean en el ERP y llegan aquí al sincronizar. En la web solo se completa lo que el ERP no tiene: categoría web, género, descripciones, fotos, cross-selling y publicación."
+          : "El catálogo se carga con el archivo de Excel. Desde aquí también puedes editar cada producto y publicarlo."}
       </p>
 
       <form method="GET" className="flex flex-wrap gap-3 mb-6">

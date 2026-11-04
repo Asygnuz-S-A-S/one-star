@@ -89,6 +89,7 @@ describe("POST /api/epayco/webhook", () => {
       refPayco: "987654321",
       amount: "150000.00",
       codResponse: "1",
+      testRequest: "",
     })
     expect(mocks.linkOrderToLead).toHaveBeenCalledWith("order-abc", {
       leadId: "lead_cookie_1",

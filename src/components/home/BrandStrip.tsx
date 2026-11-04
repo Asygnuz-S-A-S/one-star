@@ -13,17 +13,6 @@ export interface BrandItem {
   isActive?: boolean
 }
 
-const DEFAULT_BRANDS: BrandItem[] = [
-  { name: "Nike", slug: "nike" },
-  { name: "New Balance", slug: "new-balance" },
-  { name: "Adidas", slug: "adidas" },
-  { name: "Jordan", slug: "jordan" },
-  { name: "Puma", slug: "puma" },
-  { name: "Vans", slug: "vans" },
-  { name: "Converse", slug: "converse" },
-  { name: "Asics", slug: "asics" },
-]
-
 const FONT_SIZES: Record<string, string> = {
   xs: "text-xs",
   sm: "text-sm",
@@ -50,7 +39,7 @@ export default function BrandStrip({
   const shouldReduceMotion = useReducedMotion()
 
   // Normalizar marcas a formato BrandItem y resolver logos por defecto
-  const normalizedBrands: BrandItem[] = (brands && brands.length > 0 ? brands : DEFAULT_BRANDS).map(
+  const normalizedBrands: BrandItem[] = (brands ?? []).map(
     (b) => {
       const item: BrandItem = typeof b === "string" ? { name: b, slug: b.toLowerCase().replace(/\s+/g, "-") } : b
       return {
@@ -59,6 +48,8 @@ export default function BrandStrip({
       }
     }
   )
+
+  if (normalizedBrands.length === 0) return null
 
   // Customization from config
   const title = typeof config.title === "string" ? config.title : undefined

@@ -17,9 +17,10 @@ const baseDashboardData = {
     { id: "prod-1", name: "Nike Air Max", brand: "Nike" },
     { id: "prod-2", name: "Adidas Ultraboost", brand: "Adidas" },
   ],
+  topProductRevenue: { "prod-1": 1500000, "prod-2": 1000000 },
   orderItemsRaw: [
-    { productId: "prod-1", _sum: { quantity: 10, unitPrice: 150000 } },
-    { productId: "prod-2", _sum: { quantity: 5, unitPrice: 200000 } },
+    { productId: "prod-1", _sum: { quantity: 10 } },
+    { productId: "prod-2", _sum: { quantity: 5 } },
   ],
   lowStockRaw: [
     { sku: "NK-001", product: { id: "prod-1", name: "Nike Air Max" }, size: "42", color: "Negro", stock: 2 },

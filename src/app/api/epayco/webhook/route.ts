@@ -52,6 +52,7 @@ export async function POST(request: NextRequest) {
       refPayco: payload.x_ref_payco,
       amount: payload.x_amount,
       codResponse: payload.x_cod_response,
+      testRequest: payload.x_test_request,
     })
 
     if (result.outcome === "order_not_found") {

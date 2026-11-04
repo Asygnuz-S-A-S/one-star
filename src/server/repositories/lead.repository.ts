@@ -1,4 +1,5 @@
 import "server-only"
+import { summarizeCartData } from "@/lib/cart-data"
 import type { LeadStage, Prisma } from "@prisma/client"
 import { prisma } from "../db/prisma"
 import { normalizeWaPhone } from "../validators/lead.validator"
@@ -345,22 +346,7 @@ export async function getLeadsData(params: LeadFilterParams) {
   const mappedAbandoned = abandonedCarts
     .filter((ac) => !userLeadEmails.has(ac.email.toLowerCase()))
     .map((ac) => {
-      let itemsCount = 0
-      let estimatedVal = 0
-
-      if (ac.cartData && typeof ac.cartData === "object") {
-        const data = ac.cartData as Record<string, unknown>
-        if (Array.isArray(data.items)) {
-          itemsCount = data.items.length
-          estimatedVal = (data.items as Array<Record<string, unknown>>).reduce(
-            (sum: number, item: Record<string, unknown>) =>
-              sum + Number(item.price ?? item.unitPrice ?? 0) * Number(item.quantity ?? 1),
-            0
-          )
-        } else if (typeof data.total === "number") {
-          estimatedVal = data.total
-        }
-      }
+      const { itemsCount, value: estimatedVal } = summarizeCartData(ac.cartData)
 
       return {
         id: `ac_${ac.id}`,
