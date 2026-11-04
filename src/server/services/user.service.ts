@@ -126,8 +126,10 @@ export async function getCustomers(params: {
   pageSize?: number
   /** "club" = miembros de One Star Club; "newsletter" = aceptaron recibir correos. */
   segment?: "club" | "newsletter"
+  /** Marca de preferencia del cliente. */
+  brand?: string
 }): Promise<{ customers: CustomerListDTO[]; total: number }> {
-  const { q = "", page = 1, pageSize = 25, segment } = params
+  const { q = "", page = 1, pageSize = 25, segment, brand } = params
   const where = {
     role: "CUSTOMER" as const,
     ...(q
@@ -135,6 +137,7 @@ export async function getCustomers(params: {
       : {}),
     ...(segment === "club" ? { clubMember: true } : {}),
     ...(segment === "newsletter" ? { marketingConsentAt: { not: null } } : {}),
+    ...(brand ? { preferredBrand: brand } : {}),
   }
 
   const [rows, total] = await Promise.all([

@@ -24,9 +24,12 @@ export interface PaymentNotification {
   amount: string
   /** Código de ePayco: 1 aceptada, 2 rechazada, 3 pendiente, 4 fallida */
   codResponse: string
+  /** Valor de `x_test_request` que reporta ePayco. */
+  testRequest?: string
 }
 
 export type PaymentOutcome =
+  | "test_ignored"
   | "paid"
   | "already_paid"
   | "amount_mismatch"
@@ -93,6 +96,18 @@ export async function applyPaymentNotification(
 ): Promise<PaymentResult> {
   const order = await getOrderById(notification.orderId)
   if (!order) return { outcome: "order_not_found", order: null }
+
+  // Una tarjeta de pruebas no mueve dinero: con la tienda en vivo no puede
+  // marcar el pedido como pagado, descontar stock ni emitir tarjetas de regalo.
+  if (
+    notification.testRequest?.toUpperCase() === "TRUE" &&
+    process.env.NEXT_PUBLIC_EPAYCO_TEST !== "true"
+  ) {
+    console.error(
+      `[payment] Transacción de pruebas (ref=${notification.refPayco}) ignorada para pedido ${order.id}`
+    )
+    return { outcome: "test_ignored", order }
+  }
 
   // Referencia de la pasarela para conciliación (y para saber que la
   // pasarela sí llegó a procesar este pedido).
@@ -164,6 +179,7 @@ function outcomeToStatus(outcome: PaymentOutcome): ReferencePaymentStatus {
       return "approved"
     case "rejected":
     case "already_cancelled":
+    case "test_ignored":
       return "rejected"
     case "order_not_found":
       return "unknown"
@@ -203,6 +219,7 @@ export async function confirmPaymentByReference(
     refPayco: transaction.refPayco,
     amount: transaction.amount,
     codResponse: transaction.codResponse,
+    testRequest: transaction.testRequest,
   })
 
   return {

@@ -11,6 +11,7 @@ const m = vi.hoisted(() => ({
   productFindMany: vi.fn(),
   userCount: vi.fn(),
   orderItemGroupBy: vi.fn(),
+  orderItemFindMany: vi.fn(),
   variantFindMany: vi.fn(),
 }))
 
@@ -24,7 +25,7 @@ vi.mock("@/server/db/prisma", () => ({
     },
     product: { count: m.productCount, findMany: m.productFindMany },
     user: { count: m.userCount },
-    orderItem: { groupBy: m.orderItemGroupBy },
+    orderItem: { groupBy: m.orderItemGroupBy, findMany: m.orderItemFindMany },
     variant: { findMany: m.variantFindMany },
   },
 }))
@@ -37,6 +38,7 @@ function respuestasBase() {
   m.userCount.mockResolvedValue(0)
   m.orderCount.mockResolvedValue(0)
   m.orderItemGroupBy.mockResolvedValue([])
+  m.orderItemFindMany.mockResolvedValue([])
   m.variantFindMany.mockResolvedValue([])
   m.orderFindMany.mockResolvedValue([])
   m.orderGroupBy.mockResolvedValue([])
@@ -78,6 +80,25 @@ describe("getDashboardData", () => {
     expect(where.createdAt.gte).toBeInstanceOf(Date)
     const dias = (Date.now() - where.createdAt.gte.getTime()) / 86_400_000
     expect(Math.round(dias)).toBe(30)
+  })
+
+  it("el top de productos solo cuenta pedidos pagados y calcula ingresos por línea", async () => {
+    const paidSale = { paymentStatus: "APPROVED", status: { not: "CANCELLED" } }
+    m.orderItemGroupBy.mockResolvedValue([{ productId: "prod_1", _sum: { quantity: 3 } }])
+    m.orderItemFindMany.mockResolvedValue([
+      { productId: "prod_1", quantity: 2, unitPrice: 100 },
+      { productId: "prod_1", quantity: 1, unitPrice: 50 },
+    ])
+
+    const data = await getDashboardData()
+
+    expect(m.orderItemGroupBy).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { order: paidSale } })
+    )
+    expect(m.orderItemFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { order: paidSale, productId: { in: ["prod_1"] } } })
+    )
+    expect(data.topProductRevenue).toEqual({ prod_1: 250 })
   })
 
   it("no consulta productos cuando todavía no hay ítems vendidos", async () => {

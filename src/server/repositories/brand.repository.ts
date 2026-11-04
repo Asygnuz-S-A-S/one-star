@@ -17,10 +17,11 @@ export async function findBrandById(id: string) {
  * Marcas activas con al menos un producto publicado, con su conteo.
  * Alimenta el directorio público /marcas.
  */
-export async function findActiveBrandsWithPublishedProducts() {
+export async function findActiveBrandsWithPublishedProducts(requireImage = false) {
+  const visible = { isPublished: true, ...(requireImage ? { images: { some: {} } } : {}) }
   return prisma.brand.findMany({
-    where: { isActive: true, products: { some: { isPublished: true } } },
-    include: { _count: { select: { products: { where: { isPublished: true } } } } },
+    where: { isActive: true, products: { some: visible } },
+    include: { _count: { select: { products: { where: visible } } } },
     orderBy: { name: "asc" },
   })
 }

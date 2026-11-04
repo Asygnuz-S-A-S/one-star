@@ -86,6 +86,28 @@ describe("applyPaymentNotification", () => {
     expect(mocks.updateOrderPaymentReference).not.toHaveBeenCalled()
   })
 
+  it("ignora una transacción de pruebas si la tienda está en vivo", async () => {
+    vi.stubEnv("NEXT_PUBLIC_EPAYCO_TEST", "false")
+    mocks.getOrderById.mockResolvedValue(pendingOrder)
+
+    const result = await applyPaymentNotification({ ...accepted, testRequest: "TRUE" })
+
+    expect(result.outcome).toBe("test_ignored")
+    expect(mocks.changeOrderStatus).not.toHaveBeenCalled()
+    expect(mocks.updateOrderPaymentReference).not.toHaveBeenCalled()
+    vi.unstubAllEnvs()
+  })
+
+  it("acepta una transacción de pruebas si la tienda está en modo de pruebas", async () => {
+    vi.stubEnv("NEXT_PUBLIC_EPAYCO_TEST", "true")
+    mocks.getOrderById.mockResolvedValue(pendingOrder)
+
+    const result = await applyPaymentNotification({ ...accepted, testRequest: "TRUE" })
+
+    expect(result.outcome).not.toBe("test_ignored")
+    vi.unstubAllEnvs()
+  })
+
   it("guarda la referencia de ePayco cuando cambia", async () => {
     mocks.getOrderById.mockResolvedValueOnce(pendingOrder).mockResolvedValueOnce(paidOrder)
 

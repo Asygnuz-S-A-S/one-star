@@ -146,6 +146,10 @@ describe("parseEpaycoWebhookPayload", () => {
     return data
   }
 
+  it("conserva la marca de transacción de pruebas", () => {
+    expect(parseEpaycoWebhookPayload(form({ x_test_request: "TRUE" })).x_test_request).toBe("TRUE")
+  })
+
   it("lee la factura desde x_id_invoice, que es lo que envía ePayco", () => {
     // ePayco nunca envía `x_invoice`; leerlo dejaba el webhook en 400 para
     // todas las confirmaciones y ningún pedido llegaba a PAID.
@@ -183,6 +187,7 @@ describe("parseEpaycoWebhookPayload", () => {
       x_transaction_state: "",
       x_invoice: "",
       x_signature: "",
+      x_test_request: "",
     })
   })
 })
@@ -233,6 +238,7 @@ describe("fetchEpaycoTransaction", () => {
       currencyCode: "COP",
       codResponse: "1",
       transactionState: "Aceptada",
+      testRequest: "",
     })
   })
 

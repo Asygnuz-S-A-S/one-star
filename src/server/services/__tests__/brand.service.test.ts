@@ -12,6 +12,10 @@ vi.mock("@/server/repositories/brand.repository", () => ({
   deleteBrandRecord: vi.fn(),
 }))
 
+vi.mock("../store-settings.service", () => ({
+  getCatalogRules: vi.fn().mockResolvedValue({ hideImagelessProducts: true }),
+}))
+
 import {
   createBrand,
   deleteBrand,
@@ -190,6 +194,7 @@ describe("getStorefrontBrands", () => {
 
     const result = await getStorefrontBrands()
 
+    expect(findActiveBrandsWithPublishedProducts).toHaveBeenCalledWith(true)
     expect(result).toEqual([
       expect.objectContaining({ slug: "new-balance", productCount: 12 }),
       expect.objectContaining({ slug: "vans", productCount: 1 }),
