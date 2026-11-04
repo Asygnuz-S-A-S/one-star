@@ -48,7 +48,7 @@ export default function CookieBanner() {
     <div
       role="region"
       aria-label="Consentimiento de cookies"
-      className="fixed bottom-0 inset-x-0 z-50 p-4 sm:p-6 bg-white/95 dark:bg-[#151515]/95 backdrop-blur-md border-t border-[#E0E0E0] dark:border-white/10 shadow-[0_-8px_30px_rgba(0,0,0,0.12)] transition-colors duration-200"
+      className="print:hidden fixed bottom-0 inset-x-0 z-50 p-4 sm:p-6 bg-white/95 dark:bg-[#151515]/95 backdrop-blur-md border-t border-[#E0E0E0] dark:border-white/10 shadow-[0_-8px_30px_rgba(0,0,0,0.12)] transition-colors duration-200"
     >
       <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="space-y-1.5 flex-1 pr-2">

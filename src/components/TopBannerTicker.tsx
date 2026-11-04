@@ -38,7 +38,7 @@ export default function TopBannerTicker({
     if (fallbackText) {
       displayMessages = [{ text: fallbackText, url: fallbackBtnUrl }];
     } else {
-      displayMessages = [{ text: "Envío gratis en compras mayores a $200.000", url: "/sale" }];
+      displayMessages = [{ text: "Envío gratis en compras desde $299.900", url: "/sale" }];
     }
   }
   displayMessages = displayMessages.map(message => ({

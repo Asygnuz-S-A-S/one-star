@@ -1,4 +1,5 @@
 import type { ReactNode } from "react"
+import LegalDownloadButton from "./LegalDownloadButton"
 import { formatLegalDate, hasPendingCompanyData, LEGAL_COMPANY, type LegalCompanyInfo } from "@/lib/legal"
 
 interface LegalDocumentProps {
@@ -7,6 +8,8 @@ interface LegalDocumentProps {
   lastUpdated: string
   company?: LegalCompanyInfo
   documentUrl?: string | null
+  /** Muestra "Descargar PDF"; apagado en las páginas que son formularios. */
+  downloadable?: boolean
   children: ReactNode
 }
 
@@ -20,11 +23,12 @@ export default function LegalDocument({
   lastUpdated,
   company = LEGAL_COMPANY,
   documentUrl,
+  downloadable = true,
   children,
 }: LegalDocumentProps) {
   return (
-    <main className="min-h-screen bg-[#F5F5F5] dark:bg-[#0f0f0f] pt-24 pb-20 px-4 transition-colors">
-      <article className="max-w-3xl mx-auto bg-white dark:bg-[#151515] rounded-lg shadow-xl overflow-hidden transition-colors">
+    <main className="min-h-screen bg-[#F5F5F5] dark:bg-[#0f0f0f] pt-24 pb-20 px-4 transition-colors print:min-h-0 print:bg-white print:p-0">
+      <article className="print:max-w-none print:shadow-none max-w-3xl mx-auto bg-white dark:bg-[#151515] rounded-lg shadow-xl overflow-hidden transition-colors">
         <header className="border-b border-[#E0E0E0] dark:border-white/10 px-6 md:px-12 py-10">
           <p className="font-barlow uppercase tracking-widest text-xs text-[#E31C23] mb-3">
             {company.tradeName}
@@ -38,6 +42,7 @@ export default function LegalDocument({
           <p className="font-montserrat text-xs text-[#4A4A4A] dark:text-white/40 mt-4">
             Última actualización: {formatLegalDate(lastUpdated)}
           </p>
+          {downloadable && <LegalDownloadButton documentUrl={documentUrl} />}
         </header>
 
         {hasPendingCompanyData(company) && (

@@ -22,7 +22,7 @@ describe("getConversionSignals", () => {
   it("bajo el umbral dice cuánto falta para el envío gratis", () => {
     const [shipping] = getConversionSignals({ ...base, price: 150_000 })
 
-    expect(shipping.text).toMatch(/Te faltan \$\s?50\.000 para el envío gratis/)
+    expect(shipping.text).toMatch(/Te faltan \$\s?149\.900 para el envío gratis/)
   })
 
   it("con una sola unidad en la talla elegida avisa 'última unidad', en rojo", () => {

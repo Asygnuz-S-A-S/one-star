@@ -87,6 +87,7 @@ export async function updateStoreInfoAction(
     revalidatePath("/terminos")
     revalidatePath("/privacidad")
     revalidatePath("/cambios")
+    revalidatePath("/envios-y-devoluciones")
     revalidatePath("/tarjeta-regalo")
     return { success: true }
   } catch (error: unknown) {

@@ -16,8 +16,8 @@ export interface ShippingRates {
 
 /** Valores de respaldo. La tienda publicada usa los de Configuración. */
 export const DEFAULT_SHIPPING_RATES: ShippingRates = {
-  freeThreshold: 200_000,
-  standardCost: 15_000,
+  freeThreshold: 299_900,
+  standardCost: 14_900,
   expressCost: 25_000,
 }
 

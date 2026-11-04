@@ -20,6 +20,7 @@ export default async function BajaPublicidadPage({
 
   return (
     <LegalDocument
+      downloadable={false}
       title="Baja de Comunicaciones Comerciales"
       intro={`En ${company.tradeName} respetamos tu decisión. Si no deseas continuar recibiendo información sobre novedades, ofertas o lanzamientos, confirma tu correo a continuación.`}
       lastUpdated={LEGAL_LAST_UPDATED}

@@ -2,6 +2,8 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import LegalDocument, { LegalList, LegalSection } from "@/components/legal/LegalDocument"
 import { LEGAL_COMPANY, LEGAL_LAST_UPDATED } from "@/lib/legal"
+import { formatCOP } from "@/lib/shop-utils"
+import { getShippingRates } from "@/server/services/store-settings.service"
 
 export const metadata: Metadata = {
   title: "Políticas de Envío y Devoluciones | One Star",
@@ -12,7 +14,9 @@ export const metadata: Metadata = {
 const canalContacto =
   LEGAL_COMPANY.contactEmail ?? "contacto@tiendaonestar.com"
 
-export default function EnviosYDevolucionesPage() {
+export default async function EnviosYDevolucionesPage() {
+  const rates = await getShippingRates()
+
   return (
     <LegalDocument
       title="Políticas de Envío y Devoluciones"
@@ -37,8 +41,8 @@ export default function EnviosYDevolucionesPage() {
       <LegalSection id="costos-de-envio" heading="2. Costos de envío">
         <LegalList
           items={[
-            "Envío gratis: aplica automáticamente en compras iguales o superiores a $200.000 COP a nivel nacional.",
-            "Pedidos inferiores a $200.000 COP: tarifa estándar de $15.000 COP por despacho.",
+            `Envío gratis: aplica automáticamente en compras iguales o superiores a ${formatCOP(rates.freeThreshold)} COP a nivel nacional.`,
+            `Pedidos inferiores a ${formatCOP(rates.freeThreshold)} COP: tarifa estándar de ${formatCOP(rates.standardCost)} COP por despacho.`,
             "El valor exacto del envío se desglosa en la pantalla de checkout antes de realizar el pago.",
           ]}
         />

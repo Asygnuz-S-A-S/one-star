@@ -306,9 +306,9 @@ describe("placeOrder — productos que no existen en el ERP (tarjetas de regalo)
 
     expect(erpMocks.validateStock).toHaveBeenCalledWith([{ sku: "NK-001", qty: 1 }])
     const input = mockCreate.mock.calls[0][0]
-    // 185.000 < 200.000: hay un producto físico, así que el estándar se cobra
-    expect((input.shippingAddress as { shippingCost: number }).shippingCost).toBe(15000)
-    expect(input.total).toBe(200000)
+    // 185.000 < 299.900: hay un producto físico, así que el estándar se cobra
+    expect((input.shippingAddress as { shippingCost: number }).shippingCost).toBe(14900)
+    expect(input.total).toBe(199900)
   })
 
   it("bloquea la compra si el ERP reporta agotado un producto vinculado", async () => {
@@ -352,7 +352,7 @@ describe("placeOrder — cupones", () => {
     expect(mockValidateCoupon).toHaveBeenCalledWith("PROMO20", [
       { categoryId: "cat-1", unitPrice: 135000, quantity: 2 },
     ], { isClubMember: false })
-    expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ total: 250000 }))
+    expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ total: 264900 }))
   })
 
   it("registra el uso del cupón antes de crear el pedido", async () => {
@@ -447,7 +447,7 @@ describe("placeOrder — seguridad de precios", () => {
     // 2 × 135.000 (precio BD) = 270.000 ≥ 200.000 → envío gratis
     await placeOrder("user-1", orderInput)
     expect(mockCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ total: 270000 })
+      expect.objectContaining({ total: 284900 })
     )
     const input = mockCreate.mock.calls[0][0] as {
       items: { create: { unitPrice: number }[] }
@@ -467,17 +467,17 @@ describe("placeOrder — seguridad de precios", () => {
       },
     ] as never)
     await placeOrder("user-1", orderInput)
-    // 2 × 100.000 = 200.000 → envío gratis → total 200.000
+    // 2 × 100.000 = 200.000 → envío 14.900 → total 214.900
     expect(mockCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ total: 200000 })
+      expect.objectContaining({ total: 214900 })
     )
   })
 
   it("suma el costo de envío estándar bajo el umbral", async () => {
     await placeOrder("user-1", { ...orderInput, items: [{ ...orderInput.items[0], quantity: 1 }] })
-    // 135.000 < 200.000 → envío 15.000 → total 150.000
+    // 135.000 < 299.900 → envío 14.900 → total 149.900
     expect(mockCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ total: 150000 })
+      expect.objectContaining({ total: 149900 })
     )
   })
 
