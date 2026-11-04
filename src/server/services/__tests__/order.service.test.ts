@@ -18,6 +18,7 @@ vi.mock("@/server/repositories/order.repository", () => ({
   updateOrderStatusAndTracking: vi.fn(),
   getOrderStats: vi.fn(),
   getVariantsStock: vi.fn(),
+  getStoreVariantsStock: vi.fn(),
   markOrderPaidWithStock: vi.fn(),
   closeUnpaidOrder: vi.fn(),
   findAbandonedPendingOrders: vi.fn(),
@@ -83,6 +84,7 @@ import {
   updateOrderStatus,
   updateOrderStatusAndTracking,
   getVariantsStock,
+  getStoreVariantsStock,
   markOrderPaidWithStock,
   closeUnpaidOrder,
   findAbandonedPendingOrders,
@@ -105,6 +107,7 @@ const mockCount = vi.mocked(countOrders)
 const mockUpdateStatus = vi.mocked(updateOrderStatus)
 const mockUpdateTracking = vi.mocked(updateOrderStatusAndTracking)
 const mockGetStock = vi.mocked(getVariantsStock)
+const mockGetStoreStock = vi.mocked(getStoreVariantsStock)
 const mockMarkPaid = vi.mocked(markOrderPaidWithStock)
 const mockPricing = vi.mocked(findVariantsForPricing)
 const mockValidateCoupon = vi.mocked(validateCouponForOrder)
@@ -360,6 +363,28 @@ describe("placeOrder — cupones", () => {
     expect(mockRegisterUsage.mock.invocationCallOrder[0]).toBeLessThan(
       mockCreate.mock.invocationCallOrder[0]
     )
+  })
+
+  it("recoger en tienda: rechaza si la tienda lleva inventario y no tiene la talla", async () => {
+    mockGetStoreStock.mockResolvedValue({ tracked: true, stockByVariant: new Map([["var-1", 1]]) })
+    await expect(
+      placeOrder("user-1", { ...orderInput, shippingMethod: "pickup", shippingAddress: { pickupStoreId: "store-1" } })
+    ).rejects.toThrow(/^Stock insuficiente en la tienda elegida/)
+    expect(mockGetStoreStock).toHaveBeenCalledWith("store-1", ["var-1"])
+    expect(mockCreate).not.toHaveBeenCalled()
+  })
+
+  it("recoger en tienda: sin inventario cargado en la tienda usa el stock general", async () => {
+    mockGetStoreStock.mockResolvedValue({ tracked: false, stockByVariant: new Map() })
+    mockCreate.mockResolvedValue(rawOrder as never)
+    await placeOrder("user-1", { ...orderInput, shippingMethod: "pickup", shippingAddress: { pickupStoreId: "store-1" } })
+    expect(mockCreate).toHaveBeenCalled()
+  })
+
+  it("envío a domicilio no consulta el inventario por tienda", async () => {
+    mockCreate.mockResolvedValue(rawOrder as never)
+    await placeOrder("user-1", orderInput)
+    expect(mockGetStoreStock).not.toHaveBeenCalled()
   })
 
   it("rechaza el pedido cuando el cupón ya no es válido", async () => {

@@ -132,6 +132,21 @@ export async function updateOrderCustomerData(id: string, data: OrderCustomerDat
  * Devuelve el stock actual de las variantes solicitadas.
  * Usado para validar disponibilidad antes de crear un pedido.
  */
+/**
+ * Stock de unas variantes en una tienda física. `tracked` es false si la tienda
+ * no tiene inventario cargado (catálogo por Excel, sin ERP): ahí no hay con qué validar.
+ */
+export async function getStoreVariantsStock(storeLocationId: string, variantIds: string[]) {
+  const [tracked, levels] = await Promise.all([
+    prisma.inventoryLevel.count({ where: { storeLocationId } }),
+    prisma.inventoryLevel.findMany({
+      where: { storeLocationId, variantId: { in: variantIds } },
+      select: { variantId: true, stock: true },
+    }),
+  ])
+  return { tracked: tracked > 0, stockByVariant: new Map(levels.map((l) => [l.variantId, l.stock])) }
+}
+
 export async function getVariantsStock(variantIds: string[]) {
   const variants = await prisma.variant.findMany({
     where: { id: { in: variantIds } },

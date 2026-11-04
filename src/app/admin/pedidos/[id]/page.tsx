@@ -52,6 +52,7 @@ function readShipping(raw: unknown): ShippingInfo {
 const SHIPPING_METHOD_LABELS: Record<string, string> = {
   standard: "Estándar",
   express: "Express",
+  pickup: "Recoger en tienda",
 }
 
 const PAYMENT_HELP: Record<string, string> = {

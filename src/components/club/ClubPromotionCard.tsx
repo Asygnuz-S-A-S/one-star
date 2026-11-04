@@ -8,7 +8,7 @@ import type { ClubPromotionDTO } from "@/server/services/club.service"
 export default function ClubPromotionCard({ promo }: { promo: ClubPromotionDTO }) {
   const [copied, setCopied] = useState(false)
   const discount = promo.discountType === "PERCENTAGE" ? `${promo.discountValue}% OFF` : `${formatCOP(promo.discountValue)} OFF`
-  const until = new Intl.DateTimeFormat("es-CO", { dateStyle: "medium" }).format(new Date(promo.validUntil))
+  const until = new Intl.DateTimeFormat("es-CO", { dateStyle: "medium", timeZone: "America/Bogota" }).format(new Date(promo.validUntil))
 
   const copy = async () => {
     if (!promo.code) return

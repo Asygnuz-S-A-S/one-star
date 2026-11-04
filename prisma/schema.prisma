@@ -590,6 +590,8 @@ model StoreLocation {
   name           String
   address        String
   city           String
+  // Departamento de la sede; el pedido para recoger en tienda lo toma de aquí.
+  department     String?
   phone          String?
   schedule       String?
   googleMapsUrl  String?

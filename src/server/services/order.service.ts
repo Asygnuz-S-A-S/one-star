@@ -9,6 +9,7 @@ import {
   updateOrderStatusAndTracking,
   getOrderStats,
   getVariantsStock,
+  getStoreVariantsStock,
   markOrderPaidWithStock,
   closeUnpaidOrder,
   findAbandonedPendingOrders,
@@ -286,6 +287,22 @@ export async function placeOrder(
     }
   }
 
+  // 0.2 Recoger en tienda: la talla debe estar en esa tienda, si la tienda lleva inventario.
+  const pickupStoreId =
+    data.shippingMethod === "pickup" && typeof data.shippingAddress === "object" && data.shippingAddress !== null
+      ? (data.shippingAddress as Record<string, unknown>).pickupStoreId
+      : undefined
+  if (typeof pickupStoreId === "string" && variantIds.length > 0) {
+    const { tracked, stockByVariant } = await getStoreVariantsStock(pickupStoreId, variantIds)
+    if (tracked) {
+      for (const item of pricedItems) {
+        if ((stockByVariant.get(item.variantId) ?? 0) < item.quantity) {
+          throw new Error(`Stock insuficiente en la tienda elegida para "${item.productName}". Elige otra tienda o envío a domicilio.`)
+        }
+      }
+    }
+  }
+
   // 0.5 Validación de Stock en Tiempo Real (JIT) contra el ERP. Solo aplica a
   //     variantes vinculadas al ERP (erpId): las tarjetas de regalo y los
   //     productos cargados a mano no existen allá y Loggro los reportaría como
@@ -398,6 +415,11 @@ export async function placeOrder(
  */
 export async function sendOrderConfirmation(order: OrderDTO): Promise<void> {
   if (!order.customerEmail) return
+  const shipping = (order.shippingAddress ?? {}) as Record<string, unknown>
+  const pickupStore =
+    shipping.shippingMethod === "pickup" && typeof shipping.pickupStoreName === "string"
+      ? { name: shipping.pickupStoreName, address: [shipping.address, shipping.city].filter(Boolean).join(", ") }
+      : undefined
   await sendOrderConfirmationEmail({
     email: order.customerEmail,
     name: order.customerName ?? undefined,
@@ -408,6 +430,7 @@ export async function sendOrderConfirmation(order: OrderDTO): Promise<void> {
       unitPrice: i.unitPrice,
     })),
     total: order.total,
+    pickupStore,
   })
 }
 

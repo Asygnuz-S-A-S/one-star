@@ -2,6 +2,7 @@
 
 import React, { useState } from "react"
 import { isStoreLocationPending } from "@/lib/store-location"
+import { COLOMBIA_DEPARTMENTS } from "@/lib/colombia-departments"
 import dynamic from "next/dynamic"
 import type { StoreLocation } from "@prisma/client"
 import { 
@@ -33,6 +34,7 @@ export default function StoreManager({ initialStores, erpLocations = [] }: Store
   const [name, setName] = useState("")
   const [address, setAddress] = useState("")
   const [city, setCity] = useState("")
+  const [department, setDepartment] = useState("")
   const [phone, setPhone] = useState("")
   const [schedule, setSchedule] = useState("")
   const [latitude, setLatitude] = useState<number | null>(null)
@@ -83,6 +85,7 @@ export default function StoreManager({ initialStores, erpLocations = [] }: Store
     setName(store.name)
     setAddress(store.address)
     setCity(store.city)
+    setDepartment(store.department ?? "")
     setPhone(store.phone || "")
     setSchedule(store.schedule || "")
     setLatitude(store.latitude)
@@ -98,6 +101,7 @@ export default function StoreManager({ initialStores, erpLocations = [] }: Store
     setName("")
     setAddress("")
     setCity("")
+    setDepartment("")
     setPhone("")
     setSchedule("")
     setLatitude(null)
@@ -141,6 +145,7 @@ export default function StoreManager({ initialStores, erpLocations = [] }: Store
       name,
       address,
       city,
+      department,
       phone,
       schedule,
       latitude,
@@ -233,6 +238,19 @@ export default function StoreManager({ initialStores, erpLocations = [] }: Store
                 className="w-full p-2 border border-gray-300 rounded"
                 placeholder="Ej. Bogotá"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">Departamento</label>
+              <select
+                value={department}
+                onChange={(e) => setDepartment(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded"
+              >
+                <option value="">Seleccionar...</option>
+                {COLOMBIA_DEPARTMENTS.map((d) => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
             </div>
           </div>
           

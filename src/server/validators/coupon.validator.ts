@@ -23,15 +23,16 @@ const optionalCategoryId = z.preprocess(
   z.string().trim().pipe(z.cuid("La categoría no es válida.")).nullable()
 )
 
-const validDate = z.preprocess(
+// Fechas del admin en hora de Colombia (UTC−5, sin horario de verano): desde las 00:00 del primer día hasta las 23:59 del último.
+const colombiaDate = (endOfDay: boolean) => z.preprocess(
   (value) => {
     if (typeof value !== "string") return value
     const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
     if (!match) return value
     const [, year, month, day] = match
-    const date = new Date(`${value}T00:00:00.000Z`)
-    return date.getUTCFullYear() === Number(year) && date.getUTCMonth() + 1 === Number(month) && date.getUTCDate() === Number(day)
-      ? date
+    const check = new Date(`${value}T00:00:00.000Z`)
+    return check.getUTCFullYear() === Number(year) && check.getUTCMonth() + 1 === Number(month) && check.getUTCDate() === Number(day)
+      ? new Date(`${value}T${endOfDay ? "23:59:59.999" : "00:00:00.000"}-05:00`)
       : value
   },
   z.date({ message: "La fecha no es válida." })
@@ -46,8 +47,8 @@ export const createCouponSchema = z.object({
   minOrderAmount: optionalNumber(0, "El pedido mínimo debe ser un número mayor o igual a cero."),
   maxUses: optionalPositiveInteger,
   categoryId: optionalCategoryId,
-  validFrom: validDate,
-  validUntil: validDate,
+  validFrom: colombiaDate(false),
+  validUntil: colombiaDate(true),
   isActive: z.boolean(),
   clubOnly: z.boolean().default(false),
 }).superRefine((data, ctx) => {

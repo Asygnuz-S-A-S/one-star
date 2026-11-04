@@ -10,6 +10,7 @@ import { linkOrderToLead } from "@/server/services/lead.service"
 import { markCartsRecoveredForEmail } from "@/server/services/abandoned-cart.service"
 import { getUserById } from "@/server/services/user.service"
 import { checkoutSchema } from "@/server/validators/checkout.validator"
+import { getPickupStores } from "@/server/services/store.service"
 import { consumePublicRateLimit } from "@/server/services/public-rate-limit.service"
 import { signGuestOrderSuccessToken } from "@/server/services/guest-order.service"
 import type { EpaycoCheckoutData } from "@/components/checkout/EpaycoButton"
@@ -36,7 +37,9 @@ export interface CheckoutData {
   city: string
   department: string
   postalCode?: string
-  shippingMethod: "standard" | "express"
+  shippingMethod: "standard" | "express" | "pickup"
+  /** Tienda donde se recoge; solo con shippingMethod "pickup". */
+  pickupStoreId?: string
   paymentMethod: "epayco" | "mercadopago" | "addi"
   /** Código de cupón aplicado; el servidor lo revalida y recalcula el descuento */
   couponCode?: string
@@ -108,6 +111,17 @@ export async function createOrder(data: CheckoutData): Promise<CreateOrderResult
       }
     }
     const input = parsed.data
+    // Recoger en tienda: la dirección del pedido es la de la tienda elegida, leída de la BD.
+    // shortcut: no valida que esa tienda tenga la talla (se valida el stock general); usar InventoryLevel por tienda cuando el ERP lo traiga.
+    const pickupStore = input.shippingMethod === "pickup"
+      ? (await getPickupStores()).find((store) => store.id === input.pickupStoreId)
+      : undefined
+    if (input.shippingMethod === "pickup" && !pickupStore) {
+      return { success: false, code: "VALIDATION_ERROR", error: "La tienda elegida no está disponible. Elige otra." }
+    }
+    const delivery = pickupStore
+      ? { address: pickupStore.address, apartment: null, city: pickupStore.city, department: pickupStore.department ?? "", postalCode: null }
+      : { address: input.address, apartment: input.apartment ?? null, city: input.city, department: input.department, postalCode: input.postalCode ?? null }
     const marketingConsentAt = input.marketingConsent ? new Date() : null
     const marketingConsentVersion = input.marketingConsent ? (input.marketingConsentVersion ?? "v2.0") : null
 
@@ -128,11 +142,8 @@ export async function createOrder(data: CheckoutData): Promise<CreateOrderResult
         documentType: input.documentType,
         cedula: input.cedula,
         phone: input.phone,
-        address: input.address,
-        apartment: input.apartment ?? null,
-        city: input.city,
-        department: input.department,
-        postalCode: input.postalCode ?? null,
+        ...delivery,
+        ...(pickupStore ? { pickupStoreId: pickupStore.id, pickupStoreName: pickupStore.name } : {}),
       },
       items: input.items.map((item) => ({
         productId: item.productId,
@@ -196,9 +207,9 @@ export async function createOrder(data: CheckoutData): Promise<CreateOrderResult
       customerLastName: input.lastName,
       cedula: input.cedula,
       phone: input.phone,
-      address: input.address,
-      city: input.city,
-      department: input.department,
+      address: delivery.address,
+      city: delivery.city,
+      department: delivery.department,
       ...(guestToken ? { guestToken } : {}),
     }
 
@@ -244,3 +255,13 @@ export async function getCustomerCheckoutProfile(): Promise<{
   }
 }
 
+
+/** Tiendas para "Pagar y recoger en tienda" en el checkout. Solo datos públicos (los mismos de /tiendas). */
+export async function getPickupStoresAction(): Promise<{ id: string; name: string; address: string; city: string; department: string | null }[]> {
+  try {
+    return await getPickupStores()
+  } catch (error) {
+    console.error("[getPickupStoresAction]", error)
+    return []
+  }
+}

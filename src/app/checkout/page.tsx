@@ -25,7 +25,8 @@ import { useSession } from "@/lib/auth-client"
 import { captureAbandonedCartAction } from "@/server/actions/abandoned-cart.actions"
 import { trackLeadCheckoutStageAction } from "@/server/actions/lead-stage.actions"
 import { validateCouponAction } from "@/server/actions/coupon.actions"
-import { createOrder, getCustomerCheckoutProfile } from "./actions"
+import { getAddiWidgetEvaluationAction, startAddiPaymentAction } from "@/server/actions/addi.actions"
+import { createOrder, getCustomerCheckoutProfile, getPickupStoresAction } from "./actions"
 
 const sectionVariants = {
   hidden: { opacity: 0, y: 18 },
@@ -75,7 +76,11 @@ function validateCedula(cedula: string): boolean {
   return /^[0-9]{6,12}$/.test(cedula.replace(/\s/g, ""))
 }
 
+type PickupStore = Awaited<ReturnType<typeof getPickupStoresAction>>[number]
+
+/** Con "recoger en tienda" no se pide dirección: el pedido usa la de la tienda. */
 function validateForm(values: FormValues): FormErrors {
+  const pickup = values.shippingMethod === "pickup"
   const errors: FormErrors = {}
   if (!values.email.trim()) errors.email = "El email es requerido"
   else if (!validateEmail(values.email)) errors.email = "Ingresa un email válido"
@@ -85,9 +90,9 @@ function validateForm(values: FormValues): FormErrors {
   else if (!validateCedula(values.cedula)) errors.cedula = "Ingresa un documento válido (6 a 12 dígitos)"
   if (!values.phone.trim()) errors.phone = "El teléfono es requerido"
   else if (!validatePhone(values.phone)) errors.phone = "Ingresa un teléfono válido (solo números)"
-  if (!values.address.trim()) errors.address = "La dirección es requerida"
-  if (!values.city.trim()) errors.city = "La ciudad es requerida"
-  if (!values.department) errors.department = "El departamento es requerido"
+  if (!pickup && !values.address.trim()) errors.address = "La dirección es requerida"
+  if (!pickup && !values.city.trim()) errors.city = "La ciudad es requerida"
+  if (!pickup && !values.department) errors.department = "El departamento es requerido"
   return errors
 }
 
@@ -206,6 +211,15 @@ function CheckoutForm({
   const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null)
 
   const [values, setValues] = useState<FormValues>(INITIAL_FORM_VALUES)
+  const [pickupStores, setPickupStores] = useState<PickupStore[]>([])
+  const [pickupStoreId, setPickupStoreId] = useState("")
+  const [paymentMethod, setPaymentMethod] = useState<"epayco" | "addi">("epayco")
+  /** Rango de Addi para el total actual; null mientras no responde o si Addi no está activo. */
+  const [addiRange, setAddiRange] = useState<{ inRange: boolean; minAmount: number } | null>(null)
+
+  useEffect(() => {
+    void getPickupStoresAction().then(setPickupStores).catch(() => {})
+  }, [])
 
   // Restaurar borrador y autocompletar perfil si hay sesión
   useEffect(() => {
@@ -272,6 +286,32 @@ function CheckoutForm({
   const shippingCost = getShippingCost(values.shippingMethod, subtotal, { digitalOnly, rates: shippingRates })
   const discount = appliedCoupon?.discountAmount ?? 0
   const total = subtotal - discount + shippingCost
+  const isPickup = values.shippingMethod === "pickup" && !digitalOnly
+  const pickupStore = pickupStores.find((store) => store.id === pickupStoreId)
+  const pendingErrors = validateForm(values)
+  const firstPendingError = Object.values(pendingErrors)[0]
+  const formReady =
+    items.length > 0 && termsAccepted && (!isPickup || Boolean(pickupStore)) && !firstPendingError
+
+  // Addi solo se ofrece si acepta el monto del pedido (tiene mínimo y máximo).
+  useEffect(() => {
+    if (total <= 0) return
+    let cancelled = false
+    const timer = setTimeout(() => {
+      void getAddiWidgetEvaluationAction(total)
+        .then((evaluation) => {
+          if (cancelled) return
+          setAddiRange(evaluation?.available ? { inRange: evaluation.inRange, minAmount: evaluation.minAmount } : null)
+        })
+        .catch(() => {})
+    }, 400)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [total])
+  const addiSelectable = Boolean(addiRange?.inRange)
+  const chosenPayment = paymentMethod === "addi" && addiSelectable ? "addi" : "epayco"
 
   // Captura del carrito abandonado: cuando hay email válido e ítems, se guarda
   // (con debounce) para que el admin pueda recuperarlo si la compra no se
@@ -307,12 +347,24 @@ function CheckoutForm({
     })
   }, [])
 
+  // El botón queda bloqueado hasta completar: al salir de cada campo se muestra su error, para que se vea qué falta.
+  function handleFieldBlur(e: React.FocusEvent<HTMLFormElement>) {
+    const key = (e.target as HTMLElement).closest<HTMLElement>("[data-field]")?.dataset.field as keyof FormErrors | undefined
+    const message = key ? pendingErrors[key] : undefined
+    if (key && message) setErrors((prev) => (prev[key] === message ? prev : { ...prev, [key]: message }))
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setServerError("")
     setTermsError("")
 
     if (isSessionPending) return
+
+    if (isPickup && !pickupStore) {
+      setServerError("Elige la tienda donde vas a recoger tu pedido")
+      return
+    }
 
     if (!termsAccepted) {
       setTermsError("Debes aceptar los términos y condiciones y el tratamiento de datos para continuar")
@@ -344,12 +396,14 @@ function CheckoutForm({
       name: values.name,
       lastName: values.lastName,
       phone: values.phone,
-      address: values.address,
-      apartment: values.apartment || undefined,
-      city: values.city,
-      department: values.department,
-      postalCode: values.postalCode || undefined,
-      shippingMethod: values.shippingMethod,
+      address: isPickup ? "" : values.address,
+      apartment: isPickup ? undefined : values.apartment || undefined,
+      city: isPickup ? "" : values.city,
+      department: isPickup ? "" : values.department,
+      postalCode: isPickup ? undefined : values.postalCode || undefined,
+      shippingMethod: isPickup ? "pickup" : values.shippingMethod === "pickup" ? "standard" : values.shippingMethod,
+      pickupStoreId: isPickup ? pickupStoreId : undefined,
+      // El pedido nace como ePayco; startAddiPaymentAction lo cambia a "addi" solo si Addi acepta la solicitud.
       paymentMethod: "epayco",
       couponCode: appliedCoupon?.code,
       termsAccepted: true,
@@ -367,6 +421,20 @@ function CheckoutForm({
       shippingCost,
       total,
     })
+
+    if (result.success && result.epaycoData && chosenPayment === "addi") {
+      // Con Addi elegido en el paso 4 se va directo a Addi; si falla, queda la pantalla de pago con ePayco.
+      clearCheckoutDraft(getCheckoutSessionStorage())
+      const addi = await startAddiPaymentAction({ orderId: result.epaycoData.orderId, guestToken: result.epaycoData.guestToken }).catch(() => null)
+      if (addi?.success) {
+        window.location.assign(addi.redirectUrl)
+        return
+      }
+      setSubmitting(false)
+      setServerError(addi?.error ?? "No pudimos conectar con Addi. Puedes pagar con ePayco.")
+      setEpaycoData(result.epaycoData)
+      return
+    }
 
     setSubmitting(false)
 
@@ -414,6 +482,7 @@ function CheckoutForm({
               Podrás pagar con tarjeta crédito/débito, PSE o efectivo.
             </p>
 
+            {serverError && <p role="alert" className="mb-4 rounded bg-red-50 p-3 font-montserrat text-xs text-[#E31C23]">{serverError}</p>}
             <EpaycoButton {...epaycoData} />
             <AddiPayButton
               orderId={epaycoData.orderId}
@@ -445,7 +514,7 @@ function CheckoutForm({
           <CheckoutStepper currentStep={2} />
         </div>
 
-        <form onSubmit={handleSubmit} noValidate>
+        <form onSubmit={handleSubmit} onBlur={handleFieldBlur} noValidate>
           {/* minmax(0, …) evita que las columnas desborden; en móvil el resumen va primero y plegable. */}
           <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:gap-10">
             {/* ── LEFT: Form ── */}
@@ -483,7 +552,7 @@ function CheckoutForm({
 
               {/* Section 2: Dirección de envío */}
               <motion.section className={sectionClass} variants={sectionVariants} initial="hidden" animate="visible" custom={1}>
-                <SectionTitle step={2}>Dirección de envío</SectionTitle>
+                <SectionTitle step={2}>{isPickup ? "Tus datos" : "Dirección de envío"}</SectionTitle>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div data-field="name">
                     <Field label="Nombre" required error={errors.name}>
@@ -529,6 +598,7 @@ function CheckoutForm({
                         placeholder="3001234567" className={errors.phone ? inputErrorClass : inputClass} autoComplete="tel" />
                     </Field>
                   </div>
+                  {!isPickup && (<>
                   <div data-field="address" className="sm:col-span-2">
                     <Field label="Dirección" required error={errors.address}>
                       <input type="text" value={values.address} onChange={(e) => set("address", e.target.value)}
@@ -564,12 +634,13 @@ function CheckoutForm({
                         placeholder="110111 (opcional)" className={inputClass} autoComplete="postal-code" />
                     </Field>
                   </div>
+                  </>)}
                 </div>
-                <label className="flex min-h-11 items-center gap-2.5 cursor-pointer mt-4">
+                {!isPickup && <label className="flex min-h-11 items-center gap-2.5 cursor-pointer mt-4">
                   <input type="checkbox" checked={values.saveAddress} onChange={(e) => set("saveAddress", e.target.checked)}
                     className="h-5 w-5 shrink-0 rounded border-[#E0E0E0] accent-[#E31C23]" />
                   <span className="text-sm font-montserrat text-[#4A4A4A]">Guardar esta dirección para futuras compras</span>
-                </label>
+                </label>}
               </motion.section>
 
               {/* Section 3: Método de envío */}
@@ -621,6 +692,35 @@ function CheckoutForm({
                     </div>
                     <span className="text-sm font-montserrat font-medium text-[#1C1C1C]">{formatCOP(shippingRates.expressCost)}</span>
                   </label>
+
+                  {pickupStores.length > 0 && (
+                    <div className={`rounded-[var(--store-radius-md)] border p-4 transition-[border-color,box-shadow] ${
+                      isPickup ? "border-[#1C1C1C] shadow-[0_0_0_1px_#1C1C1C]" : "border-[#E0E0E0] hover:border-[#4A4A4A]"}`}>
+                      <label className="flex min-h-8 cursor-pointer items-center justify-between gap-3">
+                        <span className="flex items-center gap-3">
+                          <input type="radio" name="shippingMethod" value="pickup" checked={isPickup}
+                            onChange={() => set("shippingMethod", "pickup")} className="h-5 w-5 shrink-0 accent-[#E31C23]" />
+                          <span>
+                            <span className="block text-sm font-montserrat font-medium text-[#1C1C1C]">Pagar y recoger en tienda</span>
+                            <span className="mt-0.5 block font-montserrat text-xs text-[#4A4A4A]">Te avisamos cuando tu pedido esté listo para recoger.</span>
+                          </span>
+                        </span>
+                        <span className="text-sm font-montserrat font-medium text-green-600">Gratis</span>
+                      </label>
+                      {isPickup && (
+                        <div className="mt-3" data-field="pickupStoreId">
+                          <Field label="Tienda donde recoges" required>
+                            <select value={pickupStoreId} onChange={(e) => setPickupStoreId(e.target.value)} className={`${inputClass} cursor-pointer`}>
+                              <option value="">Seleccionar tienda...</option>
+                              {pickupStores.map((store) => (
+                                <option key={store.id} value={store.id}>{store.name} · {store.address}, {store.city}</option>
+                              ))}
+                            </select>
+                          </Field>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
                 )}
               </motion.section>
@@ -633,22 +733,34 @@ function CheckoutForm({
                     </svg>
                     Pago 100% seguro
                   </span>}>Pago</SectionTitle>
-                <div className="bg-[#F5F5F5] rounded-lg p-4 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-[#E31C23]/10 flex items-center justify-center shrink-0">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E31C23" strokeWidth="2" strokeLinecap="round">
-                      <rect x="2" y="5" width="20" height="14" rx="2" />
-                      <line x1="2" y1="10" x2="22" y2="10" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="font-montserrat font-semibold text-sm text-[#1C1C1C]">ePayco</p>
-                    <p className="font-montserrat text-xs text-[#4A4A4A]">
-                      Tarjeta crédito/débito · PSE · Efectivo
-                    </p>
-                  </div>
+                <div className="space-y-3" role="radiogroup" aria-label="Medio de pago">
+                  <label className={`flex min-h-16 cursor-pointer items-center gap-3 rounded-[var(--store-radius-md)] border p-4 transition-[border-color,box-shadow] ${
+                    chosenPayment === "epayco" ? "border-[#1C1C1C] shadow-[0_0_0_1px_#1C1C1C]" : "border-[#E0E0E0] hover:border-[#4A4A4A]"}`}>
+                    <input type="radio" name="paymentMethod" value="epayco" checked={chosenPayment === "epayco"}
+                      onChange={() => setPaymentMethod("epayco")} className="h-5 w-5 shrink-0 accent-[#E31C23]" />
+                    <span>
+                      <span className="block font-montserrat text-sm font-semibold text-[#1C1C1C]">ePayco</span>
+                      <span className="block font-montserrat text-xs text-[#4A4A4A]">Tarjeta crédito/débito · PSE · Efectivo</span>
+                    </span>
+                  </label>
+                  {addiRange && (
+                    <label className={`flex min-h-16 items-center gap-3 rounded-[var(--store-radius-md)] border p-4 transition-[border-color,box-shadow] ${
+                      !addiSelectable ? "cursor-not-allowed border-[#ECECEA] opacity-60" : chosenPayment === "addi" ? "cursor-pointer border-[#1C1C1C] shadow-[0_0_0_1px_#1C1C1C]" : "cursor-pointer border-[#E0E0E0] hover:border-[#4A4A4A]"}`}>
+                      <input type="radio" name="paymentMethod" value="addi" checked={chosenPayment === "addi"} disabled={!addiSelectable}
+                        onChange={() => setPaymentMethod("addi")} className="h-5 w-5 shrink-0 accent-[#E31C23]" />
+                      <span>
+                        <span className="block font-montserrat text-sm font-semibold text-[#1C1C1C]">Addi · Paga a cuotas</span>
+                        <span className="block font-montserrat text-xs text-[#4A4A4A]">
+                          {addiSelectable ? "Compra hoy y paga en cuotas, sin tarjeta de crédito." : `Disponible en compras desde ${formatCOP(addiRange.minAmount)}.`}
+                        </span>
+                      </span>
+                    </label>
+                  )}
                 </div>
                 <p className="font-montserrat text-xs text-[#4A4A4A] mt-3">
-                  Al confirmar tus datos se abrirá el portal seguro de ePayco para completar el pago.
+                  {chosenPayment === "addi"
+                    ? "Al confirmar tus datos te llevamos a Addi para completar tu solicitud."
+                    : "Al confirmar tus datos se abrirá el portal seguro de ePayco para completar el pago."}
                 </p>
               </motion.section>
 
@@ -688,7 +800,8 @@ function CheckoutForm({
               <div className="sticky bottom-0 z-10 -mx-4 border-t border-[#ECECEA] bg-[var(--store-canvas)]/95 px-4 pt-3 backdrop-blur sm:-mx-6 sm:px-6 lg:static lg:mx-0 lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
               <button
                 type="submit"
-                disabled={submitting || isSessionPending}
+                disabled={submitting || isSessionPending || !formReady}
+                aria-describedby={!formReady ? "checkout-pendiente" : undefined}
                 className="flex min-h-14 w-full items-center justify-center gap-2 rounded-[var(--store-radius-md)] bg-[#E31C23] font-barlow text-base font-bold uppercase tracking-wider text-white transition-colors hover:bg-[#c21920] disabled:bg-[#4A4A4A]"
               >
                 {submitting ? (
@@ -710,6 +823,13 @@ function CheckoutForm({
                   </>
                 )}
               </button>
+              {!formReady && !submitting && (
+                <p id="checkout-pendiente" className="mt-2 text-center font-montserrat text-xs text-[#4A4A4A]">
+                  {!termsAccepted
+                    ? "Completa tus datos y acepta los términos para continuar."
+                    : firstPendingError ?? (isPickup && !pickupStore ? "Elige la tienda donde vas a recoger tu pedido." : "Completa los campos obligatorios (*) para continuar.")}
+                </p>
+              )}
               </div>
 
               <p className="text-center text-xs font-montserrat text-[#4A4A4A]">

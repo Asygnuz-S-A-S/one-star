@@ -5,6 +5,7 @@ import type { ERPStockLocation } from "@/server/erp"
 import {
   createStoreLocation,
   deleteStoreLocation,
+  findPickupStores,
   findStoreLocations,
   setStoreLocationActive,
   updateStoreLocation,
@@ -13,6 +14,11 @@ import type { StoreLocationInput } from "../validators/store-location.validator"
 
 export async function getStoreLocations(): Promise<StoreLocation[]> {
   return findStoreLocations()
+}
+
+/** Tiendas físicas activas para "Pagar y recoger en tienda". Solo datos públicos (los mismos de /tiendas). */
+export async function getPickupStores() {
+  return findPickupStores()
 }
 
 export async function createStore(input: StoreLocationInput): Promise<StoreLocation> {

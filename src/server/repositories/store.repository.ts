@@ -6,6 +6,7 @@ export interface StoreLocationInput {
   name: string
   address: string
   city: string
+  department?: string | null
   phone?: string | null
   schedule?: string | null
   googleMapsUrl?: string | null
@@ -106,4 +107,13 @@ export async function ensureErpStoreLocations(
   }
 
   return result
+}
+
+/** Tiendas físicas activas donde el cliente puede recoger su pedido (la bodega web no cuenta). */
+export async function findPickupStores() {
+  return prisma.storeLocation.findMany({
+    where: { isActive: true, isWebWarehouse: false },
+    orderBy: [{ city: "asc" }, { name: "asc" }],
+    select: { id: true, name: true, address: true, city: true, department: true },
+  })
 }
