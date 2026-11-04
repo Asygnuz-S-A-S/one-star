@@ -107,6 +107,8 @@ export function orderConfirmationEmail(params: {
   orderId: string
   items: OrderEmailItem[]
   total: number
+  /** Pedido para recoger: reemplaza el aviso de despacho. */
+  pickupStore?: { name: string; address: string }
 }): EmailContent {
   const rows = params.items
     .map(
@@ -141,7 +143,9 @@ export function orderConfirmationEmail(params: {
       </tr>
     </table>
     <p style="margin:24px 0 0;font-size:14px;line-height:1.6;color:${COLOR.muted};">
-      Te avisaremos cuando tu pedido sea despachado. ¡Gracias por confiar en One Star!
+      ${params.pickupStore
+        ? `Recoges tu pedido en <strong>${escapeHtml(params.pickupStore.name)}</strong>${params.pickupStore.address ? ` (${escapeHtml(params.pickupStore.address)})` : ""}. Te avisaremos cuando esté listo; lleva tu documento.`
+        : "Te avisaremos cuando tu pedido sea despachado."} ¡Gracias por confiar en One Star!
     </p>`
 
   return {

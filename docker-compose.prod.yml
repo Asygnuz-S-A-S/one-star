@@ -27,6 +27,8 @@ services:
         NEXT_PUBLIC_EPAYCO_PUBLIC_KEY: ${NEXT_PUBLIC_EPAYCO_PUBLIC_KEY:?NEXT_PUBLIC_EPAYCO_PUBLIC_KEY is required}
         NEXT_PUBLIC_EPAYCO_TEST: ${NEXT_PUBLIC_EPAYCO_TEST:?NEXT_PUBLIC_EPAYCO_TEST is required}
         NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:?NEXT_PUBLIC_SENTRY_DSN is required}
+        # Opcional: sin valor no se carga Google Analytics.
+        NEXT_PUBLIC_GA_MEASUREMENT_ID: ${NEXT_PUBLIC_GA_MEASUREMENT_ID:-}
     restart: unless-stopped
     init: true
     expose:
