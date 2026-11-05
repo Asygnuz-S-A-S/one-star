@@ -1,7 +1,7 @@
 import "server-only"
 
 import { z } from "zod"
-import { MAX_HERO_ANGLES } from "@/lib/editorial-config"
+import { MAX_HERO_ANGLES, TILE_ART_TEXT_MAX } from "@/lib/editorial-config"
 import { isSafePublicUrl } from "@/lib/safe-url"
 
 const AppearanceSchema = z.enum(["light", "carbon", "oneStarRed"])
@@ -63,8 +63,10 @@ const CollectionTileSchema = z.object({
     href: DestinationSchema.optional(),
     appearance: AppearanceSchema,
     media: MediaSchema.optional(),
+    artText: z.string().trim().min(1).max(TILE_ART_TEXT_MAX).optional(),
+    background: z.string().regex(/^#[0-9a-f]{6}$/i, "Usa un color como #E31C23").optional(),
   })).min(1).max(8),
-  tileStyle: z.enum(["graphic", "product"]).optional(),
+  tileStyle: z.enum(["graphic", "product", "banner"]).optional(),
 })
 
 const EditorialBlockSchema = z.object({

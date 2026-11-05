@@ -4,7 +4,7 @@
 import { useState } from "react"
 
 import { EDITORIAL_APPEARANCES, EDITORIAL_DESTINATIONS } from "@/lib/editorial-builder-form"
-import { MAX_HERO_ANGLES, expandFrameSequence, type CampaignHeroSlide, type EditorialAppearance, type HeroSpinMode } from "@/lib/editorial-config"
+import { MAX_HERO_ANGLES, TILE_ART_TEXT_MAX, expandFrameSequence, type CampaignHeroSlide, type EditorialAppearance, type HeroSpinMode } from "@/lib/editorial-config"
 
 type Config = Record<string, any>
 type Update = (next: Config) => void
@@ -152,14 +152,21 @@ export function CollectionTileFields({ config, onChange, onPickMedia, collection
   // Cada tarjeta guarda su propio tile; sin título ni destino propios se usan los de la grilla.
   const tile = tiles.find((item) => item.id === selectedId) ?? { id: selectedId, appearance: "carbon" }
   const update = (patch: Record<string, unknown>) => onChange({ ...config, tiles: upsertTile(tiles, selectedId, patch) })
+  const style = config.tileStyle === "product" || config.tileStyle === "banner" ? config.tileStyle : "graphic"
+  const featured = selectedId === (collectionTargets[0]?.id ?? tiles[0]?.id)
   return <div className="space-y-4">
     <div className="rounded-lg border border-[#E31C23]/30 bg-red-50 p-3 text-sm text-red-950"><strong>Tarjeta de colección.</strong> Elige cada tarjeta y asígnale imagen y apariencia. Si dejas el título o el destino vacíos se usan los de la grilla.</div>
-    <div><label className={label} htmlFor="collection-tile-style">Estilo de las tarjetas</label><select id="collection-tile-style" value={config.tileStyle === "product" ? "product" : "graphic"} onChange={(event) => onChange({ ...config, tileStyle: event.target.value })} className={input}><option value="graphic">Gráfico: tipografía, marcas y colores (sin foto)</option><option value="product">Producto: foto del tenis sobre fondo claro</option></select></div>
+    <div><label className={label} htmlFor="collection-tile-style">Estilo de las tarjetas</label><select id="collection-tile-style" value={style} onChange={(event) => onChange({ ...config, tileStyle: event.target.value })} className={input}><option value="graphic">Gráfico: tipografía, marcas y colores (sin foto)</option><option value="banner">Imagen completa: tu banner ocupa toda la tarjeta</option><option value="product">Producto: foto del tenis sobre fondo claro</option></select></div>
     {collectionTargets.length > 0 && <div><label className={label} htmlFor="collection-tile-target">Tarjeta de colección</label><select id="collection-tile-target" value={selectedId} onChange={(event) => setSelectedId(event.target.value)} className={input}>{collectionTargets.map((item) => <option key={item.id} value={item.id}>{item.label}{tiles.some((saved) => saved.id === item.id && saved.media) ? " ✓" : ""}</option>)}</select></div>}
     <div><label className={label}>Título</label><input value={tile.title ?? ""} onChange={(event) => update({ title: event.target.value || undefined })} className={input} placeholder={target?.label ?? "Accesorios"} /></div>
     <div><Destination id="collection-destination" value={tile.href ?? target?.href ?? "/productos"} onChange={(href) => update({ href })} /></div>
     <Appearance value={(tile.appearance ?? "carbon") as EditorialAppearance} onChange={(appearance) => update({ appearance })} />
-    <Media label="Imagen de colección" media={tile.media} onChange={(media) => update({ media })} onPickMedia={onPickMedia} />
+    {style === "graphic" && <div className="grid gap-3 sm:grid-cols-2">
+      <div><label className={label} htmlFor="collection-art-text">Texto grande (opcional)</label><input id="collection-art-text" maxLength={TILE_ART_TEXT_MAX} value={tile.artText ?? ""} onChange={(event) => update({ artText: event.target.value || undefined })} className={input} placeholder="NEW, -30%, BLACK…" /><p className="mt-1 text-xs text-gray-500">Vacío: usa el dibujo según el destino.</p></div>
+      <div><label className={label} htmlFor="collection-background">Color de fondo</label><div className="flex gap-2"><input id="collection-background" type="color" value={tile.background ?? "#141414"} onChange={(event) => update({ background: event.target.value })} className="h-11 w-14 shrink-0 rounded border border-gray-300" /><button type="button" onClick={() => update({ background: undefined })} className="min-h-11 rounded border border-gray-300 px-3 text-xs font-bold">Usar el de la marca</button></div></div>
+    </div>}
+    {style !== "graphic" && <Media label={style === "banner" ? "Banner (imagen completa)" : "Imagen de colección"} media={tile.media} onChange={(media) => update({ media })} onPickMedia={onPickMedia} />}
+    {style === "banner" && <p className="text-xs text-gray-500">Tamaño recomendado: {featured ? "1600 × 1200 px (horizontal 4:3)" : "1000 × 1250 px (vertical 4:5)"}. Deja el texto importante lejos de la esquina de abajo a la izquierda: ahí va el título.</p>}
   </div>
 }
 

@@ -5,11 +5,11 @@ import Image from "next/image"
 import Link from "next/link"
 import type { HomeGridBlock } from "@prisma/client"
 
-import { resolveCollectionTiles, resolveCollectionTileStyle, type EditorialAppearance } from "@/lib/editorial-config"
+import { resolveCollectionTiles, resolveCollectionTileStyle, type CollectionTileStyle, type EditorialAppearance } from "@/lib/editorial-config"
 import { canUseNextImageOptimization } from "@/lib/image-optimization"
 import { safePublicUrl } from "@/lib/safe-url"
 import ScrollReveal from "@/components/home/ScrollReveal"
-import CollectionTileArt, { TILE_ART_SURFACE, tileArtKind } from "@/components/home/CollectionTileArt"
+import CollectionTileArt, { TILE_ART_SURFACE, isDarkColor, tileArtKind } from "@/components/home/CollectionTileArt"
 
 const TITLE_ALIGN: Record<string, string> = { left: "text-left", center: "text-center", right: "text-right" }
 
@@ -21,7 +21,7 @@ const ACCENT: Record<EditorialAppearance, string> = {
   oneStarRed: "text-[#E31C23]",
 }
 
-type TileOptions = { appearance: EditorialAppearance; alt?: string; href?: string; src?: string; title?: string }
+type TileOptions = { appearance: EditorialAppearance; alt?: string; artText?: string; background?: string; href?: string; src?: string; title?: string }
 
 /**
  * Mosaico editorial: la primera colección es la destacada (2×2) y el último tile se estira
@@ -38,7 +38,7 @@ function tileLayout(index: number, total: number): string {
   return `${mobileSpan} md:aspect-auto ${desktopSpan}`
 }
 
-function CollectionTile({ block, index, total, options, graphic }: { block: HomeGridBlock; index: number; total: number; options: TileOptions; graphic: boolean }) {
+function CollectionTile({ block, index, total, options, tileStyle }: { block: HomeGridBlock; index: number; total: number; options: TileOptions; tileStyle: CollectionTileStyle }) {
   const [mediaFailed, setMediaFailed] = useState(false)
   const hasMedia = Boolean(options.src && !mediaFailed)
   const title = options.title ?? block.label
@@ -48,21 +48,41 @@ function CollectionTile({ block, index, total, options, graphic }: { block: Home
   const href = safePublicUrl(options.href ?? block.href, "/")
   const art = tileArtKind(href, featured)
   const surface = TILE_ART_SURFACE[art]
-  const dark = graphic && surface.dark
+  // Banner propio: la imagen cubre toda la tarjeta. Sin imagen, cae al estilo gráfico.
+  const banner = tileStyle === "banner" && hasMedia
+  const graphic = tileStyle === "graphic" || (tileStyle === "banner" && !hasMedia)
+  const dark = banner || (graphic && (options.background ? isDarkColor(options.background) : surface.dark))
+  const surfaceClass = banner ? "bg-[#141414] text-white" : graphic ? `${options.background ? "" : surface.className} ${dark ? "text-white" : "text-[#1C1C1C]"}` : "bg-[linear-gradient(180deg,#f6f5f2_0%,#ebeae6_100%)] text-[#1C1C1C]"
 
   return (
     <Link
       href={href}
-      className={`${tileLayout(index, total)} group relative isolate flex flex-col overflow-hidden rounded-[var(--store-radius-lg)] ${graphic ? `${surface.className} ${dark ? "text-white" : "text-[#1C1C1C]"}` : "bg-[linear-gradient(180deg,#f6f5f2_0%,#ebeae6_100%)] text-[#1C1C1C]"} ring-1 ring-black/[0.04] transition-[box-shadow,background-color] duration-500 ease-out hover:shadow-[0_22px_44px_-26px_rgb(28_28_28/0.35)] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[var(--store-focus)]`}
+      style={graphic && options.background ? { backgroundColor: options.background } : undefined}
+      className={`${tileLayout(index, total)} group relative isolate flex flex-col overflow-hidden rounded-[var(--store-radius-lg)] ${surfaceClass} ring-1 ring-black/[0.04] transition-[box-shadow,background-color] duration-500 ease-out hover:shadow-[0_22px_44px_-26px_rgb(28_28_28/0.35)] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[var(--store-focus)]`}
     >
       <span className={`relative flex items-center justify-between px-5 pt-5 font-barlow text-[11px] font-bold uppercase tracking-[0.22em] md:px-6 md:pt-6 ${dark ? "text-white/60" : accent}`}>
         <span>{String(index + 1).padStart(2, "0")}</span>
         {featured && <span className={dark ? "text-white/60" : "text-[#1C1C1C]/45"}>Colección destacada</span>}
       </span>
 
-      {graphic && <CollectionTileArt kind={art} title={title} />}
+      {graphic && <CollectionTileArt kind={art} title={title} text={options.artText} />}
 
-      {!graphic && <>
+      {banner && options.src && <>
+        <Image
+          src={options.src}
+          alt={options.alt ?? title}
+          fill
+          sizes={featured ? "(max-width: 767px) 100vw, 50vw" : "(max-width: 767px) 50vw, 25vw"}
+          unoptimized={!canUseNextImageOptimization(options.src)}
+          className="-z-10 object-cover transition-transform duration-700 ease-[cubic-bezier(.22,1,.36,1)] motion-safe:group-hover:scale-[1.03]"
+          data-testid="collection-tile-banner"
+          onError={() => setMediaFailed(true)}
+        />
+        {/* Degradado solo abajo: el título se lee sobre cualquier imagen. */}
+        <span aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-1/2 bg-gradient-to-t from-black/60 to-transparent" />
+      </>}
+
+      {tileStyle === "product" && <>
       {/* Producto posado sobre la superficie: la foto (fondo blanco) se funde con multiply.
           Transform solo en la imagen y sin z-index en los contenedores para no aislar el blend. */}
       <span className={`pointer-events-none absolute inset-x-0 flex items-center justify-center ${featured ? "bottom-[30%] top-[12%] md:bottom-[14%] md:top-[12%]" : "bottom-[22%] top-[12%]"}`}>
@@ -111,7 +131,7 @@ export default function CategoryGrid({ blocks, config = {} }: { blocks: HomeGrid
   const titleAlign = typeof config.titleAlign === "string" ? config.titleAlign : "left"
   const showAccent = config.showAccent !== false
   const options = resolveCollectionTiles(config)
-  const graphic = resolveCollectionTileStyle(config) === "graphic"
+  const tileStyle = resolveCollectionTileStyle(config)
   const titleAlignCls = TITLE_ALIGN[titleAlign] ?? TITLE_ALIGN.left
   const accentAlign = titleAlign === "left" ? "mr-auto" : titleAlign === "right" ? "ml-auto" : "mx-auto"
 
@@ -133,7 +153,7 @@ export default function CategoryGrid({ blocks, config = {} }: { blocks: HomeGrid
       <ScrollReveal>
         <div className="store-gutter grid grid-cols-2 gap-3 md:auto-rows-[15rem] md:grid-cols-4 md:gap-4 xl:auto-rows-[17rem]">
           {blocks.map((block, index) => (
-            <CollectionTile key={block.id} block={block} index={index} total={blocks.length} options={options.get(block.id) ?? { appearance: "light" }} graphic={graphic} />
+            <CollectionTile key={block.id} block={block} index={index} total={blocks.length} options={options.get(block.id) ?? { appearance: "light" }} tileStyle={tileStyle} />
           ))}
         </div>
       </ScrollReveal>
