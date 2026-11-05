@@ -57,6 +57,8 @@ export type EditorialBlockConfig = {
 export type CollectionTileConfig = {
   kind: "collectionTile"
   tiles: Array<{ appearance: EditorialAppearance; href?: string; id: string; media?: EditorialMedia; title?: string }>
+  /** "graphic" (por defecto): tipografía y marcas. "product": foto del tenis sobre la superficie clara. */
+  tileStyle?: "graphic" | "product"
   version: 1
 }
 
@@ -169,7 +171,7 @@ export function parseEditorialConfig(value: unknown): EditorialConfig {
       const id = text(item?.id)
       return id ? [{ id, appearance: appearance(item?.appearance), ...(text(item?.title) ? { title: text(item?.title) } : {}), ...(text(item?.href) && isSafePublicUrl(text(item?.href)!) ? { href: text(item?.href) } : {}), ...(media(item?.media) ? { media: media(item?.media) } : {}) }] : []
     })
-    return { version: 1, kind: "collectionTile", tiles }
+    return { version: 1, kind: "collectionTile", tiles, ...(config.tileStyle === "product" ? { tileStyle: "product" as const } : {}) }
   }
 
   if (config.kind === "editorialBlock") {
@@ -199,6 +201,11 @@ export function resolveCollectionTiles(value: unknown) {
     tiles.set(tile.id, { appearance: tile.appearance, ...(tile.title ? { title: tile.title } : {}), ...(tile.href ? { href: tile.href } : {}), ...(tile.media ? tile.media : {}) })
   }
   return tiles
+}
+
+export function resolveCollectionTileStyle(value: unknown): "graphic" | "product" {
+  const config = parseEditorialConfig(value)
+  return config.kind === "collectionTile" && config.tileStyle === "product" ? "product" : "graphic"
 }
 
 /** Normalizes old single campaigns and new multi-slide campaigns for public rendering. */

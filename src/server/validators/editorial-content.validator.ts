@@ -64,6 +64,7 @@ const CollectionTileSchema = z.object({
     appearance: AppearanceSchema,
     media: MediaSchema.optional(),
   })).min(1).max(8),
+  tileStyle: z.enum(["graphic", "product"]).optional(),
 })
 
 const EditorialBlockSchema = z.object({

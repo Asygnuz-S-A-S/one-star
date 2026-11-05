@@ -5,10 +5,11 @@ import Image from "next/image"
 import Link from "next/link"
 import type { HomeGridBlock } from "@prisma/client"
 
-import { resolveCollectionTiles, type EditorialAppearance } from "@/lib/editorial-config"
+import { resolveCollectionTiles, resolveCollectionTileStyle, type EditorialAppearance } from "@/lib/editorial-config"
 import { canUseNextImageOptimization } from "@/lib/image-optimization"
 import { safePublicUrl } from "@/lib/safe-url"
 import ScrollReveal from "@/components/home/ScrollReveal"
+import CollectionTileArt, { TILE_ART_SURFACE, tileArtKind } from "@/components/home/CollectionTileArt"
 
 const TITLE_ALIGN: Record<string, string> = { left: "text-left", center: "text-center", right: "text-right" }
 
@@ -37,24 +38,31 @@ function tileLayout(index: number, total: number): string {
   return `${mobileSpan} md:aspect-auto ${desktopSpan}`
 }
 
-function CollectionTile({ block, index, total, options }: { block: HomeGridBlock; index: number; total: number; options: TileOptions }) {
+function CollectionTile({ block, index, total, options, graphic }: { block: HomeGridBlock; index: number; total: number; options: TileOptions; graphic: boolean }) {
   const [mediaFailed, setMediaFailed] = useState(false)
   const hasMedia = Boolean(options.src && !mediaFailed)
   const title = options.title ?? block.label
   const label = `Imagen de ${title} próximamente`
   const featured = index === 0
   const accent = ACCENT[options.appearance]
+  const href = safePublicUrl(options.href ?? block.href, "/")
+  const art = tileArtKind(href, featured)
+  const surface = TILE_ART_SURFACE[art]
+  const dark = graphic && surface.dark
 
   return (
     <Link
-      href={safePublicUrl(options.href ?? block.href, "/")}
-      className={`${tileLayout(index, total)} group relative isolate flex flex-col overflow-hidden rounded-[var(--store-radius-lg)] bg-[linear-gradient(180deg,#f6f5f2_0%,#ebeae6_100%)] text-[#1C1C1C] ring-1 ring-black/[0.04] transition-[box-shadow,background-color] duration-500 ease-out hover:shadow-[0_22px_44px_-26px_rgb(28_28_28/0.35)] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[var(--store-focus)]`}
+      href={href}
+      className={`${tileLayout(index, total)} group relative isolate flex flex-col overflow-hidden rounded-[var(--store-radius-lg)] ${graphic ? `${surface.className} ${dark ? "text-white" : "text-[#1C1C1C]"}` : "bg-[linear-gradient(180deg,#f6f5f2_0%,#ebeae6_100%)] text-[#1C1C1C]"} ring-1 ring-black/[0.04] transition-[box-shadow,background-color] duration-500 ease-out hover:shadow-[0_22px_44px_-26px_rgb(28_28_28/0.35)] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[var(--store-focus)]`}
     >
-      <span className={`relative flex items-center justify-between px-5 pt-5 font-barlow text-[11px] font-bold uppercase tracking-[0.22em] md:px-6 md:pt-6 ${accent}`}>
+      <span className={`relative flex items-center justify-between px-5 pt-5 font-barlow text-[11px] font-bold uppercase tracking-[0.22em] md:px-6 md:pt-6 ${dark ? "text-white/60" : accent}`}>
         <span>{String(index + 1).padStart(2, "0")}</span>
-        {featured && <span className="text-[#1C1C1C]/45">Colección destacada</span>}
+        {featured && <span className={dark ? "text-white/60" : "text-[#1C1C1C]/45"}>Colección destacada</span>}
       </span>
 
+      {graphic && <CollectionTileArt kind={art} title={title} />}
+
+      {!graphic && <>
       {/* Producto posado sobre la superficie: la foto (fondo blanco) se funde con multiply.
           Transform solo en la imagen y sin z-index en los contenedores para no aislar el blend. */}
       <span className={`pointer-events-none absolute inset-x-0 flex items-center justify-center ${featured ? "bottom-[30%] top-[12%] md:bottom-[14%] md:top-[12%]" : "bottom-[22%] top-[12%]"}`}>
@@ -79,11 +87,12 @@ function CollectionTile({ block, index, total, options }: { block: HomeGridBlock
       </span>
       {/* Sombra de contacto: el tenis "apoya" en la superficie en vez de flotar en un recuadro. */}
       <span aria-hidden="true" className={`pointer-events-none absolute left-1/2 h-5 -translate-x-1/2 rounded-[50%] bg-black/[0.08] blur-md transition-[width,opacity] duration-700 group-hover:opacity-60 max-w-[15rem] ${featured ? "bottom-[28%] w-[46%] md:bottom-[13%] md:max-w-[22rem]" : "bottom-[20%] w-[56%]"}`} />
+      </>}
 
       <span className="relative mt-auto flex items-end justify-between gap-3 px-5 pb-5 md:px-6 md:pb-6">
         <span className="min-w-0">
-          <span className={`block font-barlow font-bold uppercase leading-[0.95] tracking-[-0.01em] [overflow-wrap:anywhere] ${featured ? "text-3xl md:text-5xl" : "text-lg md:text-xl"}`}>{title}</span>
-          <span className="mt-2 inline-flex items-center gap-2 font-montserrat text-xs font-medium text-[#1C1C1C]/60 transition-colors group-hover:text-[#1C1C1C]">
+          <span className={`block font-barlow font-bold uppercase leading-[0.95] tracking-[-0.01em] [overflow-wrap:anywhere] ${featured ? "text-3xl lg:text-5xl" : "text-lg md:text-xl"}`}>{title}</span>
+          <span className={`mt-2 inline-flex items-center gap-2 font-montserrat text-xs font-medium transition-colors ${dark ? "text-white/70 group-hover:text-white" : "text-[#1C1C1C]/60 group-hover:text-[#1C1C1C]"}`}>
             Explorar
             <span aria-hidden="true" className="block h-px w-5 bg-current transition-[width] duration-300 group-hover:w-9" />
           </span>
@@ -102,6 +111,7 @@ export default function CategoryGrid({ blocks, config = {} }: { blocks: HomeGrid
   const titleAlign = typeof config.titleAlign === "string" ? config.titleAlign : "left"
   const showAccent = config.showAccent !== false
   const options = resolveCollectionTiles(config)
+  const graphic = resolveCollectionTileStyle(config) === "graphic"
   const titleAlignCls = TITLE_ALIGN[titleAlign] ?? TITLE_ALIGN.left
   const accentAlign = titleAlign === "left" ? "mr-auto" : titleAlign === "right" ? "ml-auto" : "mx-auto"
 
@@ -123,7 +133,7 @@ export default function CategoryGrid({ blocks, config = {} }: { blocks: HomeGrid
       <ScrollReveal>
         <div className="store-gutter grid grid-cols-2 gap-3 md:auto-rows-[15rem] md:grid-cols-4 md:gap-4 xl:auto-rows-[17rem]">
           {blocks.map((block, index) => (
-            <CollectionTile key={block.id} block={block} index={index} total={blocks.length} options={options.get(block.id) ?? { appearance: "light" }} />
+            <CollectionTile key={block.id} block={block} index={index} total={blocks.length} options={options.get(block.id) ?? { appearance: "light" }} graphic={graphic} />
           ))}
         </div>
       </ScrollReveal>
