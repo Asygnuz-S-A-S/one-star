@@ -37,12 +37,30 @@ function Star({ className, outline = false }: { className: string; outline?: boo
   )
 }
 
-export default function CollectionTileArt({ kind, title }: { kind: TileArtKind; title: string }) {
+/** Color hex → si el texto encima debe ir claro (luminancia relativa simple). */
+export function isDarkColor(hex: string): boolean {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b < 0.55
+}
+
+export default function CollectionTileArt({ kind, title, text }: { kind: TileArtKind; title: string; text?: string }) {
   return (
     <span aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
       {/* En tarjetas anchas el arte se queda en un recuadro a la derecha para no crecer sin límite. */}
-      <span className={`@container absolute inset-y-0 right-0 w-full ${kind === "collection" ? "" : "max-w-[26rem]"}`}>
-      {kind === "collection" && (
+      <span className={`@container absolute inset-y-0 right-0 w-full ${kind === "collection" && !text ? "" : "max-w-[26rem]"}`}>
+      {/* Texto propio del admin (p. ej. "-30%", "BLACK"): reemplaza el arte por destino. */}
+      {text && (
+        <>
+          <Star className="absolute right-[7cqw] top-[6cqw] w-[6cqw] opacity-90" />
+          <span
+            className="absolute right-[5cqw] top-[18cqw] whitespace-nowrap font-barlow font-black uppercase leading-[0.8] tracking-[-0.04em] [-webkit-text-fill-color:transparent] [-webkit-text-stroke:2px_currentColor] opacity-60"
+            style={{ fontSize: `${Math.min(46, Math.round(140 / text.length))}cqw` }}
+          >
+            {text}
+          </span>
+        </>
+      )}
+      {!text && kind === "collection" && (
         <>
           <Star outline className="absolute -right-[10%] -top-[18%] w-[70%] text-white/20" />
           <span className="absolute left-[6cqw] top-[22%] font-barlow text-[2.4cqw] font-black uppercase tracking-[0.32em] text-[#E31C23] max-md:text-[3.4cqw]">
@@ -56,7 +74,7 @@ export default function CollectionTileArt({ kind, title }: { kind: TileArtKind; 
           </span>
         </>
       )}
-      {kind === "launches" && (
+      {!text && kind === "launches" && (
         <>
           <Star className="absolute right-[7cqw] top-[7cqw] w-[8cqw] text-white" />
           <span className="absolute -bottom-[7cqw] -right-[3cqw] font-barlow text-[46cqw] font-black leading-[0.8] tracking-[-0.04em] text-transparent [-webkit-text-stroke:2px_rgb(255_255_255/0.55)]">
@@ -64,7 +82,7 @@ export default function CollectionTileArt({ kind, title }: { kind: TileArtKind; 
           </span>
         </>
       )}
-      {kind === "sale" && (
+      {!text && kind === "sale" && (
         <>
           <span className="absolute -top-[2cqw] right-[5cqw] font-barlow text-[40cqw] font-black leading-none tracking-[-0.05em] text-[#E31C23]">%</span>
           <span className="absolute -inset-x-[20%] top-[50%] -rotate-[7deg] overflow-hidden whitespace-nowrap bg-[#141414] py-[2cqw] font-barlow text-[4cqw] font-extrabold tracking-[0.3em] text-[#F2EEE6]">
@@ -72,7 +90,7 @@ export default function CollectionTileArt({ kind, title }: { kind: TileArtKind; 
           </span>
         </>
       )}
-      {kind === "stores" && (
+      {!text && kind === "stores" && (
         <>
           <span className="absolute inset-0 bg-[linear-gradient(rgb(255_255_255/0.06)_1px,transparent_1px),linear-gradient(90deg,rgb(255_255_255/0.06)_1px,transparent_1px)] bg-[size:28px_28px] [mask-image:radial-gradient(70%_70%_at_60%_40%,#000_30%,transparent_80%)]" />
           <svg viewBox="0 0 300 270" preserveAspectRatio="none" className="absolute inset-0 h-full w-full" fill="none" stroke="rgb(255 255 255 / 0.18)">
@@ -85,7 +103,7 @@ export default function CollectionTileArt({ kind, title }: { kind: TileArtKind; 
           </svg>
         </>
       )}
-      {kind === "gift" && (
+      {!text && kind === "gift" && (
         <>
           <span className="absolute right-[14cqw] top-[18cqw] aspect-[1.586] w-[62%] rotate-[4deg] rounded-[3.5cqw] bg-[#E9E4DA]/90" />
           <span className="absolute right-[7cqw] top-[12cqw] flex aspect-[1.586] w-[62%] -rotate-[8deg] flex-col justify-between rounded-[3.5cqw] bg-[linear-gradient(135deg,#E31C23,#9e1016)] p-[4.5cqw] text-white shadow-[0_20px_40px_-14px_rgb(0_0_0/0.6)]">
@@ -95,7 +113,7 @@ export default function CollectionTileArt({ kind, title }: { kind: TileArtKind; 
           </span>
         </>
       )}
-      {kind === "generic" && (
+      {!text && kind === "generic" && (
         <>
           <Star outline className="absolute -right-[18%] -top-[12%] w-[80%] text-white/15" />
           <span className="absolute left-[6cqw] top-[16cqw] font-barlow text-[34cqw] font-black uppercase leading-none text-white/10">{title.charAt(0)}</span>
