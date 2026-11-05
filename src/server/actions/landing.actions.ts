@@ -37,6 +37,13 @@ function dropEmptyMedia(value: Record<string, unknown>): Record<string, unknown>
     const media = clean[key] as { src?: unknown } | undefined
     if (media && typeof media === "object" && !String(media.src ?? "").trim()) delete clean[key]
   }
+  if (Array.isArray(clean.tiles)) {
+    clean.tiles = clean.tiles.map((tile) => {
+      if (!tile || typeof tile !== "object") return tile
+      const { media, ...rest } = tile as Record<string, unknown> & { media?: { src?: unknown } }
+      return media && !String(media.src ?? "").trim() ? rest : tile
+    })
+  }
   if (Array.isArray(clean.slides)) {
     clean.slides = clean.slides.map((slide) => slide && typeof slide === "object" ? dropEmptyMedia(slide as Record<string, unknown>) : slide)
   }
