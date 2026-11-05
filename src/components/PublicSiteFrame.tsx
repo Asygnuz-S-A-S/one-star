@@ -75,7 +75,8 @@ export default function PublicSiteFrame({
         </div>
       </div>
       <div className="contents print:hidden">
-        {chatEnabled && <ChatWidget welcome={chatWelcome} />}
+        {/* En el checkout el botón flotante tapaba los campos en celular. */}
+        {chatEnabled && !pathname.startsWith("/checkout") && <ChatWidget welcome={chatWelcome} />}
         <MobileBottomNav items={bottomNav} />
       </div>
     </div>
