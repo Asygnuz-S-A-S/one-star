@@ -54,11 +54,15 @@ export type EditorialBlockConfig = {
   version: 1
 }
 
+export type CollectionTileStyle = "graphic" | "product" | "banner"
+export const TILE_ART_TEXT_MAX = 14
+const HEX_COLOR = /^#[0-9a-f]{6}$/i
+
 export type CollectionTileConfig = {
   kind: "collectionTile"
-  tiles: Array<{ appearance: EditorialAppearance; href?: string; id: string; media?: EditorialMedia; title?: string }>
-  /** "graphic" (por defecto): tipografía y marcas. "product": foto del tenis sobre la superficie clara. */
-  tileStyle?: "graphic" | "product"
+  tiles: Array<{ appearance: EditorialAppearance; artText?: string; background?: string; href?: string; id: string; media?: EditorialMedia; title?: string }>
+  /** "graphic" (por defecto): tipografía y marcas. "product": foto del tenis sobre la superficie clara. "banner": la imagen ocupa toda la tarjeta. */
+  tileStyle?: CollectionTileStyle
   version: 1
 }
 
@@ -169,9 +173,12 @@ export function parseEditorialConfig(value: unknown): EditorialConfig {
     const tiles = config.tiles.flatMap((value) => {
       const item = record(value)
       const id = text(item?.id)
-      return id ? [{ id, appearance: appearance(item?.appearance), ...(text(item?.title) ? { title: text(item?.title) } : {}), ...(text(item?.href) && isSafePublicUrl(text(item?.href)!) ? { href: text(item?.href) } : {}), ...(media(item?.media) ? { media: media(item?.media) } : {}) }] : []
+      const artText = text(item?.artText)?.slice(0, TILE_ART_TEXT_MAX)
+      const background = text(item?.background)
+      return id ? [{ id, appearance: appearance(item?.appearance), ...(text(item?.title) ? { title: text(item?.title) } : {}), ...(text(item?.href) && isSafePublicUrl(text(item?.href)!) ? { href: text(item?.href) } : {}), ...(media(item?.media) ? { media: media(item?.media) } : {}), ...(artText ? { artText } : {}), ...(background && HEX_COLOR.test(background) ? { background } : {}) }] : []
     })
-    return { version: 1, kind: "collectionTile", tiles, ...(config.tileStyle === "product" ? { tileStyle: "product" as const } : {}) }
+    const tileStyle = config.tileStyle === "product" || config.tileStyle === "banner" ? config.tileStyle : undefined
+    return { version: 1, kind: "collectionTile", tiles, ...(tileStyle ? { tileStyle } : {}) }
   }
 
   if (config.kind === "editorialBlock") {
@@ -195,17 +202,17 @@ export function parseEditorialConfig(value: unknown): EditorialConfig {
 
 export function resolveCollectionTiles(value: unknown) {
   const config = parseEditorialConfig(value)
-  const tiles = new Map<string, { alt?: string; appearance: EditorialAppearance; href?: string; src?: string; title?: string }>()
+  const tiles = new Map<string, { alt?: string; appearance: EditorialAppearance; artText?: string; background?: string; href?: string; src?: string; title?: string }>()
   if (config.kind !== "collectionTile") return tiles
   for (const tile of config.tiles) {
-    tiles.set(tile.id, { appearance: tile.appearance, ...(tile.title ? { title: tile.title } : {}), ...(tile.href ? { href: tile.href } : {}), ...(tile.media ? tile.media : {}) })
+    tiles.set(tile.id, { appearance: tile.appearance, ...(tile.title ? { title: tile.title } : {}), ...(tile.href ? { href: tile.href } : {}), ...(tile.media ? tile.media : {}), ...(tile.artText ? { artText: tile.artText } : {}), ...(tile.background ? { background: tile.background } : {}) })
   }
   return tiles
 }
 
-export function resolveCollectionTileStyle(value: unknown): "graphic" | "product" {
+export function resolveCollectionTileStyle(value: unknown): CollectionTileStyle {
   const config = parseEditorialConfig(value)
-  return config.kind === "collectionTile" && config.tileStyle === "product" ? "product" : "graphic"
+  return config.kind === "collectionTile" && config.tileStyle ? config.tileStyle : "graphic"
 }
 
 /** Normalizes old single campaigns and new multi-slide campaigns for public rendering. */

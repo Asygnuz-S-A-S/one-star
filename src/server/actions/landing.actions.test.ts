@@ -45,6 +45,15 @@ describe("updateLandingSectionConfigAction", () => {
     expect(updateLandingSectionConfig).toHaveBeenCalledWith("hero-1", { version: 1, kind: "campaignHero", slides: [slide] })
   })
 
+  it("guarda tarjetas con imagen completa, texto grande y color, y rechaza un color que no es hex", async () => {
+    const tile = { id: "sale", appearance: "carbon", artText: "-30%", background: "#F2C200" }
+    const ok = await updateLandingSectionConfigAction("grid-1", { version: 1, kind: "collectionTile", tileStyle: "banner", tiles: [tile] })
+    expect(ok).toEqual({ success: true })
+
+    const bad = await updateLandingSectionConfigAction("grid-1", { version: 1, kind: "collectionTile", tiles: [{ ...tile, background: "red" }] })
+    expect(bad).toEqual({ success: false, error: "Usa un color como #E31C23" })
+  })
+
   it("dice qué botón y qué slide no tienen destino", async () => {
     const result = await updateLandingSectionConfigAction("hero-1", {
       version: 1,
