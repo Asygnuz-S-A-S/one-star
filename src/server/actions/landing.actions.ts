@@ -25,6 +25,22 @@ const responsiveMediaLabels: Record<string, string> = {
   desktopMedia: "Web / escritorio",
   tabletMedia: "Tablet",
   mobileMedia: "Móvil",
+  foregroundMedia: "Producto en primer plano",
+}
+
+const optionalMediaKeys = ["desktopMedia", "tabletMedia", "mobileMedia", "foregroundMedia"]
+
+/** Una imagen opcional sin link (solo con su texto) equivale a no tener imagen; no debe bloquear el guardado. */
+function dropEmptyMedia(value: Record<string, unknown>): Record<string, unknown> {
+  const clean = { ...value }
+  for (const key of optionalMediaKeys) {
+    const media = clean[key] as { src?: unknown } | undefined
+    if (media && typeof media === "object" && !String(media.src ?? "").trim()) delete clean[key]
+  }
+  if (Array.isArray(clean.slides)) {
+    clean.slides = clean.slides.map((slide) => slide && typeof slide === "object" ? dropEmptyMedia(slide as Record<string, unknown>) : slide)
+  }
+  return clean
 }
 
 /** Keep schema details out of the UI while telling the editor exactly what to fix. */
@@ -44,6 +60,9 @@ function landingConfigError(error: unknown): string {
   if (mediaLabel && mediaProperty === "src") {
     return `Selecciona una URL segura para la imagen ${mediaLabel}${slideSuffix}`
   }
+  const ctaLabel = mediaField === "primaryCta" ? "del botón principal" : mediaField === "secondaryCta" ? "del segundo botón" : undefined
+  if (ctaLabel && mediaProperty === "href") return `Falta el destino ${ctaLabel}${slideSuffix}`
+  if (mediaField === "angles") return `Revisa las fotos del giro${slideSuffix}: cada línea debe ser un link`
   return issue?.message || "Revisa los datos de la configuración"
 }
 
@@ -91,9 +110,12 @@ export async function updateLandingSectionConfigAction(id: string, config: Prism
   try {
     await requireSuperAdmin()
     const validId = EntityIdSchema.parse(id)
-    const validConfig = LandingSectionConfigSchema.parse(config) as Prisma.InputJsonObject
+    let validConfig = LandingSectionConfigSchema.parse(config) as Prisma.InputJsonObject
     // Typed presets are strict; pre-existing free-form JSON remains untouched.
-    if (isEditorialContentConfig(validConfig)) EditorialContentConfigSchema.parse(validConfig)
+    if (isEditorialContentConfig(validConfig)) {
+      validConfig = dropEmptyMedia(validConfig) as Prisma.InputJsonObject
+      EditorialContentConfigSchema.parse(validConfig)
+    }
     await updateLandingSectionConfig(validId, validConfig)
     revalidateLandingEditor()
     return { success: true }

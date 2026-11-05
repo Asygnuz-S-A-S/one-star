@@ -32,4 +32,29 @@ describe("updateLandingSectionConfigAction", () => {
     expect(result).toEqual({ success: false, error: "El texto alternativo de la imagen Web / escritorio es obligatorio" })
     expect(updateLandingSectionConfig).not.toHaveBeenCalled()
   })
+
+  it("guarda el slide aunque el producto en primer plano tenga texto pero no link", async () => {
+    const slide = { id: "campaign-1", accent: "carbon", headline: "Domina tu terreno", primaryCta: { label: "Comprar HOKA", href: "/marcas/hoka" } }
+    const result = await updateLandingSectionConfigAction("hero-1", {
+      version: 1,
+      kind: "campaignHero",
+      slides: [{ ...slide, foregroundMedia: { src: "", alt: "Domina tu terreno" } }],
+    })
+
+    expect(result).toEqual({ success: true })
+    expect(updateLandingSectionConfig).toHaveBeenCalledWith("hero-1", { version: 1, kind: "campaignHero", slides: [slide] })
+  })
+
+  it("dice qué botón y qué slide no tienen destino", async () => {
+    const result = await updateLandingSectionConfigAction("hero-1", {
+      version: 1,
+      kind: "campaignHero",
+      slides: [
+        { id: "a", accent: "carbon", headline: "Uno", primaryCta: { label: "Ver", href: "/productos" } },
+        { id: "b", accent: "carbon", headline: "Dos", primaryCta: { label: "Ver", href: "/productos" }, secondaryCta: { label: "Ver todo", href: "" } },
+      ],
+    })
+
+    expect(result).toEqual({ success: false, error: "Falta el destino del segundo botón del slide 2" })
+  })
 })
