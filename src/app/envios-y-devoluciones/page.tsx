@@ -1,9 +1,10 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import LegalDocument, { LegalList, LegalSection } from "@/components/legal/LegalDocument"
-import { LEGAL_COMPANY, LEGAL_LAST_UPDATED } from "@/lib/legal"
+import { LEGAL_LAST_UPDATED } from "@/lib/legal"
+import { STORE_CONTACT_FALLBACK } from "@/lib/store-knowledge"
 import { formatCOP } from "@/lib/shop-utils"
-import { getShippingRates } from "@/server/services/store-settings.service"
+import { getLegalCompany, getPublicStoreInfo, getShippingRates } from "@/server/services/store-settings.service"
 
 export const metadata: Metadata = {
   title: "Políticas de Envío y Devoluciones | One Star",
@@ -11,11 +12,11 @@ export const metadata: Metadata = {
     "Conoce nuestros plazos de entrega en Colombia, costos de envío, condiciones de cambios por talla y política de devoluciones y garantías.",
 }
 
-const canalContacto =
-  LEGAL_COMPANY.contactEmail ?? "contacto@tiendaonestar.com"
-
 export default async function EnviosYDevolucionesPage() {
-  const rates = await getShippingRates()
+  const [rates, company, info] = await Promise.all([getShippingRates(), getLegalCompany(), getPublicStoreInfo()])
+  // Lo que se llene en Configuración manda; si está vacío, los canales que One Star confirmó.
+  const canalContacto = company.contactEmail?.trim() || STORE_CONTACT_FALLBACK.email
+  const whatsapp = info.whatsapp?.trim() || STORE_CONTACT_FALLBACK.whatsapp
 
   return (
     <LegalDocument
@@ -33,7 +34,11 @@ export default async function EnviosYDevolucionesPage() {
             "Ciudades principales (Bogotá, Medellín, Cali, Barranquilla, Bucaramanga, Pereira, Manizales): entrega estimada entre 3 y 5 días hábiles.",
             "Resto del país y trayectos especiales: entre 5 y 8 días hábiles dependiendo de la localidad.",
             "Los pedidos realizados durante fines de semana o días festivos se procesan a partir del siguiente día hábil.",
-            "Una vez despachado tu pedido, recibirás por correo electrónico el número de guía para realizar el seguimiento en tiempo real.",
+            <span key="seguimiento">
+              Una vez despachado tu pedido, recibirás por correo electrónico el número de guía. También puedes consultar el
+              estado en <Link href="/rastrear-pedido" className="underline underline-offset-2">Rastrear mi pedido</Link> con
+              tu número de pedido y tu correo, sin crear cuenta.
+            </span>,
           ]}
         />
       </LegalSection>
@@ -57,7 +62,7 @@ export default async function EnviosYDevolucionesPage() {
             "Plazo: dispones de hasta 30 días calendario a partir de la fecha de entrega del pedido.",
             "Condiciones del calzado: el producto debe estar sin uso, limpio, sin desgaste en la suela y conservando su caja original, etiquetas y accesorios.",
             "Primer cambio de talla: el costo del flete de recolección y nuevo envío es asumido por One Star.",
-            "Para solicitar un cambio, escribe a nuestro WhatsApp oficial o al correo " + canalContacto + " con tu número de pedido y la talla requerida.",
+            `Para solicitar un cambio, escribe a nuestro WhatsApp ${whatsapp} o al correo ${canalContacto} con tu número de pedido y la talla requerida.`,
           ]}
         />
       </LegalSection>
@@ -95,7 +100,7 @@ export default async function EnviosYDevolucionesPage() {
         <LegalList
           items={[
             <span key="email">Correo electrónico: <a href={`mailto:${canalContacto}`} className="text-[#E31C23] underline">{canalContacto}</a></span>,
-            <span key="whatsapp">WhatsApp de soporte: disponible en el botón de chat de nuestra tienda en línea.</span>,
+            <span key="whatsapp">WhatsApp de soporte: {whatsapp}.</span>,
             <span key="horario">Horario de atención: lunes a sábado de 9:00 a.m. a 7:00 p.m.</span>,
           ]}
         />
