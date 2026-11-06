@@ -15,9 +15,19 @@ export async function findCustomerByEmailInsensitive(email: string): Promise<Use
   return prisma.user.findFirst({ where: { email: { equals: email, mode: "insensitive" }, role: "CUSTOMER" } })
 }
 
-/** Cambia la contraseña del cliente: la credencial de better-auth se sincroniza en el próximo login. */
+/**
+ * Cambia la contraseña del cliente en la tienda y en la credencial de better-auth.
+ * Sin lo segundo, la clave vieja seguiría sirviendo en /api/auth/sign-in/email
+ * hasta el siguiente login por la tienda.
+ */
 export async function setUserPasswordHash(id: string, passwordHash: string): Promise<void> {
-  await prisma.user.update({ where: { id }, data: { passwordHash } })
+  await prisma.$transaction(async (tx) => {
+    const { email } = await tx.user.update({ where: { id }, data: { passwordHash }, select: { email: true } })
+    await tx.authAccount.updateMany({
+      where: { providerId: "credential", user: { email } },
+      data: { password: passwordHash, updatedAt: new Date() },
+    })
+  })
 }
 
 /** Cierra todas las sesiones del cliente (tras restablecer la contraseña). */
