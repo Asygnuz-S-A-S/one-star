@@ -306,6 +306,7 @@ El sistema de roles administrativos (`SUPER_ADMIN` y `INVENTORY_OPERATOR`) sigue
 4. **Respuesta ante rol inválido**: Si un usuario con sesión no tiene un rol válido en la base de datos, `proxy.ts` deniega el acceso redirigiendo a `/admin/login`, borra las cookies de sesión en la respuesta (`better-auth.session_token` y `__Secure-better-auth.session_token`) y revoca el token en base de datos.
 5. **Defensa en profundidad en el servidor**: `requireAdmin()` y `requireSuperAdmin()` en `src/server/auth/require-admin.ts` y las páginas dinámicas del panel admin resuelven igualmente el rol activo desde la base de datos mediante `resolveActiveAdminRole`. Si el rol no es válido, lanzan `UnauthorizedError`.
 6. **Aprovisionamiento explícito**: `scripts/create-admin.ts` exige la variable `ADMIN_ROLE` de forma obligatoria y sin valor por defecto, validando exhaustivamente que sea un rol conocido.
+7. **Conector MCP (Claude)**: `/api/mcp` autentica con un token propio (`McpToken`, solo hash sha256, rol tope, vence a los 90 días, revocable) y ejecuta las MISMAS acciones del admin dentro de un principal (`AsyncLocalStorage`, `src/server/auth/mcp-context.ts`) que `requireAdmin()` usa en lugar de la cookie. Con principal MCP el área `sales` se niega siempre (los agentes de IA no tocan datos de clientes). Lista blanca de herramientas en `src/server/mcp/tools.ts`, bitácora en `McpAuditLog`, límite por token (60 lecturas / 20 escrituras por minuto). Guía: `docs/mcp-admin.md`.
 
 ## Decisiones Arquitectónicas Pendientes
 
