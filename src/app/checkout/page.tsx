@@ -654,11 +654,6 @@ function CheckoutForm({
                   </div>
                   </>)}
                 </div>
-                {!isPickup && <label className="flex min-h-11 items-center gap-2.5 cursor-pointer mt-4">
-                  <input type="checkbox" checked={values.saveAddress} onChange={(e) => set("saveAddress", e.target.checked)}
-                    className="h-5 w-5 shrink-0 rounded border-[#E0E0E0] accent-[#E31C23]" />
-                  <span className="text-sm font-montserrat text-[#4A4A4A]">Guardar esta dirección para futuras compras</span>
-                </label>}
               </motion.section>
 
               {/* Section 3: Método de envío */}

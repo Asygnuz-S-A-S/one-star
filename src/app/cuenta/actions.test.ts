@@ -22,7 +22,15 @@ vi.mock("@/server/services/guest-order.service", () => ({
   consumeLinkOrdersTokenAndLink: guestOrderServiceMock.consumeLinkOrdersTokenAndLink,
 }))
 
+const userServiceMock = vi.hoisted(() => ({
+  getUserById: vi.fn(),
+  updateProfile: vi.fn(),
+}))
+
+vi.mock("@/server/services/user.service", () => userServiceMock)
+
 import {
+  getMyProfile,
   requestGuestOrdersLinkingAction,
   confirmGuestOrdersLinkingAction,
 } from "./actions"
@@ -95,5 +103,28 @@ describe("cuenta actions — vinculación de pedidos de invitado", () => {
       expect(result.success).toBe(false)
       expect(result.error).toContain("inválido o ya ha expirado")
     })
+  })
+})
+
+describe("getMyProfile", () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it("devuelve null sin sesión", async () => {
+    authMock.getSession.mockResolvedValue(null)
+    expect(await getMyProfile()).toBeNull()
+    expect(userServiceMock.getUserById).not.toHaveBeenCalled()
+  })
+
+  it("devuelve los datos guardados con vacíos en lugar de null", async () => {
+    authMock.getSession.mockResolvedValue({ user: { id: "u1" } })
+    userServiceMock.getUserById.mockResolvedValue({
+      id: "u1", email: "a@b.co", role: "CUSTOMER", name: "Ana", lastName: "Gómez",
+      phone: "3001234567", cedula: null, birthDate: null, preferredBrand: null, gender: "mujer",
+      createdAt: "2026-01-01T00:00:00.000Z",
+    })
+    expect(await getMyProfile()).toEqual({
+      name: "Ana", lastName: "Gómez", phone: "3001234567", preferredBrand: "", gender: "mujer",
+    })
+    expect(userServiceMock.getUserById).toHaveBeenCalledWith("u1")
   })
 })
