@@ -10,9 +10,15 @@ import { DEFAULT_SHIPPING_RATES, type ShippingRates } from "./shipping"
 
 const cop = (value: number) => `$${value.toLocaleString("es-CO")}`
 
+/** Canales que One Star confirmó el 20 oct 2026. Se usan mientras Configuración no tenga los suyos. */
+export const STORE_CONTACT_FALLBACK = { email: "contacto@tiendaonestar.com", whatsapp: "313 762 0554" }
+
+export type StoreContact = { email: string; whatsapp: string }
+
 export function buildStoreKnowledge(
   rates: ShippingRates = DEFAULT_SHIPPING_RATES,
   delivery: { min: number; max: number } = { min: 3, max: 5 },
+  contact: StoreContact = STORE_CONTACT_FALLBACK,
 ): string {
   return `ENVÍOS
 - Transportadora: Envía es el aliado logístico de One Star.
@@ -33,7 +39,13 @@ CAMBIOS, DEVOLUCIONES Y GARANTÍA
 - Cambios por talla: sujetos a disponibilidad de inventario y a que el producto no haya sido usado.
 - Derecho de retracto (solo compras en línea): 5 días hábiles. Los costos de transporte del retracto los asume el cliente.
 - Garantía legal por defectos de fabricación o de calidad, según el Estatuto del Consumidor. No cubre desgaste natural ni daños por uso indebido.
-- Para un cambio, devolución, garantía o reclamo, el cliente escribe al correo contacto@tiendaonestar.com o al WhatsApp 313 762 0554, con su número de pedido.
+- Para un cambio, devolución, garantía o reclamo, el cliente escribe al correo ${contact.email} o al WhatsApp ${contact.whatsapp}, con su número de pedido.
+
+SEGUIMIENTO DEL PEDIDO
+- No tienes acceso a los pedidos: nunca inventes un estado ni una guía.
+- El cliente consulta su pedido sin cuenta en /rastrear-pedido, con el número de pedido (8 letras y números, por ejemplo #O823F4TY) y el correo de la compra. Los dos vienen en el correo de confirmación.
+- Si tiene cuenta, también lo ve en Mi cuenta → Mis pedidos, con la guía y el enlace de la transportadora.
+- Si necesita ayuda con el envío, que escriba al WhatsApp ${contact.whatsapp} con su número de pedido.
 
 TIENDAS FÍSICAS
 - Manizales, C.C. Fundadores, local 158: lunes a sábado de 10:00 a. m. a 8:00 p. m.; domingos y festivos de 11:00 a. m. a 8:00 p. m.
@@ -42,7 +54,7 @@ TIENDAS FÍSICAS
 - El inventario de la tienda en línea no es el de cada tienda física: no afirmes que un producto está en una sede.
 
 ATENCIÓN HUMANA
-- Una asesora atiende por WhatsApp (313 762 0554) de lunes a sábado, de 9:00 a. m. a 7:00 p. m.
+- Una asesora atiende por WhatsApp (${contact.whatsapp}) de lunes a sábado, de 9:00 a. m. a 7:00 p. m.
 
 TALLAS
 - Las tallas del catálogo están en sistema US. Cada producto tiene su guía de tallas en la ficha ("Guía de tallas"). No conviertas tallas de memoria: si el cliente da talla colombiana, EU o cm, usa solo las tablas oficiales de tallas.`

@@ -15,4 +15,19 @@ describe("orderConfirmationEmail", () => {
     const { html } = orderConfirmationEmail(base)
     expect(html).toContain("Te avisaremos cuando tu pedido sea despachado.")
   })
+
+  it("enlaza la consulta pública del pedido cuando hay URL", () => {
+    const { html } = orderConfirmationEmail({ ...base, trackOrderUrl: "https://tienda.test/rastrear-pedido?pedido=ABC12345" })
+    expect(html).toContain('href="https://tienda.test/rastrear-pedido?pedido=ABC12345"')
+    expect(html).toContain("Rastrear mi pedido")
+  })
 })
+
+describe("orderShippedEmail", () => {
+  it("sin enlace de transportadora ofrece la consulta pública", async () => {
+    const { orderShippedEmail } = await import("../templates")
+    const { html } = orderShippedEmail({ orderId: "order-abc12345", trackingNumber: "G-1", trackOrderUrl: "https://tienda.test/rastrear-pedido?pedido=ABC12345" })
+    expect(html).toContain("VER ESTADO DEL PEDIDO")
+  })
+})
+

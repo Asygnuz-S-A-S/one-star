@@ -1,4 +1,5 @@
 import "server-only"
+import { STORE_CONTACT_FALLBACK } from "@/lib/store-knowledge"
 
 import { randomBytes } from "node:crypto"
 import { z } from "zod"
@@ -112,7 +113,7 @@ export async function submitPqrsRequest(
       const dataProtectionEmail =
         company.dataProtectionEmail?.trim() ||
         company.contactEmail?.trim() ||
-        "contacto@tiendaonestar.com"
+        STORE_CONTACT_FALLBACK.email
 
       // 1. Confirmación al titular
       await sendPqrsConfirmationEmail({
