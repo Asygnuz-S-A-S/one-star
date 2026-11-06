@@ -2,6 +2,10 @@ import { describe, it, expect, vi } from "vitest"
 
 vi.mock("server-only", () => ({}))
 
+const catalogRules = vi.hoisted(() => ({ hideImagelessProducts: true }))
+vi.mock("@/server/services/store-settings.service", () => ({
+  getCatalogRules: vi.fn(async () => catalogRules),
+}))
 vi.mock("@/server/repositories/variant.repository", () => ({
   getUniqueSizes: vi.fn(),
   getUniqueColors: vi.fn(),
@@ -25,6 +29,7 @@ describe("getUniqueSizes", () => {
     const result = await getUniqueSizes()
     expect(result).toEqual(["38", "40", "42", "44"])
     expect(mockSizes).toHaveBeenCalledTimes(1)
+    expect(mockSizes).toHaveBeenCalledWith({ brandId: undefined, requireImage: true })
   })
 
   it("retorna arreglo vacío si no hay tallas", async () => {
@@ -39,6 +44,7 @@ describe("getUniqueColors", () => {
     const result = await getUniqueColors()
     expect(result).toEqual(["Blanco", "Negro", "Rojo"])
     expect(mockColors).toHaveBeenCalledTimes(1)
+    expect(mockColors).toHaveBeenCalledWith({ brandId: undefined, requireImage: true })
   })
 
   it("retorna arreglo vacío si no hay colores", async () => {
@@ -51,5 +57,18 @@ describe("getTotalVariantsCount", () => {
   it("delega al repositorio y retorna el conteo", async () => {
     mockCount.mockResolvedValue(150)
     expect(await getTotalVariantsCount()).toBe(150)
+  })
+})
+
+describe("facetas por marca", () => {
+  it("acota tallas y colores a la marca y respeta la regla de ocultar productos sin foto", async () => {
+    catalogRules.hideImagelessProducts = false
+    mockSizes.mockResolvedValue(["42"])
+    mockColors.mockResolvedValue(["Negro"])
+    await getUniqueSizes("brand-hoka")
+    await getUniqueColors("brand-hoka")
+    expect(mockSizes).toHaveBeenLastCalledWith({ brandId: "brand-hoka", requireImage: false })
+    expect(mockColors).toHaveBeenLastCalledWith({ brandId: "brand-hoka", requireImage: false })
+    catalogRules.hideImagelessProducts = true
   })
 })
