@@ -220,9 +220,46 @@ model AdminUser {
   passwordHash String
   name         String
   role         AdminRole @default(INVENTORY_OPERATOR)
-  isActive     Boolean   @default(true)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  mcpTokens    McpToken[]
+}
+
+/// Token del conector MCP (Claude). Solo se guarda el hash; el token se muestra una vez.
+model McpToken {
+  id          String        @id @default(cuid())
+  adminUserId String
+  adminUser   AdminUser     @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+  name        String
+  tokenHash   String        @unique
+  /// Primeros caracteres visibles para reconocerlo en la lista.
+  prefix      String
+  /// Rol tope: el efectivo es el menor entre este y el rol actual del admin.
+  role        AdminRole
+  expiresAt   DateTime
+  lastUsedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime      @default(now())
+  auditLogs   McpAuditLog[]
+
+  @@index([adminUserId])
+}
+
+/// Bitácora de cada herramienta que el conector MCP ejecuta.
+model McpAuditLog {
+  id          String   @id @default(cuid())
+  tokenId     String
+  token       McpToken @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+  adminUserId String
+  tool        String
+  args        Json?
+  ok          Boolean
+  error       String?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([tokenId])
 }
 
 enum Role {
@@ -820,4 +857,17 @@ model PqrsRequest {
   @@index([email])
   @@index([documentNumber])
   @@index([status])
+}
+
+// Ajustes editables de los correos automáticos (Admin → Email marketing).
+// Una fila por correo (key = clave del catálogo). Sin fila = textos por defecto del código.
+model EmailTemplateSetting {
+  key       String   @id
+  /// Asunto propio; vacío = el del código. Admite {nombre}, {pedido}, {radicado}.
+  subject   String?
+  /// Texto principal propio; vacío = el del código.
+  intro     String?
+  /// Solo aplica a los correos que se pueden apagar (ver catálogo).
+  enabled   Boolean  @default(true)
+  updatedAt DateTime @updatedAt
 }

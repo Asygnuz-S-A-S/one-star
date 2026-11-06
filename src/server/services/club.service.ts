@@ -3,6 +3,7 @@ import "server-only"
 import { findUserById, updateUser } from "@/server/repositories/user.repository"
 import { findActiveClubCoupons } from "@/server/repositories/coupon.repository"
 import { sendClubWelcomeEmail } from "@/server/services/email.service"
+import { unsubscribeMarketingContact } from "@/server/services/marketing.service"
 
 export interface ClubStatus {
   isMember: boolean
@@ -63,7 +64,13 @@ export async function leaveClub(userId: string): Promise<ClubStatus> {
 }
 
 export async function setNewsletterConsent(userId: string, accepted: boolean): Promise<ClubStatus> {
-  return toStatus(await updateUser(userId, { marketingConsentAt: accepted ? new Date() : null }))
+  const user = await updateUser(userId, { marketingConsentAt: accepted ? new Date() : null })
+  if (!accepted) {
+    unsubscribeMarketingContact(user.email).catch((error: unknown) => {
+      console.error("[club] No se pudo dar de baja en Resend:", error)
+    })
+  }
+  return toStatus(user)
 }
 
 /** Promociones vigentes del club; el código solo se revela a miembros. */

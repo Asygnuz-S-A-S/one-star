@@ -82,8 +82,39 @@ function greeting(name?: string): string {
   return safe ? `Hola ${safe},` : "Hola,"
 }
 
+/** Textos editables desde el admin. Vacío = el texto por defecto del código. */
+export interface EmailCopy {
+  subject?: string | null
+  intro?: string | null
+}
+
+/** Reemplaza {nombre}, {pedido}, {radicado}… por su valor; deja intactas las llaves desconocidas. */
+export function fillPlaceholders(text: string, vars: Record<string, string | undefined>): string {
+  return text.replace(/\{(\w+)\}/g, (match, key: string) => vars[key] ?? match)
+}
+
+function subjectOr(copy: EmailCopy | undefined, vars: Record<string, string | undefined>, fallback: string): string {
+  const custom = copy?.subject?.trim()
+  return custom ? fillPlaceholders(custom, vars) : fallback
+}
+
+/** Texto principal propio (texto plano, escapado, saltos de línea respetados) o el HTML por defecto. */
+function introOr(copy: EmailCopy | undefined, vars: Record<string, string | undefined>, fallbackHtml: string): string {
+  const custom = copy?.intro?.trim()
+  return custom ? escapeHtml(fillPlaceholders(custom, vars)).replace(/\n/g, "<br />") : fallbackHtml
+}
+
+function firstName(name?: string): string | undefined {
+  return name?.trim().split(" ")[0] || undefined
+}
+
+function button(href: string, label: string): string {
+  return `<p style="margin:24px 0 24px;"><a href="${escapeHtml(href)}" style="display:inline-block;background:#E31C23;color:#FFFFFF;text-decoration:none;font-weight:700;font-size:14px;letter-spacing:1px;padding:14px 22px;border-radius:8px;">${escapeHtml(label)}</a></p>`
+}
+
 /** Correo de alerta cuando el usuario inicia sesión. */
-export function loginAlertEmail(params: { name?: string; whenLabel: string }): EmailContent {
+export function loginAlertEmail(params: { name?: string; whenLabel: string; copy?: EmailCopy }): EmailContent {
+  const vars = { nombre: firstName(params.name) }
   const inner = `
     <h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;">Nuevo inicio de sesión</h1>
     <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${COLOR.text};">${greeting(params.name)}</p>
@@ -92,11 +123,11 @@ export function loginAlertEmail(params: { name?: string; whenLabel: string }): E
       <strong>${escapeHtml(params.whenLabel)}</strong>.
     </p>
     <p style="margin:0 0 8px;font-size:14px;line-height:1.6;color:${COLOR.muted};">
-      Si fuiste tú, no tienes que hacer nada. Si no reconoces esta actividad,
-      te recomendamos cambiar tu contraseña cuanto antes.
+      ${introOr(params.copy, vars, `Si fuiste tú, no tienes que hacer nada. Si no reconoces esta actividad,
+      te recomendamos cambiar tu contraseña cuanto antes.`)}
     </p>`
   return {
-    subject: "Nuevo inicio de sesión en tu cuenta One Star",
+    subject: subjectOr(params.copy, vars, "Nuevo inicio de sesión en tu cuenta One Star"),
     html: layout(inner, "Detectamos un inicio de sesión en tu cuenta One Star."),
   }
 }
@@ -109,6 +140,7 @@ export function orderConfirmationEmail(params: {
   total: number
   /** Pedido para recoger: reemplaza el aviso de despacho. */
   pickupStore?: { name: string; address: string }
+  copy?: EmailCopy
 }): EmailContent {
   const rows = params.items
     .map(
@@ -126,12 +158,13 @@ export function orderConfirmationEmail(params: {
     .join("")
 
   const shortId = params.orderId.slice(-8).toUpperCase()
+  const vars = { nombre: firstName(params.name), pedido: shortId }
 
   const inner = `
     <h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;">¡Gracias por tu compra!</h1>
     <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${COLOR.text};">${greeting(params.name)}</p>
     <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:${COLOR.text};">
-      Recibimos tu pedido <strong>#${escapeHtml(shortId)}</strong>. Aquí está el resumen:
+      ${introOr(params.copy, vars, `Recibimos tu pedido <strong>#${escapeHtml(shortId)}</strong>. Aquí está el resumen:`)}
     </p>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:8px;">
       ${rows}
@@ -149,7 +182,7 @@ export function orderConfirmationEmail(params: {
     </p>`
 
   return {
-    subject: `Confirmación de tu pedido One Star #${shortId}`,
+    subject: subjectOr(params.copy, vars, `Confirmación de tu pedido One Star #${shortId}`),
     html: layout(inner, `Recibimos tu pedido #${shortId}. Total: ${formatCOP(params.total)}.`),
   }
 }
@@ -163,9 +196,11 @@ export function giftCardDeliveryEmail(params: {
   name?: string
   orderId: string
   cards: GiftCardEmailCard[]
+  copy?: EmailCopy
 }): EmailContent {
   const shortId = params.orderId.slice(-8).toUpperCase()
   const plural = params.cards.length > 1
+  const vars = { nombre: firstName(params.name), pedido: shortId }
 
   const cardsHtml = params.cards
     .map(
@@ -185,8 +220,8 @@ export function giftCardDeliveryEmail(params: {
     <h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;">${plural ? "Tus tarjetas de regalo" : "Tu tarjeta de regalo"}</h1>
     <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${COLOR.text};">${greeting(params.name)}</p>
     <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:${COLOR.text};">
-      Gracias por tu compra <strong>#${escapeHtml(shortId)}</strong>. ${plural ? "Aquí están tus códigos" : "Aquí está tu código"}
-      para usar en cualquier tienda física o al comprar de nuevo en línea One Star:
+      ${introOr(params.copy, vars, `Gracias por tu compra <strong>#${escapeHtml(shortId)}</strong>. ${plural ? "Aquí están tus códigos" : "Aquí está tu código"}
+      para usar en cualquier tienda física o al comprar de nuevo en línea One Star:`)}
     </p>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
       ${cardsHtml}
@@ -196,9 +231,11 @@ export function giftCardDeliveryEmail(params: {
     </p>`
 
   return {
-    subject: plural
-      ? `Tus tarjetas de regalo One Star #${shortId}`
-      : `Tu tarjeta de regalo One Star #${shortId}`,
+    subject: subjectOr(
+      params.copy,
+      vars,
+      plural ? `Tus tarjetas de regalo One Star #${shortId}` : `Tu tarjeta de regalo One Star #${shortId}`
+    ),
     html: layout(inner, plural ? "Tus tarjetas de regalo ya están listas." : "Tu tarjeta de regalo ya está lista."),
   }
 }
@@ -236,12 +273,14 @@ export function clubWelcomeEmail(params: {
 export function guestAccountInvitationEmail(params: {
   name?: string
   inviteUrl: string
+  copy?: EmailCopy
 }): EmailContent {
+  const vars = { nombre: firstName(params.name) }
   const inner = `
     <h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;">Activa tu cuenta en One Star</h1>
     <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${COLOR.text};">${greeting(params.name)}</p>
     <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${COLOR.text};">
-      ¡Tu pago ha sido aprobado exitosamente! Para consultar el estado de tu pedido en cualquier momento y acumular tu historial de compras, activa tu cuenta creando tu contraseña en el siguiente enlace de un solo uso:
+      ${introOr(params.copy, vars, "¡Tu pago ha sido aprobado exitosamente! Para consultar el estado de tu pedido en cualquier momento y acumular tu historial de compras, activa tu cuenta creando tu contraseña en el siguiente enlace de un solo uso:")}
     </p>
     <p style="margin:24px 0 24px;">
       <a href="${escapeHtml(params.inviteUrl)}" style="display:inline-block;background:#E31C23;color:#FFFFFF;text-decoration:none;font-weight:700;font-size:14px;letter-spacing:1px;padding:14px 22px;border-radius:8px;">
@@ -252,7 +291,7 @@ export function guestAccountInvitationEmail(params: {
       Este enlace es válido por 7 días y solo puede usarse una vez. Si no realizaste esta compra, puedes ignorar este mensaje.
     </p>`
   return {
-    subject: "Activa tu cuenta One Star y consulta tus pedidos",
+    subject: subjectOr(params.copy, vars, "Activa tu cuenta One Star y consulta tus pedidos"),
     html: layout(inner, "Activa tu cuenta en One Star para consultar el estado de tus compras."),
   }
 }
@@ -261,12 +300,14 @@ export function guestAccountInvitationEmail(params: {
 export function linkGuestOrdersEmail(params: {
   name?: string
   verifyUrl: string
+  copy?: EmailCopy
 }): EmailContent {
+  const vars = { nombre: firstName(params.name) }
   const inner = `
     <h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;">Vincula tus compras a tu cuenta One Star</h1>
     <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${COLOR.text};">${greeting(params.name)}</p>
     <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${COLOR.text};">
-      Recibimos una solicitud para vincular a tu cuenta de One Star los pedidos que hayas realizado como invitado con este correo electrónico.
+      ${introOr(params.copy, vars, "Recibimos una solicitud para vincular a tu cuenta de One Star los pedidos que hayas realizado como invitado con este correo electrónico.")}
     </p>
     <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${COLOR.text};">
       Para confirmar y ver tus compras anteriores en tu perfil, haz clic en el siguiente botón:
@@ -280,7 +321,7 @@ export function linkGuestOrdersEmail(params: {
       Este enlace es válido por 24 horas y solo puede usarse una vez. Si no solicitaste vincular tus pedidos, puedes ignorar este correo de forma segura.
     </p>`
   return {
-    subject: "Confirma la vinculación de tus compras a tu cuenta One Star",
+    subject: subjectOr(params.copy, vars, "Confirma la vinculación de tus compras a tu cuenta One Star"),
     html: layout(inner, "Confirma la vinculación de tus compras anteriores a tu cuenta One Star."),
   }
 }
@@ -292,12 +333,14 @@ export function pqrsConfirmationEmail(params: {
   type: string
   maxDays: number
   description: string
+  copy?: EmailCopy
 }): EmailContent {
+  const vars = { nombre: firstName(params.name), radicado: params.ticketNumber }
   const inner = `
     <h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;">Radicado de solicitud: ${escapeHtml(params.ticketNumber)}</h1>
     <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${COLOR.text};">${greeting(params.name)}</p>
     <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${COLOR.text};">
-      Hemos recibido tu solicitud ante nuestro canal de Habeas Data y Protección de Datos Personales.
+      ${introOr(params.copy, vars, "Hemos recibido tu solicitud ante nuestro canal de Habeas Data y Protección de Datos Personales.")}
     </p>
     <div style="background:#F9F9F9;border:1px solid #E0E0E0;border-radius:8px;padding:16px;margin:16px 0;">
       <p style="margin:0 0 8px;font-size:14px;color:${COLOR.text};"><strong>Número de radicado:</strong> ${escapeHtml(params.ticketNumber)}</p>
@@ -308,7 +351,7 @@ export function pqrsConfirmationEmail(params: {
       Tu solicitud se encuentra en trámite por el área de Administración. Te daremos respuesta formal a esta misma dirección de correo electrónico dentro del término legal aplicable.
     </p>`
   return {
-    subject: `Confirmación de radicado ${params.ticketNumber} — Tienda One Star`,
+    subject: subjectOr(params.copy, vars, `Confirmación de radicado ${params.ticketNumber} — Tienda One Star`),
     html: layout(inner, `Confirmación de radicado ${params.ticketNumber}`),
   }
 }
@@ -322,11 +365,13 @@ export function pqrsAdminNotificationEmail(params: {
   type: string
   maxDays: number
   description: string
+  copy?: EmailCopy
 }): EmailContent {
+  const vars = { nombre: firstName(params.name), radicado: params.ticketNumber }
   const inner = `
     <h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;">Nueva solicitud PQRS: ${escapeHtml(params.ticketNumber)}</h1>
     <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${COLOR.text};">
-      Se ha recibido una nueva solicitud a través del canal oficial de Habeas Data:
+      ${introOr(params.copy, vars, "Se ha recibido una nueva solicitud a través del canal oficial de Habeas Data:")}
     </p>
     <div style="background:#F9F9F9;border:1px solid #E0E0E0;border-radius:8px;padding:16px;margin:16px 0;">
       <p style="margin:0 0 8px;font-size:14px;"><strong>Radicado:</strong> ${escapeHtml(params.ticketNumber)}</p>
@@ -337,7 +382,7 @@ export function pqrsAdminNotificationEmail(params: {
       <p style="margin:8px 0 0;font-size:13px;color:#4A4A4A;"><strong>Descripción:</strong><br />${escapeHtml(params.description)}</p>
     </div>`
   return {
-    subject: `[PQRS] Nueva solicitud ${params.ticketNumber} (${params.type})`,
+    subject: subjectOr(params.copy, vars, `[PQRS] Nueva solicitud ${params.ticketNumber} (${params.type})`),
     html: layout(inner, `Nueva solicitud PQRS ${params.ticketNumber}`),
   }
 }
@@ -346,13 +391,15 @@ export function pqrsAdminNotificationEmail(params: {
 export function adminPasswordResetEmail(params: {
   name?: string
   resetUrl: string
+  copy?: EmailCopy
 }): EmailContent {
+  const vars = { nombre: firstName(params.name) }
   const greetingText = params.name ? `Hola ${escapeHtml(params.name)},` : "Hola,"
   const inner = `
     <h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;color:${COLOR.dark};">Restablecer contraseña de administrador</h1>
     <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${COLOR.text};">${greetingText}</p>
     <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${COLOR.text};">
-      Hemos recibido una solicitud para restablecer la contraseña de tu cuenta de administrador en One Star.
+      ${introOr(params.copy, vars, "Hemos recibido una solicitud para restablecer la contraseña de tu cuenta de administrador en One Star.")}
     </p>
     <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:${COLOR.text};">
       Haz clic en el siguiente botón para definir tu nueva contraseña. Este enlace es de un solo uso y es válido durante <strong>1 hora</strong>.
@@ -366,10 +413,89 @@ export function adminPasswordResetEmail(params: {
       Si no solicitaste este cambio, puedes ignorar este correo de forma segura. Tu contraseña actual no será modificada y tus sesiones activas continuarán vigentes.
     </p>`
   return {
-    subject: "Restablece tu contraseña de administrador — Tienda One Star",
+    subject: subjectOr(params.copy, vars, "Restablece tu contraseña de administrador — Tienda One Star"),
     html: layout(inner, "Enlace para restablecer tu contraseña de administrador en One Star"),
   }
 }
 
+/** Aviso de despacho: el pedido salió con la transportadora. */
+export function orderShippedEmail(params: {
+  name?: string
+  orderId: string
+  carrierLabel?: string | null
+  trackingNumber?: string | null
+  trackingUrl?: string | null
+  copy?: EmailCopy
+}): EmailContent {
+  const shortId = params.orderId.slice(-8).toUpperCase()
+  const vars = { nombre: firstName(params.name), pedido: shortId }
+  const details = params.trackingNumber
+    ? `<div style="background:#F9F9F9;border:1px solid #E0E0E0;border-radius:8px;padding:16px;margin:16px 0;">
+      ${params.carrierLabel ? `<p style="margin:0 0 8px;font-size:14px;color:${COLOR.text};"><strong>Transportadora:</strong> ${escapeHtml(params.carrierLabel)}</p>` : ""}
+      <p style="margin:0;font-size:14px;color:${COLOR.text};"><strong>Número de guía:</strong> ${escapeHtml(params.trackingNumber)}</p>
+    </div>`
+    : ""
+  const inner = `
+    <h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;">Tu pedido va en camino</h1>
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${COLOR.text};">${greeting(params.name)}</p>
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${COLOR.text};">
+      ${introOr(params.copy, vars, `Tu pedido <strong>#${escapeHtml(shortId)}</strong> ya salió de nuestra bodega y va en camino.`)}
+    </p>
+    ${details}
+    ${params.trackingUrl ? button(params.trackingUrl, "RASTREAR MI PEDIDO") : ""}
+    <p style="margin:0 0 8px;font-size:14px;line-height:1.6;color:${COLOR.muted};">
+      Si tienes alguna pregunta sobre tu envío, escríbenos y con gusto te ayudamos.
+    </p>`
+  return {
+    subject: subjectOr(params.copy, vars, `Tu pedido One Star #${shortId} va en camino`),
+    html: layout(inner, `Tu pedido #${shortId} ya fue despachado.`),
+  }
+}
 
+/** Pago rechazado o fallido: el pedido se cerró sin cobro. */
+export function paymentRejectedEmail(params: {
+  name?: string
+  orderId: string
+  storeUrl: string
+  copy?: EmailCopy
+}): EmailContent {
+  const shortId = params.orderId.slice(-8).toUpperCase()
+  const vars = { nombre: firstName(params.name), pedido: shortId }
+  const inner = `
+    <h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;">No pudimos procesar tu pago</h1>
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${COLOR.text};">${greeting(params.name)}</p>
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${COLOR.text};">
+      ${introOr(params.copy, vars, `El pago de tu pedido <strong>#${escapeHtml(shortId)}</strong> no fue aprobado, así que no se hizo ningún cobro. Puedes intentarlo de nuevo con otro medio de pago.`)}
+    </p>
+    ${button(params.storeUrl, "VOLVER A LA TIENDA")}
+    <p style="margin:0 0 8px;font-size:14px;line-height:1.6;color:${COLOR.muted};">
+      Si el cobro sí aparece en tu banco, escríbenos con el número de pedido y lo revisamos.
+    </p>`
+  return {
+    subject: subjectOr(params.copy, vars, `No pudimos procesar el pago de tu pedido #${shortId}`),
+    html: layout(inner, `El pago de tu pedido #${shortId} no fue aprobado.`),
+  }
+}
 
+/** Enlace para que un cliente restablezca su contraseña. */
+export function customerPasswordResetEmail(params: {
+  name?: string
+  resetUrl: string
+  copy?: EmailCopy
+}): EmailContent {
+  const vars = { nombre: firstName(params.name) }
+  const inner = `
+    <h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;">Restablece tu contraseña</h1>
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${COLOR.text};">${greeting(params.name)}</p>
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${COLOR.text};">
+      ${introOr(params.copy, vars, "Recibimos una solicitud para restablecer la contraseña de tu cuenta One Star. Usa el siguiente botón para crear una nueva.")}
+    </p>
+    ${button(params.resetUrl, "CREAR NUEVA CONTRASEÑA")}
+    <p style="margin:0 0 8px;font-size:13px;line-height:1.6;color:${COLOR.muted};">
+      El enlace es de un solo uso y vence en 1 hora. Si no lo pediste, ignora este correo: tu contraseña no cambia.
+    </p>`
+  return {
+    subject: subjectOr(params.copy, vars, "Restablece tu contraseña de One Star"),
+    html: layout(inner, "Enlace para restablecer tu contraseña de One Star."),
+  }
+}

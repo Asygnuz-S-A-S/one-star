@@ -16,6 +16,8 @@ export interface CartItem {
   originalPrice: number
   quantity: number
   sku: string
+  /** Unidades disponibles al agregarla; la bolsa no deja pasar de aquí. El servidor revalida al pagar. */
+  maxQuantity?: number
 }
 
 interface CartState {
@@ -30,6 +32,11 @@ interface CartState {
   openCart: () => void
   closeCart: () => void
   toggleCart: () => void
+}
+
+/** Cantidad dentro del stock conocido de la variante (sin tope si no se conoce). */
+export function clampToStock(quantity: number, maxQuantity?: number): number {
+  return typeof maxQuantity === "number" ? Math.min(quantity, Math.max(0, maxQuantity)) : quantity
 }
 
 function computeTotals(items: CartItem[]) {
@@ -75,11 +82,14 @@ export const useCartStore = create<CartState>()(
         set((state) => {
           const qty = item.quantity ?? 1
           const existing = state.items.find((i) => i.id === item.id)
+          const maxQuantity = item.maxQuantity ?? existing?.maxQuantity
           const items = existing
             ? state.items.map((i) =>
-                i.id === item.id ? { ...i, quantity: i.quantity + qty } : i
+                i.id === item.id
+                  ? { ...i, maxQuantity, quantity: clampToStock(i.quantity + qty, maxQuantity) }
+                  : i
               )
-            : [...state.items, { ...item, quantity: qty }]
+            : [...state.items, { ...item, quantity: clampToStock(qty, maxQuantity) }]
           return { items, ...computeTotals(items) }
         }),
 
@@ -95,7 +105,7 @@ export const useCartStore = create<CartState>()(
             quantity <= 0
               ? state.items.filter((i) => i.id !== variantId)
               : state.items.map((i) =>
-                  i.id === variantId ? { ...i, quantity } : i
+                  i.id === variantId ? { ...i, quantity: clampToStock(quantity, i.maxQuantity) } : i
                 )
           return { items, ...computeTotals(items) }
         }),

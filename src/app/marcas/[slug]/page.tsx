@@ -68,13 +68,13 @@ export default async function BrandPage({ params, searchParams }: BrandPageProps
   if (!brand || !brand.isActive) notFound()
 
   const [sizes, colors, colorPalette, featuredReviews, globalContent, settings, priceBounds] = await Promise.all([
-    getUniqueSizes(),
-    getUniqueColors(),
+    getUniqueSizes(brand.id),
+    getUniqueColors(brand.id),
     getColorPalette(),
     getFeaturedReviewsForBrand(brand.id, 6),
     getPublicSiteContent(),
     getPublicStoreInfo().catch(() => null),
-    getCatalogPriceBounds(),
+    getCatalogPriceBounds(brand.id),
   ])
 
   const resolved = resolveProductContent({
