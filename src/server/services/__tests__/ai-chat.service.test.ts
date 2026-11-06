@@ -167,6 +167,16 @@ describe("sendChatMessage", () => {
     expect(system).toContain("contacto@tiendaonestar.com")
   })
 
+  it("envía las tablas oficiales de tallas y la regla de usar la talla US tal cual", async () => {
+    mockCreate.mockResolvedValue(textResponse("Tu 42 colombiana equivale a 11 US."))
+    await sendChatMessage([], "busco hoka talla 42")
+    const { system } = mockCreate.mock.calls[0][0]
+    expect(system).toContain("TABLAS OFICIALES DE TALLAS")
+    expect(system).toContain("HOKA HOMBRE (COL | US | EU | CM)")
+    expect(system).toContain("42|11|45|29") // HOKA hombre: COL 42 = US 11
+    expect(system).toContain("úsala tal cual, sin convertir")
+  })
+
   it("responde con un mensaje amigable si la API de IA falla", async () => {
     mockCreate.mockRejectedValue(new Error("network down"))
     const result = await sendChatMessage([], "hola")

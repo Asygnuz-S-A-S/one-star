@@ -3,6 +3,7 @@ import { headers } from "next/headers"
 import { auth } from "@/lib/auth"
 import { roleCanAccessArea, type AdminArea, type AdminRole } from "@/lib/admin-access"
 import { resolveActiveAdminRole } from "@/server/services/admin-role.service"
+import { getMcpPrincipal, type McpPrincipal } from "./mcp-context"
 
 /**
  * Error de autorización. Se lanza cuando quien invoca una Server Action o ruta
@@ -28,6 +29,17 @@ export class UnauthorizedError extends Error {
  * Sin argumento exige Super Admin: las áreas "inventory" y "sales" se piden a propósito.
  */
 export async function requireAdmin(area: AdminArea = "superadmin") {
+  const mcp = getMcpPrincipal()
+  if (mcp) {
+    // Regla de empresa: los agentes de IA no tocan datos de clientes (área de ventas).
+    if (area === "sales" || !roleCanAccessArea(mcp.role, area)) {
+      throw new UnauthorizedError(
+        area === "superadmin" ? "Esta acción requiere el rol Super Admin." : "Tu rol no tiene permiso para esta acción."
+      )
+    }
+    return mcpSession(mcp)
+  }
+
   const session = await auth.api.getSession({ headers: await headers() })
   const userType = (session?.user as { userType?: string } | undefined)?.userType
   if (!session || userType !== "admin") {
@@ -61,6 +73,9 @@ export async function requireAdmin(area: AdminArea = "superadmin") {
  * lanzar. Útil en callers que ya usan el patrón `{ success, error }`.
  */
 export async function getAdminSession() {
+  const mcp = getMcpPrincipal()
+  if (mcp) return mcpSession(mcp)
+
   const session = await auth.api.getSession({ headers: await headers() })
   const userType = (session?.user as { userType?: string } | undefined)?.userType
   if (!session || userType !== "admin") return null
@@ -80,6 +95,14 @@ export async function getAdminSession() {
   }
 }
 
+/** Forma de sesión mínima para un admin del conector MCP (sin cookie de navegador). */
+function mcpSession(mcp: McpPrincipal) {
+  return {
+    session: null,
+    user: { id: mcp.adminUserId, email: mcp.email, name: mcp.name, userType: "admin", adminRole: mcp.role },
+  }
+}
+
 export type { AdminRole } from "@/lib/admin-access"
 
 /**
@@ -89,6 +112,9 @@ export type { AdminRole } from "@/lib/admin-access"
  * si la consulta falla o el usuario no existe, devuelve `null` (fail-closed).
  */
 export async function getAdminRole(): Promise<AdminRole | null> {
+  const mcp = getMcpPrincipal()
+  if (mcp) return mcp.role
+
   const session = await auth.api.getSession({ headers: await headers() })
   const userType = (session?.user as { userType?: string } | undefined)?.userType
   if (!session || userType !== "admin") return null

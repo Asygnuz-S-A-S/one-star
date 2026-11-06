@@ -187,6 +187,9 @@ function CheckoutForm({
 }: CheckoutFormProps) {
   const router = useRouter()
   const { items, subtotal } = useCart()
+  const [cartReady, setCartReady] = useState(false)
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- marca el montaje: la bolsa persistida ya está hidratada
+  useEffect(() => setCartReady(true), [])
   const shippingRates = useShippingRates()
   const deliveryDays = useDeliveryDays()
   const hasEditedForm = useRef(false)
@@ -215,7 +218,7 @@ function CheckoutForm({
   const [pickupStoreId, setPickupStoreId] = useState("")
   const [paymentMethod, setPaymentMethod] = useState<"epayco" | "addi">("epayco")
   /** Rango de Addi para el total actual; null mientras no responde o si Addi no está activo. */
-  const [addiRange, setAddiRange] = useState<{ inRange: boolean; minAmount: number } | null>(null)
+  const [addiRange, setAddiRange] = useState<{ inRange: boolean; minAmount: number; maxAmount: number } | null>(null)
 
   useEffect(() => {
     void getPickupStoresAction().then(setPickupStores).catch(() => {})
@@ -301,7 +304,7 @@ function CheckoutForm({
       void getAddiWidgetEvaluationAction(total)
         .then((evaluation) => {
           if (cancelled) return
-          setAddiRange(evaluation?.available ? { inRange: evaluation.inRange, minAmount: evaluation.minAmount } : null)
+          setAddiRange(evaluation?.available ? { inRange: evaluation.inRange, minAmount: evaluation.minAmount, maxAmount: evaluation.maxAmount } : null)
         })
         .catch(() => {})
     }, 400)
@@ -502,6 +505,21 @@ function CheckoutForm({
     )
   }
 
+  // La bolsa se lee de localStorage al montar: antes de eso siempre está vacía.
+  if (cartReady && items.length === 0) {
+    return (
+      <div className="min-h-screen bg-[var(--store-canvas)]">
+        <div className="mx-auto flex max-w-md flex-col items-center px-4 py-24 text-center">
+          <h1 className="font-barlow text-3xl font-extrabold uppercase tracking-[-0.02em] text-[#1C1C1C]">Tu bolsa está vacía</h1>
+          <p className="mt-2 font-montserrat text-sm text-[#4A4A4A]">Agrega productos para finalizar tu compra.</p>
+          <Link href="/productos" className="mt-6 inline-flex min-h-12 items-center rounded-[var(--store-radius-md)] bg-[#1C1C1C] px-6 font-barlow text-sm font-bold uppercase tracking-wide text-white hover:bg-[#E31C23]">
+            Ver productos
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
   // ── Paso 1: formulario ───────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-[var(--store-canvas)]">
@@ -511,7 +529,7 @@ function CheckoutForm({
             <h1 className="font-barlow text-3xl font-extrabold uppercase tracking-[-0.02em] text-[#1C1C1C] sm:text-4xl">Finalizar compra</h1>
             <p className="mt-1 font-montserrat text-sm text-[#4A4A4A]">Revisa tus datos; el pago se hace en el portal seguro de ePayco.</p>
           </div>
-          <CheckoutStepper currentStep={2} />
+          <CheckoutStepper currentStep={Object.keys(validateForm(values)).length === 0 ? 2 : 1} />
         </div>
 
         <form onSubmit={handleSubmit} onBlur={handleFieldBlur} noValidate>
@@ -636,11 +654,6 @@ function CheckoutForm({
                   </div>
                   </>)}
                 </div>
-                {!isPickup && <label className="flex min-h-11 items-center gap-2.5 cursor-pointer mt-4">
-                  <input type="checkbox" checked={values.saveAddress} onChange={(e) => set("saveAddress", e.target.checked)}
-                    className="h-5 w-5 shrink-0 rounded border-[#E0E0E0] accent-[#E31C23]" />
-                  <span className="text-sm font-montserrat text-[#4A4A4A]">Guardar esta dirección para futuras compras</span>
-                </label>}
               </motion.section>
 
               {/* Section 3: Método de envío */}
@@ -667,7 +680,7 @@ function CheckoutForm({
                         <p className="text-sm font-montserrat font-medium text-[#1C1C1C]">Envío estándar ({deliveryDays.min}-{deliveryDays.max} días hábiles)</p>
                         {subtotal >= shippingRates.freeThreshold ? (
                           <p className="text-xs text-green-600 font-montserrat mt-0.5">
-                            ¡Envío gratis por compras mayores a {formatCOP(shippingRates.freeThreshold)}!
+                            ¡Envío gratis en compras desde {formatCOP(shippingRates.freeThreshold)}!
                           </p>
                         ) : (
                           <p className="mt-0.5 font-montserrat text-xs text-[#4A4A4A]">
@@ -751,7 +764,7 @@ function CheckoutForm({
                       <span>
                         <span className="block font-montserrat text-sm font-semibold text-[#1C1C1C]">Addi · Paga a cuotas</span>
                         <span className="block font-montserrat text-xs text-[#4A4A4A]">
-                          {addiSelectable ? "Compra hoy y paga en cuotas, sin tarjeta de crédito." : `Disponible en compras desde ${formatCOP(addiRange.minAmount)}.`}
+                          {addiSelectable ? "Compra hoy y paga en cuotas, sin tarjeta de crédito." : `Disponible en compras entre ${formatCOP(addiRange.minAmount)} y ${formatCOP(addiRange.maxAmount)}.`}
                         </span>
                       </span>
                     </label>

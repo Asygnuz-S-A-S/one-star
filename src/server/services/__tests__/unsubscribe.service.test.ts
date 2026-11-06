@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 
 vi.mock("server-only", () => ({}))
+vi.mock("@/server/services/marketing.service", () => ({
+  unsubscribeMarketingContact: vi.fn().mockResolvedValue(undefined),
+}))
 vi.mock("@/server/db/prisma", () => ({
   prisma: {
     user: {
@@ -18,10 +21,13 @@ import {
   processUnsubscribeEmail,
 } from "../unsubscribe.service"
 import { prisma } from "@/server/db/prisma"
+import { unsubscribeMarketingContact } from "@/server/services/marketing.service"
 
 describe("Unsubscribe Service", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.stubEnv("AUTH_SECRET", "secreto-de-pruebas")
+    vi.stubEnv("BETTER_AUTH_SECRET", "")
   })
 
   it("genera un token firmado y lo verifica exitosamente", () => {
@@ -65,5 +71,24 @@ describe("Unsubscribe Service", () => {
       where: { customerEmail: { equals: "user@test.com", mode: "insensitive" } },
       data: { marketingConsentAt: null },
     })
+  })
+
+  it("sin AUTH_SECRET no firma enlaces ni acepta ninguno (no hay clave fija en el código)", () => {
+    const token = createUnsubscribeToken("user@test.com")
+    vi.stubEnv("AUTH_SECRET", "")
+    expect(() => createUnsubscribeToken("user@test.com")).toThrow("AUTH_SECRET")
+    expect(verifyUnsubscribeToken(token)).toBeNull()
+  })
+
+  it("da de baja el contacto en Resend, salvo cuando la baja vino de Resend", async () => {
+    vi.mocked(prisma.user.updateMany).mockResolvedValue({ count: 1 })
+    vi.mocked(prisma.order.updateMany).mockResolvedValue({ count: 0 })
+
+    await processUnsubscribeEmail("Ana@Test.com")
+    expect(unsubscribeMarketingContact).toHaveBeenCalledWith("ana@test.com")
+
+    vi.mocked(unsubscribeMarketingContact).mockClear()
+    await processUnsubscribeEmail("ana@test.com", { fromResend: true })
+    expect(unsubscribeMarketingContact).not.toHaveBeenCalled()
   })
 })

@@ -18,7 +18,8 @@ import {
 import { findVariantsForPricing } from "../repositories/variant.repository"
 import type { Prisma, OrderStatus, PaymentStatus } from "@prisma/client"
 import { getERPAdapter } from "../erp"
-import { sendOrderConfirmationEmail } from "./email.service"
+import { sendOrderConfirmationEmail, sendOrderShippedEmail } from "./email.service"
+import { getShippingTrackingAdapter } from "../shipping/tracking"
 import { issueAndSendGiftCardsForOrder } from "./gift-card.service"
 import { DEFAULT_SHIPPING_RATES, getShippingCost, type ShippingMethod } from "@/lib/shipping"
 import { getGiftCardLimits, getShippingRates } from "./store-settings.service"
@@ -637,11 +638,34 @@ export async function changeOrderStatusAndTracking(
       return
     }
   }
+  // Solo se avisa el despacho la primera vez que pasa a SHIPPED (editar la guía después no reenvía).
+  const wasShipped = status === "SHIPPED" ? (await findOrderById(id))?.status === "SHIPPED" : true
   if (carrier !== undefined) {
     await updateOrderStatusAndTracking(id, status, trackingNumber, carrier)
   } else {
     await updateOrderStatusAndTracking(id, status, trackingNumber)
   }
+  if (!wasShipped) {
+    notifyOrderShipped(id).catch((error: unknown) => {
+      console.error(`[order] Correo de despacho del pedido ${id} falló:`, error)
+    })
+  }
+}
+
+/** Correo «tu pedido va en camino». Fire-and-forget desde el cambio de estado. */
+export async function notifyOrderShipped(id: string): Promise<void> {
+  const order = await getOrderById(id)
+  if (!order?.customerEmail) return
+  const guide = order.trackingNumber?.trim() || null
+  await sendOrderShippedEmail({
+    email: order.customerEmail,
+    name: order.customerName ?? undefined,
+    orderId: order.id,
+    carrierLabel: guide ? (order.carrier === "OTHER" ? null : "Envía") : null,
+    trackingNumber: guide,
+    // Con otra transportadora no hay enlace confiable: solo se muestra la guía.
+    trackingUrl: guide && order.carrier !== "OTHER" ? getShippingTrackingAdapter(order.carrier).buildTrackingUrl(guide) : null,
+  })
 }
 
 /**

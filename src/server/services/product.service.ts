@@ -1,4 +1,5 @@
 import "server-only"
+import { searchTerms } from "@/lib/search-terms"
 import { getCatalogRules } from "./store-settings.service"
 import { serializeDecimals, type WithPlainDecimals } from "@/lib/serialize-decimals"
 import {
@@ -410,7 +411,6 @@ function buildPrismaWhere(
     where.gender = { in: genders as Gender[] }
   }
 
-  if (filter.q) where.name = { contains: filter.q, mode: "insensitive" }
   if (filter.marca) where.brand = { is: { name: { contains: filter.marca, mode: "insensitive" } } }
 
   const hasMin = filter.precio_min && !isNaN(Number(filter.precio_min))
@@ -446,6 +446,22 @@ function buildPrismaWhere(
     where.variants = { some: matchingVariant }
   }
 
+  // Cada palabra debe estar en el nombre, la marca, el color o el SKU (en cualquier orden).
+  const terms = filter.q ? searchTerms(filter.q) : []
+  if (terms.length > 0) {
+    const previous = where.AND ? (Array.isArray(where.AND) ? where.AND : [where.AND]) : []
+    where.AND = [
+      ...previous,
+      ...terms.map((term): Prisma.ProductWhereInput => ({
+        OR: [
+          { name: { contains: term, mode: "insensitive" } },
+          { brand: { is: { name: { contains: term, mode: "insensitive" } } } },
+          { variants: { some: { OR: [{ color: { contains: term, mode: "insensitive" } }, { sku: { startsWith: term, mode: "insensitive" } }] } } },
+        ],
+      })),
+    ]
+  }
+
   return where
 }
 
@@ -470,8 +486,8 @@ function buildPrismaOrderBy(
 }
 
 /** Public catalog limits for the price range control. Null means no sellable prices exist. */
-export async function getCatalogPriceBounds(): Promise<{ min: number | null; max: number | null }> {
-  const bounds = await findPublishedProductPriceBounds()
+export async function getCatalogPriceBounds(brandId?: string): Promise<{ min: number | null; max: number | null }> {
+  const bounds = await findPublishedProductPriceBounds(brandId)
   return {
     min: bounds._min.basePrice?.toNumber() ?? null,
     max: bounds._max.basePrice?.toNumber() ?? null,
@@ -586,13 +602,24 @@ export async function getRelatedProducts(
   excludeSlug: string,
   take = 4
 ): Promise<ProductDTO[]> {
+  // Los colores de un mismo modelo son productos distintos con el mismo nombre:
+  // se piden de más y se deja uno por nombre para no repetir la misma tarjeta.
   const rows = await findManyProducts(
     { categoryId, isPublished: true, NOT: { slug: excludeSlug } },
     { createdAt: "desc" },
-    take,
+    take * 4,
     0
   )
-  return rows.map(mapToDTO)
+  const seen = new Set<string>()
+  return rows
+    .filter((row) => {
+      const key = row.name.trim().toLowerCase()
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+    .slice(0, take)
+    .map(mapToDTO)
 }
 
 export async function searchProducts(

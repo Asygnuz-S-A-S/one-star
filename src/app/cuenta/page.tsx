@@ -5,6 +5,7 @@ import { useSession, signOut } from "@/lib/auth-client"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import {
+  getMyProfile,
   updateProfile,
   requestGuestOrdersLinkingAction,
   confirmGuestOrdersLinkingAction,
@@ -88,6 +89,19 @@ export default function CuentaPage() {
       .catch(() => setOrders([]))
       .finally(() => setOrdersLoading(false))
   }
+
+  // Carga el perfil guardado: la sesión solo trae nombre y correo.
+  useEffect(() => {
+    if (!session?.user?.id) return
+    void getMyProfile().then((p) => {
+      if (!p) return
+      setProfileName(p.name)
+      setProfileLastName(p.lastName)
+      setProfilePhone(p.phone)
+      setProfileBrand(p.preferredBrand)
+      setProfileGender(p.gender)
+    })
+  }, [session?.user?.id])
 
   // Load orders when tab changes
   useEffect(() => {
@@ -227,7 +241,6 @@ export default function CuentaPage() {
                 <button
                   onClick={() => {
                     setEditing(true)
-                    setProfileName(user.name ?? "")
                     setProfileSuccess(false)
                   }}
                   className="font-montserrat text-sm text-[#E31C23] font-semibold hover:underline"
@@ -247,7 +260,7 @@ export default function CuentaPage() {
               <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <dt className="font-montserrat text-xs text-[#4A4A4A] uppercase tracking-wide">Nombre</dt>
-                  <dd className="font-montserrat text-sm text-[#1C1C1C] mt-1">{user.name ?? "—"}</dd>
+                  <dd className="font-montserrat text-sm text-[#1C1C1C] mt-1">{[profileName || user.name, profileLastName].filter(Boolean).join(" ") || "—"}</dd>
                 </div>
                 <div>
                   <dt className="font-montserrat text-xs text-[#4A4A4A] uppercase tracking-wide">Correo electrónico</dt>

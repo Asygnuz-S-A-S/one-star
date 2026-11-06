@@ -1,5 +1,6 @@
 import "server-only"
 
+import { SIZE_CHARTS } from "@/lib/size-charts"
 import Anthropic from "@anthropic-ai/sdk"
 import { getProducts } from "./product.service"
 import { findVariantForCartDisplay } from "@/server/repositories/variant.repository"
@@ -27,6 +28,8 @@ export interface CartAction {
   color: string
   price: number
   quantity: number
+  /** Stock de la variante: la bolsa no deja subir la cantidad por encima. */
+  maxQuantity: number
 }
 
 export interface ChatResult {
@@ -54,9 +57,13 @@ Reglas estrictas de interacción:
 6. Concisión y tono: sé cordial, directo y breve. No uses respuestas innecesariamente largas para agilizar la atención.
 7. Al agregar al carrito: confirma la talla y color agregados e invita cordialmente al cliente a abrir el carrito o proceder al checkout.
 8. Políticas y tiendas: para envíos, pagos, cambios, devoluciones, garantías, tiendas físicas y horarios, básate exclusivamente en la base de conocimiento oficial de abajo.
+9. Tallas: el catálogo usa la talla US de cada marca. Si el cliente da la talla en US, úsala tal cual, sin convertir. Solo si da su talla colombiana, EU o en centímetros, conviértela SOLO con las TABLAS OFICIALES DE TALLAS de abajo (marca y género correctos) y di a qué talla US equivale antes de revisar el stock. Si no sabes si es hombre o mujer, pregúntalo. Si la marca no está en las tablas o la talla no aparece, no adivines: pide la talla US o la medida del pie en cm y sugiere la "Guía de tallas" de la ficha del producto.
 
 BASE DE CONOCIMIENTO DE ONE STAR
-${knowledge}`
+${knowledge}
+
+TABLAS OFICIALES DE TALLAS (una fila por talla, columnas separadas por |)
+${SIZE_CHARTS}`
 }
 
 const TOOLS: Anthropic.Tool[] = [
@@ -141,6 +148,7 @@ async function runAgregarAlCarrito(
     color: variant.color,
     price,
     quantity: qty,
+    maxQuantity: variant.stock,
   }
 
   return { result: { ok: true, agregado: action.name, talla: action.size, color: action.color, cantidad: qty }, action }

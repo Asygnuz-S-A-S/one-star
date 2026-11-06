@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 vi.mock("server-only", () => ({}))
 
 const mocks = vi.hoisted(() => ({
+  sendPaymentRejectedEmail: vi.fn().mockResolvedValue({ success: true }),
   getOrderById: vi.fn(),
   changeOrderStatus: vi.fn(),
   closeOrderWithoutPayment: vi.fn(),
@@ -35,6 +36,7 @@ vi.mock("@/server/services/guest-order.service", () => ({
 }))
 vi.mock("@/server/services/email.service", () => ({
   sendGuestAccountInvitationEmail: mocks.sendGuestAccountInvitationEmail,
+  sendPaymentRejectedEmail: mocks.sendPaymentRejectedEmail,
 }))
 vi.mock("@/server/services/epayco.service", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/server/services/epayco.service")>()
@@ -200,6 +202,24 @@ describe("applyPaymentNotification", () => {
     expect(mocks.closeOrderWithoutPayment).toHaveBeenCalledWith("order-1", "REJECTED")
     expect(result.outcome).toBe("rejected")
     expect(result.order).toEqual(rejected)
+  })
+
+  it("rechazo: avisa al cliente que no se hizo el cobro", async () => {
+    mocks.getOrderById.mockResolvedValue(pendingOrder)
+
+    await applyPaymentNotification({ ...accepted, codResponse: "2" })
+
+    expect(mocks.sendPaymentRejectedEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ email: pendingOrder.customerEmail, orderId: "order-1" })
+    )
+  })
+
+  it("un rechazo repetido sobre un pedido ya cerrado no reenvía el aviso", async () => {
+    mocks.getOrderById.mockResolvedValue({ ...pendingOrder, status: "CANCELLED", paymentStatus: "REJECTED" })
+
+    await applyPaymentNotification({ ...accepted, codResponse: "2" })
+
+    expect(mocks.sendPaymentRejectedEmail).not.toHaveBeenCalled()
   })
 
   it("fallo (4): cierra el pedido como FAILED", async () => {

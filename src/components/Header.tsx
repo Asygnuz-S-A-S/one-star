@@ -264,15 +264,16 @@ export default function Header({
         {/* ── DESKTOP ── */}
         <div className="hidden lg:flex items-center justify-between h-16 px-8 lg:px-12 xl:px-16">
           {/* Logo */}
-          {logos?.desktop?.url && (
-            <Link 
-              href="/" 
-              aria-label="One Star — Inicio" 
-              className={`flex shrink-0 items-center px-2 ${config?.layout === "logo-center-nav-left" ? "order-2 absolute left-1/2 -translate-x-1/2" : "order-1"}`}
-            >
+          {/* Sin logo de escritorio cargado se usa el de móvil y, si tampoco hay, la marca en texto: el header nunca queda sin logo. */}
+          <Link
+            href="/"
+            aria-label="One Star — Inicio"
+            className={`flex shrink-0 items-center px-2 ${config?.layout === "logo-center-nav-left" ? "order-2 absolute left-1/2 -translate-x-1/2" : "order-1"}`}
+          >
+            {(logos?.desktop?.url ?? logos?.mobile?.url) ? (
               <div className="relative h-11 w-[62px]">
                 <Image
-                  src={logos.desktop.url}
+                  src={(logos?.desktop?.url ?? logos?.mobile?.url)!}
                   alt="One Star"
                   fill
                   className="object-contain"
@@ -280,8 +281,10 @@ export default function Header({
                   unoptimized
                 />
               </div>
-            </Link>
-          )}
+            ) : (
+              <span className="font-barlow text-lg font-bold uppercase tracking-[0.18em]">One Star</span>
+            )}
+          </Link>
 
           {/* Navegación principal */}
           <nav aria-label="Menú principal" className={`${config?.layout === "logo-center-nav-left" ? "order-1" : "order-2"} flex-1`}>

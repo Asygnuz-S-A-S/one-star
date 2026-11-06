@@ -12,7 +12,7 @@ import { sendMetaPurchaseForOrder } from "./meta-conversions.service"
 import { issueAndSendGiftCardsForOrder } from "./gift-card.service"
 import { getUserByEmail } from "./user.service"
 import { createGuestAccountInviteToken } from "./guest-order.service"
-import { sendGuestAccountInvitationEmail } from "./email.service"
+import { sendGuestAccountInvitationEmail, sendPaymentRejectedEmail } from "./email.service"
 
 /** Tolerancia para comparar montos (centavos por redondeo de la pasarela) */
 const AMOUNT_TOLERANCE = 0.01
@@ -156,6 +156,15 @@ export async function applyPaymentNotification(
       }
       const reason = notification.codResponse === EpaycoStatus.REJECTED ? "REJECTED" : "FAILED"
       await closeOrderWithoutPayment(order.id, reason)
+      if (order.customerEmail) {
+        sendPaymentRejectedEmail({
+          email: order.customerEmail,
+          name: order.customerName ?? undefined,
+          orderId: order.id,
+        }).catch((error: unknown) => {
+          console.error(`[payment] Correo de pago rechazado del pedido ${order.id} falló:`, error)
+        })
+      }
       return { outcome: "rejected", order: (await getOrderById(order.id)) ?? order }
     }
     default:

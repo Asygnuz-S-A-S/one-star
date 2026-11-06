@@ -1,13 +1,8 @@
 "use client"
 
 import { useEffect, useRef, useCallback } from "react"
-import { useRouter, usePathname } from "next/navigation"
+import { useRouter } from "next/navigation"
 import hotkeys from "hotkeys-js"
-
-// Pages that have a "Nuevo" creation route
-const NEW_ROUTES: Record<string, string> = {
-  "/admin/productos": "/admin/productos/nuevo",
-}
 
 interface UseAdminHotkeysOptions {
   onShowHelp: () => void
@@ -15,15 +10,12 @@ interface UseAdminHotkeysOptions {
 
 export function useAdminHotkeys({ onShowHelp }: UseAdminHotkeysOptions) {
   const router = useRouter()
-  const pathname = usePathname()
 
   // Keep refs so useEffect deps stay stable
   const routerRef = useRef(router)
-  const pathnameRef = useRef(pathname)
   const onShowHelpRef = useRef(onShowHelp)
 
   useEffect(() => { routerRef.current = router }, [router])
-  useEffect(() => { pathnameRef.current = pathname }, [pathname])
   useEffect(() => { onShowHelpRef.current = onShowHelp }, [onShowHelp])
 
   // Sequence state: tracks whether "g" was pressed recently
@@ -89,14 +81,6 @@ export function useAdminHotkeys({ onShowHelp }: UseAdminHotkeysOptions) {
       routerRef.current.push("/admin/landing-builder")
     })
 
-    // ── n → create new (context-aware) ─────────────────────────────────────
-    hotkeys("n", (e) => {
-      const newRoute = NEW_ROUTES[pathnameRef.current]
-      if (!newRoute) return
-      e.preventDefault()
-      routerRef.current.push(newRoute)
-    })
-
     // ── ? → help modal ──────────────────────────────────────────────────────
     hotkeys("?", (e) => {
       e.preventDefault()
@@ -115,7 +99,6 @@ export function useAdminHotkeys({ onShowHelp }: UseAdminHotkeysOptions) {
       hotkeys.unbind("o")
       hotkeys.unbind("c")
       hotkeys.unbind("b")
-      hotkeys.unbind("n")
       hotkeys.unbind("?")
       hotkeys.unbind("escape")
       clearPending()
