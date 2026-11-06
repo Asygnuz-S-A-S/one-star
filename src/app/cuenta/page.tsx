@@ -12,6 +12,7 @@ import {
 } from "./actions"
 import { formatDateLong, formatCurrency } from "@/lib/dates"
 import { orderStatusBadge, orderStatusLabel } from "@/lib/order-status"
+import type { OrderItemDTO } from "@/server/services/order.service"
 import { PLACEHOLDER_IMAGE_URL } from "@/lib/product-image"
 import ClubAccountTab from "@/components/club/ClubAccountTab"
 import { usePreferredBrands } from "@/hooks/usePreferredBrands"
@@ -26,17 +27,8 @@ interface Order {
   trackingUrl?: string | null
   total: string | number
   createdAt: string
-  items: {
-    id: string
-    quantity: number
-    unitPrice: string | number
-    product: {
-      id: string
-      name: string
-      slug: string
-      images: { url: string; alt: string }[]
-    }
-  }[]
+  // Mismo tipo que devuelve GET /api/cuenta/pedidos: si cambia, el compilador lo avisa.
+  items: OrderItemDTO[]
 }
 
 function OrderStatusBadge({ status }: { status: string }) {
@@ -527,12 +519,12 @@ export default function CuentaPage() {
                 <div key={item.id} className="flex items-center gap-3">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={item.product.images[0]?.url ?? PLACEHOLDER_IMAGE_URL}
-                    alt={item.product.images[0]?.alt ?? `${item.product.name} — sin foto`}
+                    src={item.productImage ?? PLACEHOLDER_IMAGE_URL}
+                    alt={item.productImage ? item.productName : `${item.productName} — sin foto`}
                     className="w-14 h-14 rounded-lg bg-[#F5F5F5] object-contain"
                   />
                   <div className="flex-1">
-                    <p className="font-montserrat text-sm text-[#1C1C1C]">{item.product.name}</p>
+                    <p className="font-montserrat text-sm text-[#1C1C1C]">{item.productName}</p>
                     <p className="font-montserrat text-xs text-[#4A4A4A]">
                       x{item.quantity} · {formatCurrency(Number(item.unitPrice))} c/u
                     </p>
