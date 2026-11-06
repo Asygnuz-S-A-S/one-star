@@ -3,8 +3,29 @@
 import { revalidatePath } from "next/cache"
 import { headers } from "next/headers"
 import { auth } from "@/lib/auth"
-import { updateProfile as updateProfileService } from "@/server/services/user.service"
+import { getUserById, updateProfile as updateProfileService } from "@/server/services/user.service"
 import { updateUserSchema } from "@/server/validators/user.validator"
+
+/** Datos editables del perfil del usuario en sesión. */
+export async function getMyProfile(): Promise<{
+  name: string
+  lastName: string
+  phone: string
+  preferredBrand: string
+  gender: string
+} | null> {
+  const session = await auth.api.getSession({ headers: await headers() })
+  if (!session?.user?.id) return null
+  const user = await getUserById(session.user.id)
+  if (!user) return null
+  return {
+    name: user.name ?? "",
+    lastName: user.lastName ?? "",
+    phone: user.phone ?? "",
+    preferredBrand: user.preferredBrand ?? "",
+    gender: user.gender ?? "",
+  }
+}
 
 export async function updateProfile(
   data: unknown
