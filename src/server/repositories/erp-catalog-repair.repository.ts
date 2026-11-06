@@ -1,6 +1,7 @@
 import "server-only"
 
 import { prisma } from "@/server/db/prisma"
+import { INTERNAL_CATEGORY_SLUG } from "@/lib/internal-category"
 import type { ErpCatalogRepairPlan, LocalErpCatalogProduct } from "@/server/services/erp-catalog-repair.plan"
 
 /** Carga únicamente la información necesaria para planear una reparación segura. */
@@ -41,7 +42,7 @@ export async function loadErpCatalogRepairState(): Promise<LocalErpCatalogProduc
     const protectedDataCount =
       product.images.length +
       enrichedFields +
-      Number(product.category.slug !== "sin-categoria") +
+      Number(product.category.slug !== INTERNAL_CATEGORY_SLUG) +
       product._count.cartItems +
       product._count.orderItems +
       product._count.crossSells +

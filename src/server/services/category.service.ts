@@ -8,6 +8,7 @@ import {
   updateCategory,
 } from "../repositories/category.repository"
 import type { Category } from "@prisma/client"
+import { INTERNAL_CATEGORY_SLUG } from "@/lib/internal-category"
 
 export interface CategoryDTO {
   id: string
@@ -28,7 +29,9 @@ export async function getCategories(): Promise<CategoryDTO[]> {
   return categories.map(mapCategoryToDTO)
 }
 
+/** Página pública de categoría: la categoría interna de importación no existe para el cliente. */
 export async function getCategoryBySlug(slug: string): Promise<CategoryDTO | null> {
+  if (slug === INTERNAL_CATEGORY_SLUG) return null
   const category = await findCategoryBySlug(slug)
   return category ? mapCategoryToDTO(category) : null
 }
