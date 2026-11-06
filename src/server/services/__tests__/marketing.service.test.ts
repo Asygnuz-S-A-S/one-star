@@ -211,3 +211,16 @@ describe("unsubscribeMarketingContact", () => {
     await expect(unsubscribeMarketingContact("ana@x.co")).rejects.toThrow("caído")
   })
 })
+
+describe("CSV hacia Resend", () => {
+  it("quita los caracteres que convertirían un nombre en fórmula de Excel", async () => {
+    repo.findCustomersForMarketing.mockResolvedValue([customer("x@x.co", true, { name: "=HYPERLINK(\"http://malo\")", lastName: "+Pérez" })])
+    repo.findConsentedGuestOrders.mockResolvedValue([])
+    repo.findPaidOrdersForMarketing.mockResolvedValue([])
+    const resend = fakeResend({ segments: [], members: {}, contacts: [] })
+    resendClient.value = resend
+    await syncMarketingToResend()
+    const csv = await resend.contacts.imports.create.mock.calls[0][0].file.text()
+    expect(csv.split("\n")[1]).toBe('x@x.co,"HYPERLINK(""http://malo"")",Pérez,no,0,0,,')
+  })
+})

@@ -407,9 +407,21 @@ describe("getRelatedProducts", () => {
         NOT: { slug: "actual" },
       },
       { createdAt: "desc" },
-      4,
+      16,
       0
     )
+  })
+
+  it("no repite el mismo modelo en varios colores", async () => {
+    mockFindManyProducts.mockResolvedValue([
+      { ...rawProduct, id: "a", slug: "a", name: "Go Run Glide" },
+      { ...rawProduct, id: "b", slug: "b", name: "GO RUN GLIDE " },
+      { ...rawProduct, id: "c", slug: "c", name: "Aero Razor" },
+    ] as never)
+
+    const result = await getRelatedProducts("category", "actual", 4)
+
+    expect(result.map((p) => p.id)).toEqual(["a", "c"])
   })
 })
 

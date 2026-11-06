@@ -2,15 +2,32 @@ import "server-only"
 import { prisma } from "../db/prisma"
 import { GIFT_CARD_SKU_PREFIX } from "@/lib/gift-card"
 import { isRealColor } from "@/lib/colors"
-import type { Variant } from "@prisma/client"
+import type { Prisma, Variant } from "@prisma/client"
 
 export async function findManyVariants(): Promise<Variant[]> {
   return prisma.variant.findMany()
 }
 
-export async function getUniqueSizes(): Promise<string[]> {
+/**
+ * Productos cuyas variantes alimentan las facetas: los mismos que muestra el catálogo.
+ * `brandId` acota a una marca; `requireImage` excluye los que la tienda oculta por no tener foto.
+ */
+function facetProductWhere(opts: FacetOptions): Prisma.ProductWhereInput {
+  return {
+    isPublished: true,
+    ...(opts.brandId ? { brandId: opts.brandId } : {}),
+    ...(opts.requireImage ? { images: { some: {} } } : {}),
+  }
+}
+
+export interface FacetOptions {
+  brandId?: string
+  requireImage?: boolean
+}
+
+export async function getUniqueSizes(opts: FacetOptions = {}): Promise<string[]> {
   const variants = await prisma.variant.findMany({
-    where: { product: { isPublished: true } },
+    where: { product: facetProductWhere(opts) },
     select: { size: true },
     distinct: ["size"],
   })
@@ -22,9 +39,9 @@ export async function getUniqueSizes(): Promise<string[]> {
  * Descarta los marcadores sin color real ("N/A", vacío) que deja la
  * sincronización del ERP cuando la variante aún no tiene color asignado.
  */
-export async function getUniqueColors(): Promise<string[]> {
+export async function getUniqueColors(opts: FacetOptions = {}): Promise<string[]> {
   const variants = await prisma.variant.findMany({
-    where: { product: { isPublished: true } },
+    where: { product: facetProductWhere(opts) },
     select: { color: true },
     distinct: ["color"],
     orderBy: { color: "asc" },
@@ -109,6 +126,6 @@ export async function findVariantForCartDisplay(variantId: string) {
 export async function findVariantsForQuickAdd(productId: string) {
   return prisma.variant.findMany({
     where: { productId, stock: { gt: 0 }, product: { isPublished: true, availableOnline: true } },
-    select: { id: true, sku: true, size: true, color: true },
+    select: { id: true, sku: true, size: true, color: true, stock: true },
   })
 }

@@ -176,7 +176,7 @@ function LoginForm() {
 
           <Link
             href="/recuperar-contrasena"
-            className="-mt-2 self-end inline-flex min-h-11 items-center font-montserrat text-xs text-[#4A4A4A] underline underline-offset-2 hover:text-[#E31C23]"
+            className="-mt-1 self-end font-montserrat text-xs font-medium text-[#4A4A4A] underline-offset-2 hover:text-[#E31C23] hover:underline"
           >
             ¿Olvidaste tu contraseña?
           </Link>

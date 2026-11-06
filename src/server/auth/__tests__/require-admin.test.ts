@@ -20,6 +20,7 @@ import {
   getAdminSession,
   UnauthorizedError,
 } from "../require-admin"
+import { runAsMcpPrincipal, type McpPrincipal } from "../mcp-context"
 
 function sessionWith(userType?: string, adminRole?: string | null, userId = "adm_1", email = "admin@onestar.com.co") {
   return {
@@ -214,6 +215,37 @@ describe("require-admin", () => {
     it("devuelve null sin sesión o si no es admin", async () => {
       mockGetSession.mockResolvedValue(sessionWith("customer"))
       expect(await getAdminSession()).toBeNull()
+    })
+  })
+
+  describe("principal del conector MCP", () => {
+    const principal = (role: McpPrincipal["role"]): McpPrincipal => ({
+      tokenId: "tok_mcp", adminUserId: "adm_9", email: "jm@onestar.com.co", name: "JM", role,
+    })
+
+    it("usa el admin del token y no la cookie del navegador", async () => {
+      const session = await runAsMcpPrincipal(principal("SUPER_ADMIN"), () => requireAdmin())
+      expect(session.user).toMatchObject({ id: "adm_9", adminRole: "SUPER_ADMIN" })
+      expect(mockGetSession).not.toHaveBeenCalled()
+      await expect(runAsMcpPrincipal(principal("INVENTORY_OPERATOR"), () => getAdminSession())).resolves.toMatchObject({
+        user: { id: "adm_9", adminRole: "INVENTORY_OPERATOR" },
+      })
+    })
+
+    it("nunca entra al área de ventas (datos de clientes), ni siquiera como Super Admin", async () => {
+      await expect(runAsMcpPrincipal(principal("SUPER_ADMIN"), () => requireAdmin("sales"))).rejects.toBeInstanceOf(UnauthorizedError)
+    })
+
+    it("un token de inventario no pasa acciones de Super Admin", async () => {
+      await expect(runAsMcpPrincipal(principal("INVENTORY_OPERATOR"), () => requireSuperAdmin())).rejects.toThrow("Super Admin")
+      await expect(runAsMcpPrincipal(principal("INVENTORY_OPERATOR"), () => requireAdmin("inventory"))).resolves.toBeTruthy()
+    })
+
+    it("fuera del conector todo sigue igual", async () => {
+      await runAsMcpPrincipal(principal("SUPER_ADMIN"), async () => {})
+      mockGetSession.mockResolvedValue(null)
+      await expect(requireAdmin()).rejects.toBeInstanceOf(UnauthorizedError)
+      expect(await getAdminRole()).toBeNull()
     })
   })
 })

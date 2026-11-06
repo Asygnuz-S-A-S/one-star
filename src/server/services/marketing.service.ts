@@ -192,7 +192,8 @@ function requireResend(): Resend {
 }
 
 const csvCell = (value: string | number) => {
-  const text = String(value)
+  // Un nombre que empieza por = + - @ se volvería fórmula si alguien exporta los contactos a Excel.
+  const text = typeof value === "number" ? String(value) : value.replace(/^[=+\-@\t\r]+/, "")
   return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text
 }
 

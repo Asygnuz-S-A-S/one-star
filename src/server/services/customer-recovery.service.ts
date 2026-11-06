@@ -8,46 +8,46 @@ import {
   deleteAuthVerificationsByIdentifier,
   findAuthVerificationByValue,
 } from "@/server/repositories/auth-verification.repository"
-// Funciones genéricas por correo (sirven igual para clientes): sesiones y cuenta "credential" de better-auth.
-import { deleteAdminSessionsByEmail, syncAuthAccountPassword } from "@/server/repositories/admin.repository"
-import { findUserByEmail, updateUser } from "@/server/repositories/user.repository"
+import {
+  deleteSessionsByUserEmail,
+  findCustomerByEmailInsensitive,
+  setUserPasswordHash,
+} from "@/server/repositories/user.repository"
 import { consumeRequestRateLimit } from "@/server/repositories/request-rate-limit.repository"
-import { extractTrustedClientIp, signResetToken, verifySignedToken } from "@/server/services/admin-recovery.service"
 import { sendCustomerPasswordResetEmail } from "@/server/services/email.service"
+import { getSiteUrl } from "@/lib/site-url"
+// Misma firma HMAC y misma IP de confianza que la recuperación de administradores.
+import { extractTrustedClientIp, signResetToken, verifySignedToken } from "@/server/services/admin-recovery.service"
 
 export const CUSTOMER_RESET_PREFIX = "customer_password_reset:"
 export const CUSTOMER_RECOVERY_MESSAGE =
-  "Si el correo tiene una cuenta en One Star, te enviamos un enlace para crear una nueva contraseña."
+  "Si el correo tiene una cuenta en One Star, te llegará un enlace para crear una nueva contraseña en los próximos minutos."
 
-const TOKEN_TTL_MS = 60 * 60 * 1_000 // 1 hora
+const TOKEN_TTL_MS = 60 * 60 * 1_000
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1_000
-const MAX_IP_ATTEMPTS = 10
+const MAX_IP_ATTEMPTS = 5
 const MAX_EMAIL_ATTEMPTS = 3
 const TOO_MANY = "Demasiados intentos. Intenta de nuevo en 15 minutos."
 
-function getBaseUrl(): string {
-  return (process.env.NEXT_PUBLIC_APP_URL ?? process.env.BETTER_AUTH_URL ?? "http://localhost:3000").replace(/\/$/, "")
-}
-
-/** Pide el enlace. Responde siempre lo mismo exista o no la cuenta (no revela correos). */
+/** Responde siempre lo mismo, exista o no la cuenta, para no revelar qué correos están registrados. */
 export async function requestCustomerPasswordReset(
   email: string,
   headersList: Headers
-): Promise<{ success: boolean; message: string; error?: string }> {
+): Promise<{ success: boolean; message: string }> {
   const normEmail = email.trim().toLowerCase()
   const ip = extractTrustedClientIp(headersList)
 
   const ipRate = await consumeRequestRateLimit(`customer_recovery_ip:${ip}`, RATE_LIMIT_WINDOW_MS)
-  if (ipRate.count > MAX_IP_ATTEMPTS) return { success: false, message: TOO_MANY, error: TOO_MANY }
+  if (ipRate.count > MAX_IP_ATTEMPTS) return { success: false, message: TOO_MANY }
   const emailRate = await consumeRequestRateLimit(`customer_recovery_email:${normEmail}`, RATE_LIMIT_WINDOW_MS)
-  if (emailRate.count > MAX_EMAIL_ATTEMPTS) return { success: false, message: TOO_MANY, error: TOO_MANY }
+  if (emailRate.count > MAX_EMAIL_ATTEMPTS) return { success: false, message: TOO_MANY }
 
-  const user = await findUserByEmail(normEmail)
+  const user = await findCustomerByEmailInsensitive(normEmail)
   if (user) {
-    // Cualquier fallo queda en el log y la respuesta sigue siendo la neutra.
+    // Un fallo aquí no debe cambiar la respuesta: delataría que el correo existe.
     try {
+      const identifier = `${CUSTOMER_RESET_PREFIX}${user.email.toLowerCase()}`
       const signedToken = signResetToken(randomBytes(32).toString("hex"))
-      const identifier = `${CUSTOMER_RESET_PREFIX}${normEmail}`
       await deleteAuthVerificationsByIdentifier(identifier)
       await createAuthVerification({
         id: randomUUID(),
@@ -58,10 +58,10 @@ export async function requestCustomerPasswordReset(
       await sendCustomerPasswordResetEmail({
         email: user.email,
         name: user.name ?? undefined,
-        resetUrl: `${getBaseUrl()}/restablecer-contrasena?token=${encodeURIComponent(signedToken)}`,
+        resetUrl: `${getSiteUrl()}/restablecer-contrasena?token=${encodeURIComponent(signedToken)}`,
       })
-    } catch (error) {
-      console.error(`[customer-recovery] No se pudo generar o enviar el enlace para ${normEmail}:`, error)
+    } catch (err) {
+      console.error("[customer-recovery] No se pudo generar o enviar el enlace:", err)
     }
   }
 
@@ -72,39 +72,40 @@ export async function requestCustomerPasswordReset(
 export async function verifyCustomerPasswordResetToken(
   token: string | null | undefined
 ): Promise<{ valid: boolean; email?: string; error?: string }> {
-  const trimmed = token?.trim()
-  if (!trimmed) return { valid: false, error: "Falta el enlace de recuperación." }
-  if (!verifySignedToken(trimmed)) return { valid: false, error: "El enlace es inválido o fue modificado." }
-
+  const trimmed = typeof token === "string" ? token.trim() : ""
+  if (!trimmed || !verifySignedToken(trimmed)) {
+    return { valid: false, error: "El enlace no es válido o fue modificado." }
+  }
   const record = await findAuthVerificationByValue(trimmed)
   if (!record || !record.identifier.startsWith(CUSTOMER_RESET_PREFIX)) {
-    return { valid: false, error: "El enlace es inválido o ya fue usado." }
+    return { valid: false, error: "El enlace no es válido o ya se usó." }
   }
-  if (record.expiresAt.getTime() <= Date.now()) return { valid: false, error: "El enlace venció. Pide uno nuevo." }
-
+  if (record.expiresAt.getTime() <= Date.now()) {
+    return { valid: false, error: "El enlace venció. Pide uno nuevo." }
+  }
   return { valid: true, email: record.identifier.slice(CUSTOMER_RESET_PREFIX.length) }
 }
 
-/** Cambia la contraseña con un enlace válido, lo consume y cierra todas las sesiones del cliente. */
+/** Cambia la contraseña con un enlace válido, lo consume y cierra las sesiones abiertas. */
 export async function resetCustomerPasswordWithToken(
   token: string,
   newPassword: string
 ): Promise<{ success: boolean; error?: string }> {
   const verification = await verifyCustomerPasswordResetToken(token)
   if (!verification.valid || !verification.email) {
-    return { success: false, error: verification.error ?? "El enlace es inválido o venció." }
+    return { success: false, error: verification.error ?? "El enlace no es válido." }
   }
-  if (newPassword.length < 8) return { success: false, error: "La contraseña debe tener al menos 8 caracteres." }
+  if (newPassword.length < 8) {
+    return { success: false, error: "La contraseña debe tener al menos 8 caracteres." }
+  }
+  const user = await findCustomerByEmailInsensitive(verification.email)
+  if (!user) return { success: false, error: "La cuenta ya no existe." }
 
-  const user = await findUserByEmail(verification.email)
   const record = await findAuthVerificationByValue(token.trim())
-  if (!user || !record) return { success: false, error: "El enlace es inválido o ya fue usado." }
+  if (!record) return { success: false, error: "El enlace ya se usó." }
+  await deleteAuthVerification(record.id)
 
-  await deleteAuthVerification(record.id) // un solo uso
-  const passwordHash = bcrypt.hashSync(newPassword, 10)
-  await updateUser(user.id, { passwordHash })
-  await syncAuthAccountPassword(user.email, passwordHash)
-  await deleteAdminSessionsByEmail(user.email)
-
+  await setUserPasswordHash(user.id, bcrypt.hashSync(newPassword, 10))
+  await deleteSessionsByUserEmail(user.email)
   return { success: true }
 }

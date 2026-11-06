@@ -1,47 +1,39 @@
 "use server"
 
 import { headers } from "next/headers"
-import { ZodError } from "zod"
+import {
+  customerRecoveryEmailSchema,
+  customerResetPasswordSchema,
+} from "@/server/validators/customer-recovery.validator"
 import {
   requestCustomerPasswordReset,
   resetCustomerPasswordWithToken,
 } from "@/server/services/customer-recovery.service"
-import { customerRecoveryRequestSchema, customerResetSchema } from "@/server/validators/customer-recovery.validator"
 
 export type CustomerRecoveryState = { success: boolean; message?: string; error?: string }
-
-function errorMessage(error: unknown, fallback: string): string {
-  return error instanceof ZodError ? (error.issues[0]?.message ?? fallback) : fallback
-}
 
 export async function requestCustomerPasswordResetAction(
   _previous: CustomerRecoveryState | null,
   formData: FormData
 ): Promise<CustomerRecoveryState> {
-  try {
-    const { email } = customerRecoveryRequestSchema.parse({ email: String(formData.get("email") ?? "") })
-    const result = await requestCustomerPasswordReset(email, await headers())
-    return { success: result.success, message: result.message, error: result.error }
-  } catch (error: unknown) {
-    return { success: false, error: errorMessage(error, "No se pudo procesar la solicitud.") }
-  }
+  const parsed = customerRecoveryEmailSchema.safeParse({ email: String(formData.get("email") ?? "") })
+  if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? "Correo no válido" }
+  const result = await requestCustomerPasswordReset(parsed.data.email, await headers())
+  return result.success ? { success: true, message: result.message } : { success: false, error: result.message }
 }
 
 export async function resetCustomerPasswordAction(
   _previous: CustomerRecoveryState | null,
   formData: FormData
 ): Promise<CustomerRecoveryState> {
-  try {
-    const password = String(formData.get("password") ?? "")
-    if (password !== String(formData.get("confirmPassword") ?? "")) {
-      return { success: false, error: "Las contraseñas no coinciden." }
-    }
-    const parsed = customerResetSchema.parse({ token: String(formData.get("token") ?? ""), password })
-    const result = await resetCustomerPasswordWithToken(parsed.token, parsed.password)
-    return result.success
-      ? { success: true, message: "Listo. Ya puedes iniciar sesión con tu nueva contraseña." }
-      : { success: false, error: result.error }
-  } catch (error: unknown) {
-    return { success: false, error: errorMessage(error, "No se pudo cambiar la contraseña.") }
+  const password = String(formData.get("password") ?? "")
+  if (password !== String(formData.get("confirmPassword") ?? "")) {
+    return { success: false, error: "Las contraseñas no coinciden." }
   }
+  const parsed = customerResetPasswordSchema.safeParse({ token: String(formData.get("token") ?? ""), password })
+  if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? "Datos no válidos" }
+  const result = await resetCustomerPasswordWithToken(parsed.data.token, parsed.data.password)
+  return result.success
+    ? { success: true, message: "Listo: tu contraseña cambió. Ya puedes iniciar sesión." }
+    : { success: false, error: result.error }
 }

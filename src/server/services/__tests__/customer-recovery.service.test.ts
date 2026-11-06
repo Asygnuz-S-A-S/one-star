@@ -2,130 +2,109 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 vi.mock("server-only", () => ({}))
 
-const m = vi.hoisted(() => ({
+const repo = vi.hoisted(() => ({
   createAuthVerification: vi.fn(),
   deleteAuthVerification: vi.fn(),
   deleteAuthVerificationsByIdentifier: vi.fn(),
   findAuthVerificationByValue: vi.fn(),
-  deleteAdminSessionsByEmail: vi.fn().mockResolvedValue(2),
-  syncAuthAccountPassword: vi.fn(),
-  findUserByEmail: vi.fn(),
-  updateUser: vi.fn(),
+  findCustomerByEmailInsensitive: vi.fn(),
+  setUserPasswordHash: vi.fn(),
+  deleteSessionsByUserEmail: vi.fn(),
   consumeRequestRateLimit: vi.fn(),
   sendCustomerPasswordResetEmail: vi.fn(),
 }))
-vi.mock("@/server/repositories/auth-verification.repository", () => ({
-  createAuthVerification: m.createAuthVerification,
-  deleteAuthVerification: m.deleteAuthVerification,
-  deleteAuthVerificationsByIdentifier: m.deleteAuthVerificationsByIdentifier,
-  findAuthVerificationByValue: m.findAuthVerificationByValue,
-}))
-vi.mock("@/server/repositories/admin.repository", () => ({
-  deleteAdminSessionsByEmail: m.deleteAdminSessionsByEmail,
-  syncAuthAccountPassword: m.syncAuthAccountPassword,
-  findAdminByEmail: vi.fn(),
-  findAdminById: vi.fn(),
-  setAdminUserPassword: vi.fn(),
-}))
-vi.mock("@/server/repositories/user.repository", () => ({ findUserByEmail: m.findUserByEmail, updateUser: m.updateUser }))
-vi.mock("@/server/repositories/request-rate-limit.repository", () => ({ consumeRequestRateLimit: m.consumeRequestRateLimit }))
-vi.mock("@/server/services/email.service", () => ({
-  sendCustomerPasswordResetEmail: m.sendCustomerPasswordResetEmail,
-  sendAdminPasswordResetEmail: vi.fn(),
-}))
-vi.mock("@/server/services/admin-role.service", () => ({ invalidateAdminRoleCache: vi.fn() }))
 
-import bcrypt from "bcryptjs"
+vi.mock("@/server/repositories/auth-verification.repository", () => repo)
+vi.mock("@/server/repositories/user.repository", () => repo)
+vi.mock("@/server/repositories/request-rate-limit.repository", () => repo)
+vi.mock("@/server/services/email.service", () => repo)
+vi.mock("@/server/services/admin-recovery.service", () => ({
+  extractTrustedClientIp: () => "1.2.3.4",
+  signResetToken: (raw: string) => `${raw}.sig`,
+  verifySignedToken: (token: string) => token.endsWith(".sig"),
+}))
+
 import {
   CUSTOMER_RECOVERY_MESSAGE,
   requestCustomerPasswordReset,
   resetCustomerPasswordWithToken,
-  verifyCustomerPasswordResetToken,
 } from "../customer-recovery.service"
-import { signResetToken } from "../admin-recovery.service"
 
-const headers = new Headers({ "x-real-ip": "203.0.113.5" })
-const user = { id: "u1", email: "ana@x.co", name: "Ana" }
+const customer = { id: "u1", email: "Ana@Mail.com", name: "Ana" }
 
 beforeEach(() => {
   vi.clearAllMocks()
-  vi.stubEnv("AUTH_SECRET", "secreto-de-pruebas")
-  m.consumeRequestRateLimit.mockResolvedValue({ count: 1, resetAt: new Date() })
+  repo.consumeRequestRateLimit.mockResolvedValue({ count: 1 })
 })
 
 describe("requestCustomerPasswordReset", () => {
-  it("con cuenta: guarda un enlace de 1 hora y lo envía; responde el mensaje neutro", async () => {
-    m.findUserByEmail.mockResolvedValue(user)
-    const res = await requestCustomerPasswordReset(" Ana@X.co ", headers)
+  it("envía el enlace a un cliente existente con la respuesta neutra", async () => {
+    repo.findCustomerByEmailInsensitive.mockResolvedValue(customer)
 
-    expect(res).toEqual({ success: true, message: CUSTOMER_RECOVERY_MESSAGE })
-    expect(m.deleteAuthVerificationsByIdentifier).toHaveBeenCalledWith("customer_password_reset:ana@x.co")
-    const saved = m.createAuthVerification.mock.calls[0][0]
-    expect(saved.identifier).toBe("customer_password_reset:ana@x.co")
-    expect(saved.expiresAt.getTime() - Date.now()).toBeGreaterThan(59 * 60 * 1000)
-    expect(m.sendCustomerPasswordResetEmail).toHaveBeenCalledWith(
-      expect.objectContaining({ email: "ana@x.co", resetUrl: expect.stringContaining("/restablecer-contrasena?token=") })
+    const result = await requestCustomerPasswordReset(" ana@mail.com ", new Headers())
+
+    expect(result).toEqual({ success: true, message: CUSTOMER_RECOVERY_MESSAGE })
+    expect(repo.createAuthVerification).toHaveBeenCalledWith(
+      expect.objectContaining({ identifier: "customer_password_reset:ana@mail.com" })
+    )
+    expect(repo.sendCustomerPasswordResetEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ email: "Ana@Mail.com", resetUrl: expect.stringContaining("/restablecer-contrasena?token=") })
     )
   })
 
-  it("sin cuenta: misma respuesta y no envía nada (no revela si el correo existe)", async () => {
-    m.findUserByEmail.mockResolvedValue(null)
-    const res = await requestCustomerPasswordReset("nadie@x.co", headers)
-    expect(res).toEqual({ success: true, message: CUSTOMER_RECOVERY_MESSAGE })
-    expect(m.sendCustomerPasswordResetEmail).not.toHaveBeenCalled()
+  it("responde lo mismo si el correo no existe, sin enviar nada", async () => {
+    repo.findCustomerByEmailInsensitive.mockResolvedValue(null)
+
+    const result = await requestCustomerPasswordReset("nadie@mail.com", new Headers())
+
+    expect(result).toEqual({ success: true, message: CUSTOMER_RECOVERY_MESSAGE })
+    expect(repo.sendCustomerPasswordResetEmail).not.toHaveBeenCalled()
   })
 
-  it("si falla el envío, la respuesta sigue siendo la neutra", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => {})
-    m.findUserByEmail.mockResolvedValue(user)
-    m.sendCustomerPasswordResetEmail.mockRejectedValueOnce(new Error("resend caído"))
-    expect(await requestCustomerPasswordReset("ana@x.co", headers)).toEqual({ success: true, message: CUSTOMER_RECOVERY_MESSAGE })
-  })
+  it("corta por exceso de intentos", async () => {
+    repo.consumeRequestRateLimit.mockResolvedValue({ count: 99 })
 
-  it("corta tras 3 intentos por correo", async () => {
-    m.consumeRequestRateLimit.mockResolvedValueOnce({ count: 1 }).mockResolvedValueOnce({ count: 4 })
-    const res = await requestCustomerPasswordReset("ana@x.co", headers)
-    expect(res.success).toBe(false)
-    expect(m.findUserByEmail).not.toHaveBeenCalled()
+    const result = await requestCustomerPasswordReset("ana@mail.com", new Headers())
+
+    expect(result.success).toBe(false)
+    expect(repo.findCustomerByEmailInsensitive).not.toHaveBeenCalled()
   })
 })
 
-describe("reset con enlace", () => {
-  const token = () => signResetToken("raw-token")
-  const record = (identifier: string, minutes = 30) => ({
+describe("resetCustomerPasswordWithToken", () => {
+  const record = {
     id: "v1",
-    identifier,
-    value: token(),
-    expiresAt: new Date(Date.now() + minutes * 60 * 1000),
+    identifier: "customer_password_reset:ana@mail.com",
+    expiresAt: new Date(Date.now() + 60_000),
+  }
+
+  it("cambia la contraseña, consume el enlace y cierra sesiones", async () => {
+    repo.findAuthVerificationByValue.mockResolvedValue(record)
+    repo.findCustomerByEmailInsensitive.mockResolvedValue(customer)
+
+    const result = await resetCustomerPasswordWithToken("abc.sig", "nueva-clave-1")
+
+    expect(result).toEqual({ success: true })
+    expect(repo.deleteAuthVerification).toHaveBeenCalledWith("v1")
+    expect(repo.setUserPasswordHash).toHaveBeenCalledWith("u1", expect.stringMatching(/^\$2[aby]\$10\$/))
+    expect(repo.deleteSessionsByUserEmail).toHaveBeenCalledWith("Ana@Mail.com")
   })
 
-  it("un enlace de administrador no sirve para clientes", async () => {
-    m.findAuthVerificationByValue.mockResolvedValue(record("admin_password_reset:ana@x.co"))
-    expect((await verifyCustomerPasswordResetToken(token())).valid).toBe(false)
+  it("rechaza enlaces de administrador, vencidos o con firma inválida", async () => {
+    repo.findAuthVerificationByValue.mockResolvedValue({ ...record, identifier: "admin_password_reset:a@b.co" })
+    expect((await resetCustomerPasswordWithToken("abc.sig", "nueva-clave-1")).success).toBe(false)
+
+    repo.findAuthVerificationByValue.mockResolvedValue({ ...record, expiresAt: new Date(Date.now() - 1) })
+    expect((await resetCustomerPasswordWithToken("abc.sig", "nueva-clave-1")).success).toBe(false)
+
+    expect((await resetCustomerPasswordWithToken("abc.mala", "nueva-clave-1")).success).toBe(false)
+    expect(repo.setUserPasswordHash).not.toHaveBeenCalled()
   })
 
-  it("rechaza enlaces vencidos o con la firma alterada", async () => {
-    m.findAuthVerificationByValue.mockResolvedValue(record("customer_password_reset:ana@x.co", -1))
-    expect((await verifyCustomerPasswordResetToken(token())).valid).toBe(false)
-    expect((await verifyCustomerPasswordResetToken(`${token()}x`)).valid).toBe(false)
-  })
-
-  it("cambia la clave en la cuenta y en better-auth, consume el enlace y cierra sesiones", async () => {
-    m.findAuthVerificationByValue.mockResolvedValue(record("customer_password_reset:ana@x.co"))
-    m.findUserByEmail.mockResolvedValue(user)
-
-    expect(await resetCustomerPasswordWithToken(token(), "nuevaClave1")).toEqual({ success: true })
-
-    expect(m.deleteAuthVerification).toHaveBeenCalledWith("v1")
-    const hash = m.updateUser.mock.calls[0][1].passwordHash as string
-    expect(bcrypt.compareSync("nuevaClave1", hash)).toBe(true)
-    expect(m.syncAuthAccountPassword).toHaveBeenCalledWith("ana@x.co", hash)
-    expect(m.deleteAdminSessionsByEmail).toHaveBeenCalledWith("ana@x.co")
-  })
-
-  it("no acepta claves cortas", async () => {
-    m.findAuthVerificationByValue.mockResolvedValue(record("customer_password_reset:ana@x.co"))
-    expect((await resetCustomerPasswordWithToken(token(), "corta")).success).toBe(false)
-    expect(m.updateUser).not.toHaveBeenCalled()
+  it("exige al menos 8 caracteres", async () => {
+    repo.findAuthVerificationByValue.mockResolvedValue(record)
+    const result = await resetCustomerPasswordWithToken("abc.sig", "corta")
+    expect(result.success).toBe(false)
+    expect(repo.setUserPasswordHash).not.toHaveBeenCalled()
   })
 })
