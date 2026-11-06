@@ -29,7 +29,6 @@ const SECTIONS: ShortcutSection[] = [
   {
     title: "Acciones",
     items: [
-      { keys: [["n"]], desc: "Crear nuevo (en páginas con acción de creación)" },
       { keys: [["Esc"]], desc: "Cerrar modal o panel activo" },
     ],
   },
