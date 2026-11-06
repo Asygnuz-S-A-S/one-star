@@ -58,6 +58,11 @@ describe("getCategoryBySlug", () => {
     mockFindBySlug.mockResolvedValue(null)
     await expect(getCategoryBySlug("no-existe")).resolves.toBeNull()
   })
+
+  it("la categoría interna de importación no existe para el cliente", async () => {
+    await expect(getCategoryBySlug("sin-categoria")).resolves.toBeNull()
+    expect(mockFindBySlug).not.toHaveBeenCalledWith("sin-categoria")
+  })
 })
 
 describe("mutaciones de categoría", () => {

@@ -652,6 +652,13 @@ export async function changeOrderStatusAndTracking(
   }
 }
 
+/** Enlace de rastreo de la guía; con otra transportadora no hay enlace confiable. */
+export function orderTrackingUrl(order: { trackingNumber: string | null; carrier?: string | null }): string | null {
+  const guide = order.trackingNumber?.trim()
+  if (!guide || order.carrier === "OTHER") return null
+  return getShippingTrackingAdapter(order.carrier).buildTrackingUrl(guide)
+}
+
 /** Correo «tu pedido va en camino». Fire-and-forget desde el cambio de estado. */
 export async function notifyOrderShipped(id: string): Promise<void> {
   const order = await getOrderById(id)
@@ -663,8 +670,7 @@ export async function notifyOrderShipped(id: string): Promise<void> {
     orderId: order.id,
     carrierLabel: guide ? (order.carrier === "OTHER" ? null : "Envía") : null,
     trackingNumber: guide,
-    // Con otra transportadora no hay enlace confiable: solo se muestra la guía.
-    trackingUrl: guide && order.carrier !== "OTHER" ? getShippingTrackingAdapter(order.carrier).buildTrackingUrl(guide) : null,
+    trackingUrl: orderTrackingUrl(order),
   })
 }
 
