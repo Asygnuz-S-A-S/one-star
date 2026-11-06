@@ -42,7 +42,11 @@ test.describe("Ficha de producto — SEO y conversión", () => {
     await expect(bar).toHaveAttribute("aria-hidden", "true")
 
     // Al pasar de largo el botón, la barra queda fija con precio y acción.
-    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
+    await page.evaluate(() => {
+      // La tienda hace scroll dentro de #public-scroll, no en window.
+      const el = document.getElementById("public-scroll") ?? document.scrollingElement!
+      el.scrollTo(0, el.scrollHeight)
+    })
     await expect(bar).toHaveAttribute("aria-hidden", "false")
 
     await bar.getByRole("button", { name: /elige tu talla/i }).click()
@@ -70,7 +74,11 @@ test.describe("Ficha de producto — SEO y conversión", () => {
     await page.setViewportSize({ width: 375, height: 812 })
     await openFirstProduct(page)
 
-    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
+    await page.evaluate(() => {
+      // La tienda hace scroll dentro de #public-scroll, no en window.
+      const el = document.getElementById("public-scroll") ?? document.scrollingElement!
+      el.scrollTo(0, el.scrollHeight)
+    })
     const sticky = page.getByTestId("sticky-buy-bar")
     const chat = page.getByRole("button", { name: /abrir chat de ventas/i })
     await expect(sticky).toHaveAttribute("aria-hidden", "false")
