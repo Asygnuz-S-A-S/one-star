@@ -10,8 +10,13 @@ const m = vi.hoisted(() => ({
   count: vi.fn(),
 }))
 
+const authAccount = vi.hoisted(() => ({ updateMany: vi.fn() }))
+
 vi.mock("@/server/db/prisma", () => ({
-  prisma: { user: m },
+  prisma: {
+    user: m,
+    $transaction: (fn: (tx: unknown) => unknown) => fn({ user: m, authAccount }),
+  },
 }))
 
 import {
@@ -22,6 +27,7 @@ import {
   findManyCustomers,
   findUserByEmail,
   findUserById,
+  setUserPasswordHash,
   updateUser,
 } from "../user.repository"
 
@@ -87,6 +93,16 @@ describe("user.repository", () => {
     expect(args.include.cart.include.items.include.product.include.images).toEqual({
       orderBy: { position: "asc" },
       take: 1,
+    })
+  })
+
+  it("al restablecer la clave también reemplaza la credencial de better-auth (la vieja deja de servir)", async () => {
+    m.update.mockResolvedValue({ email: "ana@mail.com" })
+    await setUserPasswordHash("u1", "$2a$10$nuevo")
+    expect(m.update).toHaveBeenCalledWith({ where: { id: "u1" }, data: { passwordHash: "$2a$10$nuevo" }, select: { email: true } })
+    expect(authAccount.updateMany).toHaveBeenCalledWith({
+      where: { providerId: "credential", user: { email: "ana@mail.com" } },
+      data: { password: "$2a$10$nuevo", updatedAt: expect.any(Date) },
     })
   })
 })
