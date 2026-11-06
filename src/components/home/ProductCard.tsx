@@ -323,7 +323,7 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
           </div>
         )}
 
-        <div className="mt-auto flex min-w-0 items-center justify-between gap-2 pt-1">
+        <div className="mt-auto flex min-w-0 flex-col gap-2.5 pt-1">
           <div className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 leading-none">
             {isOnSale && salePrice ? (
               <>
@@ -341,7 +341,19 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
             )}
           </div>
 
-          <QuickAddButton id={id} slug={slug} name={name} brand={brand} imageUrl={imageUrl} price={price} salePrice={salePrice} isOnSale={isOnSale} hasStock={hasStock && Boolean(href)} />
+          <div className="flex items-center gap-2">
+            {href && (
+              <Link
+                href={href}
+                prefetch={false}
+                aria-label={`Ver detalle de ${name}`}
+                className="relative z-20 inline-flex h-10 min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-full border border-[var(--store-line)] px-2 font-barlow text-[11px] font-bold uppercase tracking-[0.06em] sm:px-3 sm:text-xs sm:tracking-[0.12em] text-[var(--store-ink)] transition-colors duration-200 hover:border-[var(--store-ink)] hover:bg-[var(--store-ink)] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--store-action)] dark:text-white"
+              >
+                Ver detalle
+              </Link>
+            )}
+            <QuickAddButton id={id} slug={slug} name={name} brand={brand} imageUrl={imageUrl} price={price} salePrice={salePrice} isOnSale={isOnSale} hasStock={hasStock && Boolean(href)} />
+          </div>
         </div>
       </div>
     </motion.article>

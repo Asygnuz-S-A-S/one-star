@@ -24,12 +24,18 @@ test.describe("Rutas que antes daban 404", () => {
     await expect(page).toHaveURL(/q=air/)
   })
 
-  for (const slug of ["hombre", "mujer", "ninos", "accesorios"]) {
-    test(`/${slug} redirige a la categoría canónica /c/${slug}`, async ({ page }) => {
+  // Los géneros filtran el catálogo completo; accesorios es una categoría.
+  for (const [slug, target] of [
+    ["hombre", "/productos\\?genero=hombre$"],
+    ["mujer", "/productos\\?genero=mujer$"],
+    ["ninos", "/productos\\?genero=ninos$"],
+    ["accesorios", "/c/accesorios$"],
+  ] as const) {
+    test(`/${slug} redirige a su ruta canónica`, async ({ page }) => {
       const response = await page.goto(`/${slug}`)
 
       expect(response?.status()).toBe(200)
-      await expect(page).toHaveURL(new RegExp(`/c/${slug}$`))
+      await expect(page).toHaveURL(new RegExp(target))
     })
   }
 
@@ -45,7 +51,7 @@ test.describe("Rutas que antes daban 404", () => {
     const response = await page.goto("/privacidad")
 
     expect(response?.status()).toBe(200)
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(/política de privacidad/i)
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(/política de tratamiento de datos personales/i)
     await expect(page.getByRole("heading", { name: /tus derechos como titular/i })).toBeVisible()
   })
 
