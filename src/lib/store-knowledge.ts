@@ -45,7 +45,7 @@ ATENCIÓN HUMANA
 - Una asesora atiende por WhatsApp (313 762 0554) de lunes a sábado, de 9:00 a. m. a 7:00 p. m.
 
 TALLAS
-- Las tallas del catálogo están en sistema US. Cada producto tiene su guía de tallas en la ficha ("Guía de tallas"). No conviertas tallas de memoria.`
+- Las tallas del catálogo están en sistema US. Cada producto tiene su guía de tallas en la ficha ("Guía de tallas"). No conviertas tallas de memoria: si el cliente da talla colombiana, EU o cm, usa solo las tablas oficiales de tallas.`
 }
 
 /** Base con las tarifas de respaldo. El chat en vivo usa `buildStoreKnowledge` con Configuración. */
