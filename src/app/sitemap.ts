@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next"
 import { getCategories } from "@/server/services/category.service"
+import { INTERNAL_CATEGORY_SLUG } from "@/lib/internal-category"
 import { getProductSitemapEntries } from "@/server/services/product.service"
 import { getStorefrontBrands } from "@/server/services/brand.service"
 import { getSiteUrl } from "@/lib/site-url"
@@ -57,7 +58,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: route.changeFrequency,
       priority: route.priority,
     })),
-    ...categories.map((category) => ({
+    ...categories.filter((category) => category.slug !== INTERNAL_CATEGORY_SLUG).map((category) => ({
       url: `${siteUrl}/c/${category.slug}`,
       lastModified: now,
       changeFrequency: "weekly" as const,

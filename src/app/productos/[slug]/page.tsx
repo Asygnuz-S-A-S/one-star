@@ -1,4 +1,5 @@
 import { cache } from "react"
+import { INTERNAL_CATEGORY_SLUG } from "@/lib/internal-category"
 import { notFound } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
@@ -164,7 +165,7 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
           <Link href="/" className="inline-flex min-h-11 min-w-11 items-center justify-center transition-colors hover:text-[#1C1C1C] dark:hover:text-white">Inicio</Link>
           <span>/</span>
           <Link href="/productos" className="inline-flex min-h-11 min-w-11 items-center transition-colors hover:text-[#1C1C1C] dark:hover:text-white">Productos</Link>
-          {product.category && (
+          {product.category && product.category.slug !== INTERNAL_CATEGORY_SLUG && (
             <>
               <span>/</span>
               <Link

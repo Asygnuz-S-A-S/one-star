@@ -2,16 +2,17 @@ import "server-only"
 
 import { prisma } from "@/server/db/prisma"
 import type { Gender } from "@prisma/client"
+import { INTERNAL_CATEGORY_SLUG } from "@/lib/internal-category"
 
 export async function findDefaultImportCategory() {
-  return prisma.category.findUnique({ where: { slug: "sin-categoria" } })
+  return prisma.category.findUnique({ where: { slug: INTERNAL_CATEGORY_SLUG } })
 }
 
 export async function createDefaultImportCategory() {
   return prisma.category.create({
     data: {
       name: "Sin Categoría",
-      slug: "sin-categoria",
+      slug: INTERNAL_CATEGORY_SLUG,
       description: "Categoría por defecto para productos importados del ERP",
     },
   })
