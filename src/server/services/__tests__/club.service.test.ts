@@ -4,11 +4,13 @@ vi.mock("server-only", () => ({}))
 vi.mock("@/server/repositories/user.repository", () => ({ findUserById: vi.fn(), updateUser: vi.fn() }))
 vi.mock("@/server/repositories/coupon.repository", () => ({ findActiveClubCoupons: vi.fn() }))
 vi.mock("@/server/services/email.service", () => ({ sendClubWelcomeEmail: vi.fn().mockResolvedValue({ ok: true }) }))
+vi.mock("@/server/services/marketing.service", () => ({ unsubscribeMarketingContact: vi.fn().mockResolvedValue(undefined) }))
 
 import { getClubPromotions, isClubMember, joinClub, setNewsletterConsent } from "../club.service"
 import { findUserById, updateUser } from "@/server/repositories/user.repository"
 import { findActiveClubCoupons } from "@/server/repositories/coupon.repository"
 import { sendClubWelcomeEmail } from "@/server/services/email.service"
+import { unsubscribeMarketingContact } from "@/server/services/marketing.service"
 
 const baseUser = { id: "u1", email: "ana@example.com", name: "Ana", clubMember: false, clubJoinedAt: null, marketingConsentAt: null }
 
@@ -66,5 +68,18 @@ describe("getClubPromotions", () => {
 
     expect((await getClubPromotions(false))[0].code).toBeNull()
     expect((await getClubPromotions(true))[0]).toMatchObject({ code: "CLUB15", discountValue: 15 })
+  })
+})
+
+describe("setNewsletterConsent y Resend", () => {
+  it("al retirar el consentimiento da de baja el contacto en Resend; al aceptarlo no", async () => {
+    vi.mocked(updateUser).mockResolvedValue({ ...baseUser, marketingConsentAt: null } as never)
+    await setNewsletterConsent("u1", false)
+    expect(unsubscribeMarketingContact).toHaveBeenCalledWith("ana@example.com")
+
+    vi.mocked(unsubscribeMarketingContact).mockClear()
+    vi.mocked(updateUser).mockResolvedValue({ ...baseUser, marketingConsentAt: new Date() } as never)
+    await setNewsletterConsent("u1", true)
+    expect(unsubscribeMarketingContact).not.toHaveBeenCalled()
   })
 })

@@ -821,3 +821,16 @@ model PqrsRequest {
   @@index([documentNumber])
   @@index([status])
 }
+
+// Ajustes editables de los correos automáticos (Admin → Email marketing).
+// Una fila por correo (key = clave del catálogo). Sin fila = textos por defecto del código.
+model EmailTemplateSetting {
+  key       String   @id
+  /// Asunto propio; vacío = el del código. Admite {nombre}, {pedido}, {radicado}.
+  subject   String?
+  /// Texto principal propio; vacío = el del código.
+  intro     String?
+  /// Solo aplica a los correos que se pueden apagar (ver catálogo).
+  enabled   Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+}

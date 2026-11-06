@@ -174,6 +174,13 @@ function LoginForm() {
             </div>
           </div>
 
+          <Link
+            href="/recuperar-contrasena"
+            className="-mt-2 self-end inline-flex min-h-11 items-center font-montserrat text-xs text-[#4A4A4A] underline underline-offset-2 hover:text-[#E31C23]"
+          >
+            ¿Olvidaste tu contraseña?
+          </Link>
+
           {/* Error */}
           {error && (
             <p className="font-montserrat text-xs text-[#E31C23] text-center" role="alert">

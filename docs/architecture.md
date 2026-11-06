@@ -307,6 +307,12 @@ El sistema de roles administrativos (`SUPER_ADMIN` y `INVENTORY_OPERATOR`) sigue
 5. **Defensa en profundidad en el servidor**: `requireAdmin()` y `requireSuperAdmin()` en `src/server/auth/require-admin.ts` y las páginas dinámicas del panel admin resuelven igualmente el rol activo desde la base de datos mediante `resolveActiveAdminRole`. Si el rol no es válido, lanzan `UnauthorizedError`.
 6. **Aprovisionamiento explícito**: `scripts/create-admin.ts` exige la variable `ADMIN_ROLE` de forma obligatoria y sin valor por defecto, validando exhaustivamente que sea un rol conocido.
 
+### Correos automáticos y email marketing
+
+- **Correos automáticos:** el catálogo vive en `src/server/email/catalog.ts` (qué correos hay, cuándo salen y cuáles se pueden apagar). En **Admin → Email marketing** se edita el asunto y el texto principal de cada uno (tabla `EmailTemplateSetting`; sin fila = texto del código), se ve la vista previa y se envía una prueba. Los correos de seguridad, legales y de compra son obligatorios: no se pueden apagar. Si la base falla al leer el ajuste, el correo sale con el texto por defecto.
+- **Campañas:** se diseñan y envían desde **Broadcasts de Resend**. La tienda solo decide quién puede recibir publicidad: el botón «Sincronizar con Resend» (`marketing.service.ts`) sube a quienes tienen consentimiento (cuenta con `marketingConsentAt`; sin cuenta, una compra con la casilla marcada), con propiedades (`es_club`, `compras`, `total_gastado`, `ultima_compra`, `marcas`) y segmentos (Newsletter, Club, Compradores, Sin compras, Sin compra hace 90+ días, «Marca: X»). Quien deja de aplicar sale del segmento; quien ya no tiene consentimiento queda *unsubscribed*.
+- **Bajas en los dos sentidos:** una baja en la tienda (`/baja-publicidad`, Mi cuenta) da de baja el contacto en Resend al instante. Una baja o queja de spam en Resend llega por `POST /api/resend/webhook` (firma svix, fail-closed sin `RESEND_WEBHOOK_SECRET`) y retira el consentimiento en la tienda. La sincronización nunca re-suscribe a alguien dado de baja en Resend.
+
 ## Decisiones Arquitectónicas Pendientes
 
 | # | Área | Opciones |
@@ -402,6 +408,7 @@ CRON_SECRET=""                    # (opcional) Protege /api/cron/sync-erp para d
 # Correos transaccionales (Resend — ver src/server/email/)
 RESEND_API_KEY=""                 # API key de Resend (https://resend.com/api-keys)
 EMAIL_FROM="One Star <onboarding@resend.dev>"  # Remitente. En producción usa un dominio verificado en Resend
+RESEND_WEBHOOK_SECRET=""          # Firma del webhook /api/resend/webhook (bajas y quejas de spam desde campañas). Sin él responde 503
 # Para Siigo u otro ERP, documentar sus variables aquí al agregar el adaptador
 
 # Sentry (observabilidad — opcionales en desarrollo, requeridas en producción)

@@ -50,6 +50,7 @@ vi.mock("@/server/services/gift-card.service", () => ({
 
 vi.mock("@/server/services/email.service", () => ({
   sendOrderConfirmationEmail: vi.fn(),
+  sendOrderShippedEmail: vi.fn().mockResolvedValue({ success: true }),
 }))
 
 const giftCardLimits = vi.hoisted(() => ({ value: { minAmount: 20_000, maxAmount: 2_000_000, validityMonths: 12 } }))
@@ -90,7 +91,7 @@ import {
   findAbandonedPendingOrders,
   updateOrderCustomerData,
 } from "@/server/repositories/order.repository"
-import { sendOrderConfirmationEmail } from "@/server/services/email.service"
+import { sendOrderConfirmationEmail, sendOrderShippedEmail } from "@/server/services/email.service"
 import { findVariantsForPricing } from "@/server/repositories/variant.repository"
 import {
   validateCouponForOrder,
@@ -854,6 +855,56 @@ describe("cancelUnpaidOrder", () => {
     await cancelUnpaidOrder("order-1")
 
     expect(mockCloseUnpaid).toHaveBeenCalledWith("order-1", "REJECTED")
+  })
+})
+
+describe("changeOrderStatusAndTracking — aviso de despacho", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockUpdateTracking.mockResolvedValue(undefined as never)
+  })
+  const flush = () => new Promise((resolve) => setTimeout(resolve, 0))
+
+  it("al pasar a SHIPPED por primera vez avisa al cliente con la guía y el enlace de Envía", async () => {
+    mockFindById
+      .mockResolvedValueOnce({ ...rawOrder, status: "PAID" } as never)
+      .mockResolvedValueOnce({ ...rawOrder, status: "SHIPPED", trackingNumber: "TRK123", carrier: "ENVIA" } as never)
+
+    await changeOrderStatusAndTracking("order-1", "SHIPPED", "TRK123", "ENVIA")
+    await flush()
+
+    expect(sendOrderShippedEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        email: "test@example.com",
+        orderId: "order-1",
+        carrierLabel: "Envía",
+        trackingNumber: "TRK123",
+        trackingUrl: expect.stringContaining("TRK123"),
+      })
+    )
+  })
+
+  it("con otra transportadora muestra la guía pero no inventa un enlace", async () => {
+    mockFindById
+      .mockResolvedValueOnce({ ...rawOrder, status: "PAID" } as never)
+      .mockResolvedValueOnce({ ...rawOrder, status: "SHIPPED", trackingNumber: "X-9", carrier: "OTHER" } as never)
+
+    await changeOrderStatusAndTracking("order-1", "SHIPPED", "X-9", "OTHER")
+    await flush()
+
+    expect(sendOrderShippedEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ trackingNumber: "X-9", carrierLabel: null, trackingUrl: null })
+    )
+  })
+
+  it("editar la guía de un pedido ya enviado no repite el correo", async () => {
+    mockFindById.mockResolvedValue({ ...rawOrder, status: "SHIPPED" } as never)
+
+    await changeOrderStatusAndTracking("order-1", "SHIPPED", "TRK-NUEVA")
+    await flush()
+
+    expect(mockUpdateTracking).toHaveBeenCalled()
+    expect(sendOrderShippedEmail).not.toHaveBeenCalled()
   })
 })
 
