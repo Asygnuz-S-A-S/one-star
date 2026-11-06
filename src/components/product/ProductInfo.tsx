@@ -147,6 +147,7 @@ export default function ProductInfo({
       price: effectivePrice,
       originalPrice: basePrice,
       sku: variant.sku,
+      maxQuantity: variant.stock,
     }
   }, [product, selectedColor, selectedSize, basePrice, salePrice])
 

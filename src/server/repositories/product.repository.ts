@@ -47,9 +47,9 @@ export async function findManyProducts(
   })
 }
 
-export async function findPublishedProductPriceBounds() {
+export async function findPublishedProductPriceBounds(brandId?: string) {
   return prisma.product.aggregate({
-    where: { isPublished: true },
+    where: { isPublished: true, ...(brandId ? { brandId } : {}) },
     _min: { basePrice: true },
     _max: { basePrice: true },
   })

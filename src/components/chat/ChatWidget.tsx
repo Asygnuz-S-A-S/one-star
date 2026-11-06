@@ -71,6 +71,7 @@ export default function ChatWidget({ welcome = DEFAULT_CHAT_WELCOME }: { welcome
             originalPrice: action.price,
             sku: action.sku,
             quantity: action.quantity,
+            maxQuantity: action.maxQuantity,
           })
         }
       }

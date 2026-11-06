@@ -27,6 +27,8 @@ export interface CartAction {
   color: string
   price: number
   quantity: number
+  /** Stock de la variante: la bolsa no deja subir la cantidad por encima. */
+  maxQuantity: number
 }
 
 export interface ChatResult {
@@ -141,6 +143,7 @@ async function runAgregarAlCarrito(
     color: variant.color,
     price,
     quantity: qty,
+    maxQuantity: variant.stock,
   }
 
   return { result: { ok: true, agregado: action.name, talla: action.size, color: action.color, cantidad: qty }, action }

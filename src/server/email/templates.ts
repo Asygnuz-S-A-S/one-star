@@ -343,6 +343,31 @@ export function pqrsAdminNotificationEmail(params: {
 }
 
 /** Notificación para restablecer contraseña de un administrador. */
+export function customerPasswordResetEmail(params: {
+  name?: string
+  resetUrl: string
+}): EmailContent {
+  const greetingText = params.name ? `Hola ${escapeHtml(params.name)},` : "Hola,"
+  const inner = `
+    <h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;color:${COLOR.dark};">Restablece tu contraseña</h1>
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${COLOR.text};">${greetingText}</p>
+    <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:${COLOR.text};">
+      Recibimos una solicitud para cambiar la contraseña de tu cuenta en One Star. El enlace es de un solo uso y vale durante <strong>1 hora</strong>.
+    </p>
+    <div style="margin:24px 0;text-align:center;">
+      <a href="${escapeHtml(params.resetUrl)}" style="background:#E31C23;color:#FFFFFF;padding:12px 24px;border-radius:8px;font-weight:bold;text-decoration:none;display:inline-block;font-size:14px;">
+        Crear nueva contraseña
+      </a>
+    </div>
+    <p style="margin:24px 0 0;font-size:13px;line-height:1.6;color:${COLOR.muted};">
+      Si no lo pediste, ignora este correo: tu contraseña actual sigue igual.
+    </p>`
+  return {
+    subject: "Restablece tu contraseña — One Star",
+    html: layout(inner, "Enlace para crear una nueva contraseña en One Star"),
+  }
+}
+
 export function adminPasswordResetEmail(params: {
   name?: string
   resetUrl: string

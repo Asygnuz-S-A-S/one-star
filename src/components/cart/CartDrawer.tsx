@@ -258,7 +258,9 @@ export default function CartDrawer() {
                               <button
                                 onClick={() => updateQuantity(item.id, item.quantity + 1)}
                                 aria-label="Aumentar cantidad"
-                                className="grid h-9 w-9 place-items-center rounded-full font-montserrat text-base text-[#1C1C1C] transition-colors hover:bg-[#F2F2F0]"
+                                disabled={item.maxQuantity !== undefined && item.quantity >= item.maxQuantity}
+                                title={item.maxQuantity !== undefined && item.quantity >= item.maxQuantity ? `Solo hay ${item.maxQuantity} disponible(s)` : undefined}
+                                className="grid h-9 w-9 place-items-center rounded-full font-montserrat text-base text-[#1C1C1C] transition-colors disabled:cursor-not-allowed disabled:opacity-30 hover:bg-[#F2F2F0]"
                               >
                                 +
                               </button>
