@@ -81,15 +81,18 @@ export default function QuickAddButton({ id, slug, name, brand, imageUrl, price,
         disabled={!hasStock || loading}
         aria-expanded={Boolean(variants)}
         aria-label={hasStock ? `Agregar ${name} al carrito` : `${name} agotado`}
-        className="relative z-20 inline-flex h-11 min-h-11 w-11 min-w-11 shrink-0 items-center justify-center rounded-full bg-[var(--store-ink)] text-white transition-colors duration-200 hover:bg-[var(--store-action)] disabled:cursor-not-allowed disabled:opacity-40"
+        title={hasStock ? "Agregar al carrito" : "Agotado"}
+        className="relative z-20 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--store-line)] bg-white text-[var(--store-ink)] transition-colors duration-200 hover:border-[var(--store-action)] hover:bg-[var(--store-action)] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--store-action)] disabled:cursor-not-allowed disabled:opacity-40 dark:bg-transparent dark:text-white"
       >
         {loading ? (
-          <span aria-hidden="true" className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+          <span aria-hidden="true" className="h-4 w-4 animate-spin rounded-full border-2 border-current/30 border-t-current" />
         ) : (
+          // Carrito con "+": se lee como "agregar al carrito", no como una bolsa cualquiera.
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M6 7h12l-1 13H7L6 7Z" />
-            <path d="M9 7a3 3 0 0 1 6 0" />
-            <path d="M12 11v5M9.5 13.5h5" />
+            <path d="M2.5 3h2l2.2 11.2a1.5 1.5 0 0 0 1.5 1.2h8.6a1.5 1.5 0 0 0 1.5-1.1L20 8" />
+            <circle cx="9" cy="20" r="1.3" />
+            <circle cx="17" cy="20" r="1.3" />
+            <path d="M14 3v6M11 6h6" />
           </svg>
         )}
       </button>

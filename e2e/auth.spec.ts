@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test"
+import { acceptTerms, seedCart } from "./cart-seed"
 import { PrismaClient } from "@prisma/client"
 import { loadEnvConfig } from "@next/env"
 
@@ -66,9 +67,9 @@ test.describe("Login", () => {
     await expect(page).toHaveURL(/\/registro/)
   })
 
-  test("no ofrece recuperación de contraseña mientras la ruta no exista", async ({ page }) => {
-    await expect(page.getByRole("link", { name: /olvidaste tu contraseña/i })).toHaveCount(0)
-    await expect(page.locator('a[href="/recuperar-contrasena"]')).toHaveCount(0)
+  test("ofrece recuperar la contraseña", async ({ page }) => {
+    await page.locator('a[href="/recuperar-contrasena"]').first().click()
+    await expect(page).toHaveURL(/\/recuperar-contrasena$/)
   })
 
   test("conserva un callback interno al navegar al registro", async ({ page }) => {
@@ -140,7 +141,9 @@ test.describe("Registro", () => {
   })
 
   test("prellena el registro desde checkout sin consumir el borrador", async ({ page }) => {
+    await seedCart(page)
     await page.goto("/checkout")
+    await acceptTerms(page)
     const confirmButton = page.getByRole("button", { name: /confirmar datos/i })
     await expect(confirmButton).toBeEnabled()
 
@@ -180,7 +183,9 @@ test.describe("Registro", () => {
   })
 
   test("no prellena un registro directo aunque exista un borrador de checkout", async ({ page }) => {
+    await seedCart(page)
     await page.goto("/checkout")
+    await acceptTerms(page)
     const confirmButton = page.getByRole("button", { name: /confirmar datos/i })
     await expect(confirmButton).toBeEnabled()
 
@@ -213,6 +218,7 @@ test.describe("Registro", () => {
     const password = "Checkout123!"
 
     try {
+      await seedCart(page)
       await page.goto("/registro?callbackUrl=%2Fcheckout")
       await page.getByLabel("Nombre").fill("Cliente")
       await page.getByLabel("Apellido").fill("Checkout")

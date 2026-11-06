@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test"
+import { acceptTerms, seedCart } from "./cart-seed"
 
 /** La portada usa el hero editorial del builder o, sin campaña activa, el carrusel clásico. */
 const homeHero = (page: Page) =>
@@ -45,8 +46,8 @@ test.describe("Home", () => {
 
   test("los links de categorías en el nav navegan correctamente", async ({ page }) => {
     await page.goto("/")
-    await page.getByRole("link", { name: /hombre/i }).first().click()
-    await expect(page).toHaveURL(/\/hombre/)
+    await page.getByRole("banner").getByRole("link", { name: /^accesorios$/i }).first().click()
+    await expect(page).toHaveURL(/\/c\/accesorios/)
   })
 
   test("mantiene legibles los nombres y precios de las tarjetas de producto", async ({ page }) => {
@@ -114,7 +115,8 @@ test.describe("Catálogo de productos", () => {
     const productCard = page.locator("article[data-product-id]").first()
 
     await expect(productCard).toBeVisible()
-    await expect(productCard.getByRole("button", { name: /ver .*producto/i })).toBeVisible()
+    await expect(productCard.getByRole("link", { name: /^ver detalle de/i })).toBeVisible()
+    await expect(productCard.getByRole("button", { name: /^agregar .* al carrito$/i })).toBeVisible()
     await expect(productCard.getByTestId("product-card-stock")).toBeVisible()
   })
 
@@ -124,13 +126,17 @@ test.describe("Catálogo de productos", () => {
     const media = productCard.getByTestId("product-card-media")
     const productImage = media.locator("img").first()
     const price = productCard.getByTestId("product-card-price")
-    const cta = productCard.getByRole("button", { name: /ver .*producto/i })
+    const detail = productCard.getByRole("link", { name: /^ver detalle de/i })
+    const add = productCard.getByRole("button", { name: /^agregar .* al carrito$/i })
 
     await expect(media).toBeVisible()
     await expect(productImage).toHaveCSS("object-fit", "contain")
     await expect(price).toHaveCSS("font-size", "16px")
-    await expect(cta).toHaveCSS("min-height", "44px")
-    await expect(cta).toHaveCSS("background-color", "rgba(0, 0, 0, 0)")
+    // Acciones con borde y sin relleno: el relleno solo aparece al pasar el cursor.
+    await expect(detail).toHaveCSS("height", "40px")
+    await expect(detail).toHaveCSS("background-color", "rgba(0, 0, 0, 0)")
+    await expect(add).toHaveCSS("height", "40px")
+    await expect(add).toHaveCSS("background-color", "rgb(255, 255, 255)")
   })
 
   test("muestra la grilla de productos en /productos", async ({ page }) => {
@@ -143,7 +149,7 @@ test.describe("Catálogo de productos", () => {
 
   test("el filtro de categoría hombre muestra productos masculinos", async ({ page }) => {
     await page.goto("/hombre")
-    await expect(page).toHaveURL(/\/hombre/)
+    await expect(page).toHaveURL(/genero=hombre/)
     await expect(page.locator("main")).toBeVisible()
   })
 
@@ -168,6 +174,8 @@ test.describe("Carrito", () => {
 })
 
 test.describe("Checkout", () => {
+  test.beforeEach(async ({ page }) => seedCart(page))
+
   test("solicita iniciar sesión solo cuando el visitante confirma el checkout", async ({ page }) => {
     await page.goto("/checkout")
 
@@ -184,6 +192,7 @@ test.describe("Checkout", () => {
     await page.getByRole("textbox", { name: /^nombre/i }).fill("Ana")
     await page.getByRole("textbox", { name: /apellido/i }).fill("Pérez")
     await page.getByRole("radio", { name: /envío express/i }).check()
+    await acceptTerms(page)
     await confirmButton.click()
 
     await expect(
@@ -288,6 +297,7 @@ test.describe("Checkout", () => {
     await page.goto("/checkout")
 
     await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible()
+    await acceptTerms(page)
     await page.getByRole("button", { name: /confirmar datos/i }).click()
     await expect(page.getByRole("heading", { name: /inicia sesión para pagar/i })).toBeVisible()
   })
@@ -309,6 +319,7 @@ test.describe("Checkout", () => {
     await expect(page.locator("#checkout-auth-title")).toHaveCount(0)
 
     releaseSession()
+    await acceptTerms(page)
     const confirmButton = page.getByRole("button", { name: /confirmar datos/i })
     await expect(confirmButton).toBeEnabled()
     await confirmButton.click()
@@ -320,6 +331,7 @@ test.describe("Checkout", () => {
     await page.goto("/checkout")
 
     await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible()
+    await acceptTerms(page)
     await page.getByRole("button", { name: /confirmar datos/i }).click()
     await expect(page.getByRole("heading", { name: /inicia sesión para pagar/i })).toBeVisible()
     const hasHorizontalOverflow = await page.evaluate(
