@@ -21,6 +21,9 @@ type Tab = "perfil" | "club" | "pedidos" | "direcciones" | "salir"
 interface Order {
   id: string
   status: string
+  trackingNumber?: string | null
+  carrier?: "ENVIA" | "OTHER" | null
+  trackingUrl?: string | null
   total: string | number
   createdAt: string
   items: {
@@ -504,6 +507,20 @@ export default function CuentaPage() {
                 {formatDateLong(selectedOrder.createdAt)}
               </span>
             </div>
+
+            {selectedOrder.trackingNumber?.trim() && (
+              <div className="mb-4 rounded-lg bg-[#F5F5F5] px-4 py-3 font-montserrat text-sm text-[#1C1C1C]" data-testid="order-tracking">
+                <p>
+                  <span className="text-[#4A4A4A]">Guía{selectedOrder.carrier === "ENVIA" ? " Envía" : ""}:</span>{" "}
+                  <strong>{selectedOrder.trackingNumber.trim()}</strong>
+                </p>
+                {selectedOrder.trackingUrl && (
+                  <a href={selectedOrder.trackingUrl} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex min-h-11 items-center font-semibold text-[#E31C23] underline underline-offset-4">
+                    Rastrear mi pedido
+                  </a>
+                )}
+              </div>
+            )}
 
             <div className="flex flex-col gap-3 mb-4">
               {selectedOrder.items.map((item) => (
