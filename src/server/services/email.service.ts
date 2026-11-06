@@ -11,6 +11,7 @@ import {
   pqrsConfirmationEmail,
   pqrsAdminNotificationEmail,
   adminPasswordResetEmail,
+  customerPasswordResetEmail,
   type OrderEmailItem,
   type GiftCardEmailCard,
 } from "@/server/email/templates"
@@ -158,3 +159,13 @@ export async function sendAdminPasswordResetEmail(params: {
 }
 
 
+
+/** Envía el enlace para que un cliente cree una nueva contraseña. */
+export async function sendCustomerPasswordResetEmail(params: {
+  email: string
+  name?: string
+  resetUrl: string
+}): Promise<SendEmailResult> {
+  const { subject, html } = customerPasswordResetEmail({ name: params.name, resetUrl: params.resetUrl })
+  return sendEmail({ to: params.email, subject, html })
+}

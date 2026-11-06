@@ -10,6 +10,22 @@ export async function findUserByEmail(email: string): Promise<User | null> {
   return prisma.user.findUnique({ where: { email } })
 }
 
+/** Cliente por correo sin distinguir mayúsculas (recuperación de contraseña). */
+export async function findCustomerByEmailInsensitive(email: string): Promise<User | null> {
+  return prisma.user.findFirst({ where: { email: { equals: email, mode: "insensitive" }, role: "CUSTOMER" } })
+}
+
+/** Cambia la contraseña del cliente: la credencial de better-auth se sincroniza en el próximo login. */
+export async function setUserPasswordHash(id: string, passwordHash: string): Promise<void> {
+  await prisma.user.update({ where: { id }, data: { passwordHash } })
+}
+
+/** Cierra todas las sesiones del cliente (tras restablecer la contraseña). */
+export async function deleteSessionsByUserEmail(email: string): Promise<number> {
+  const result = await prisma.authSession.deleteMany({ where: { user: { email } } })
+  return result.count
+}
+
 export async function createUser(data: Prisma.UserCreateInput): Promise<User> {
   return prisma.user.create({ data })
 }

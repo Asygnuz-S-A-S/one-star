@@ -1,4 +1,14 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
+// El entorno node de vitest no trae localStorage: la persistencia del carrito usa uno en memoria.
+vi.hoisted(() => {
+  const memory = new Map<string, string>()
+  globalThis.localStorage = {
+    getItem: (k: string) => memory.get(k) ?? null,
+    setItem: (k: string, v: string) => void memory.set(k, v),
+    removeItem: (k: string) => void memory.delete(k),
+  } as Storage
+})
+
 import { CART_STORAGE_VERSION, migratePersistedCart } from "@/store/cart.store"
 
 const legacyGiftCard = {
@@ -47,5 +57,29 @@ describe("migración del carrito persistido", () => {
       totalItems: 0,
       subtotal: 0,
     })
+  })
+})
+
+describe("tope de stock en la bolsa", () => {
+  it("no deja pasar del stock al agregar ni al subir la cantidad", async () => {
+    const { useCartStore } = await import("@/store/cart.store")
+    const { quantity: _q, ...item } = producto
+    void _q
+    useCartStore.getState().clearCart()
+
+    useCartStore.getState().addItem({ ...item, maxQuantity: 2 })
+    useCartStore.getState().addItem({ ...item, maxQuantity: 2 })
+    useCartStore.getState().addItem({ ...item, maxQuantity: 2 })
+    expect(useCartStore.getState().items[0].quantity).toBe(2)
+
+    useCartStore.getState().updateQuantity(item.id, 13)
+    expect(useCartStore.getState().items[0].quantity).toBe(2)
+    expect(useCartStore.getState().subtotal).toBe(100_000)
+  })
+
+  it("sin stock conocido no limita (ítems guardados antes del cambio)", async () => {
+    const { clampToStock } = await import("@/store/cart.store")
+    expect(clampToStock(5)).toBe(5)
+    expect(clampToStock(5, 3)).toBe(3)
   })
 })

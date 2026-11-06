@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { stripInternalFields } from "@/lib/public-json";
 import { productQuerySchema } from "@/server/validators/product.validator";
 import { getProducts } from "@/server/services/product.service";
 
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest) {
     }
 
     const { products } = await getProducts({ categorySlug: parsed.data.category }, parsed.data.take);
-    return NextResponse.json(products);
+    return NextResponse.json(stripInternalFields(products));
   } catch (error: unknown) {
     if (process.env.NODE_ENV === "development") {
       console.error("[GET /api/products]", error);

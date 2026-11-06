@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import "./globals.css";
+import { getSiteUrl } from "@/lib/site-url";
 import PublicSiteFrame from "@/components/PublicSiteFrame";
 import Script from "next/script";
 import StoreIntro, { STORE_INTRO_SCRIPT } from "@/components/StoreIntro";
@@ -10,9 +11,16 @@ import GoogleAnalytics from "@/components/tracking/GoogleAnalytics";
 import CookieBanner from "@/components/legal/CookieBanner";
 
 export const metadata: Metadata = {
+  // Base para que canónicas e imágenes sociales salgan absolutas con el dominio configurado.
+  metadataBase: new URL(getSiteUrl()),
   title: "One Star | Urban Performance",
   description:
     "Tienda de calzado urbano y deportivo premium en Colombia.",
+  openGraph: {
+    siteName: "One Star",
+    locale: "es_CO",
+    type: "website",
+  },
 };
 
 import { getActiveNavigationItems } from "@/server/repositories/navigation.repository";

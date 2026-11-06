@@ -1,6 +1,7 @@
 import "server-only"
 import { getUniqueSizes as fetchSizes, getUniqueColors as fetchColors, countVariants as fetchCount } from "../repositories/variant.repository"
 import type { Variant } from "@prisma/client"
+import { getCatalogRules } from "./store-settings.service"
 import { compareSizes, dedupeColors } from "@/lib/catalog-facets"
 
 export interface VariantDTO {
@@ -27,12 +28,18 @@ export function mapVariantToDTO(variant: Variant): VariantDTO {
   }
 }
 
-export async function getUniqueSizes(): Promise<string[]> {
-  return (await fetchSizes()).sort(compareSizes)
+/** Facetas del catálogo público: siguen la regla de ocultar productos sin foto. */
+async function facetOptions(brandId?: string) {
+  const { hideImagelessProducts } = await getCatalogRules()
+  return { brandId, requireImage: hideImagelessProducts }
 }
 
-export async function getUniqueColors(): Promise<string[]> {
-  return dedupeColors(await fetchColors())
+export async function getUniqueSizes(brandId?: string): Promise<string[]> {
+  return (await fetchSizes(await facetOptions(brandId))).sort(compareSizes)
+}
+
+export async function getUniqueColors(brandId?: string): Promise<string[]> {
+  return dedupeColors(await fetchColors(await facetOptions(brandId)))
 }
 
 export async function getTotalVariantsCount(): Promise<number> {

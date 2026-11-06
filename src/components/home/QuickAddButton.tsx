@@ -43,6 +43,7 @@ export default function QuickAddButton({ id, slug, name, brand, imageUrl, price,
       price: effectivePrice,
       originalPrice: Number(price),
       sku: variant.sku,
+      maxQuantity: variant.stock,
     })
     void trackLeadCartStageAction({ productId: id, variantId: variant.id, productName: name }).catch(() => {})
     trackMetaEvent("AddToCart", {

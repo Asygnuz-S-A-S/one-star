@@ -185,7 +185,9 @@ export default function CarritoPage() {
                     <button
                       onClick={() => updateQuantity(item.id, item.quantity + 1)}
                       aria-label="Aumentar cantidad"
-                      className="w-9 h-9 flex items-center justify-center text-[#1C1C1C] hover:bg-[#E0E0E0] transition-colors font-montserrat"
+                                disabled={item.maxQuantity !== undefined && item.quantity >= item.maxQuantity}
+                                title={item.maxQuantity !== undefined && item.quantity >= item.maxQuantity ? `Solo hay ${item.maxQuantity} disponible(s)` : undefined}
+                      className="w-9 h-9 flex items-center justify-center text-[#1C1C1C] hover:bg-[#E0E0E0] transition-colors disabled:cursor-not-allowed disabled:opacity-30 font-montserrat"
                     >
                       +
                     </button>

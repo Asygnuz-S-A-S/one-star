@@ -111,7 +111,7 @@ function CollectionTile({ block, index, total, options, tileStyle }: { block: Ho
 
       <span className="relative mt-auto flex items-end justify-between gap-3 px-5 pb-5 md:px-6 md:pb-6">
         <span className="min-w-0">
-          <span className={`block font-barlow font-bold uppercase leading-[0.95] tracking-[-0.01em] [overflow-wrap:anywhere] ${featured ? "text-3xl lg:text-5xl" : "text-lg md:text-xl"}`}>{title}</span>
+          <span className={`block font-barlow font-bold uppercase leading-[0.95] tracking-[-0.01em] hyphens-auto [overflow-wrap:break-word] ${featured ? "text-3xl lg:text-5xl" : "text-base sm:text-lg md:text-xl"}`}>{title}</span>
           <span className={`mt-2 inline-flex items-center gap-2 font-montserrat text-xs font-medium transition-colors ${dark ? "text-white/70 group-hover:text-white" : "text-[#1C1C1C]/60 group-hover:text-[#1C1C1C]"}`}>
             Explorar
             <span aria-hidden="true" className="block h-px w-5 bg-current transition-[width] duration-300 group-hover:w-9" />
