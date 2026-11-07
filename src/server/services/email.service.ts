@@ -12,6 +12,7 @@ import {
   pqrsAdminNotificationEmail,
   adminPasswordResetEmail,
   orderShippedEmail,
+  orderReadyForPickupEmail,
   paymentRejectedEmail,
   customerPasswordResetEmail,
   type OrderEmailItem,
@@ -36,6 +37,12 @@ async function settingsFor(key: EmailKey) {
 
 function baseUrl(): string {
   return (process.env.BETTER_AUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "")
+}
+
+/** Enlace a la consulta pública del pedido, con el número ya escrito. */
+function trackOrderUrl(orderId: string): string | undefined {
+  const base = baseUrl()
+  return base ? `${base}/rastrear-pedido?pedido=${orderId.slice(-8).toUpperCase()}` : undefined
 }
 
 /** Envía el correo de alerta de inicio de sesión a un cliente. */
@@ -72,6 +79,7 @@ export async function sendOrderConfirmationEmail(params: {
     items: params.items,
     total: params.total,
     pickupStore: params.pickupStore,
+    trackOrderUrl: trackOrderUrl(params.orderId),
   })
   return sendEmail({ to: params.email, subject, html })
 }
@@ -201,7 +209,21 @@ export async function sendOrderShippedEmail(params: {
 }): Promise<SendEmailResult> {
   const settings = await settingsFor("order_shipped")
   if (!settings) return SKIPPED
-  const { subject, html } = orderShippedEmail({ ...params, copy: settings.copy })
+  const { subject, html } = orderShippedEmail({ ...params, trackOrderUrl: trackOrderUrl(params.orderId), copy: settings.copy })
+  return sendEmail({ to: params.email, subject, html })
+}
+
+/** Aviso de que un pedido de recoger en tienda ya está listo. */
+export async function sendOrderReadyForPickupEmail(params: {
+  email: string
+  name?: string
+  orderId: string
+  storeName: string
+  storeAddress?: string
+}): Promise<SendEmailResult> {
+  const settings = await settingsFor("order_ready_pickup")
+  if (!settings) return SKIPPED
+  const { subject, html } = orderReadyForPickupEmail({ ...params, trackOrderUrl: trackOrderUrl(params.orderId), copy: settings.copy })
   return sendEmail({ to: params.email, subject, html })
 }
 

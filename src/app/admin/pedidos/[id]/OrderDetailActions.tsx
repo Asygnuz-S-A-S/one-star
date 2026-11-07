@@ -6,7 +6,7 @@ import {
   resendOrderConfirmationAction,
   updateOrderStatus,
 } from "../actions"
-import { ORDER_STATUSES, ORDER_STATUS_LABELS } from "@/lib/order-status"
+import { ORDER_STATUSES, orderStatusLabel } from "@/lib/order-status"
 
 interface Props {
   orderId: string
@@ -15,6 +15,8 @@ interface Props {
   currentTrackingNumber: string
   currentCarrier?: "ENVIA" | "OTHER" | null
   hasCustomerEmail: boolean
+  /** Recoger en tienda: «Enviado» se muestra como «Listo para recoger» y avisa al cliente por correo. */
+  isPickup?: boolean
 }
 
 type Toast = { message: string; type: "success" | "error" }
@@ -26,6 +28,7 @@ export default function OrderDetailActions({
   currentTrackingNumber,
   currentCarrier,
   hasCustomerEmail,
+  isPickup = false,
 }: Props) {
   const [status, setStatus] = useState(currentStatus)
   const [tracking, setTracking] = useState(currentTrackingNumber)
@@ -121,7 +124,7 @@ export default function OrderDetailActions({
         >
           {ORDER_STATUSES.map((value) => (
             <option key={value} value={value}>
-              {ORDER_STATUS_LABELS[value]}
+              {orderStatusLabel(value, isPickup)}
             </option>
           ))}
         </select>
