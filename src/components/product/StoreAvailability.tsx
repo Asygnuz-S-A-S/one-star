@@ -35,6 +35,10 @@ export default function StoreAvailability({
   webStock,
 }: StoreAvailabilityProps) {
   const physicalStores = stores.filter((s) => s.stock > 0)
+  // Sin stock por sede (catálogo por Excel, sin ERP) no se puede decir en cuál tienda está:
+  // se invita a preguntar en vez de mostrar "No disponible" en todos los productos.
+  const askInStore = availableInStores && stores.length === 0
+  const inStores = (availableInStores && physicalStores.length > 0) || askInStore
 
   return (
     <section className="py-12 border-t border-[#E0E0E0] dark:border-white/10">
@@ -75,12 +79,12 @@ export default function StoreAvailability({
 
           {/* In-store */}
           <div className={`flex items-start gap-4 p-5 rounded-2xl border-2 transition-colors ${
-            availableInStores && physicalStores.length > 0
+            inStores
               ? "border-blue-500/30 bg-blue-50 dark:bg-blue-500/5"
               : "border-[#E0E0E0] dark:border-white/10 opacity-60"
           }`}>
             <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
-              availableInStores && physicalStores.length > 0 ? "bg-blue-500" : "bg-gray-300 dark:bg-white/10"
+              inStores ? "bg-blue-500" : "bg-gray-300 dark:bg-white/10"
             }`}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
                 <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
@@ -90,7 +94,16 @@ export default function StoreAvailability({
               <p className="font-barlow font-bold text-sm uppercase tracking-wider text-[#1C1C1C] dark:text-white mb-1">
                 Tiendas físicas
               </p>
-              {availableInStores && physicalStores.length > 0 ? (
+              {askInStore ? (
+                <>
+                  <p className="font-montserrat text-xs text-blue-600 dark:text-blue-400 font-semibold">
+                    ● Pregunta por tu talla en nuestras tiendas
+                  </p>
+                  <Link href="/tiendas" className="relative z-10 mt-1 inline-block font-montserrat text-xs font-semibold text-[#1C1C1C] underline underline-offset-2 dark:text-white">
+                    Ver tiendas y horarios
+                  </Link>
+                </>
+              ) : inStores ? (
                 <>
                   <p className="font-montserrat text-xs text-blue-600 dark:text-blue-400 font-semibold">
                     ● Disponible en {physicalStores.length} tienda{physicalStores.length !== 1 ? "s" : ""}

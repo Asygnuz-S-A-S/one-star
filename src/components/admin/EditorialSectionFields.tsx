@@ -86,7 +86,7 @@ export function CampaignHeroFields({ config, onChange, onPickMedia }: Props) {
 }
 
 export function CampaignHeroSlideFields({ config, onChange, onPickMedia }: Props) {
-  const cta = config.primaryCta ?? { label: "Ver colección", href: "/productos" }
+  const cta = config.primaryCta
   const secondary = config.secondaryCta
   return <div className="space-y-4">
     <div className="space-y-3 border-t pt-4">
@@ -99,10 +99,12 @@ export function CampaignHeroSlideFields({ config, onChange, onPickMedia }: Props
       <Media label="Imagen Móvil" media={config.mobileMedia} onChange={(mobileMedia) => onChange({ ...config, mobileMedia })} onPickMedia={onPickMedia} required />
     </div>
     <div><label className={label}>Etiqueta</label><input value={config.eyebrow ?? ""} onChange={(event) => onChange({ ...config, eyebrow: event.target.value })} className={input} placeholder="NUEVA TEMPORADA" /></div>
-    <div><label className={label}>Titular *</label><input required value={config.headline ?? ""} onChange={(event) => onChange({ ...config, headline: event.target.value })} className={input} placeholder="Tenis para ir más lejos" /></div>
+    <div><label className={label}>Titular (opcional)</label><input value={config.headline ?? ""} onChange={(event) => onChange({ ...config, headline: event.target.value })} className={input} placeholder="Tenis para ir más lejos" /></div>
     <div><label className={label}>Texto de apoyo</label><textarea value={config.copy ?? ""} onChange={(event) => onChange({ ...config, copy: event.target.value })} className={input} rows={3} /></div>
     <Appearance value={(config.accent ?? "carbon") as EditorialAppearance} onChange={(accent) => onChange({ ...config, accent })} />
-    <div className="grid gap-3 sm:grid-cols-2"><div><label className={label}>Botón principal *</label><input required value={cta.label} onChange={(event) => onChange({ ...config, primaryCta: { ...cta, label: event.target.value } })} className={input} placeholder="Comprar colección" /></div><div><Destination id="campaign-primary-destination" value={cta.href} onChange={(href) => onChange({ ...config, primaryCta: { ...cta, href } })} /></div></div>
+    <label className="flex min-h-11 items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={!config.noOverlay} onChange={(event) => onChange({ ...config, noOverlay: event.target.checked ? undefined : true })} />Degradado sobre la imagen</label>
+    <p className="-mt-3 text-xs text-gray-500">Desmárcalo para mostrar la imagen limpia, sin velo de color (útil si la imagen ya trae su texto).</p>
+    <div className="border-t pt-3"><label className="flex min-h-11 items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={Boolean(cta)} onChange={(event) => onChange({ ...config, primaryCta: event.target.checked ? { label: "Ver colección", href: "/productos" } : undefined })} />Mostrar botón principal</label>{cta && <div className="mt-3 grid gap-3 sm:grid-cols-2"><div><label className={label}>Botón principal</label><input value={cta.label} onChange={(event) => onChange({ ...config, primaryCta: { ...cta, label: event.target.value } })} className={input} placeholder="Comprar colección" /></div><div><Destination id="campaign-primary-destination" value={cta.href} onChange={(href) => onChange({ ...config, primaryCta: { ...cta, href } })} /></div></div>}</div>
     <div className="border-t pt-3"><label className="flex min-h-11 items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={Boolean(secondary)} onChange={(event) => onChange({ ...config, ...(event.target.checked ? { secondaryCta: { label: "Ver más", href: "/productos" } } : { secondaryCta: undefined }) })} />Añadir un segundo botón</label>{secondary && <div className="mt-3 grid gap-3 sm:grid-cols-2"><div><label className={label}>Segundo botón</label><input value={secondary.label} onChange={(event) => onChange({ ...config, secondaryCta: { ...secondary, label: event.target.value } })} className={input} /></div><div><Destination id="campaign-secondary-destination" value={secondary.href} onChange={(href) => onChange({ ...config, secondaryCta: { ...secondary, href } })} /></div></div>}</div>
     <Media label="Producto en primer plano" media={config.foregroundMedia} onChange={(foregroundMedia) => onChange({ ...config, foregroundMedia })} onPickMedia={onPickMedia} />
     <p className="-mt-2 text-xs text-gray-500">Opcional. Un PNG sin fondo. Si no hay imágenes de fondo, el producto se muestra grande sobre el titular.</p>
