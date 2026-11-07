@@ -34,6 +34,7 @@ export const DEFAULT_FOOTER_LINKS: FooterLink[] = [
   { label: "One Star Club", href: "/club" },
   { label: "Tarjeta de regalo", href: "/tarjeta-regalo" },
   { label: "Tiendas", href: "/tiendas" },
+  { label: "Rastrear pedido", href: "/rastrear-pedido" },
   { label: "Términos", href: "/terminos" },
   { label: "Privacidad", href: "/privacidad" },
   { label: "Cookies", href: "/cookies" },

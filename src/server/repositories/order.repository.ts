@@ -322,3 +322,23 @@ export async function findGuestOrdersByEmail(email: string) {
   })
 }
 
+
+/**
+ * Pedidos cuyo id termina en el número corto que ve el cliente (últimos 8
+ * caracteres). Lo usa la consulta pública de seguimiento, que además exige el correo.
+ * shortcut: `endsWith` recorre la tabla (sin índice); con decenas de miles de pedidos, guardar el número corto en una columna indexada.
+ */
+export async function findOrdersByShortNumber(shortNumber: string) {
+  return prisma.order.findMany({
+    where: { id: { endsWith: shortNumber, mode: "insensitive" } },
+    include: { items: { include: { product: true, variant: true } }, user: true },
+    take: 5,
+  })
+}
+
+export type OrderTimelineField = "shippedAt" | "readyForPickupAt" | "deliveredAt"
+
+/** Guarda la fecha de un paso del recorrido solo la primera vez (volver a guardar el estado no la mueve). */
+export async function stampOrderTimeline(id: string, field: OrderTimelineField) {
+  return prisma.order.updateMany({ where: { id, [field]: null }, data: { [field]: new Date() } })
+}

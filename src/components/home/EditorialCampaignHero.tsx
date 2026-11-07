@@ -56,11 +56,11 @@ function SlideBackdrop({ slide, active, priority, instant = false }: { slide: Ca
   const stage = isStageSlide(slide)
   return <div aria-hidden={!active} className={`absolute inset-0 isolate ${instant ? "" : "transition-opacity duration-700 ease-out"} ${active ? "opacity-100" : "opacity-0"} ${stage ? STAGE_BACKGROUNDS[slide.accent] : ""}`}>
     {!stage && <CampaignMedia slide={slide} priority={priority} />}
-    {!stage && <div className={`absolute inset-0 -z-10 bg-gradient-to-t md:bg-gradient-to-r ${ACCENT_CLASSES[slide.accent]}`} />}
+    {!stage && !slide.noOverlay && <div className={`absolute inset-0 -z-10 bg-gradient-to-t md:bg-gradient-to-r ${ACCENT_CLASSES[slide.accent]}`} />}
     {!stage && slide.foregroundMedia && <div className="pointer-events-none absolute inset-x-0 top-12 z-0 h-[42%] sm:top-auto sm:bottom-0 sm:left-[38%] sm:h-[72%]" data-testid="editorial-hero-foreground">
       <Image src={slide.foregroundMedia.src} alt={slide.foregroundMedia.alt} fill priority={priority} sizes="(max-width: 640px) 100vw, 62vw" unoptimized={!canUseNextImageOptimization(slide.foregroundMedia.src)} className="object-contain object-right-bottom drop-shadow-[0_28px_25px_rgba(0,0,0,0.35)]" />
     </div>}
-    {!stage && <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden="true"><span className="absolute right-[-0.12em] top-1/2 -translate-y-1/2 font-barlow text-[31vw] font-black leading-none tracking-[-0.12em] text-white/10">ONE</span></div>}
+    {!stage && !slide.noOverlay && <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden="true"><span className="absolute right-[-0.12em] top-1/2 -translate-y-1/2 font-barlow text-[31vw] font-black leading-none tracking-[-0.12em] text-white/10">ONE</span></div>}
   </div>
 }
 
@@ -97,7 +97,7 @@ function ProductStage({ slide }: { slide: CampaignHeroSlide }) {
     return () => window.clearInterval(timer)
   }, [frameKey, unique.length, isSpin, dragging, mode])
   const media = unique[frameIndex] ?? slide.foregroundMedia!
-  const watermark = slide.headline.split(/\s+/)[0] ?? slide.headline
+  const watermark = slide.headline?.split(/\s+/)[0] ?? ""
   const isLight = slide.accent === "light"
 
   const stageRef = useRef<HTMLDivElement>(null)
@@ -278,15 +278,18 @@ export default function EditorialCampaignHero({ campaign }: { campaign: Campaign
       {isStage && <div className="min-h-0 flex-1 lg:h-full"><ProductStage slide={slide} /></div>}
       <div className={`min-w-0 max-w-2xl ${isStage ? "shrink-0 lg:flex-1" : ""} ${ACCENT_TEXT[slide.accent]} ${changed ? "motion-safe:animate-[hero-copy-swap_650ms_cubic-bezier(.22,1,.36,1)_both]" : "motion-safe:animate-[editorial-copy-in_600ms_cubic-bezier(.22,1,.36,1)_both]"}`} aria-live="polite">
         {slide.eyebrow && <p className="mb-3 font-barlow text-xs font-bold uppercase tracking-[0.18em] text-[var(--store-action)] md:mb-4">{slide.eyebrow}</p>}
-        <h1 className="font-barlow text-[clamp(2.5rem,12vw,4rem)] font-black uppercase leading-[0.9] tracking-[-0.03em] [overflow-wrap:anywhere] sm:text-6xl md:text-8xl">{slide.headline}</h1>
+        {slide.headline
+          ? <h1 className="font-barlow text-[clamp(2.5rem,12vw,4rem)] font-black uppercase leading-[0.9] tracking-[-0.03em] [overflow-wrap:anywhere] sm:text-6xl md:text-8xl">{slide.headline}</h1>
+          // Banner solo imagen: el título queda para lectores de pantalla y buscadores.
+          : <h1 className="sr-only">{slide.desktopMedia?.alt ?? slide.mobileMedia?.alt ?? "One Star"}</h1>}
         {slide.copy && <p className="mt-4 line-clamp-3 max-w-xl text-base leading-relaxed opacity-90 md:mt-5 md:text-lg">{slide.copy}</p>}
-        <div className="mt-6 flex flex-wrap gap-3 md:mt-8"><PublicButton href={slide.primaryCta.href}>{slide.primaryCta.label}</PublicButton>{slide.secondaryCta && <PublicButton href={slide.secondaryCta.href} variant="outline" className="border-current bg-white/5 text-current hover:bg-white/15">{slide.secondaryCta.label}</PublicButton>}</div>
+        {(slide.primaryCta || slide.secondaryCta) && <div className="mt-6 flex flex-wrap gap-3 md:mt-8">{slide.primaryCta && <PublicButton href={slide.primaryCta.href}>{slide.primaryCta.label}</PublicButton>}{slide.secondaryCta && <PublicButton href={slide.secondaryCta.href} variant="outline" className="border-current bg-white/5 text-current hover:bg-white/15">{slide.secondaryCta.label}</PublicButton>}</div>}
       </div>
     </div>
 
     {multipleSlides && <div className={`absolute inset-x-4 bottom-3 z-20 flex items-center justify-between sm:inset-x-8 md:inset-x-12 lg:inset-x-16 ${controlTone}`} aria-label="Controles del carrusel">
       <div className="flex items-center" role="tablist" aria-label="Seleccionar campaña">
-        {slides.map((item, index) => <button key={item.id} type="button" role="tab" aria-selected={index === currentIndex} onClick={() => goTo(index)} className="group grid h-11 min-w-11 place-items-center px-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current" aria-label={`Ir al slide ${index + 1}: ${item.headline}`}>
+        {slides.map((item, index) => <button key={item.id} type="button" role="tab" aria-selected={index === currentIndex} onClick={() => goTo(index)} className="group grid h-11 min-w-11 place-items-center px-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current" aria-label={`Ir al slide ${index + 1}${item.headline ? `: ${item.headline}` : ""}`}>
           <span className={`relative block h-0.5 overflow-hidden rounded-full bg-current/25 transition-[width] duration-300 ${index === currentIndex ? "w-10" : "w-5 group-hover:bg-current/50"}`}>
             {index === currentIndex && <span key={`${item.id}-${currentIndex}`} className="absolute inset-y-0 left-0 w-full origin-left bg-current motion-safe:animate-[hero-progress_linear_both]" style={{ animationDuration: `${AUTOPLAY_MS}ms`, animationPlayState: paused ? "paused" : "running" }} />}
           </span>

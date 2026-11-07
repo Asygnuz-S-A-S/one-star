@@ -14,7 +14,7 @@ describe("CampaignHeroFields", () => {
       />,
     )
 
-    expect(markup.indexOf("Imágenes adaptadas por pantalla")).toBeLessThan(markup.indexOf("Titular *"))
+    expect(markup.indexOf("Imágenes adaptadas por pantalla")).toBeLessThan(markup.indexOf("Titular (opcional)"))
     expect(markup).toContain("Imagen Web / escritorio")
     expect(markup).toContain("Imagen Tablet")
     expect(markup).toContain("Imagen Móvil")

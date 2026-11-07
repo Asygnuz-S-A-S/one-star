@@ -32,7 +32,8 @@ describe("editorial configuration", () => {
   })
 
   it("falls back safely for an unknown or invalid editorial payload", () => {
-    expect(parseEditorialConfig({ version: 1, kind: "campaignHero", headline: "Solo título" })).toEqual({ kind: "legacy" })
+    // Título y botón son opcionales, pero un banner sin título ni imagen no tiene nada que mostrar.
+    expect(parseEditorialConfig({ version: 1, kind: "campaignHero", accent: "carbon" })).toEqual({ kind: "legacy" })
     expect(parseEditorialConfig({ version: 1, kind: "futureBlock" })).toEqual({ kind: "legacy" })
   })
 
@@ -130,5 +131,22 @@ describe("expandFrameSequence", () => {
     expect(expandFrameSequence(first, 500)).toHaveLength(MAX_HERO_ANGLES)
     expect(expandFrameSequence("https://res.cloudinary.com/demo/tenis.webp", 10)).toBeNull()
     expect(expandFrameSequence("javascript:alert(00.webp)", 10)).toBeNull()
+  })
+})
+
+describe("banner solo imagen", () => {
+  it("guarda una diapositiva sin título ni botón si tiene imagen, y descarta una vacía", () => {
+    const config = parseEditorialConfig({
+      version: 1,
+      kind: "campaignHero",
+      slides: [
+        { id: "solo-imagen", accent: "carbon", noOverlay: true, desktopMedia: { src: "https://res.cloudinary.com/demo/banner.jpg", alt: "Converse" } },
+        { id: "vacia", accent: "carbon" },
+      ],
+    })
+
+    expect(config.kind === "campaignHero" && config.slides?.map((slide) => slide.id)).toEqual(["solo-imagen"])
+    expect(config.kind === "campaignHero" && config.slides?.[0]).toMatchObject({ noOverlay: true })
+    expect(config.kind === "campaignHero" && config.slides?.[0]?.primaryCta).toBeUndefined()
   })
 })

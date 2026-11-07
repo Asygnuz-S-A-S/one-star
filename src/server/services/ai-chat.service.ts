@@ -4,8 +4,13 @@ import { SIZE_CHARTS } from "@/lib/size-charts"
 import Anthropic from "@anthropic-ai/sdk"
 import { getProducts } from "./product.service"
 import { findVariantForCartDisplay } from "@/server/repositories/variant.repository"
-import { buildStoreKnowledge, STORE_KNOWLEDGE } from "@/lib/store-knowledge"
-import { getDeliveryWindow, getShippingRates } from "@/server/services/store-settings.service"
+import { buildStoreKnowledge, STORE_CONTACT_FALLBACK, STORE_KNOWLEDGE } from "@/lib/store-knowledge"
+import {
+  getDeliveryWindow,
+  getLegalCompany,
+  getPublicStoreInfo,
+  getShippingRates,
+} from "@/server/services/store-settings.service"
 
 const DEFAULT_MODEL = "claude-3-5-haiku-latest"
 const MAX_TOOL_ROUNDS = 4
@@ -178,8 +183,13 @@ export async function sendChatMessage(history: ChatMessage[], message: string): 
   }
 
   const model = process.env.ANTHROPIC_MODEL || DEFAULT_MODEL
-  const knowledge = await Promise.all([getShippingRates(), getDeliveryWindow()])
-    .then(([rates, delivery]) => buildStoreKnowledge(rates, delivery))
+  const knowledge = await Promise.all([getShippingRates(), getDeliveryWindow(), getLegalCompany(), getPublicStoreInfo()])
+    .then(([rates, delivery, company, info]) =>
+      buildStoreKnowledge(rates, delivery, {
+        email: company.contactEmail?.trim() || STORE_CONTACT_FALLBACK.email,
+        whatsapp: info.whatsapp?.trim() || STORE_CONTACT_FALLBACK.whatsapp,
+      })
+    )
     .catch(() => STORE_KNOWLEDGE)
   const messages: Anthropic.MessageParam[] = [
     ...history.map((m) => ({ role: m.role, content: m.content }) as Anthropic.MessageParam),
