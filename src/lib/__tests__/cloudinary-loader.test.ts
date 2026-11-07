@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import cloudinaryLoader from "../cloudinary-loader"
+import cloudinaryLoader, { productCutoutUrl } from "../cloudinary-loader"
 
 describe("cloudinaryLoader", () => {
   it("transforma URLs de Cloudinary insertando f_auto,q_auto,w_{width} tras /image/upload/", () => {
@@ -38,5 +38,22 @@ describe("cloudinaryLoader", () => {
 
     const nike = "https://static.nike.com/a/images/t_PDP_1280_v1/f_auto,q_auto:eco/sample.jpg"
     expect(cloudinaryLoader({ src: nike, width: 500 })).toBe(nike)
+  })
+})
+
+describe("productCutoutUrl", () => {
+  const src = "https://res.cloudinary.com/demo/image/upload/v1/one-star/productos/A18391C_2.jpg"
+
+  it("quita el fondo y recorta antes de que el loader escale", () => {
+    const cutout = productCutoutUrl(src)
+    expect(cutout).toBe("https://res.cloudinary.com/demo/image/upload/e_background_removal/e_trim/v1/one-star/productos/A18391C_2.jpg")
+    expect(cloudinaryLoader({ src: cutout, width: 640 })).toBe(
+      "https://res.cloudinary.com/demo/image/upload/e_background_removal/e_trim/f_auto,q_auto,w_640/v1/one-star/productos/A18391C_2.jpg"
+    )
+  })
+
+  it("no toca otras URLs ni repite el efecto", () => {
+    expect(productCutoutUrl("/placeholder-product.svg")).toBe("/placeholder-product.svg")
+    expect(productCutoutUrl(productCutoutUrl(src))).toBe(productCutoutUrl(src))
   })
 })
