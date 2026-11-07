@@ -31,23 +31,13 @@ test.describe("Ficha de producto — SEO y conversión", () => {
     await expect(page.getByTestId("closing-cta")).toBeVisible()
   })
 
-  test("en móvil la barra de compra aparece al bajar y pide la talla si falta", async ({ page }) => {
+  test("en móvil la barra de compra está siempre a la vista, con cantidad, y pide la talla si falta", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 })
     await openFirstProduct(page)
 
     const bar = page.getByTestId("sticky-buy-bar")
-
-    // Con el botón principal a la vista, la barra no estorba.
-    await page.locator("#comprar").scrollIntoViewIfNeeded()
-    await expect(bar).toHaveAttribute("aria-hidden", "true")
-
-    // Al pasar de largo el botón, la barra queda fija con precio y acción.
-    await page.evaluate(() => {
-      // La tienda hace scroll dentro de #public-scroll, no en window.
-      const el = document.getElementById("public-scroll") ?? document.scrollingElement!
-      el.scrollTo(0, el.scrollHeight)
-    })
-    await expect(bar).toHaveAttribute("aria-hidden", "false")
+    await expect(bar).toBeVisible()
+    await expect(bar.getByRole("group", { name: "Cantidad" })).toBeVisible()
 
     await bar.getByRole("button", { name: /elige tu talla/i }).click()
     await expect(page.getByText("Selecciona una talla")).toBeVisible()
@@ -81,7 +71,7 @@ test.describe("Ficha de producto — SEO y conversión", () => {
     })
     const sticky = page.getByTestId("sticky-buy-bar")
     const chat = page.getByRole("button", { name: /abrir chat de ventas/i })
-    await expect(sticky).toHaveAttribute("aria-hidden", "false")
+    await expect(sticky).toBeVisible()
     await expect(chat).toBeVisible()
 
     const [stickyBox, chatBox] = await Promise.all([sticky.boundingBox(), chat.boundingBox()])

@@ -195,8 +195,10 @@ export async function persistProductImport(
             data: {
               // Precios y disponibilidad web siempre los manda el archivo en ARCHIVO
               basePrice: first.price,
-              isOnSale: first.isOnSale ?? false,
-              salePrice: first.isOnSale ? (first.salePrice ?? null) : null,
+              // Celda vacía en «¿En oferta?»: se respeta la oferta puesta en el admin; SÍ/NO la cambian.
+              ...(first.isOnSale !== undefined
+                ? { isOnSale: first.isOnSale, salePrice: first.isOnSale ? (first.salePrice ?? null) : null }
+                : {}),
               availableOnline: first.availableOnline ?? true,
               availableInStores: first.availableInStores ?? true,
               isPublished: first.isPublished ?? true,

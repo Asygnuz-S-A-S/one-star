@@ -126,6 +126,9 @@ export const productFormSchema = z.object({
 }).refine(
   (data) => !data.isOnSale || (data.salePrice !== null && data.salePrice !== undefined),
   { message: "El precio de oferta es requerido cuando el producto está en sale.", path: ["salePrice"] }
+).refine(
+  (data) => !data.isOnSale || data.salePrice == null || data.salePrice < data.basePrice,
+  { message: "El precio de oferta debe ser menor que el precio normal.", path: ["salePrice"] }
 )
 
 export type ProductFormData = z.infer<typeof productFormSchema>

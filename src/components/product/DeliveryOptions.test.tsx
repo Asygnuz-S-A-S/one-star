@@ -19,6 +19,8 @@ describe("DeliveryOptions", () => {
     const html = renderToStaticMarkup(<DeliveryOptions {...base} />)
     expect(html).toContain("Despacho a domicilio")
     expect(html).toContain("Llega en 3 a 5 días hábiles · Envío gratis")
+    expect(html).toContain('aria-expanded="false"')
+    expect(html).not.toContain("<details")
     expect(renderToStaticMarkup(<DeliveryOptions {...base} price={100_000} />)).toContain("Gratis desde $")
   })
 

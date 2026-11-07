@@ -73,7 +73,8 @@ export default function PublicSiteFrame({
             whatsapp={whatsapp}
           />
           {/* Espacio para que el menú flotante no tape el final del footer; mismo color del footer. */}
-          {shouldShowMobileBottomNav(pathname) && (
+          {/* En la ficha la barra fija de compra ocupa el mismo lugar que el menú. */}
+          {(shouldShowMobileBottomNav(pathname) || pathname.startsWith("/productos/")) && (
             <div aria-hidden="true" className="h-[calc(4.75rem+env(safe-area-inset-bottom))] bg-[#1C1C1C] lg:hidden" />
           )}
         </div>

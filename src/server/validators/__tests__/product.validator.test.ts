@@ -33,3 +33,19 @@ describe("parseAdminProductFilters", () => {
     })
   })
 })
+
+describe("productFormSchema: precio de oferta", () => {
+  const base = { name: "Tenis", categoryId: "cat-1", basePrice: 300000, isOnSale: true }
+
+  it("acepta una oferta menor que el precio normal", async () => {
+    const { productFormSchema } = await import("../product.validator")
+    expect(productFormSchema.safeParse({ ...base, salePrice: 250000 }).success).toBe(true)
+  })
+
+  it("rechaza una oferta igual o mayor que el precio normal", async () => {
+    const { productFormSchema } = await import("../product.validator")
+    const result = productFormSchema.safeParse({ ...base, salePrice: 300000 })
+    expect(result.success).toBe(false)
+    expect(result.error?.issues[0]?.message).toBe("El precio de oferta debe ser menor que el precio normal.")
+  })
+})

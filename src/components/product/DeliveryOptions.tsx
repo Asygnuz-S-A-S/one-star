@@ -1,5 +1,7 @@
+"use client"
+
 import Link from "next/link"
-import type { ReactNode } from "react"
+import { useId, useState, type ReactNode } from "react"
 
 import { formatCOP } from "@/lib/shop-utils"
 
@@ -34,10 +36,13 @@ interface DeliveryOptionsProps {
 const icon = { width: 20, height: 20, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true }
 
 function Row({ icon: rowIcon, title, summary, children }: { icon: ReactNode; title: string; summary: string; children?: ReactNode }) {
+  // Botón con estado propio: <details> con flex no abre en algunos Safari de iPhone.
+  const [open, setOpen] = useState(false)
+  const panelId = useId()
   const body = (
     <>
       <span className="shrink-0 text-[#1C1C1C] dark:text-white">{rowIcon}</span>
-      <span className="min-w-0 flex-1">
+      <span className="min-w-0 flex-1 text-left">
         <span className="block font-montserrat text-sm font-semibold text-[#1C1C1C] dark:text-white">{title}</span>
         <span className="block font-montserrat text-xs text-[#4A4A4A] dark:text-gray-400">{summary}</span>
       </span>
@@ -45,13 +50,19 @@ function Row({ icon: rowIcon, title, summary, children }: { icon: ReactNode; tit
   )
   if (!children) return <div className="flex min-h-14 items-center gap-3 py-3">{body}</div>
   return (
-    <details className="group">
-      <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 py-3 [&::-webkit-details-marker]:hidden">
+    <div>
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={panelId}
+        onClick={() => setOpen((value) => !value)}
+        className="flex min-h-14 w-full items-center gap-3 py-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--store-action)]"
+      >
         {body}
-        <svg {...icon} width={18} height={18} className="shrink-0 text-[#4A4A4A] transition-transform group-open:rotate-90"><path d="m9 6 6 6-6 6" /></svg>
-      </summary>
-      <div className="pb-4 pl-8">{children}</div>
-    </details>
+        <svg {...icon} width={18} height={18} className={`shrink-0 text-[#4A4A4A] transition-transform ${open ? "rotate-90" : ""}`}><path d="m9 6 6 6-6 6" /></svg>
+      </button>
+      <div id={panelId} hidden={!open} className="pb-4 pl-8">{children}</div>
+    </div>
   )
 }
 
@@ -78,7 +89,16 @@ export default function DeliveryOptions({
         icon={<svg {...icon}><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7" /><circle cx="7" cy="18" r="1.6" /><circle cx="17" cy="18" r="1.6" /></svg>}
         title="Despacho a domicilio"
         summary={`Llega en ${days} días hábiles · ${freeShipping ? "Envío gratis" : `Gratis desde ${formatCOP(freeThreshold)}`}`}
-      />
+      >
+        <p className="font-montserrat text-xs text-[#4A4A4A] dark:text-gray-300">
+          Enviamos con Envía a toda Colombia. Cuando sale tu pedido te llega la guía por correo y puedes seguirlo en{" "}
+          <Link href="/rastrear-pedido" className="font-semibold underline underline-offset-2">Rastrear mi pedido</Link>.
+        </p>
+        <p className="mt-2 font-montserrat text-[11px] text-[#4A4A4A] dark:text-gray-400">
+          {freeShipping ? "Este producto tiene envío gratis." : `Envío gratis en compras desde ${formatCOP(freeThreshold)}.`}{" "}
+          <Link href="/envios-y-devoluciones" className="font-semibold underline underline-offset-2">Envíos y devoluciones</Link>
+        </p>
+      </Row>
 
       {pickupStores.length > 0 && (
         <Row

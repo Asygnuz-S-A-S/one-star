@@ -13,7 +13,9 @@ export function normalizeKey(text: string): string {
 const yesNo = z.preprocess((v) => {
   const s = String(v ?? "").trim().toUpperCase()
   if (s === "SI" || s === "SÍ") return true
-  if (s === "NO" || s === "") return undefined
+  // «NO» es un no explícito; la celda vacía queda sin valor (cada campo decide su respaldo).
+  if (s === "NO") return false
+  if (s === "") return undefined
   return v
 }, z.boolean().optional())
 
