@@ -78,6 +78,7 @@ const SECTION_LABELS: Record<string, string> = {
   CUSTOM_HTML: "HTML libre",
   PRODUCT_CAROUSEL: "Carrusel de productos",
   MEDIA_CAROUSEL: "Promos",
+  RECENTLY_VIEWED: "Últimos vistos",
 }
 
 const SECTION_HELP: Record<string, string> = {
@@ -90,6 +91,7 @@ const SECTION_HELP: Record<string, string> = {
   CUSTOM_HTML: "Código propio. No hace falta para armar una campaña.",
   PRODUCT_CAROUSEL: "Un carrusel con productos que eliges.",
   MEDIA_CAROUSEL: "Promos con imagen o video.",
+  RECENTLY_VIEWED: "Los productos que el visitante vio hace poco. Se oculta si aún no ha visto ninguno.",
 }
 
 function sectionConfigOf(section: { config: unknown; draftConfig?: unknown }) {
@@ -1631,7 +1633,7 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
             </>
           )}
 
-          {(editingSection.type === "NEWSLETTER" || editingSection.type === "NEW_ARRIVALS") && (
+          {(editingSection.type === "NEWSLETTER" || editingSection.type === "NEW_ARRIVALS" || editingSection.type === "RECENTLY_VIEWED") && (
             <div>
               <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wider">Subtítulo / Descripción</label>
               <textarea
@@ -1643,7 +1645,7 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
             </div>
           )}
 
-          {(editingSection.type === "FEATURED_PRODUCTS" || editingSection.type === "NEW_ARRIVALS") && (
+          {(editingSection.type === "FEATURED_PRODUCTS" || editingSection.type === "NEW_ARRIVALS" || editingSection.type === "RECENTLY_VIEWED") && (
             <div>
               <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wider">Límite de Productos</label>
               <input
@@ -1801,6 +1803,18 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
                     </a>.
                   </p>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wider">Estilo</label>
+                <select
+                  value={configInput.style || "marquee"}
+                  onChange={(e) => setConfigInput({...configInput, style: e.target.value})}
+                  className="w-full p-2 border border-gray-300 rounded text-sm bg-white"
+                >
+                  <option value="marquee">Franja en movimiento</option>
+                  <option value="bubbles">Burbujas (logos en círculo, se desliza en celular)</option>
+                </select>
               </div>
 
               <div className="grid grid-cols-2 gap-3">

@@ -12,6 +12,7 @@ import NewsletterSection from "@/components/home/NewsletterSection"
 import CustomHtmlBlock from "@/components/home/CustomHtmlBlock"
 import ProductCarousel from "@/components/home/ProductCarousel"
 import MediaCarousel from "@/components/home/MediaCarousel"
+import RecentlyViewed from "@/components/home/RecentlyViewed"
 
 import { getVisibleBanners } from "@/server/services/banner.service"
 import { getVisibleGridBlocks } from "@/server/services/home-grid.service"
@@ -56,6 +57,7 @@ const SECTION_RENDERERS: Record<LandingSectionType, (ctx: SectionContext) => Rea
   ),
   PRODUCT_CAROUSEL: (ctx) => <ProductCarousel key={ctx.id} config={ctx.config} />,
   MEDIA_CAROUSEL: (ctx) => <MediaCarousel key={ctx.id} config={ctx.config} />,
+  RECENTLY_VIEWED: (ctx) => <RecentlyViewed key={ctx.id} config={ctx.config} />,
 }
 
 function sectionConfig(section: LandingSection): Record<string, unknown> {

@@ -1,3 +1,4 @@
+import TrackRecentlyViewed from "@/components/product/TrackRecentlyViewed"
 import { cache } from "react"
 import { INTERNAL_CATEGORY_SLUG } from "@/lib/internal-category"
 import { notFound } from "next/navigation"
@@ -181,6 +182,9 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
         </nav>
 
         {/* ── Main product grid ── */}
+        <TrackRecentlyViewed
+          item={{ id: product.id, slug: product.slug, name: product.name, brand: product.brand ?? null, imageUrl: product.images[0]?.url ?? null, price: displayPrice }}
+        />
         <MetaViewContent
           productId={product.id}
           name={product.name}

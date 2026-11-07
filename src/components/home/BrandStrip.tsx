@@ -67,6 +67,42 @@ export default function BrandStrip({
   const fontSizeClass = FONT_SIZES[fontSize] || "text-sm"
   const logoHeightConfig = LOGO_HEIGHTS[logoSize] || LOGO_HEIGHTS.md
 
+  // Burbujas: logos en círculo que se deslizan a mano (sin animación), como acceso rápido por marca.
+  if (config.style === "bubbles") {
+    return (
+      <section className="store-section" style={{ backgroundColor: bgSection }} aria-label={title || "Compra por marca"} data-testid="brand-bubbles">
+        {title && <h2 className="store-gutter store-heading mb-4 md:mb-6">{title}</h2>}
+        <ul className="store-gutter flex snap-x [scroll-padding-inline:var(--store-gutter)] gap-4 overflow-x-auto pb-2 md:justify-center md:gap-6">
+          {normalizedBrands.map((brand) => {
+            const brandHref = brand.slug ? `/marcas/${brand.slug}` : `/productos?marca=${encodeURIComponent(brand.name)}`
+            const bubble = (
+              <>
+                <span className="grid h-20 w-20 place-items-center overflow-hidden rounded-full border border-[var(--store-line)] bg-white p-3 transition-transform duration-200 group-hover:scale-105 md:h-24 md:w-24">
+                  {displayMode !== "textOnly" && brand.logoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={brand.logoUrl} alt="" className={`max-h-full max-w-full object-contain ${grayscale ? "grayscale group-hover:grayscale-0" : ""}`} />
+                  ) : (
+                    <span className="font-barlow text-xs font-bold uppercase tracking-wider" style={{ color: textColor }}>{brand.name}</span>
+                  )}
+                </span>
+                <span className={`mt-2 block text-center font-montserrat ${fontSizeClass}`} style={{ color: textColor }}>{brand.name}</span>
+              </>
+            )
+            return (
+              <li key={brand.name} className="shrink-0 snap-start">
+                {linkToBrand ? (
+                  <Link href={brandHref} className="group block rounded-full focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--store-action)]">{bubble}</Link>
+                ) : (
+                  <div className="group">{bubble}</div>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+      </section>
+    )
+  }
+
   // Duplicar marcas para scroll infinito fluido
   const displayList = [...normalizedBrands, ...normalizedBrands, ...normalizedBrands, ...normalizedBrands]
 
