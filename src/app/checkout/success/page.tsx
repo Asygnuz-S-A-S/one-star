@@ -186,10 +186,10 @@ function CheckoutSuccessContent() {
                 Seguir comprando
               </Link>
               <Link
-                href="/cuenta/pedidos"
+                href={shortId ? `/rastrear-pedido?pedido=${shortId}` : "/rastrear-pedido"}
                 className="flex-1 text-center bg-[#E31C23] text-white font-montserrat font-medium py-3 px-6 rounded hover:bg-[#c21920] transition-colors text-sm"
               >
-                Ver mis pedidos
+                Rastrear mi pedido
               </Link>
             </>
           )}

@@ -7,6 +7,7 @@ import {
   countOrders,
   updateOrderStatus,
   updateOrderStatusAndTracking,
+  stampOrderTimeline,
   getOrderStats,
   getVariantsStock,
   getStoreVariantsStock,
@@ -18,7 +19,8 @@ import {
 import { findVariantsForPricing } from "../repositories/variant.repository"
 import type { Prisma, OrderStatus, PaymentStatus } from "@prisma/client"
 import { getERPAdapter } from "../erp"
-import { sendOrderConfirmationEmail, sendOrderShippedEmail } from "./email.service"
+import { isPickupShipping } from "@/lib/order-status"
+import { sendOrderConfirmationEmail, sendOrderReadyForPickupEmail, sendOrderShippedEmail } from "./email.service"
 import { getShippingTrackingAdapter } from "../shipping/tracking"
 import { issueAndSendGiftCardsForOrder } from "./gift-card.service"
 import { DEFAULT_SHIPPING_RATES, getShippingCost, type ShippingMethod } from "@/lib/shipping"
@@ -57,6 +59,9 @@ export interface OrderDTO {
   paymentStatus: string
   paymentReference: string | null
   paidAt: string | null
+  shippedAt?: string | null
+  readyForPickupAt?: string | null
+  deliveredAt?: string | null
   total: number
   paymentMethod: string | null
   trackingNumber: string | null
@@ -82,6 +87,9 @@ function mapToDTO(raw: {
   paymentStatus?: string | null
   paymentReference?: string | null
   paidAt?: Date | null
+  shippedAt?: Date | null
+  readyForPickupAt?: Date | null
+  deliveredAt?: Date | null
   total: { toNumber: () => number }
   paymentMethod: string | null
   trackingNumber: string | null
@@ -113,6 +121,9 @@ function mapToDTO(raw: {
     paymentStatus: raw.paymentStatus ?? "PENDING",
     paymentReference: raw.paymentReference ?? null,
     paidAt: raw.paidAt ? raw.paidAt.toISOString() : null,
+    shippedAt: raw.shippedAt ? raw.shippedAt.toISOString() : null,
+    readyForPickupAt: raw.readyForPickupAt ? raw.readyForPickupAt.toISOString() : null,
+    deliveredAt: raw.deliveredAt ? raw.deliveredAt.toISOString() : null,
     total: raw.total.toNumber(),
     paymentMethod: raw.paymentMethod,
     trackingNumber: raw.trackingNumber,
@@ -639,11 +650,18 @@ export async function changeOrderStatusAndTracking(
     }
   }
   // Solo se avisa el despacho la primera vez que pasa a SHIPPED (editar la guía después no reenvía).
-  const wasShipped = status === "SHIPPED" ? (await findOrderById(id))?.status === "SHIPPED" : true
+  const current = status === "SHIPPED" ? await findOrderById(id) : null
+  const wasShipped = status === "SHIPPED" ? current?.status === "SHIPPED" : true
   if (carrier !== undefined) {
     await updateOrderStatusAndTracking(id, status, trackingNumber, carrier)
   } else {
     await updateOrderStatusAndTracking(id, status, trackingNumber)
+  }
+  // Fechas del timeline: «Enviado» en un pedido de recoger en tienda significa «Listo para recoger».
+  if (status === "SHIPPED") {
+    await stampOrderTimeline(id, isPickupShipping(current?.shippingAddress) ? "readyForPickupAt" : "shippedAt")
+  } else if (status === "DELIVERED") {
+    await stampOrderTimeline(id, "deliveredAt")
   }
   if (!wasShipped) {
     notifyOrderShipped(id).catch((error: unknown) => {
@@ -659,10 +677,21 @@ export function orderTrackingUrl(order: { trackingNumber: string | null; carrier
   return getShippingTrackingAdapter(order.carrier).buildTrackingUrl(guide)
 }
 
-/** Correo «tu pedido va en camino». Fire-and-forget desde el cambio de estado. */
+/** Correo «tu pedido va en camino» o, si recoge en tienda, «ya puedes recogerlo». Fire-and-forget desde el cambio de estado. */
 export async function notifyOrderShipped(id: string): Promise<void> {
   const order = await getOrderById(id)
   if (!order?.customerEmail) return
+  if (isPickupShipping(order.shippingAddress)) {
+    const shipping = order.shippingAddress as Record<string, unknown>
+    await sendOrderReadyForPickupEmail({
+      email: order.customerEmail,
+      name: order.customerName ?? undefined,
+      orderId: order.id,
+      storeName: typeof shipping.pickupStoreName === "string" ? shipping.pickupStoreName : "nuestra tienda",
+      storeAddress: [shipping.address, shipping.city].filter((v) => typeof v === "string" && v).join(", "),
+    })
+    return
+  }
   const guide = order.trackingNumber?.trim() || null
   await sendOrderShippedEmail({
     email: order.customerEmail,

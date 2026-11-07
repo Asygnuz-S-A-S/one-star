@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import { EXPRESS_SHIPPING_COST, STANDARD_SHIPPING_COST, STANDARD_SHIPPING_THRESHOLD } from "../shipping"
-import { STORE_KNOWLEDGE } from "../store-knowledge"
+import { buildStoreKnowledge, STORE_KNOWLEDGE } from "../store-knowledge"
 
 const cop = (value: number) => `$${value.toLocaleString("es-CO")}`
 
@@ -24,5 +24,17 @@ describe("STORE_KNOWLEDGE", () => {
 
   it("no deja datos pendientes de confirmar", () => {
     expect(STORE_KNOWLEDGE).not.toMatch(/por confirmar/i)
+  })
+
+  it("usa el contacto de Configuración cuando existe", () => {
+    const text = buildStoreKnowledge(undefined, undefined, { email: "hola@onestar.co", whatsapp: "+573001112233" })
+    expect(text).toContain("hola@onestar.co")
+    expect(text).toContain("+573001112233")
+    expect(text).not.toContain("313 762 0554")
+  })
+
+  it("explica cómo rastrear un pedido sin inventar estados", () => {
+    expect(STORE_KNOWLEDGE).toContain("/rastrear-pedido")
+    expect(STORE_KNOWLEDGE).toMatch(/nunca inventes un estado/i)
   })
 })

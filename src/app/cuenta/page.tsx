@@ -11,7 +11,8 @@ import {
   confirmGuestOrdersLinkingAction,
 } from "./actions"
 import { formatDateLong, formatCurrency } from "@/lib/dates"
-import { orderStatusBadge, orderStatusLabel } from "@/lib/order-status"
+import { orderStatusBadge, orderStatusLabel, isPickupShipping } from "@/lib/order-status"
+import OrderTimeline from "@/components/orders/OrderTimeline"
 import type { OrderItemDTO } from "@/server/services/order.service"
 import { PLACEHOLDER_IMAGE_URL } from "@/lib/product-image"
 import ClubAccountTab from "@/components/club/ClubAccountTab"
@@ -22,6 +23,11 @@ type Tab = "perfil" | "club" | "pedidos" | "direcciones" | "salir"
 interface Order {
   id: string
   status: string
+  shippingAddress?: unknown
+  paidAt?: string | null
+  shippedAt?: string | null
+  readyForPickupAt?: string | null
+  deliveredAt?: string | null
   trackingNumber?: string | null
   carrier?: "ENVIA" | "OTHER" | null
   trackingUrl?: string | null
@@ -31,12 +37,12 @@ interface Order {
   items: OrderItemDTO[]
 }
 
-function OrderStatusBadge({ status }: { status: string }) {
+function OrderStatusBadge({ status, pickup = false }: { status: string; pickup?: boolean }) {
   return (
     <span
       className={`px-2.5 py-0.5 rounded-full font-montserrat text-xs font-medium ${orderStatusBadge(status)}`}
     >
-      {orderStatusLabel(status)}
+      {orderStatusLabel(status, pickup)}
     </span>
   )
 }
@@ -408,7 +414,7 @@ export default function CuentaPage() {
                       </p>
                     </div>
                     <div className="flex flex-col items-end gap-2">
-                      <OrderStatusBadge status={order.status} />
+                      <OrderStatusBadge status={order.status} pickup={isPickupShipping(order.shippingAddress)} />
                       <button
                         onClick={() => setSelectedOrder(order)}
                         className="font-montserrat text-xs text-[#E31C23] font-semibold hover:underline"
@@ -494,10 +500,14 @@ export default function CuentaPage() {
             </div>
 
             <div className="flex items-center gap-3 mb-4">
-              <OrderStatusBadge status={selectedOrder.status} />
+              <OrderStatusBadge status={selectedOrder.status} pickup={isPickupShipping(selectedOrder.shippingAddress)} />
               <span className="font-montserrat text-xs text-[#4A4A4A]">
                 {formatDateLong(selectedOrder.createdAt)}
               </span>
+            </div>
+
+            <div className="mb-5">
+              <OrderTimeline order={selectedOrder} />
             </div>
 
             {selectedOrder.trackingNumber?.trim() && (

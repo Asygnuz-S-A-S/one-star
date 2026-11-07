@@ -98,7 +98,7 @@ export default async function PedidoDetailPage({ params }: Props) {
           Pedido #{order.id.slice(-8).toUpperCase()}
         </h1>
         <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${orderStatusBadge(order.status)}`}>
-          {orderStatusLabel(order.status)}
+          {orderStatusLabel(order.status, shipping.shippingMethod === "pickup")}
         </span>
         <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${paymentStatusBadge(order.paymentStatus)}`}>
           Pago: {paymentStatusLabel(order.paymentStatus)}
@@ -289,6 +289,7 @@ export default async function PedidoDetailPage({ params }: Props) {
             currentTrackingNumber={order.trackingNumber ?? ""}
             currentCarrier={order.carrier ?? "ENVIA"}
             hasCustomerEmail={Boolean(order.customerEmail)}
+            isPickup={shipping.shippingMethod === "pickup"}
           />
         </div>
       </div>

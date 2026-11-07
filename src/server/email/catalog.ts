@@ -10,6 +10,7 @@ import type { EmailContent, EmailCopy } from "@/server/email/templates"
 export const EMAIL_KEYS = [
   "order_confirmation",
   "order_shipped",
+  "order_ready_pickup",
   "payment_rejected",
   "gift_card",
   "guest_invitation",
@@ -86,6 +87,23 @@ export const EMAIL_CATALOG: readonly EmailCatalogEntry[] = [
         carrierLabel: "Envía",
         trackingNumber: "123456789012",
         trackingUrl: "https://envia.co/rastreo?guia=123456789012",
+        copy,
+      }),
+  },
+  {
+    key: "order_ready_pickup",
+    label: "Listo para recoger",
+    trigger: "Cuando un pedido de recoger en tienda pasa a «Listo para recoger» en el admin.",
+    audience: "cliente",
+    toggleable: true,
+    textEditable: true,
+    placeholders: ["{nombre}", "{pedido}"],
+    sample: (copy) =>
+      t.orderReadyForPickupEmail({
+        name: "Laura Gómez",
+        orderId: ORDER_ID,
+        storeName: "One Star Fundadores",
+        storeAddress: "C.C. Fundadores, local 158, Manizales",
         copy,
       }),
   },
