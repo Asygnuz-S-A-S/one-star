@@ -125,3 +125,8 @@ export function giftCardExpiry(from: Date, months: number): Date {
   next.setMonth(next.getMonth() + months)
   return next
 }
+
+/** true para enlaces a la página de ofertas (/sale, con o sin barra final, query o ancla). */
+export function isSaleHref(href: string): boolean {
+  return href.split(/[?#]/)[0].replace(/\/+$/, "").toLowerCase() === "/sale"
+}

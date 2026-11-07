@@ -28,6 +28,8 @@ import { getTopBanner } from "@/server/repositories/top-banner.repository";
 import { getPrimaryLogos } from "@/server/repositories/site-logo.repository";
 import { getHeaderConfig } from "@/server/repositories/header-config.repository";
 import { getMetaPixelPublicConfig, getPublicStorefrontConfig } from "@/server/services/store-settings.service";
+import { hasVisibleSaleProducts } from "@/server/services/product.service";
+import { isSaleHref } from "@/lib/storefront-copy";
 import { DEFAULT_SHIPPING_RATES } from "@/lib/shipping";
 import { DEFAULT_BOTTOM_NAV, DEFAULT_CHAT_WELCOME, DEFAULT_FOOTER_LINKS } from "@/lib/storefront-copy";
 import { DEFAULT_GIFT_CARD_LIMITS } from "@/lib/gift-card";
@@ -44,7 +46,7 @@ export default async function RootLayout({
 
   // Queries independientes en paralelo; si la BD falla, la página
   // se renderiza con fallbacks en lugar de caerse entera.
-  const [navigationItems, topBanner, primaryLogos, headerConfig, metaPixel, storefront] = await Promise.all([
+  const [allNavigationItems, topBanner, primaryLogos, headerConfig, metaPixel, storefront, saleHasProducts] = await Promise.all([
     getActiveNavigationItems().catch((error: unknown) => {
       console.error("[layout] getActiveNavigationItems falló:", error);
       return [];
@@ -83,7 +85,12 @@ export default async function RootLayout({
         whatsapp: null,
       };
     }),
+    // Si la consulta falla se deja el enlace: mejor una página vacía que esconder ofertas reales.
+    hasVisibleSaleProducts().catch(() => true),
   ]);
+  // SALE sin productos visibles no se muestra en el menú ni en el footer.
+  const navigationItems = saleHasProducts ? allNavigationItems : allNavigationItems.filter((item) => !isSaleHref(item.href));
+  const footerLinks = saleHasProducts ? storefront.footerLinks : storefront.footerLinks.filter((link) => !isSaleHref(link.href));
 
   return (
     <html lang="es" className="h-full antialiased" suppressHydrationWarning>
@@ -116,7 +123,7 @@ export default async function RootLayout({
             config={headerConfig}
             chatEnabled={storefront.chatEnabled}
             chatWelcome={storefront.chatWelcome}
-            footerLinks={storefront.footerLinks}
+            footerLinks={footerLinks}
             bottomNav={storefront.bottomNav}
             storeName={storefront.storeName}
             contactEmail={storefront.contactEmail}

@@ -17,6 +17,7 @@ import { getVisibleBanners } from "@/server/services/banner.service"
 import { getVisibleGridBlocks } from "@/server/services/home-grid.service"
 import { getStorefrontBrands } from "@/server/services/brand.service"
 import { getTopBanner } from "@/server/repositories/top-banner.repository"
+import { hasVisibleSaleProducts } from "@/server/services/product.service"
 import { parseEditorialConfig, type EditorialConfig } from "@/lib/editorial-config"
 
 type SectionContext = {
@@ -25,6 +26,7 @@ type SectionContext = {
   config: Record<string, unknown>
   editorial: EditorialConfig
   gridBlocks: Awaited<ReturnType<typeof getVisibleGridBlocks>>
+  hideSale: boolean
   id: string
   isBannerActive: boolean
   isFirst: boolean
@@ -40,7 +42,7 @@ const SECTION_RENDERERS: Record<LandingSectionType, (ctx: SectionContext) => Rea
   HERO: (ctx) => ctx.editorial.kind === "campaignHero"
     ? <EditorialCampaignHero key={ctx.id} campaign={ctx.editorial} />
     : <HeroBanner key={ctx.id} banners={ctx.banners} config={ctx.config} isFirst={ctx.isFirst} isBannerActive={ctx.isBannerActive} />,
-  CATEGORY_GRID: (ctx) => <CategoryGrid key={ctx.id} blocks={ctx.gridBlocks} config={ctx.config} />,
+  CATEGORY_GRID: (ctx) => <CategoryGrid key={ctx.id} blocks={ctx.gridBlocks} config={ctx.config} hideSale={ctx.hideSale} />,
   FEATURED_PRODUCTS: (ctx) => <FeaturedProducts key={ctx.id} config={ctx.config} />,
   BRAND_STRIP: (ctx) => <BrandStrip key={ctx.id} brands={ctx.brands} config={ctx.config} />,
   NEW_ARRIVALS: (ctx) => <NewArrivals key={ctx.id} config={ctx.config} />,
@@ -65,7 +67,7 @@ function sectionConfig(section: LandingSection): Record<string, unknown> {
 /** Renderiza las secciones activas de una landing (home o campaña) con datos compartidos en paralelo. */
 export default async function LandingSections({ sections }: { sections: LandingSection[] }) {
   // Fallbacks por consulta: un fallo puntual no tumba toda la landing.
-  const [banners, gridBlocks, brands, topBanner] = await Promise.all([
+  const [banners, gridBlocks, brands, topBanner, saleHasProducts] = await Promise.all([
     getVisibleBanners().catch((error: unknown) => {
       console.error("[landing] getVisibleBanners falló:", error)
       return []
@@ -82,6 +84,7 @@ export default async function LandingSections({ sections }: { sections: LandingS
       console.error("[landing] getTopBanner falló:", error)
       return null
     }),
+    hasVisibleSaleProducts().catch(() => true),
   ])
   const isBannerActive = topBanner?.isActive ?? true
 
@@ -101,7 +104,7 @@ export default async function LandingSections({ sections }: { sections: LandingS
 
         const render = SECTION_RENDERERS[section.type]
         if (!render) return null
-        const node = render({ banners, brands, config, editorial, gridBlocks, id: section.id, isBannerActive, isFirst: index === 0 })
+        const node = render({ banners, brands, config, editorial, gridBlocks, hideSale: !saleHasProducts, id: section.id, isBannerActive, isFirst: index === 0 })
         if (!node) return null
         return (
           <div id={`landing-section-${section.id}`} key={section.id} className={index === 0 ? undefined : "store-reveal"}>

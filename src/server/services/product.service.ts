@@ -494,6 +494,16 @@ export async function getCatalogPriceBounds(brandId?: string): Promise<{ min: nu
   }
 }
 
+/** true si /sale tiene al menos un producto visible, con las mismas reglas del catálogo que usa esa página. */
+export async function hasVisibleSaleProducts(): Promise<boolean> {
+  const rules = await getCatalogRules()
+  const { total } = await getProducts(
+    { isOnSaleOnly: true, requireImage: rules.hideImagelessProducts, groupColors: rules.groupColorsInCatalog },
+    1
+  )
+  return total > 0
+}
+
 export async function getProducts(
   filter: AppProductFilter,
   pageSize = 24

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { parseBottomNav, parseClubBenefits, parseFooterLinks, parseGiftCardAmounts } from "@/lib/storefront-copy"
+import { parseBottomNav, parseClubBenefits, parseFooterLinks, parseGiftCardAmounts, isSaleHref } from "@/lib/storefront-copy"
 
 describe("parseClubBenefits", () => {
   it("usa los beneficios de respaldo si el texto está vacío", () => {
@@ -40,3 +40,13 @@ describe("parseGiftCardAmounts", () => {
     expect(parseGiftCardAmounts("100000\nabc\n100000, 200000")).toEqual([100000, 200000])
   })
 })
+
+describe("isSaleHref", () => {
+  it("reconoce /sale con barra final, query o ancla", () => {
+    for (const href of ["/sale", "/sale/", "/SALE?marca=hoka", "/sale#top"]) expect(isSaleHref(href)).toBe(true)
+  })
+  it("no confunde otras rutas", () => {
+    for (const href of ["/sales", "/c/sale-verano", "/productos?sale=1", "/"]) expect(isSaleHref(href)).toBe(false)
+  })
+})
+
