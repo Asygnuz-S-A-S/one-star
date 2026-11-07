@@ -44,7 +44,7 @@ export default function ProductGallery({ images, videoUrl }: ProductGalleryProps
   // Producto sin fotos cargadas: imagen predeterminada de la tienda.
   if (total === 0 && !hasVideo) {
     return (
-      <div className="relative aspect-square overflow-hidden rounded-store-xl bg-white border border-gray-200/80 shadow-sm dark:border-white/10 dark:bg-white/5">
+      <div className="relative aspect-square overflow-hidden">
         <Image
           src={PLACEHOLDER_IMAGE_URL}
           alt="Producto sin imagen disponible"
@@ -72,8 +72,8 @@ export default function ProductGallery({ images, videoUrl }: ProductGalleryProps
                 aria-selected={active}
                 onClick={() => select(idx)}
                 // Activo: la miniatura se ilumina y una línea roja la marca; sin marco negro alrededor.
-                className={`relative h-16 w-16 shrink-0 snap-start overflow-hidden rounded-store-md bg-white border border-gray-200/80 transition-[opacity,box-shadow] duration-200 dark:bg-white/5 dark:border-white/10 lg:h-[72px] lg:w-[72px] ${
-                  active ? "opacity-100 shadow-[0_6px_16px_rgb(28_28_28/0.10)]" : "opacity-45 hover:opacity-100"
+                className={`relative h-16 w-16 shrink-0 snap-start overflow-hidden rounded-store-md border transition-[opacity,border-color] duration-200 lg:h-[72px] lg:w-[72px] ${
+                  active ? "border-[#1C1C1C]/25 opacity-100 dark:border-white/30" : "border-transparent opacity-45 hover:opacity-100"
                 }`}
                 aria-label={img.alt || `Foto ${idx + 1}`}
               >
@@ -108,7 +108,7 @@ export default function ProductGallery({ images, videoUrl }: ProductGalleryProps
 
       {/* Foto principal */}
       <div
-        className="group relative aspect-square min-w-0 flex-1 overflow-hidden rounded-store-xl bg-white border border-gray-200/80 shadow-sm dark:border-white/10 dark:bg-white/5"
+        className="group relative aspect-square min-w-0 flex-1 overflow-hidden"
         onMouseMove={handleMouseMove}
         onMouseLeave={() => setHoverFrame(null)}
         onTouchStart={(e) => { touchStart.current = e.changedTouches[0]?.clientX ?? null }}

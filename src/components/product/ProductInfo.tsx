@@ -1,5 +1,6 @@
 "use client"
 
+import DeliveryOptions, { type PickupStoreOption } from "./DeliveryOptions"
 import { useState, useCallback } from "react"
 import Link from "next/link"
 import Image from "next/image"
@@ -38,6 +39,8 @@ interface ProductInfoProps {
   /** Color controlado desde el padre para sincronizar la galería. */
   selectedColor?: string
   onColorChange?: (color: string) => void
+  /** Tiendas donde se puede recoger la compra (Admin → Tiendas). */
+  pickupStores?: PickupStoreOption[]
 }
 
 /** Entrada escalonada del panel: cada bloque aparece con un resorte con rebote. */
@@ -82,6 +85,7 @@ export default function ProductInfo({
   brand = null,
   selectedColor: controlledColor,
   onColorChange,
+  pickupStores = [],
 }: ProductInfoProps) {
   // Color no controlado — solo se usa si el padre no gestiona el estado.
   const [internalColor, setInternalColor] = useState<string>(
@@ -215,6 +219,10 @@ export default function ProductInfo({
     ? product.variants.find((v) => v.color === selectedColor && v.size === selectedSize)
     : undefined
   const storeStock = selectedVariant ? getVariantStoreStock(selectedVariant.inventory) : []
+  // Con el catálogo por Excel no hay stock por sede: en vez de "no hay", se invita a preguntar.
+  const hasStoreBreakdown = product.variants.some((v) =>
+    (v.inventory ?? []).some((level) => level.storeLocation && !level.storeLocation.isWebWarehouse)
+  )
 
   // Mensajes de confianza y urgencia (HU-12), calculados con datos reales.
   const shippingRates = useShippingRates()
@@ -497,42 +505,23 @@ export default function ProductInfo({
             )}
           </AnimatePresence>
 
-          {selectedVariant && (
-            <div
-              className="rounded-lg border border-[#E0E0E0] dark:border-white/10 bg-[#F5F5F5] dark:bg-white/5 px-3 py-2"
-              aria-live="polite"
-              data-testid="store-stock"
-            >
-              <p className="font-montserrat text-xs font-semibold text-[#1C1C1C] dark:text-white">
-                Talla {selectedSize}: {selectedVariant.stock > 0
-                  ? `${selectedVariant.stock} disponible${selectedVariant.stock !== 1 ? "s" : ""} en total`
-                  : "sin unidades disponibles"}
-              </p>
-              {storeStock.length > 0 ? (
-                <>
-                  <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
-                    {storeStock.map((store) => (
-                      <li
-                        key={store.id}
-                        className="font-montserrat text-xs text-[#4A4A4A] dark:text-gray-300"
-                      >
-                        <span className="font-semibold text-[#1C1C1C] dark:text-white">{store.name}</span>
-                        {store.city ? ` (${store.city})` : ""}: {store.stock}
-                      </li>
-                    ))}
-                  </ul>
-                  <p className="mt-1 font-montserrat text-[11px] text-[#4A4A4A] dark:text-gray-400">
-                    El stock de tienda es para compra presencial: la web no lo aparta ni lo reserva.
-                  </p>
-                </>
-              ) : (
-                <p className="mt-1 font-montserrat text-[11px] text-[#4A4A4A] dark:text-gray-400">
-                  Sin existencias en tiendas físicas para esta talla.
-                </p>
-              )}
-            </div>
-          )}
         </motion.div>
+
+        {/* Cómo recibirlo: despacho, retiro y stock por tienda (como en las fichas de grandes retailers) */}
+        {product.availableOnline !== false && (
+          <motion.div variants={itemVariants}>
+            <DeliveryOptions
+              price={salePrice ?? basePrice}
+              freeThreshold={shippingRates.freeThreshold}
+              delivery={deliveryDays}
+              pickupStores={pickupStores}
+              availableInStores={product.availableInStores !== false}
+              selectedSize={selectedSize}
+              storeStock={storeStock}
+              hasStoreBreakdown={hasStoreBreakdown}
+            />
+          </motion.div>
+        )}
 
         {/* Action buttons */}
         <motion.div id="comprar" variants={itemVariants} className="flex flex-col gap-3 scroll-mt-24">
@@ -597,7 +586,8 @@ export default function ProductInfo({
               >
                 Comprar Ahora
               </motion.button>
-              <ConversionSignals signals={conversionSignals} />
+              {/* Envío y entrega ya se ven en «Despacho a domicilio»: aquí solo queda la urgencia. */}
+              <ConversionSignals signals={conversionSignals.filter((signal) => signal.kind !== "shipping" && signal.kind !== "delivery")} />
               <ProductTrust promises={promises} whatsappUrl={whatsappUrl} />
             </>
           )}

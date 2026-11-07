@@ -1,3 +1,4 @@
+import { getPickupStores } from "@/server/services/store.service"
 import TrackRecentlyViewed from "@/components/product/TrackRecentlyViewed"
 import { cache } from "react"
 import { INTERNAL_CATEGORY_SLUG } from "@/lib/internal-category"
@@ -77,7 +78,7 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
   if (!product) notFound()
 
   // Consulta secuencial: primero producto, luego dependencias en paralelo
-  const [brandDetail, globalContent, productReviews, productReviewStats, settings, shippingRates, delivery] = await Promise.all([
+  const [brandDetail, globalContent, productReviews, productReviewStats, settings, shippingRates, delivery, pickupStores] = await Promise.all([
     product.brandId ? getBrandDetailById(product.brandId) : null,
     getPublicSiteContent(),
     getProductReviews(product.id),
@@ -85,6 +86,7 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
     getPublicStoreInfo().catch(() => null),
     getShippingRates().catch(() => DEFAULT_SHIPPING_RATES),
     getDeliveryWindow().catch(() => ({ min: 3, max: 5 })),
+    getPickupStores().catch(() => []),
   ])
 
   const hasWhatsapp = Boolean(settings?.whatsapp)
@@ -198,6 +200,7 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
           whatsappUrl={whatsappUrl}
           brand={brandDetail}
           initialColor={initialColor}
+          pickupStores={pickupStores.map(({ id, name, city }) => ({ id, name, city }))}
         />
 
         {/* ── Por qué comprarlo ── */}
