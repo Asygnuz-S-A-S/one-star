@@ -23,8 +23,20 @@ export default function cloudinaryLoader({
   }
 
   // Si ya tiene una transformación w_\d previa, la reemplaza; si no, la inserta justo tras /image/upload/
+  // Los efectos (e_…) van primero: quitar fondo y recortar antes de escalar deja el producto nítido.
   return src.replace(
-    /\/image\/upload\/(?:f_auto,q_auto,w_\d+\/)?/,
-    `/image/upload/f_auto,q_auto,w_${width}/`
+    /\/image\/upload\/((?:e_[^/]+\/)*)(?:f_auto,q_auto,w_\d+\/)?/,
+    `/image/upload/$1f_auto,q_auto,w_${width}/`
   )
+}
+
+/**
+ * Producto recortado y sin fondo (complemento de quitar fondo de Cloudinary + recorte al borde),
+ * para mostrarlo grande sobre cualquier color. URLs que no son de Cloudinary se devuelven igual.
+ * Cloudinary procesa cada foto la primera vez y mientras tanto responde 423: quien la use debe
+ * tener una imagen de respaldo (ver ProductCutoutImage).
+ */
+export function productCutoutUrl(src: string): string {
+  if (!src.includes("res.cloudinary.com") || !src.includes("/image/upload/") || src.includes("e_background_removal")) return src
+  return src.replace("/image/upload/", "/image/upload/e_background_removal/e_trim/")
 }
