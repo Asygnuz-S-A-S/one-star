@@ -1,10 +1,10 @@
 import { getPickupStores } from "@/server/services/store.service"
 import TrackRecentlyViewed from "@/components/product/TrackRecentlyViewed"
+import ProductCutoutImage from "@/components/product/ProductCutoutImage"
 import { cache } from "react"
 import { INTERNAL_CATEGORY_SLUG } from "@/lib/internal-category"
 import { notFound } from "next/navigation"
 import Link from "next/link"
-import Image from "next/image"
 import type { Metadata } from "next"
 import { getProductBySlug, type InventoryStoreDTO } from "@/server/services/product.service"
 import { getDeliveryWindow, getPublicStoreInfo, getShippingRates } from "@/server/services/store-settings.service"
@@ -224,12 +224,10 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
                 </p>
               </div>
               {product.images[1] && (
-                <div className="relative h-64 md:h-80">
-                  <Image
+                <div className="relative h-56 md:h-80">
+                  <ProductCutoutImage
                     src={product.images[1].url}
                     alt={product.images[1].alt || product.name}
-                    fill
-                    className="object-contain object-right-bottom drop-shadow-2xl"
                     sizes="(max-width: 768px) 100vw, 50vw"
                   />
                 </div>
