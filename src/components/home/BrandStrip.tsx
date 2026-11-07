@@ -72,7 +72,7 @@ export default function BrandStrip({
     return (
       <section className="py-8 md:py-10" style={{ backgroundColor: bgSection }} aria-label={title || "Compra por marca"} data-testid="brand-bubbles">
         {title && <h2 className="store-gutter store-heading mb-4 md:mb-6">{title}</h2>}
-        <ul className="store-gutter flex snap-x [scroll-padding-inline:var(--store-gutter)] gap-4 overflow-x-auto pb-2 md:gap-6">
+        <ul className="store-gutter flex snap-x [scroll-padding-inline:var(--store-gutter)] scrollbar-hide gap-4 overflow-x-auto pb-2 md:gap-6">
           {normalizedBrands.map((brand) => {
             const brandHref = brand.slug ? `/marcas/${brand.slug}` : `/productos?marca=${encodeURIComponent(brand.name)}`
             const bubble = (

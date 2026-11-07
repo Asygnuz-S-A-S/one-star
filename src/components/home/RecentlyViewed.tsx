@@ -29,7 +29,7 @@ export default function RecentlyViewed({ config = {} }: { config?: Record<string
         <h2 className="store-heading">{title}</h2>
         {subtitle && <p className="mt-2 max-w-xl text-sm text-[var(--store-muted)]">{subtitle}</p>}
       </div>
-      <ul className="store-gutter flex snap-x [scroll-padding-inline:var(--store-gutter)] gap-3 overflow-x-auto pb-2 md:gap-4">
+      <ul className="store-gutter flex snap-x [scroll-padding-inline:var(--store-gutter)] scrollbar-hide gap-3 overflow-x-auto pb-2 md:gap-4">
         {visible.map((item) => (
           <li key={item.id} className="w-36 shrink-0 snap-start md:w-44">
             <Link href={`/productos/${item.slug}`} className="group block rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--store-action)]">
