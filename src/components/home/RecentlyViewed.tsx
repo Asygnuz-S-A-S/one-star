@@ -19,7 +19,8 @@ export default function RecentlyViewed({ config = {} }: { config?: Record<string
   const title = typeof config.title === "string" && config.title.trim() ? config.title.trim() : "Tus últimos vistos"
   const subtitle = typeof config.subtitle === "string" ? config.subtitle : ""
   const limit = typeof config.limit === "number" && config.limit > 0 ? Math.min(config.limit, 12) : 8
-  const visible = hydrated ? items.slice(0, limit) : []
+  // Sin foto la tarjeta queda vacía: solo se muestran los que tienen imagen.
+  const visible = hydrated ? items.filter((item) => item.imageUrl).slice(0, limit) : []
   if (visible.length === 0) return null
 
   return (
@@ -32,7 +33,7 @@ export default function RecentlyViewed({ config = {} }: { config?: Record<string
         {visible.map((item) => (
           <li key={item.id} className="w-36 shrink-0 snap-start md:w-44">
             <Link href={`/productos/${item.slug}`} className="group block rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--store-action)]">
-              <div className="relative aspect-square overflow-hidden rounded-xl bg-[#F5F5F5]">
+              <div className="relative aspect-square overflow-hidden rounded-xl border border-[var(--store-line)] bg-white">
                 {item.imageUrl ? (
                   <Image src={item.imageUrl} alt={item.name} fill sizes="(min-width: 768px) 176px, 144px" unoptimized={!canUseNextImageOptimization(item.imageUrl)} className="object-contain p-2 transition-transform duration-300 group-hover:scale-105" />
                 ) : null}
