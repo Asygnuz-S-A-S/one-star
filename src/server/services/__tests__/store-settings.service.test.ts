@@ -47,6 +47,7 @@ const rawSettings = {
   legalAddress: null,
   contactPhone: null,
   hideImagelessProducts: true,
+  hideEmptySale: true,
   newArrivalDays: 30,
   chatEnabled: true,
   chatWelcome: null,

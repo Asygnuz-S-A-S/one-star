@@ -66,10 +66,11 @@ export default function MobileBottomNav({ items = DEFAULT_BOTTOM_NAV }: { items?
   return (
     <nav
       aria-label="Navegación inferior"
-      className="relative z-40 shrink-0 px-3 pt-1 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:hidden"
+      // Flota sobre el contenido (sin franja de fondo); PublicSiteFrame deja el espacio al final del scroll.
+      className="pointer-events-none absolute inset-x-0 bottom-0 z-40 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:hidden"
       data-testid="mobile-bottom-nav"
     >
-      <div className="mx-auto flex max-w-md items-center gap-1 rounded-full bg-store-ink/95 px-2 py-1.5 shadow-store-float backdrop-blur-md">
+      <div className="pointer-events-auto mx-auto flex max-w-md items-center gap-1 rounded-full bg-store-ink/95 px-2 py-1.5 shadow-store-float backdrop-blur-md">
         {items.map((item) => {
           if (item.href === "#bolsa") {
             return (

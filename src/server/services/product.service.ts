@@ -494,6 +494,20 @@ export async function getCatalogPriceBounds(brandId?: string): Promise<{ min: nu
   }
 }
 
+/**
+ * true si SALE debe mostrarse: el interruptor «Ocultar SALE sin ofertas» está apagado o /sale
+ * tiene al menos un producto visible (mismas reglas del catálogo que usa esa página).
+ */
+export async function hasVisibleSaleProducts(): Promise<boolean> {
+  const rules = await getCatalogRules()
+  if (!rules.hideEmptySale) return true
+  const { total } = await getProducts(
+    { isOnSaleOnly: true, requireImage: rules.hideImagelessProducts, groupColors: rules.groupColorsInCatalog },
+    1
+  )
+  return total > 0
+}
+
 export async function getProducts(
   filter: AppProductFilter,
   pageSize = 24

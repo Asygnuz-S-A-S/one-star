@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation"
 import Header from "@/components/Header"
 import ChatWidget from "@/components/chat/ChatWidget"
 import StoreFooter from "@/components/storefront/StoreFooter"
-import MobileBottomNav from "@/components/MobileBottomNav"
+import MobileBottomNav, { shouldShowMobileBottomNav } from "@/components/MobileBottomNav"
 import { isAdminPathname } from "@/lib/public-site-route"
 import type { BottomNavItem, FooterLink } from "@/lib/storefront-copy"
 
@@ -58,7 +58,7 @@ export default function PublicSiteFrame({
     : { "--public-header-offset": "56px", "--public-header-offset-desktop": "64px" }
 
   return (
-    <div className="public-storefront flex h-dvh min-h-0 flex-col overflow-hidden print:block print:h-auto print:overflow-visible" style={headerOffset as CSSProperties}>
+    <div className="public-storefront relative flex h-dvh min-h-0 flex-col overflow-hidden print:block print:h-auto print:overflow-visible" style={headerOffset as CSSProperties}>
       <div className="contents print:hidden">
         <Header {...headerProps} />
       </div>
@@ -72,6 +72,10 @@ export default function PublicSiteFrame({
             contactEmail={contactEmail}
             whatsapp={whatsapp}
           />
+          {/* Espacio para que el menú flotante no tape el final del footer; mismo color del footer. */}
+          {shouldShowMobileBottomNav(pathname) && (
+            <div aria-hidden="true" className="h-[calc(4.75rem+env(safe-area-inset-bottom))] bg-[#1C1C1C] lg:hidden" />
+          )}
         </div>
       </div>
       <div className="contents print:hidden">

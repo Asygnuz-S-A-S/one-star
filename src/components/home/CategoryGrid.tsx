@@ -8,6 +8,7 @@ import type { HomeGridBlock } from "@prisma/client"
 import { resolveCollectionTiles, resolveCollectionTileStyle, type CollectionTileStyle, type EditorialAppearance } from "@/lib/editorial-config"
 import { canUseNextImageOptimization } from "@/lib/image-optimization"
 import { safePublicUrl } from "@/lib/safe-url"
+import { isSaleHref } from "@/lib/storefront-copy"
 import ScrollReveal from "@/components/home/ScrollReveal"
 import CollectionTileArt, { TILE_ART_SURFACE, isDarkColor, tileArtKind } from "@/components/home/CollectionTileArt"
 
@@ -122,7 +123,7 @@ function CollectionTile({ block, index, total, options, tileStyle }: { block: Ho
   )
 }
 
-export default function CategoryGrid({ blocks, config = {} }: { blocks: HomeGridBlock[]; config?: Record<string, unknown> }) {
+export default function CategoryGrid({ blocks: allBlocks, config = {}, hideSale = false }: { blocks: HomeGridBlock[]; config?: Record<string, unknown>; hideSale?: boolean }) {
   const title = typeof config.title === "string" ? config.title : undefined
   const subtitle = typeof config.subtitle === "string" ? config.subtitle : undefined
   const theme = config.theme === "dark" ? "dark" : "light"
@@ -131,6 +132,8 @@ export default function CategoryGrid({ blocks, config = {} }: { blocks: HomeGrid
   const titleAlign = typeof config.titleAlign === "string" ? config.titleAlign : "left"
   const showAccent = config.showAccent !== false
   const options = resolveCollectionTiles(config)
+  // Sin ofertas visibles, la colección que lleva a /sale no se muestra.
+  const blocks = hideSale ? allBlocks.filter((block) => !isSaleHref(options.get(block.id)?.href ?? block.href)) : allBlocks
   const tileStyle = resolveCollectionTileStyle(config)
   const titleAlignCls = TITLE_ALIGN[titleAlign] ?? TITLE_ALIGN.left
   const accentAlign = titleAlign === "left" ? "mr-auto" : titleAlign === "right" ? "ml-auto" : "mx-auto"

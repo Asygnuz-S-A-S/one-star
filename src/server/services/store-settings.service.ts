@@ -51,6 +51,7 @@ export interface StoreSettingsDTO {
   legalAddress: string | null
   contactPhone: string | null
   hideImagelessProducts: boolean
+  hideEmptySale: boolean
   newArrivalDays: number
   chatEnabled: boolean
   chatWelcome: string
@@ -109,6 +110,7 @@ function toDTO(raw: {
   legalAddress?: string | null
   contactPhone?: string | null
   hideImagelessProducts?: boolean | null
+  hideEmptySale?: boolean | null
   newArrivalDays?: number | null
   chatEnabled?: boolean | null
   chatWelcome?: string | null
@@ -154,6 +156,7 @@ function toDTO(raw: {
     legalAddress: raw.legalAddress ?? null,
     contactPhone: raw.contactPhone ?? null,
     hideImagelessProducts: raw.hideImagelessProducts ?? true,
+    hideEmptySale: raw.hideEmptySale ?? true,
     newArrivalDays: raw.newArrivalDays ?? 30,
     chatEnabled: raw.chatEnabled ?? true,
     chatWelcome: raw.chatWelcome?.trim() || DEFAULT_CHAT_WELCOME,
@@ -224,6 +227,7 @@ export async function updateStoreInfo(input: StoreInfoInput): Promise<StoreSetti
     legalAddress: input.legalAddress,
     contactPhone: input.contactPhone,
     hideImagelessProducts: input.hideImagelessProducts,
+    hideEmptySale: input.hideEmptySale,
     newArrivalDays: input.newArrivalDays,
     chatEnabled: input.chatEnabled,
     chatWelcome: input.chatWelcome,
@@ -307,6 +311,7 @@ export async function getPublicStorefrontConfig(): Promise<PublicStorefrontConfi
 
 export async function getCatalogRules(): Promise<{
   hideImagelessProducts: boolean
+  hideEmptySale: boolean
   newArrivalDays: number
   groupColorsInCatalog: boolean
 }> {
@@ -316,6 +321,7 @@ export async function getCatalogRules(): Promise<{
   ])
   return {
     hideImagelessProducts: settings?.hideImagelessProducts ?? true,
+    hideEmptySale: settings?.hideEmptySale ?? true,
     newArrivalDays: settings?.newArrivalDays ?? 30,
     groupColorsInCatalog: catalogSettings.groupColorsInCatalog,
   }

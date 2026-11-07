@@ -96,4 +96,16 @@ describe("CategoryGrid editorial tiles", () => {
 
     expect(html).toContain('href="/productos"')
     expect(html).toContain(">Ofertas</span>")
+  
+})
+
+describe("CategoryGrid sin ofertas", () => {
+  it("oculta la colección que lleva a /sale", () => {
+    const html = renderToStaticMarkup(
+      <CategoryGrid hideSale blocks={[{ ...blocks[0], id: "coleccion", href: "/productos" }, blocks[0]]} config={{}} />
+    )
+
+    expect(html).toContain('href="/productos"')
+    expect(html).not.toContain('href="/sale"')
   })
+})
