@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { markAbandonedLeads } from "@/server/services/lead.service"
-import { expireAbandonedOrders } from "@/server/services/order.service"
+import { expireAbandonedOrders, releaseStockReservations } from "@/server/services/order.service"
 
 /**
  * GET /api/cron/expire-orders
@@ -24,6 +24,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 })
     }
 
+    const releasedReservations = await releaseStockReservations()
     const expired = await expireAbandonedOrders()
 
     let abandonedLeads: string[] = []
@@ -36,6 +37,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       success: true,
       expired: expired.length,
+      releasedReservations: releasedReservations.length,
       abandonedLeads: abandonedLeads.length,
       timestamp: new Date().toISOString(),
     })

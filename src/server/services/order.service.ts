@@ -1,6 +1,8 @@
 import "server-only"
 import {
-  createOrder,
+  createOrderReservingStock,
+  StockReservationError,
+  releaseExpiredStockReservations,
   findOrderById,
   findManyOrders,
   findOrdersByUserId,
@@ -20,6 +22,7 @@ import { findVariantsForPricing } from "../repositories/variant.repository"
 import type { Prisma, OrderStatus, PaymentStatus } from "@prisma/client"
 import { getERPAdapter } from "../erp"
 import { isPickupShipping } from "@/lib/order-status"
+import { STOCK_RESERVATION_MINUTES } from "@/lib/stock-reservation"
 import { sendOrderConfirmationEmail, sendOrderReadyForPickupEmail, sendOrderShippedEmail } from "./email.service"
 import { getShippingTrackingAdapter } from "../shipping/tracking"
 import { issueAndSendGiftCardsForOrder } from "./gift-card.service"
@@ -41,6 +44,8 @@ import type { OrderCustomerDataInput } from "../validators/order.validator"
  * ePayco pero nunca pagó).
  */
 export const ABANDONED_ORDER_TTL_HOURS = 24
+
+export { STOCK_RESERVATION_MINUTES } from "@/lib/stock-reservation"
 
 export interface OrderItemDTO {
   id: string
@@ -283,9 +288,13 @@ export async function placeOrder(
   const discountAmount = appliedCoupon?.discountAmount ?? 0
   const total = subtotal - discountAmount + shippingCost
 
-  // 0.1 Valida disponibilidad de stock ANTES de crear el pedido.
-  //     El stock se descuenta luego al marcar el pedido como PAID, pero se
-  //     rechaza de entrada si ya no hay unidades suficientes.
+  // 0.1 Valida disponibilidad de stock ANTES de crear el pedido. Primero
+  //     devuelve a la venta las reservas vencidas, para no rechazar una compra
+  //     por unidades que otro cliente apartó y nunca pagó. La reserva real
+  //     (atómica) ocurre al crear el pedido; esto solo da un mensaje claro.
+  await releaseExpiredStockReservations(new Date()).catch((error: unknown) => {
+    console.error("[order] no se pudieron liberar las reservas vencidas:", error)
+  })
   const variantIds = pricedItems.map((i) => i.variantId)
 
   if (variantIds.length > 0) {
@@ -401,14 +410,24 @@ export async function placeOrder(
     }
   }
 
-  // 1. Persiste el pedido en la BD de One Star primero.
-  //    El pedido siempre queda registrado, independientemente del ERP.
-  let order: Awaited<ReturnType<typeof createOrder>>
+  // 1. Persiste el pedido y aparta sus unidades en la misma transacción: el
+  //    stock baja ya y vuelve a la venta si nadie empieza a pagar en
+  //    STOCK_RESERVATION_MINUTES (ver releaseExpiredStockReservations).
+  const reservedUntil = new Date(Date.now() + STOCK_RESERVATION_MINUTES * 60 * 1000)
+  let order: Awaited<ReturnType<typeof createOrderReservingStock>>
   try {
-    order = await createOrder(orderInput)
+    order = await createOrderReservingStock(
+      orderInput,
+      pricedItems.map((i) => ({ variantId: i.variantId, quantity: i.quantity })),
+      reservedUntil
+    )
   } catch (error) {
     if (appliedCoupon) {
       await releaseCouponUsage(appliedCoupon.id)
+    }
+    if (error instanceof StockReservationError) {
+      const item = pricedItems.find((i) => i.variantId === error.variantId)
+      throw new Error(`Alguien más acaba de comprar la última unidad de "${item?.productName ?? "un producto de tu bolsa"}". Actualiza tu bolsa.`)
     }
     throw error
   }
@@ -592,6 +611,15 @@ export async function cancelUnpaidOrder(id: string): Promise<void> {
  * pasarela y más antiguos que `ABANDONED_ORDER_TTL_HOURS`. Devuelve los ids
  * que quedaron cerrados. Pensado para el cron diario.
  */
+/**
+ * Devuelve a la venta las unidades de los pedidos cuya reserva venció sin que
+ * el cliente empezara a pagar. El pedido sigue PENDING: si el pago llega
+ * después, se descuenta de nuevo al aprobarse (si aún hay stock).
+ */
+export async function releaseStockReservations(now: Date = new Date()): Promise<string[]> {
+  return releaseExpiredStockReservations(now)
+}
+
 export async function expireAbandonedOrders(now: Date = new Date()): Promise<string[]> {
   const before = new Date(now.getTime() - ABANDONED_ORDER_TTL_HOURS * 60 * 60 * 1000)
   const stale = await findAbandonedPendingOrders(before)
