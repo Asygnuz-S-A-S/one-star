@@ -10,6 +10,8 @@ type EditorialMedia = { alt: string; src: string }
 
 export type CampaignHeroSlide = {
   accent: EditorialAppearance
+  /** Sin velo de color sobre la imagen. */
+  noOverlay?: true
   copy?: string
   desktopMedia?: EditorialMedia
   eyebrow?: string
@@ -18,11 +20,12 @@ export type CampaignHeroSlide = {
   angles?: EditorialMedia[]
   /** Sin valor: "auto". */
   spinMode?: HeroSpinMode
-  headline: string
+  /** Opcional: un banner puede ser solo la imagen. */
+  headline?: string
   id: string
   mobileMedia?: EditorialMedia
   tabletMedia?: EditorialMedia
-  primaryCta: EditorialCta
+  primaryCta?: EditorialCta
   secondaryCta?: EditorialCta
 }
 
@@ -34,11 +37,12 @@ export type CampaignHeroConfig = {
   foregroundMedia?: EditorialMedia
   angles?: EditorialMedia[]
   spinMode?: HeroSpinMode
-  headline: string
+  noOverlay?: true
+  headline?: string
   kind: "campaignHero"
   mobileMedia?: EditorialMedia
   tabletMedia?: EditorialMedia
-  primaryCta: EditorialCta
+  primaryCta?: EditorialCta
   secondaryCta?: EditorialCta
   version: 1
   slides?: CampaignHeroSlide[]
@@ -133,23 +137,26 @@ export function parseEditorialConfig(value: unknown): EditorialConfig {
       const slide = record(value)
       const headline = text(slide?.headline)
       const primaryCta = cta(slide?.primaryCta)
-      if (!headline || !primaryCta) return undefined
+      const desktopMedia = media(slide?.desktopMedia), mobileMedia = media(slide?.mobileMedia), tabletMedia = media(slide?.tabletMedia), foregroundMedia = media(slide?.foregroundMedia)
+      // Sin título ni imagen no hay nada que mostrar.
+      if (!headline && !desktopMedia && !mobileMedia && !tabletMedia && !foregroundMedia) return undefined
       const copy = text(slide?.copy)
       const eyebrow = text(slide?.eyebrow)
       const secondaryCta = cta(slide?.secondaryCta)
       return {
         id: text(slide?.id) ?? `campaign-${index + 1}`,
-        headline,
-        primaryCta,
+        ...(headline ? { headline } : {}),
+        ...(primaryCta ? { primaryCta } : {}),
         accent: appearance(slide?.accent),
+        ...(slide?.noOverlay === true ? { noOverlay: true as const } : {}),
         ...(copy ? { copy } : {}),
         ...(eyebrow ? { eyebrow } : {}),
         ...(secondaryCta ? { secondaryCta } : {}),
-        ...(media(slide?.desktopMedia) ? { desktopMedia: media(slide?.desktopMedia) } : {}),
-        ...(media(slide?.mobileMedia) ? { mobileMedia: media(slide?.mobileMedia) } : {}),
-        ...(media(slide?.tabletMedia) ? { tabletMedia: media(slide?.tabletMedia) } : {}),
-        ...(media(slide?.foregroundMedia) ? { foregroundMedia: media(slide?.foregroundMedia) } : {}),
-        ...(angleList(slide?.angles, headline) ? { angles: angleList(slide?.angles, headline) } : {}),
+        ...(desktopMedia ? { desktopMedia } : {}),
+        ...(mobileMedia ? { mobileMedia } : {}),
+        ...(tabletMedia ? { tabletMedia } : {}),
+        ...(foregroundMedia ? { foregroundMedia } : {}),
+        ...(angleList(slide?.angles, headline ?? "Producto") ? { angles: angleList(slide?.angles, headline ?? "Producto") } : {}),
         ...(HERO_SPIN_MODES.includes(slide?.spinMode as HeroSpinMode) ? { spinMode: slide?.spinMode as HeroSpinMode } : {}),
       }
     }
@@ -231,5 +238,6 @@ export function resolveCampaignSlides(campaign: CampaignHeroConfig): CampaignHer
     ...(campaign.foregroundMedia ? { foregroundMedia: campaign.foregroundMedia } : {}),
     ...(campaign.angles?.length ? { angles: campaign.angles } : {}),
     ...(campaign.spinMode ? { spinMode: campaign.spinMode } : {}),
+    ...(campaign.noOverlay ? { noOverlay: true as const } : {}),
   }]
 }

@@ -20,10 +20,11 @@ const MediaSchema = z.object({
 const CampaignSlideSchema = z.object({
   id: z.string().trim().min(1, "El identificador del slide es obligatorio").max(100),
   eyebrow: z.string().trim().max(60).optional(),
-  headline: z.string().trim().min(1, "El titular es obligatorio").max(120),
+  headline: z.string().trim().max(120).optional(),
   copy: z.string().trim().max(320).optional(),
   accent: AppearanceSchema,
-  primaryCta: CtaSchema,
+  noOverlay: z.boolean().optional(),
+  primaryCta: CtaSchema.optional(),
   secondaryCta: CtaSchema.optional(),
   desktopMedia: MediaSchema.optional(),
   tabletMedia: MediaSchema.optional(),
