@@ -19,11 +19,23 @@ export interface TrackedOrder {
   status: string
   paymentStatus: string
   createdAt: string
+  paidAt: string | null
+  shippedAt: string | null
+  readyForPickupAt: string | null
+  deliveredAt: string | null
+  /** Solo el método, para el timeline: nunca la dirección. */
+  shippingAddress: { shippingMethod: string | null; pickupStoreName: string | null }
   total: number
   items: { name: string; size: string | null; quantity: number }[]
   carrier: "ENVIA" | "OTHER" | null
   trackingNumber: string | null
   trackingUrl: string | null
+}
+
+function publicShipping(raw: unknown): TrackedOrder["shippingAddress"] {
+  const shipping = typeof raw === "object" && raw !== null ? (raw as Record<string, unknown>) : {}
+  const text = (key: string) => (typeof shipping[key] === "string" ? (shipping[key] as string) : null)
+  return { shippingMethod: text("shippingMethod"), pickupStoreName: text("pickupStoreName") }
 }
 
 export type OrderTrackingResult =
@@ -60,6 +72,11 @@ export async function trackOrder(
       status: order.status,
       paymentStatus: order.paymentStatus,
       createdAt: order.createdAt.toISOString(),
+      paidAt: order.paidAt?.toISOString() ?? null,
+      shippedAt: order.shippedAt?.toISOString() ?? null,
+      readyForPickupAt: order.readyForPickupAt?.toISOString() ?? null,
+      deliveredAt: order.deliveredAt?.toISOString() ?? null,
+      shippingAddress: publicShipping(order.shippingAddress),
       total: Number(order.total),
       items: order.items.map((item) => ({
         name: item.product.name,

@@ -335,3 +335,10 @@ export async function findOrdersByShortNumber(shortNumber: string) {
     take: 5,
   })
 }
+
+export type OrderTimelineField = "shippedAt" | "readyForPickupAt" | "deliveredAt"
+
+/** Guarda la fecha de un paso del recorrido solo la primera vez (volver a guardar el estado no la mueve). */
+export async function stampOrderTimeline(id: string, field: OrderTimelineField) {
+  return prisma.order.updateMany({ where: { id, [field]: null }, data: { [field]: new Date() } })
+}

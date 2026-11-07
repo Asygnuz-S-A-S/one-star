@@ -457,6 +457,37 @@ export function orderShippedEmail(params: {
   }
 }
 
+/** Pedido de recoger en tienda listo: el cliente ya puede pasar por él. */
+export function orderReadyForPickupEmail(params: {
+  name?: string
+  orderId: string
+  storeName: string
+  storeAddress?: string
+  trackOrderUrl?: string
+  copy?: EmailCopy
+}): EmailContent {
+  const shortId = params.orderId.slice(-8).toUpperCase()
+  const vars = { nombre: firstName(params.name), pedido: shortId }
+  const inner = `
+    <h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;">Tu pedido está listo para recoger</h1>
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${COLOR.text};">${greeting(params.name)}</p>
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${COLOR.text};">
+      ${introOr(params.copy, vars, `Tu pedido <strong>#${escapeHtml(shortId)}</strong> ya está separado y puedes recogerlo.`)}
+    </p>
+    <div style="background:#F9F9F9;border:1px solid #E0E0E0;border-radius:8px;padding:16px;margin:16px 0;">
+      <p style="margin:0 0 8px;font-size:14px;color:${COLOR.text};"><strong>Tienda:</strong> ${escapeHtml(params.storeName)}</p>
+      ${params.storeAddress ? `<p style="margin:0;font-size:14px;color:${COLOR.text};"><strong>Dirección:</strong> ${escapeHtml(params.storeAddress)}</p>` : ""}
+    </div>
+    <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:${COLOR.muted};">
+      Lleva tu documento de identidad y el número de pedido. Si otra persona lo recoge, debe llevar una copia de tu documento.
+    </p>
+    ${params.trackOrderUrl ? button(params.trackOrderUrl, "VER ESTADO DEL PEDIDO") : ""}`
+  return {
+    subject: subjectOr(params.copy, vars, `Tu pedido One Star #${shortId} está listo para recoger`),
+    html: layout(inner, `Ya puedes recoger tu pedido #${shortId}.`),
+  }
+}
+
 /** Pago rechazado o fallido: el pedido se cerró sin cobro. */
 export function paymentRejectedEmail(params: {
   name?: string

@@ -12,6 +12,7 @@ import {
   pqrsAdminNotificationEmail,
   adminPasswordResetEmail,
   orderShippedEmail,
+  orderReadyForPickupEmail,
   paymentRejectedEmail,
   customerPasswordResetEmail,
   type OrderEmailItem,
@@ -209,6 +210,20 @@ export async function sendOrderShippedEmail(params: {
   const settings = await settingsFor("order_shipped")
   if (!settings) return SKIPPED
   const { subject, html } = orderShippedEmail({ ...params, trackOrderUrl: trackOrderUrl(params.orderId), copy: settings.copy })
+  return sendEmail({ to: params.email, subject, html })
+}
+
+/** Aviso de que un pedido de recoger en tienda ya está listo. */
+export async function sendOrderReadyForPickupEmail(params: {
+  email: string
+  name?: string
+  orderId: string
+  storeName: string
+  storeAddress?: string
+}): Promise<SendEmailResult> {
+  const settings = await settingsFor("order_ready_pickup")
+  if (!settings) return SKIPPED
+  const { subject, html } = orderReadyForPickupEmail({ ...params, trackOrderUrl: trackOrderUrl(params.orderId), copy: settings.copy })
   return sendEmail({ to: params.email, subject, html })
 }
 

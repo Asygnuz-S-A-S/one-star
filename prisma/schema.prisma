@@ -352,6 +352,12 @@ model Order {
   paymentReference     String? // Referencia de la pasarela (ej. ref_payco de ePayco)
   paymentStatus        PaymentStatus    @default(PENDING)
   paidAt               DateTime? // Momento en que se confirmó el pago
+  /// Pasó a «Enviado» (con domicilio) por primera vez.
+  shippedAt            DateTime?
+  /// Pedido de recoger en tienda marcado «Listo para recoger» por primera vez.
+  readyForPickupAt     DateTime?
+  /// Entregado al cliente (o recogido en tienda).
+  deliveredAt          DateTime?
   customerEmail        String?
   customerName         String?
   customerDocumentType String?

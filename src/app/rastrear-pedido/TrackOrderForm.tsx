@@ -3,8 +3,15 @@
 import { useActionState } from "react"
 import Link from "next/link"
 import { trackOrderAction } from "@/server/actions/order-tracking.actions"
-import { orderStatusBadge, orderStatusLabel } from "@/lib/order-status"
+import { isPickupShipping, orderStatusBadge, orderStatusLabel } from "@/lib/order-status"
+import OrderTimeline from "@/components/orders/OrderTimeline"
 import { formatCOP } from "@/lib/shop-utils"
+
+const PICKUP_HELP: Record<string, string> = {
+  PAID: "Tu pago está confirmado y estamos separando tu pedido en la tienda.",
+  SHIPPED: "Ya puedes recogerlo. Lleva tu documento de identidad y el número de pedido.",
+  DELIVERED: "Recogiste tu pedido en la tienda.",
+}
 
 const STATUS_HELP: Record<string, string> = {
   PENDING: "Aún no recibimos la confirmación del pago. Si ya pagaste, se actualiza en unos minutos.",
@@ -21,6 +28,7 @@ const labelClass = "font-montserrat text-xs font-semibold text-[#4A4A4A] upperca
 export default function TrackOrderForm({ initialNumber }: { initialNumber: string }) {
   const [state, action, pending] = useActionState(trackOrderAction, null)
   const order = state?.success ? state.order : null
+  const pickup = order ? isPickupShipping(order.shippingAddress) : false
 
   return (
     <main className="min-h-screen bg-[#F5F5F5] flex items-start justify-center px-4 py-12">
@@ -68,13 +76,18 @@ export default function TrackOrderForm({ initialNumber }: { initialNumber: strin
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="font-barlow font-bold text-lg text-[#1C1C1C]">Pedido #{order.number}</h2>
               <span className={`px-2.5 py-0.5 rounded-full font-montserrat text-xs font-medium ${orderStatusBadge(order.status)}`}>
-                {orderStatusLabel(order.status)}
+                {orderStatusLabel(order.status, pickup)}
               </span>
             </div>
-            <p className="mt-2 font-montserrat text-sm text-[#4A4A4A]">{STATUS_HELP[order.status] ?? ""}</p>
-            <p className="mt-1 font-montserrat text-xs text-[#6B6B6B]">
-              Hecho el {new Date(order.createdAt).toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" })}
+            <p className="mt-2 font-montserrat text-sm text-[#4A4A4A]">
+              {(pickup && PICKUP_HELP[order.status]) || STATUS_HELP[order.status] || ""}
             </p>
+            {pickup && order.shippingAddress.pickupStoreName && (
+              <p className="mt-1 font-montserrat text-sm text-[#1C1C1C]">Tienda: <strong>{order.shippingAddress.pickupStoreName}</strong></p>
+            )}
+            <div className="mt-5">
+              <OrderTimeline order={order} />
+            </div>
 
             <ul className="mt-4 divide-y divide-[#EEEEEE]">
               {order.items.map((item, index) => (
