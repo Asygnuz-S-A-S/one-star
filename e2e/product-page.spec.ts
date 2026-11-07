@@ -7,6 +7,9 @@ async function openFirstProduct(page: import("@playwright/test").Page) {
   await firstProduct.waitFor()
   const href = await firstProduct.getAttribute("href")
   await page.goto(href!)
+  // El aviso de cookies va fijo abajo y tapa la barra de compra hasta que se responde, igual que para un visitante nuevo.
+  const rejectCookies = page.getByRole("button", { name: "Rechazar cookies opcionales" })
+  if (await rejectCookies.isVisible().catch(() => false)) await rejectCookies.click()
 }
 
 test.describe("Ficha de producto — SEO y conversión", () => {
