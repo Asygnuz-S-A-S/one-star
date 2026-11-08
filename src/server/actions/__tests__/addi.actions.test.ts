@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   verifyGuestOrderSuccessToken: vi.fn(),
   createAddiApplication: vi.fn(),
   updateOrderPaymentMethod: vi.fn(),
+  extendStockReservation: vi.fn(),
 }))
 
 vi.mock("next/headers", () => ({ headers: vi.fn().mockResolvedValue(new Headers()) }))
@@ -23,6 +24,7 @@ vi.mock("@/server/services/addi-payment.service", () => ({
 }))
 vi.mock("@/server/repositories/order.repository", () => ({
   updateOrderPaymentMethod: mocks.updateOrderPaymentMethod,
+  extendStockReservation: mocks.extendStockReservation,
 }))
 
 import { startAddiPaymentAction } from "../addi.actions"
@@ -50,6 +52,7 @@ describe("startAddiPaymentAction", () => {
       redirectUrl: "https://checkout.addi.com/x",
     })
     expect(mocks.updateOrderPaymentMethod).toHaveBeenCalledWith("order_1", "addi")
+    expect(mocks.extendStockReservation).toHaveBeenCalledWith("order_1")
   })
 
   it("el invitado con token válido de su pedido puede pagar", async () => {

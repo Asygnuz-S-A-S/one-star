@@ -5,6 +5,7 @@ import { matchCrossSellRefs, parseCrossSellRefs } from "@/lib/cross-sell"
 import { slugify } from "@/lib/utils"
 import type { Gender, Prisma } from "@prisma/client"
 import { prisma } from "@/server/db/prisma"
+import { getReservedQuantities } from "@/server/repositories/order.repository"
 import type { ProductForImport } from "@/server/repositories/product.repository"
 import type { PlannedGroup } from "@/server/services/product-import.service"
 import { normalizeKey, resolveBrandAlias } from "@/server/validators/product-import.validator"
@@ -97,6 +98,7 @@ export async function persistProductImport(
   let newProducts = 0
   let newVariants = 0
   let updatedVariants = 0
+  const reservedUnits = await getReservedQuantities()
 
   await prisma.$transaction(
     async (tx) => {
@@ -286,7 +288,7 @@ export async function persistProductImport(
               data: {
                 size: v.row.size,
                 color: v.row.color,
-                stock: v.row.stock,
+                stock: Math.max(0, v.row.stock - (reservedUnits.get(v.existingVariantId) ?? 0)),
                 sizeUS: v.row.sizeUS ?? null,
                 sizeCM: v.row.sizeCM ?? null,
                 sizeEUR: v.row.sizeEUR ?? null,

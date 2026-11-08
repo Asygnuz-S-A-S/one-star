@@ -7,6 +7,9 @@ vi.mock("@/server/erp", () => ({
   supportsCatalogSync: vi.fn(),
 }))
 vi.mock("@/server/db/prisma", () => ({ prisma: {} }))
+vi.mock("@/server/repositories/order.repository", () => ({
+  getReservedQuantities: vi.fn().mockResolvedValue(new Map()),
+}))
 vi.mock("@/server/repositories/product-color.repository", () => ({
   findManyProductColors: vi.fn().mockResolvedValue([]),
 }))
@@ -213,6 +216,27 @@ describe("syncCatalogFromERP", () => {
       expect.objectContaining({ stock: 0 })
     )
     expect(result.warnings?.join(" ")).toContain("despublicados")
+  })
+
+  it("descuenta del stock del ERP las unidades apartadas en checkouts abiertos", async () => {
+    process.env.ERP_CATALOG_WRITES_ENABLED = "true"
+    mockFindDefaultImportCategory.mockResolvedValue({ id: "category" } as never)
+    const repository = await import("@/server/repositories/erp-catalog.repository")
+    const orders = await import("@/server/repositories/order.repository")
+    vi.mocked(orders.getReservedQuantities).mockResolvedValueOnce(new Map([["v1", 1]]))
+    vi.mocked(repository.findCatalogProductBySlug).mockResolvedValue({
+      id: "existing-product",
+      isPublished: true,
+      variants: [{ id: "v1", sku: "MODEL-BLK_9", color: "" }],
+    } as never)
+    mockGetERPAdapter.mockReturnValue({
+      fetchCatalog: vi.fn().mockResolvedValue(catalogSnapshot({ stock: 4 })),
+      ping: vi.fn(),
+    } as never)
+
+    await syncCatalogFromERP("MANUAL")
+
+    expect(repository.updateCatalogVariant).toHaveBeenCalledWith("v1", expect.objectContaining({ stock: 3 }))
   })
 
   it("vuelve a publicar un producto ERP existente en cuanto el stock regresa", async () => {

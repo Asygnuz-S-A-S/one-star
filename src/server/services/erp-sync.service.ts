@@ -32,6 +32,7 @@ import {
   type ErpInventoryLevelRow,
 } from "@/server/repositories/erp-catalog.repository"
 import { ensureErpStoreLocations } from "@/server/repositories/store.repository"
+import { getReservedQuantities } from "@/server/repositories/order.repository"
 import { applyErpColorFamilyKeyUpdates } from "@/server/repositories/erp-color-family.repository"
 import { getErpSyncSchedule } from "@/server/services/erp-sync-scheduler.service"
 import type { ErpSyncInterval } from "@/lib/erp-sync-schedule"
@@ -223,6 +224,8 @@ async function runCatalogSync(options: CatalogSyncOptions): Promise<ERPCatalogSy
       }
     }
 
+    const reservedUnits = await getReservedQuantities()
+
     // Buscar la categoría "Por Defecto" o crearla para asignar nuevos productos
     let defaultCategory = await findDefaultImportCategory()
 
@@ -346,7 +349,7 @@ async function runCatalogSync(options: CatalogSyncOptions): Promise<ERPCatalogSy
         if (existingVariant) {
           await updateCatalogVariant(existingVariant.id, {
             erpId: variantItem.erpId,
-            stock: variantItem.stock,
+            stock: Math.max(0, variantItem.stock - (reservedUnits.get(existingVariant.id) ?? 0)),
             size: size !== DEFAULT_SIZE ? size : existingVariant.size,
             // Nunca se pisa un color ya asignado: el admin manda sobre el ERP.
             ...(isRealColor(existingVariant.color) || !detectedColor

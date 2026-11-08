@@ -27,7 +27,7 @@ import { captureAbandonedCartAction } from "@/server/actions/abandoned-cart.acti
 import { trackLeadCheckoutStageAction } from "@/server/actions/lead-stage.actions"
 import { validateCouponAction } from "@/server/actions/coupon.actions"
 import { getAddiWidgetEvaluationAction, startAddiPaymentAction } from "@/server/actions/addi.actions"
-import { createOrder, getCustomerCheckoutProfile, getPickupStoresAction } from "./actions"
+import { abandonCheckoutOrder, createOrder, getCustomerCheckoutProfile, getPickupStoresAction } from "./actions"
 
 const sectionVariants = {
   hidden: { opacity: 0, y: 18 },
@@ -498,7 +498,11 @@ function CheckoutForm({
             />
 
             <button
-              onClick={() => setEpaycoData(null)}
+              onClick={async () => {
+                // Antes de volver: si no, el pedido nuevo chocaría con la reserva de este.
+                await abandonCheckoutOrder({ orderId: epaycoData.orderId, guestToken: epaycoData.guestToken }).catch(() => undefined)
+                setEpaycoData(null)
+              }}
               className="mt-4 w-full text-center border border-[#E0E0E0] text-[#4A4A4A] font-montserrat text-sm py-2.5 rounded hover:border-[#1C1C1C] transition-colors"
             >
               ← Volver y modificar datos

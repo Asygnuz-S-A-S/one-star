@@ -7,7 +7,7 @@ import {
   sendOrderConfirmation,
   type OrderDTO,
 } from "./order.service"
-import { updateOrderPaymentReference } from "../repositories/order.repository"
+import { releaseOrderStockReservation, updateOrderPaymentReference } from "../repositories/order.repository"
 import { sendMetaPurchaseForOrder } from "./meta-conversions.service"
 import { issueAndSendGiftCardsForOrder } from "./gift-card.service"
 import { getUserByEmail } from "./user.service"
@@ -167,6 +167,13 @@ export async function applyPaymentNotification(
       }
       return { outcome: "rejected", order: (await getOrderById(order.id)) ?? order }
     }
+    case EpaycoStatus.EXPIRED:
+    case EpaycoStatus.ABANDONED:
+    case EpaycoStatus.CANCELLED:
+      // Ese intento murió, pero el pedido sigue abierto: si se cerrara, un
+      // reintento del cliente quedaría cobrado y en revisión manual.
+      await releaseOrderStockReservation(order.id)
+      return { outcome: "pending", order }
     default:
       // PENDING (3) u otro código: el pedido sigue esperando confirmación.
       return { outcome: "pending", order }

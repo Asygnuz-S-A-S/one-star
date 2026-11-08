@@ -1,3 +1,4 @@
+import { STOCK_RESERVATION_MAX_HOURS, STOCK_RESERVATION_PAYMENT_MINUTES } from "@/lib/stock-reservation"
 import "server-only"
 import { prisma } from "../db/prisma"
 import type { Prisma, OrderStatus, PaymentStatus, ShippingCarrier } from "@prisma/client"
@@ -65,23 +66,63 @@ async function releaseReservedStock(tx: Prisma.TransactionClient, orderId: strin
  * Pedidos que apartaron stock y nadie empezó a pagar (sin referencia de la
  * pasarela) antes de que venciera la reserva. Con una referencia, el pago
  * está en curso (PSE o efectivo pendiente) y la reserva se mantiene hasta que
- * la pasarela lo apruebe o lo rechace.
+ * la pasarela lo resuelva, con un tope de STOCK_RESERVATION_MAX_HOURS. Si el
+ * pago llega después del tope, se descuenta al aprobarse como cualquier pedido
+ * sin reserva.
  */
 export async function releaseExpiredStockReservations(now: Date): Promise<string[]> {
   const expired = await prisma.order.findMany({
     where: {
       stockReserved: true,
-      stockReservedUntil: { lt: now },
       paymentStatus: "PENDING",
-      paymentReference: null,
+      OR: [
+        { paymentReference: null, stockReservedUntil: { lt: now } },
+        {
+          paymentReference: { not: null },
+          createdAt: { lt: new Date(now.getTime() - STOCK_RESERVATION_MAX_HOURS * 60 * 60 * 1000) },
+        },
+      ],
     },
     select: { id: true },
   })
   const released: string[] = []
   for (const { id } of expired) {
-    if (await prisma.$transaction((tx) => releaseReservedStock(tx, id))) released.push(id)
+    if (await releaseOrderStockReservation(id)) released.push(id)
   }
   return released
+}
+
+/** Devuelve a la venta las unidades de un pedido sin pago. Sin reserva activa no hace nada. */
+export async function releaseOrderStockReservation(orderId: string): Promise<boolean> {
+  return prisma.$transaction((tx) => releaseReservedStock(tx, orderId))
+}
+
+/**
+ * El cliente abrió la pasarela: la referencia solo llega con el primer aviso de
+ * ePayco, así que sin esto la reserva vencería con el pago a medias. El plazo
+ * se cuenta desde la creación del pedido, por eso repetirlo no alarga la reserva.
+ */
+export async function extendStockReservation(orderId: string): Promise<void> {
+  const order = await prisma.order.findUnique({ where: { id: orderId }, select: { createdAt: true } })
+  if (!order) return
+  await prisma.order.updateMany({
+    where: { id: orderId, stockReserved: true, paymentStatus: "PENDING" },
+    data: { stockReservedUntil: new Date(order.createdAt.getTime() + STOCK_RESERVATION_PAYMENT_MINUTES * 60 * 1000) },
+  })
+}
+
+/**
+ * Unidades apartadas hoy por variante. El Excel y el ERP traen las existencias
+ * físicas, que incluyen lo apartado: quien las escriba debe restarlas o la
+ * reserva se pierde y al liberarla se sumaría una unidad que no existe.
+ */
+export async function getReservedQuantities(): Promise<Map<string, number>> {
+  const rows = await prisma.orderItem.groupBy({
+    by: ["variantId"],
+    where: { variantId: { not: null }, order: { stockReserved: true } },
+    _sum: { quantity: true },
+  })
+  return new Map(rows.flatMap((row) => (row.variantId ? [[row.variantId, row._sum.quantity ?? 0] as const] : [])))
 }
 
 export async function findOrderById(id: string) {
