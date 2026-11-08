@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 vi.mock("server-only", () => ({}))
 
-const { orderUpdateMany, orderFindMany, orderUpdate, orderCount, orderAggregate } = vi.hoisted(() => ({
+const { orderUpdateMany, orderFindMany, orderUpdate, orderCount, orderAggregate, itemFindMany, variantUpdate } = vi.hoisted(() => ({
+  itemFindMany: vi.fn(),
+  variantUpdate: vi.fn(),
   orderUpdateMany: vi.fn(),
   orderFindMany: vi.fn(),
   orderUpdate: vi.fn(),
@@ -10,8 +12,14 @@ const { orderUpdateMany, orderFindMany, orderUpdate, orderCount, orderAggregate 
   orderAggregate: vi.fn(),
 }))
 
-vi.mock("@/server/db/prisma", () => ({
-  prisma: {
+vi.mock("@/server/db/prisma", () => {
+  const tx = {
+    order: { updateMany: orderUpdateMany },
+    orderItem: { findMany: itemFindMany },
+    variant: { update: variantUpdate },
+  }
+  return { prisma: {
+    $transaction: (fn: (client: typeof tx) => unknown) => fn(tx),
     order: {
       updateMany: orderUpdateMany,
       findMany: orderFindMany,
@@ -19,8 +27,8 @@ vi.mock("@/server/db/prisma", () => ({
       count: orderCount,
       aggregate: orderAggregate,
     },
-  },
-}))
+  } }
+})
 
 import {
   closeUnpaidOrder,
@@ -30,7 +38,10 @@ import {
 } from "../order.repository"
 
 describe("closeUnpaidOrder", () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    itemFindMany.mockResolvedValue([])
+  })
 
   it("cancela solo si el pago no está aprobado y el pedido no estaba cancelado", async () => {
     orderUpdateMany.mockResolvedValue({ count: 1 })
@@ -48,6 +59,29 @@ describe("closeUnpaidOrder", () => {
     orderUpdateMany.mockResolvedValue({ count: 0 })
 
     expect(await closeUnpaidOrder("order-1", "REJECTED")).toBe(false)
+    expect(variantUpdate).not.toHaveBeenCalled()
+  })
+
+  it("devuelve a la venta las unidades que el pedido tenía reservadas", async () => {
+    orderUpdateMany.mockResolvedValue({ count: 1 })
+    itemFindMany.mockResolvedValue([{ variantId: "variant-a", quantity: 2 }, { variantId: null, quantity: 1 }])
+
+    await closeUnpaidOrder("order-1", "EXPIRED")
+
+    expect(orderUpdateMany).toHaveBeenCalledWith({
+      where: { id: "order-1", stockReserved: true, paymentStatus: { not: "APPROVED" } },
+      data: { stockReserved: false },
+    })
+    expect(variantUpdate).toHaveBeenCalledTimes(1)
+    expect(variantUpdate).toHaveBeenCalledWith({ where: { id: "variant-a" }, data: { stock: { increment: 2 } } })
+  })
+
+  it("no devuelve stock si el pedido no tenía reserva (ya consumida o anterior al cambio)", async () => {
+    orderUpdateMany.mockResolvedValueOnce({ count: 1 }).mockResolvedValueOnce({ count: 0 })
+
+    await closeUnpaidOrder("order-1", "EXPIRED")
+
+    expect(variantUpdate).not.toHaveBeenCalled()
   })
 })
 
