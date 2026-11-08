@@ -51,10 +51,25 @@ describe("markOrderPaidWithStock", () => {
     transaction.mockImplementation((fn: (client: typeof tx) => unknown) => fn(tx))
     orderFindUnique.mockResolvedValue(pendingOrder)
     orderFindUniqueOrThrow.mockResolvedValue({ id: "order-1", status: "PAID" })
-    orderUpdateMany.mockResolvedValue({ count: 1 })
+    orderUpdateMany.mockImplementation(async (args: { where: { stockReserved?: boolean } }) =>
+      ({ count: args.where.stockReserved ? 0 : 1 }))
     variantUpdateMany.mockResolvedValue({ count: 1 })
     levelFindMany.mockResolvedValue([])
     levelUpdate.mockResolvedValue({})
+  })
+
+  it("con stock reservado por el checkout no descuenta otra vez, solo el desglose por sede", async () => {
+    orderUpdateMany.mockResolvedValue({ count: 1 })
+    levelFindMany.mockResolvedValue([{ id: "level-centro", stock: 4 }])
+
+    await markOrderPaidWithStock("order-1")
+
+    expect(orderUpdateMany).toHaveBeenCalledWith({
+      where: { id: "order-1", stockReserved: true },
+      data: { stockReserved: false },
+    })
+    expect(variantUpdateMany).not.toHaveBeenCalled()
+    expect(levelUpdate).toHaveBeenCalledWith({ where: { id: "level-centro" }, data: { stock: { decrement: 2 } } })
   })
 
   it("reclama la transición a PAID condicionada al estado previo", async () => {

@@ -9,6 +9,81 @@ export async function createOrder(data: Prisma.OrderCreateInput) {
   })
 }
 
+/** Lanzado cuando otra compra se llevó las últimas unidades mientras se creaba el pedido. */
+export class StockReservationError extends Error {
+  constructor(public readonly variantId: string) {
+    super(`Stock insuficiente para reservar la variante ${variantId}.`)
+    this.name = "StockReservationError"
+  }
+}
+
+/**
+ * Crea el pedido y aparta sus unidades en la misma transacción: el stock baja
+ * ya, mientras el cliente paga. El decremento es condicional (stock >= cantidad)
+ * sobre la fila bloqueada, así dos compras de la última unidad no pasan ambas.
+ */
+export async function createOrderReservingStock(
+  data: Prisma.OrderCreateInput,
+  items: { variantId: string; quantity: number }[],
+  reservedUntil: Date
+) {
+  return prisma.$transaction(async (tx) => {
+    for (const item of items) {
+      const reserved = await tx.variant.updateMany({
+        where: { id: item.variantId, stock: { gte: item.quantity } },
+        data: { stock: { decrement: item.quantity } },
+      })
+      if (reserved.count === 0) throw new StockReservationError(item.variantId)
+    }
+    return tx.order.create({
+      data: { ...data, stockReserved: items.length > 0, stockReservedUntil: items.length > 0 ? reservedUntil : null },
+      include: { items: true },
+    })
+  })
+}
+
+/**
+ * Devuelve a la venta las unidades apartadas por un pedido sin pago. El flag
+ * se apaga con un UPDATE condicional: si el pago o otra liberación ya lo
+ * consumió, no se suma nada (nunca se devuelve dos veces).
+ */
+async function releaseReservedStock(tx: Prisma.TransactionClient, orderId: string): Promise<boolean> {
+  const released = await tx.order.updateMany({
+    where: { id: orderId, stockReserved: true, paymentStatus: { not: "APPROVED" } },
+    data: { stockReserved: false },
+  })
+  if (released.count === 0) return false
+  const items = await tx.orderItem.findMany({ where: { orderId }, select: { variantId: true, quantity: true } })
+  for (const item of items) {
+    if (!item.variantId) continue
+    await tx.variant.update({ where: { id: item.variantId }, data: { stock: { increment: item.quantity } } })
+  }
+  return true
+}
+
+/**
+ * Pedidos que apartaron stock y nadie empezó a pagar (sin referencia de la
+ * pasarela) antes de que venciera la reserva. Con una referencia, el pago
+ * está en curso (PSE o efectivo pendiente) y la reserva se mantiene hasta que
+ * la pasarela lo apruebe o lo rechace.
+ */
+export async function releaseExpiredStockReservations(now: Date): Promise<string[]> {
+  const expired = await prisma.order.findMany({
+    where: {
+      stockReserved: true,
+      stockReservedUntil: { lt: now },
+      paymentStatus: "PENDING",
+      paymentReference: null,
+    },
+    select: { id: true },
+  })
+  const released: string[] = []
+  for (const { id } of expired) {
+    if (await prisma.$transaction((tx) => releaseReservedStock(tx, id))) released.push(id)
+  }
+  return released
+}
+
 export async function findOrderById(id: string) {
   return prisma.order.findUnique({
     where: { id },
@@ -91,11 +166,16 @@ export async function closeUnpaidOrder(
   id: string,
   paymentStatus: Exclude<PaymentStatus, "APPROVED">
 ): Promise<boolean> {
-  const result = await prisma.order.updateMany({
-    where: { id, paymentStatus: { not: "APPROVED" }, status: { not: "CANCELLED" } },
-    data: { status: "CANCELLED", paymentStatus },
+  // Cerrar y devolver las unidades apartadas van juntos: o pasan ambos o ninguno.
+  return prisma.$transaction(async (tx) => {
+    const result = await tx.order.updateMany({
+      where: { id, paymentStatus: { not: "APPROVED" }, status: { not: "CANCELLED" } },
+      data: { status: "CANCELLED", paymentStatus },
+    })
+    if (result.count === 0) return false
+    await releaseReservedStock(tx, id)
+    return true
   })
-  return result.count > 0
 }
 
 /**
@@ -238,8 +318,21 @@ export async function markOrderPaidWithStock(
       return tx.order.findUniqueOrThrow({ where: { id } })
     }
 
+    // Si el checkout apartó las unidades, ya están descontadas: se consume la
+    // reserva en vez de restar otra vez. Condicional, para no chocar con una
+    // liberación por vencimiento que corra al mismo tiempo.
+    const consumedReservation = await tx.order.updateMany({
+      where: { id, stockReserved: true },
+      data: { stockReserved: false },
+    })
+    const alreadyDiscounted = consumedReservation.count === 1
+
     for (const item of order.items) {
       if (!item.variantId) continue
+      if (alreadyDiscounted) {
+        await decrementStoreInventory(tx, item.variantId, item.quantity)
+        continue
+      }
       // Decremento condicional: el propio UPDATE revalida las existencias sobre
       // la fila bloqueada, así dos ventas simultáneas no dejan el stock negativo.
       const decremented = await tx.variant.updateMany({

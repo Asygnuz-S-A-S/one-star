@@ -1,5 +1,6 @@
 "use client"
 
+import DeliveryOptions, { type PickupStoreOption } from "./DeliveryOptions"
 import { useState, useCallback } from "react"
 import Link from "next/link"
 import Image from "next/image"
@@ -22,6 +23,7 @@ import ConversionSignals from "./ConversionSignals"
 import ProductTrust from "./ProductTrust"
 import { splitHighlight } from "@/lib/product-faq"
 import StickyBuyBar from "./StickyBuyBar"
+import QuantityStepper from "./QuantityStepper"
 import { RETURN_WINDOW_DAYS, type StorePromise } from "@/lib/store-promises"
 import { useDeliveryDays, useShippingRates } from "@/components/storefront/ShippingRatesProvider"
 import { getProductAvailability } from "@/lib/product-availability"
@@ -38,6 +40,8 @@ interface ProductInfoProps {
   /** Color controlado desde el padre para sincronizar la galería. */
   selectedColor?: string
   onColorChange?: (color: string) => void
+  /** Tiendas donde se puede recoger la compra (Admin → Tiendas). */
+  pickupStores?: PickupStoreOption[]
 }
 
 /** Entrada escalonada del panel: cada bloque aparece con un resorte con rebote. */
@@ -82,6 +86,7 @@ export default function ProductInfo({
   brand = null,
   selectedColor: controlledColor,
   onColorChange,
+  pickupStores = [],
 }: ProductInfoProps) {
   // Color no controlado — solo se usa si el padre no gestiona el estado.
   const [internalColor, setInternalColor] = useState<string>(
@@ -89,6 +94,7 @@ export default function ProductInfo({
   )
   const selectedColor = controlledColor ?? internalColor
   const [selectedSize, setSelectedSize] = useState<string>("")
+  const [quantity, setQuantity] = useState(1)
   const [sizeModalOpen, setSizeModalOpen] = useState(false)
   const [shakeActive, setShakeActive] = useState(false)
   const [justAdded, setJustAdded] = useState(false)
@@ -115,11 +121,13 @@ export default function ProductInfo({
     setInternalColor(color)
     onColorChange?.(color)
     setSelectedSize("") // reset size when color changes
+    setQuantity(1)
   }, [onColorChange])
 
   const handleSizeSelect = useCallback((size: string) => {
     if (!isAvailable(product.variants, selectedColor, size)) return
     setSelectedSize(size)
+    setQuantity(1)
   }, [product.variants, selectedColor])
 
   const triggerShake = useCallback(() => {
@@ -148,8 +156,9 @@ export default function ProductInfo({
       originalPrice: basePrice,
       sku: variant.sku,
       maxQuantity: variant.stock,
+      quantity,
     }
-  }, [product, selectedColor, selectedSize, basePrice, salePrice])
+  }, [product, selectedColor, selectedSize, basePrice, salePrice, quantity])
 
   const handleAddToCart = useCallback(() => {
     if (!selectedSize) {
@@ -168,8 +177,8 @@ export default function ProductInfo({
       content_type: "product",
       content_ids: [cartItem.productId],
       content_name: cartItem.name,
-      contents: [{ id: cartItem.productId, quantity: 1, item_price: cartItem.price }],
-      value: cartItem.price,
+      contents: [{ id: cartItem.productId, quantity: cartItem.quantity, item_price: cartItem.price }],
+      value: cartItem.price * cartItem.quantity,
       currency: META_CURRENCY,
     })
     // El drawer abierto ya confirma la acción; un aviso encima tapaba su botón de checkout en móvil.
@@ -195,8 +204,8 @@ export default function ProductInfo({
       content_type: "product",
       content_ids: [cartItem.productId],
       content_name: cartItem.name,
-      contents: [{ id: cartItem.productId, quantity: 1, item_price: cartItem.price }],
-      value: cartItem.price,
+      contents: [{ id: cartItem.productId, quantity: cartItem.quantity, item_price: cartItem.price }],
+      value: cartItem.price * cartItem.quantity,
       currency: META_CURRENCY,
     })
     router.push("/checkout")
@@ -215,6 +224,10 @@ export default function ProductInfo({
     ? product.variants.find((v) => v.color === selectedColor && v.size === selectedSize)
     : undefined
   const storeStock = selectedVariant ? getVariantStoreStock(selectedVariant.inventory) : []
+  // Con el catálogo por Excel no hay stock por sede: en vez de "no hay", se invita a preguntar.
+  const hasStoreBreakdown = product.variants.some((v) =>
+    (v.inventory ?? []).some((level) => level.storeLocation && !level.storeLocation.isWebWarehouse)
+  )
 
   // Mensajes de confianza y urgencia (HU-12), calculados con datos reales.
   const shippingRates = useShippingRates()
@@ -424,7 +437,9 @@ export default function ProductInfo({
                   <Link
                     key={`${option.productId}-${option.name}`}
                     href={`/productos/${option.slug}?color=${encodeURIComponent(option.name)}`}
-                    prefetch={false}
+                    // Precarga completa: cambiar de color muestra el otro producto al instante, sin skeleton ni salto arriba.
+                    prefetch
+                    scroll={false}
                     aria-label={`Ver ${option.productName ?? product.name} en color ${option.name}`}
                     className={className}
                   >
@@ -497,42 +512,23 @@ export default function ProductInfo({
             )}
           </AnimatePresence>
 
-          {selectedVariant && (
-            <div
-              className="rounded-lg border border-[#E0E0E0] dark:border-white/10 bg-[#F5F5F5] dark:bg-white/5 px-3 py-2"
-              aria-live="polite"
-              data-testid="store-stock"
-            >
-              <p className="font-montserrat text-xs font-semibold text-[#1C1C1C] dark:text-white">
-                Talla {selectedSize}: {selectedVariant.stock > 0
-                  ? `${selectedVariant.stock} disponible${selectedVariant.stock !== 1 ? "s" : ""} en total`
-                  : "sin unidades disponibles"}
-              </p>
-              {storeStock.length > 0 ? (
-                <>
-                  <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
-                    {storeStock.map((store) => (
-                      <li
-                        key={store.id}
-                        className="font-montserrat text-xs text-[#4A4A4A] dark:text-gray-300"
-                      >
-                        <span className="font-semibold text-[#1C1C1C] dark:text-white">{store.name}</span>
-                        {store.city ? ` (${store.city})` : ""}: {store.stock}
-                      </li>
-                    ))}
-                  </ul>
-                  <p className="mt-1 font-montserrat text-[11px] text-[#4A4A4A] dark:text-gray-400">
-                    El stock de tienda es para compra presencial: la web no lo aparta ni lo reserva.
-                  </p>
-                </>
-              ) : (
-                <p className="mt-1 font-montserrat text-[11px] text-[#4A4A4A] dark:text-gray-400">
-                  Sin existencias en tiendas físicas para esta talla.
-                </p>
-              )}
-            </div>
-          )}
         </motion.div>
+
+        {/* Cómo recibirlo: despacho, retiro y stock por tienda (como en las fichas de grandes retailers) */}
+        {product.availableOnline !== false && (
+          <motion.div variants={itemVariants}>
+            <DeliveryOptions
+              price={salePrice ?? basePrice}
+              freeThreshold={shippingRates.freeThreshold}
+              delivery={deliveryDays}
+              pickupStores={pickupStores}
+              availableInStores={product.availableInStores !== false}
+              selectedSize={selectedSize}
+              storeStock={storeStock}
+              hasStoreBreakdown={hasStoreBreakdown}
+            />
+          </motion.div>
+        )}
 
         {/* Action buttons */}
         <motion.div id="comprar" variants={itemVariants} className="flex flex-col gap-3 scroll-mt-24">
@@ -542,6 +538,8 @@ export default function ProductInfo({
             </div>
           ) : (
             <>
+              <div className="flex items-center gap-3">
+              <QuantityStepper value={quantity} max={Math.max(1, selectedVariant?.stock ?? 1)} onChange={setQuantity} />
               <motion.button
                 onClick={handleAddToCart}
                 aria-disabled={!canAct}
@@ -549,7 +547,7 @@ export default function ProductInfo({
                 whileTap={canAct ? { scale: 0.95 } : undefined}
                 animate={justAdded ? { scale: [1, 1.08, 0.96, 1] } : { scale: 1 }}
                 transition={justAdded ? popTween : springy}
-                className={`relative min-h-12 w-full overflow-hidden py-4 font-barlow text-sm font-bold uppercase tracking-widest ${
+                className={`relative min-h-12 flex-1 overflow-hidden rounded-full py-4 font-barlow text-sm font-bold uppercase tracking-widest ${
                   justAdded
                     ? "bg-green-600 text-white"
                     : "bg-[#E31C23] text-white hover:bg-[#C01920]"
@@ -587,17 +585,19 @@ export default function ProductInfo({
                   )}
                 </AnimatePresence>
               </motion.button>
+              </div>
               <motion.button
                 onClick={handleBuyNow}
                 aria-disabled={!canAct}
                 whileHover={canAct ? { scale: 1.03 } : undefined}
                 whileTap={canAct ? { scale: 0.95 } : undefined}
                 transition={springy}
-                className="min-h-12 w-full border-2 border-[#1C1C1C] bg-transparent py-4 font-barlow text-sm font-bold uppercase tracking-widest text-[#1C1C1C] hover:bg-[#1C1C1C] hover:text-white dark:border-white dark:text-white dark:hover:bg-white dark:hover:text-black"
+                className="min-h-12 w-full rounded-full border-2 border-[#1C1C1C] bg-transparent py-4 font-barlow text-sm font-bold uppercase tracking-widest text-[#1C1C1C] hover:bg-[#1C1C1C] hover:text-white dark:border-white dark:text-white dark:hover:bg-white dark:hover:text-black"
               >
                 Comprar Ahora
               </motion.button>
-              <ConversionSignals signals={conversionSignals} />
+              {/* Envío y entrega ya se ven en «Despacho a domicilio»: aquí solo queda la urgencia. */}
+              <ConversionSignals signals={conversionSignals.filter((signal) => signal.kind !== "shipping" && signal.kind !== "delivery")} />
               <ProductTrust promises={promises} whatsappUrl={whatsappUrl} />
             </>
           )}
@@ -633,10 +633,9 @@ export default function ProductInfo({
 
       {product.availableOnline !== false && (
         <StickyBuyBar
-          targetId="comprar"
-          name={product.name}
-          price={salePrice ?? basePrice}
-          originalPrice={salePrice ? basePrice : null}
+          quantity={quantity}
+          maxQuantity={Math.max(1, selectedVariant?.stock ?? 1)}
+          onQuantityChange={setQuantity}
           needsSize={!selectedSize}
           onAdd={handleAddToCart}
           onNeedSize={focusSizeSelector}

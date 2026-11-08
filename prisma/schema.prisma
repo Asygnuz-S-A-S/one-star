@@ -352,6 +352,10 @@ model Order {
   paymentReference     String? // Referencia de la pasarela (ej. ref_payco de ePayco)
   paymentStatus        PaymentStatus    @default(PENDING)
   paidAt               DateTime? // Momento en que se confirmó el pago
+  /// true mientras el pedido tiene descontadas sus unidades sin pago confirmado (reserva del checkout).
+  stockReserved        Boolean          @default(false)
+  /// Hasta cuándo se guardan esas unidades si nadie empieza a pagar; luego vuelven a la venta.
+  stockReservedUntil   DateTime?
   /// Pasó a «Enviado» (con domicilio) por primera vez.
   shippedAt            DateTime?
   /// Pedido de recoger en tienda marcado «Listo para recoger» por primera vez.
@@ -378,6 +382,7 @@ model Order {
   @@index([customerDocument])
   @@index([customerPhone])
   @@index([leadId])
+  @@index([stockReserved, stockReservedUntil])
 }
 
 // unitPrice se congela al momento de la compra (no varía si el producto cambia de precio)

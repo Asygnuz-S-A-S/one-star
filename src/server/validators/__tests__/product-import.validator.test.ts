@@ -190,3 +190,18 @@ describe("productImportRowSchema y alias de género", () => {
     }
   })
 })
+
+describe("columnas SÍ/NO del Excel", () => {
+  const validBase = { sku: "TEST-1", name: "Zapatilla", brandName: "Nike", categoryName: "Calzado", gender: "HOMBRE", price: 100000, size: "40", color: "Blanco", stock: 5 }
+
+  it("NO es un no explícito y la celda vacía queda sin valor", () => {
+    const no = productImportRowSchema.safeParse({ ...validBase, isOnSale: "NO", availableOnline: "NO" })
+    const blank = productImportRowSchema.safeParse({ ...validBase, isOnSale: "", availableOnline: "" })
+    const yes = productImportRowSchema.safeParse({ ...validBase, isOnSale: "SÍ", salePrice: "99000" })
+    expect(no.success && no.data.isOnSale).toBe(false)
+    expect(no.success && no.data.availableOnline).toBe(false)
+    expect(blank.success && blank.data.isOnSale).toBeUndefined()
+    expect(yes.success && yes.data.isOnSale).toBe(true)
+  })
+})
+
