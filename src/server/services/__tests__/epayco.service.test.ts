@@ -133,6 +133,9 @@ describe("EpaycoStatus", () => {
       REJECTED: "2",
       PENDING: "3",
       FAILED: "4",
+      EXPIRED: "9",
+      ABANDONED: "10",
+      CANCELLED: "11",
     })
   })
 })

@@ -13,7 +13,8 @@ vi.mock("@/server/db/prisma", () => ({
     },
   },
 }))
-vi.mock("@/server/services/order.service", () => ({ placeOrder: vi.fn() }))
+vi.mock("@/server/services/order.service", () => ({ placeOrder: vi.fn(), getOrderById: vi.fn(), cancelUnpaidOrder: vi.fn() }))
+vi.mock("@/server/repositories/order.repository", () => ({ extendStockReservation: vi.fn() }))
 vi.mock("@/server/services/abandoned-cart.service", () => ({
   markCartsRecoveredForEmail: vi.fn(),
 }))
@@ -28,9 +29,12 @@ vi.mock("@/server/services/store.service", () => ({
 }))
 vi.mock("@/server/services/guest-order.service", () => ({
   signGuestOrderSuccessToken: vi.fn().mockReturnValue("mock-guest-token-123"),
+  verifyGuestOrderSuccessToken: vi.fn((token?: string) => (token === "token-bueno" ? { orderId: "order-1" } : null)),
 }))
 
-import { createOrder, type CheckoutData } from "./actions"
+import { abandonCheckoutOrder, createOrder, holdStockWhilePaying, type CheckoutData } from "./actions"
+import { cancelUnpaidOrder, getOrderById } from "@/server/services/order.service"
+import { extendStockReservation } from "@/server/repositories/order.repository"
 import { auth } from "@/lib/auth"
 import { placeOrder } from "@/server/services/order.service"
 import { markCartsRecoveredForEmail } from "@/server/services/abandoned-cart.service"
@@ -143,8 +147,13 @@ describe("createOrder", () => {
     expect(result).toMatchObject({ success: true, orderId: "order-1" })
     expect(result.epaycoData?.guestToken).toBeUndefined()
     expect(placeOrder).toHaveBeenCalledWith("customer-1", expect.any(Object))
-    // No aplica rate limiting a usuarios con sesión
-    expect(consumePublicRateLimit).not.toHaveBeenCalled()
+    // Con sesión solo aplica el límite por cuenta, no los de invitado
+    expect(consumePublicRateLimit).toHaveBeenCalledTimes(1)
+    expect(consumePublicRateLimit).toHaveBeenCalledWith(
+      "customer_order",
+      expect.anything(),
+      expect.objectContaining({ subject: "customer-1" })
+    )
   })
 
   it("trata la sesión no-customer (admin) como invitado (userId null)", async () => {
@@ -235,6 +244,64 @@ describe("createOrder", () => {
     vi.mocked(auth.api.getSession).mockResolvedValue(null)
     const result = await createOrder({ ...validCheckoutData, shippingMethod: "pickup", pickupStoreId: "store-cerrada" })
     expect(result).toEqual(expect.objectContaining({ success: false, error: "La tienda elegida no está disponible. Elige otra." }))
+    expect(placeOrder).not.toHaveBeenCalled()
+  })
+})
+
+describe("reserva del pedido en el checkout", () => {
+  const guestOrder = { id: "order-1", userId: null, status: "PENDING", paymentStatus: "PENDING", paymentReference: null }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(auth.api.getSession).mockResolvedValue(null as never)
+  })
+
+  it("el invitado con su token puede soltar su pedido", async () => {
+    vi.mocked(getOrderById).mockResolvedValue(guestOrder as never)
+    await abandonCheckoutOrder({ orderId: "order-1", guestToken: "token-bueno" })
+    expect(cancelUnpaidOrder).toHaveBeenCalledWith("order-1")
+  })
+
+  it("sin token válido no se toca un pedido ajeno", async () => {
+    vi.mocked(getOrderById).mockResolvedValue(guestOrder as never)
+    await abandonCheckoutOrder({ orderId: "order-1", guestToken: "otro" })
+    await holdStockWhilePaying({ orderId: "order-1" })
+    expect(cancelUnpaidOrder).not.toHaveBeenCalled()
+    expect(extendStockReservation).not.toHaveBeenCalled()
+  })
+
+  it("una cuenta no puede soltar el pedido de otra", async () => {
+    vi.mocked(getOrderById).mockResolvedValue({ ...guestOrder, userId: "dueno" } as never)
+    vi.mocked(auth.api.getSession).mockResolvedValue({ user: { id: "otro" } } as never)
+    await abandonCheckoutOrder({ orderId: "order-1" })
+    expect(cancelUnpaidOrder).not.toHaveBeenCalled()
+  })
+
+  it("con pago en curso (referencia) no se cancela", async () => {
+    vi.mocked(getOrderById).mockResolvedValue({ ...guestOrder, paymentReference: "ref" } as never)
+    await abandonCheckoutOrder({ orderId: "order-1", guestToken: "token-bueno" })
+    expect(cancelUnpaidOrder).not.toHaveBeenCalled()
+  })
+
+  it("un pedido ya pagado no se toca", async () => {
+    vi.mocked(getOrderById).mockResolvedValue({ ...guestOrder, status: "PAID", paymentStatus: "APPROVED" } as never)
+    await abandonCheckoutOrder({ orderId: "order-1", guestToken: "token-bueno" })
+    await holdStockWhilePaying({ orderId: "order-1", guestToken: "token-bueno" })
+    expect(cancelUnpaidOrder).not.toHaveBeenCalled()
+    expect(extendStockReservation).not.toHaveBeenCalled()
+  })
+
+  it("abrir ePayco alarga la reserva del dueño", async () => {
+    vi.mocked(getOrderById).mockResolvedValue(guestOrder as never)
+    await holdStockWhilePaying({ orderId: "order-1", guestToken: "token-bueno" })
+    expect(extendStockReservation).toHaveBeenCalledWith("order-1")
+  })
+
+  it("una cuenta con demasiados pedidos queda frenada", async () => {
+    vi.mocked(auth.api.getSession).mockResolvedValue({ user: { id: "c1", userType: "customer" } } as never)
+    vi.mocked(consumePublicRateLimit).mockResolvedValue({ allowed: false } as never)
+    const result = await createOrder(validCheckoutData)
+    expect(result.success).toBe(false)
     expect(placeOrder).not.toHaveBeenCalled()
   })
 })
