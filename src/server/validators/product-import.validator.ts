@@ -243,5 +243,9 @@ export const productImportRowSchema = z
     message: "Precio de oferta requerido cuando ¿En oferta? = SI",
     path: ["salePrice"],
   })
+  .refine((data) => !data.isOnSale || data.salePrice === undefined || data.salePrice < data.price, {
+    message: "El precio de oferta debe ser menor que el precio normal",
+    path: ["salePrice"],
+  })
 
 export type ProductImportRow = z.infer<typeof productImportRowSchema>

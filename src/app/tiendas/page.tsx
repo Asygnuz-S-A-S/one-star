@@ -1,4 +1,5 @@
 import Image from "next/image"
+import { canUseNextImageOptimization } from "@/lib/image-optimization"
 import React from "react"
 import { prisma } from "@/server/db/prisma"
 import DynamicStoreMap from "@/components/tiendas/DynamicStoreMap"
@@ -75,7 +76,7 @@ export default async function TiendasPage() {
                       {/* Foto principal como banner de la tarjeta; las demás quedan en miniatura abajo. */}
                       {cover && (
                         <div className={`relative w-full overflow-hidden bg-[#F5F5F5] ${wide ? "aspect-[16/9] md:aspect-[21/8]" : "aspect-[16/10]"}`}>
-                          <Image src={cover} alt={`${store.name}, fachada`} fill sizes="(min-width: 1280px) 1152px, 100vw" className="object-cover" />
+                          <Image src={cover} alt={`${store.name}, fachada`} fill sizes="(min-width: 1280px) 1152px, 100vw" unoptimized={!canUseNextImageOptimization(cover)} className="object-cover" />
                           <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
                           <div className="absolute inset-x-0 bottom-0 p-5 md:p-8">
                             <p className="font-barlow text-xs font-bold uppercase tracking-[0.18em] text-white/80">{store.city}</p>
@@ -111,7 +112,7 @@ export default async function TiendasPage() {
                                   key={photoUrl}
                                   className="relative aspect-[4/3] overflow-hidden rounded-[var(--store-radius)] bg-[#F5F5F5]"
                                 >
-                                  <Image src={photoUrl} alt={`${store.name}, foto ${idx + 2}`} fill sizes="160px" className="object-cover" />
+                                  <Image src={photoUrl} alt={`${store.name}, foto ${idx + 2}`} fill sizes="160px" unoptimized={!canUseNextImageOptimization(photoUrl)} className="object-cover" />
                                 </div>
                               ))}
                             </div>

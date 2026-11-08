@@ -565,6 +565,14 @@ describe("previewProductImport", () => {
       })
     )
 
+    // Celda de oferta vacía: una oferta del admin que quedó más cara que el precio nuevo se apaga.
+    const emptySale = buildBuffer([baseRow({ sku: "NK-1", size: "40", price: 499000, stock: 12, isOnSale: "" })])
+    await applyProductImport(emptySale, (await previewProductImport(emptySale)).fingerprint)
+    expect(txMock.product.updateMany).toHaveBeenCalledWith({
+      where: { id: "prod-erp-1", isOnSale: true, salePrice: { gte: 499000 } },
+      data: { isOnSale: false, salePrice: null },
+    })
+
     expect(txMock.inventoryLevel.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
