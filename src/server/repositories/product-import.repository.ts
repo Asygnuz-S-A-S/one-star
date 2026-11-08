@@ -190,6 +190,14 @@ export async function persistProductImport(
               ? await resolveBrandId(tx, group.brandName, brands, brandCache)
               : existingProduct.brandId
 
+          // Celda vacía con precio nuevo: la oferta del admin no puede quedar más cara que el precio normal.
+          if (first.isOnSale === undefined) {
+            await tx.product.updateMany({
+              where: { id: productId, isOnSale: true, salePrice: { gte: first.price } },
+              data: { isOnSale: false, salePrice: null },
+            })
+          }
+
           await tx.product.update({
             where: { id: productId },
             data: {

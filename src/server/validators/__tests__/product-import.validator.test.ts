@@ -197,6 +197,9 @@ describe("columnas SÍ/NO del Excel", () => {
   it("NO es un no explícito y la celda vacía queda sin valor", () => {
     const no = productImportRowSchema.safeParse({ ...validBase, isOnSale: "NO", availableOnline: "NO" })
     const blank = productImportRowSchema.safeParse({ ...validBase, isOnSale: "", availableOnline: "" })
+    const notCheaper = productImportRowSchema.safeParse({ ...validBase, isOnSale: "SÍ", salePrice: String(validBase.price) })
+    expect(notCheaper.success).toBe(false)
+
     const yes = productImportRowSchema.safeParse({ ...validBase, isOnSale: "SÍ", salePrice: "99000" })
     expect(no.success && no.data.isOnSale).toBe(false)
     expect(no.success && no.data.availableOnline).toBe(false)
