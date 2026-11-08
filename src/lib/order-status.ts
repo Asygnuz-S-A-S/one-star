@@ -49,8 +49,24 @@ export function isOrderStatus(value: string): value is OrderStatusValue {
   return (ORDER_STATUSES as readonly string[]).includes(value)
 }
 
-export function orderStatusLabel(status: string): string {
-  return isOrderStatus(status) ? ORDER_STATUS_LABELS[status] : status
+/** true cuando el cliente eligió recoger en una tienda física (`shippingAddress.shippingMethod`). */
+export function isPickupShipping(shippingAddress: unknown): boolean {
+  return (
+    typeof shippingAddress === "object" &&
+    shippingAddress !== null &&
+    (shippingAddress as Record<string, unknown>).shippingMethod === "pickup"
+  )
+}
+
+/** En pedidos de recoger en tienda, «Enviado» y «Entregado» significan listo para recoger y recogido. */
+const PICKUP_STATUS_LABELS: Partial<Record<OrderStatusValue, string>> = {
+  SHIPPED: "Listo para recoger",
+  DELIVERED: "Recogido",
+}
+
+export function orderStatusLabel(status: string, pickup = false): string {
+  if (!isOrderStatus(status)) return status
+  return (pickup && PICKUP_STATUS_LABELS[status]) || ORDER_STATUS_LABELS[status]
 }
 
 export function orderStatusBadge(status: string): string {

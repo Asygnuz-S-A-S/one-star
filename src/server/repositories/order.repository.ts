@@ -1,3 +1,4 @@
+import { STOCK_RESERVATION_MAX_HOURS, STOCK_RESERVATION_PAYMENT_MINUTES } from "@/lib/stock-reservation"
 import "server-only"
 import { prisma } from "../db/prisma"
 import type { Prisma, OrderStatus, PaymentStatus, ShippingCarrier } from "@prisma/client"
@@ -7,6 +8,121 @@ export async function createOrder(data: Prisma.OrderCreateInput) {
     data,
     include: { items: true },
   })
+}
+
+/** Lanzado cuando otra compra se llevó las últimas unidades mientras se creaba el pedido. */
+export class StockReservationError extends Error {
+  constructor(public readonly variantId: string) {
+    super(`Stock insuficiente para reservar la variante ${variantId}.`)
+    this.name = "StockReservationError"
+  }
+}
+
+/**
+ * Crea el pedido y aparta sus unidades en la misma transacción: el stock baja
+ * ya, mientras el cliente paga. El decremento es condicional (stock >= cantidad)
+ * sobre la fila bloqueada, así dos compras de la última unidad no pasan ambas.
+ */
+export async function createOrderReservingStock(
+  data: Prisma.OrderCreateInput,
+  items: { variantId: string; quantity: number }[],
+  reservedUntil: Date
+) {
+  return prisma.$transaction(async (tx) => {
+    for (const item of items) {
+      const reserved = await tx.variant.updateMany({
+        where: { id: item.variantId, stock: { gte: item.quantity } },
+        data: { stock: { decrement: item.quantity } },
+      })
+      if (reserved.count === 0) throw new StockReservationError(item.variantId)
+    }
+    return tx.order.create({
+      data: { ...data, stockReserved: items.length > 0, stockReservedUntil: items.length > 0 ? reservedUntil : null },
+      include: { items: true },
+    })
+  })
+}
+
+/**
+ * Devuelve a la venta las unidades apartadas por un pedido sin pago. El flag
+ * se apaga con un UPDATE condicional: si el pago o otra liberación ya lo
+ * consumió, no se suma nada (nunca se devuelve dos veces).
+ */
+async function releaseReservedStock(tx: Prisma.TransactionClient, orderId: string): Promise<boolean> {
+  const released = await tx.order.updateMany({
+    where: { id: orderId, stockReserved: true, paymentStatus: { not: "APPROVED" } },
+    data: { stockReserved: false },
+  })
+  if (released.count === 0) return false
+  const items = await tx.orderItem.findMany({ where: { orderId }, select: { variantId: true, quantity: true } })
+  for (const item of items) {
+    if (!item.variantId) continue
+    await tx.variant.update({ where: { id: item.variantId }, data: { stock: { increment: item.quantity } } })
+  }
+  return true
+}
+
+/**
+ * Pedidos que apartaron stock y nadie empezó a pagar (sin referencia de la
+ * pasarela) antes de que venciera la reserva. Con una referencia, el pago
+ * está en curso (PSE o efectivo pendiente) y la reserva se mantiene hasta que
+ * la pasarela lo resuelva, con un tope de STOCK_RESERVATION_MAX_HOURS. Si el
+ * pago llega después del tope, se descuenta al aprobarse como cualquier pedido
+ * sin reserva.
+ */
+export async function releaseExpiredStockReservations(now: Date): Promise<string[]> {
+  const expired = await prisma.order.findMany({
+    where: {
+      stockReserved: true,
+      paymentStatus: "PENDING",
+      OR: [
+        { paymentReference: null, stockReservedUntil: { lt: now } },
+        {
+          paymentReference: { not: null },
+          createdAt: { lt: new Date(now.getTime() - STOCK_RESERVATION_MAX_HOURS * 60 * 60 * 1000) },
+        },
+      ],
+    },
+    select: { id: true },
+  })
+  const released: string[] = []
+  for (const { id } of expired) {
+    if (await releaseOrderStockReservation(id)) released.push(id)
+  }
+  return released
+}
+
+/** Devuelve a la venta las unidades de un pedido sin pago. Sin reserva activa no hace nada. */
+export async function releaseOrderStockReservation(orderId: string): Promise<boolean> {
+  return prisma.$transaction((tx) => releaseReservedStock(tx, orderId))
+}
+
+/**
+ * El cliente abrió la pasarela: la referencia solo llega con el primer aviso de
+ * ePayco, así que sin esto la reserva vencería con el pago a medias. El plazo
+ * se cuenta desde la creación del pedido, por eso repetirlo no alarga la reserva.
+ */
+export async function extendStockReservation(orderId: string): Promise<void> {
+  const order = await prisma.order.findUnique({ where: { id: orderId }, select: { createdAt: true } })
+  if (!order) return
+  await prisma.order.updateMany({
+    where: { id: orderId, stockReserved: true, paymentStatus: "PENDING" },
+    data: { stockReservedUntil: new Date(order.createdAt.getTime() + STOCK_RESERVATION_PAYMENT_MINUTES * 60 * 1000) },
+  })
+}
+
+/**
+ * Unidades apartadas hoy por variante. El Excel y el ERP traen las existencias
+ * físicas, que incluyen lo apartado: quien las escriba debe restarlas o la
+ * reserva se pierde y al liberarla se sumaría una unidad que no existe.
+ */
+export async function getReservedQuantities(): Promise<Map<string, number>> {
+  const rows = await prisma.orderItem.groupBy({
+    by: ["variantId"],
+    where: { variantId: { not: null }, order: { stockReserved: true } },
+    _sum: { quantity: true },
+  })
+  return new Map(rows.flatMap((row) => (row.variantId ? [[row.variantId, row._sum.quantity ?? 0] as const] : [])))
 }
 
 export async function findOrderById(id: string) {
@@ -91,11 +207,16 @@ export async function closeUnpaidOrder(
   id: string,
   paymentStatus: Exclude<PaymentStatus, "APPROVED">
 ): Promise<boolean> {
-  const result = await prisma.order.updateMany({
-    where: { id, paymentStatus: { not: "APPROVED" }, status: { not: "CANCELLED" } },
-    data: { status: "CANCELLED", paymentStatus },
+  // Cerrar y devolver las unidades apartadas van juntos: o pasan ambos o ninguno.
+  return prisma.$transaction(async (tx) => {
+    const result = await tx.order.updateMany({
+      where: { id, paymentStatus: { not: "APPROVED" }, status: { not: "CANCELLED" } },
+      data: { status: "CANCELLED", paymentStatus },
+    })
+    if (result.count === 0) return false
+    await releaseReservedStock(tx, id)
+    return true
   })
-  return result.count > 0
 }
 
 /**
@@ -238,8 +359,21 @@ export async function markOrderPaidWithStock(
       return tx.order.findUniqueOrThrow({ where: { id } })
     }
 
+    // Si el checkout apartó las unidades, ya están descontadas: se consume la
+    // reserva en vez de restar otra vez. Condicional, para no chocar con una
+    // liberación por vencimiento que corra al mismo tiempo.
+    const consumedReservation = await tx.order.updateMany({
+      where: { id, stockReserved: true },
+      data: { stockReserved: false },
+    })
+    const alreadyDiscounted = consumedReservation.count === 1
+
     for (const item of order.items) {
       if (!item.variantId) continue
+      if (alreadyDiscounted) {
+        await decrementStoreInventory(tx, item.variantId, item.quantity)
+        continue
+      }
       // Decremento condicional: el propio UPDATE revalida las existencias sobre
       // la fila bloqueada, así dos ventas simultáneas no dejan el stock negativo.
       const decremented = await tx.variant.updateMany({
@@ -322,3 +456,23 @@ export async function findGuestOrdersByEmail(email: string) {
   })
 }
 
+
+/**
+ * Pedidos cuyo id termina en el número corto que ve el cliente (últimos 8
+ * caracteres). Lo usa la consulta pública de seguimiento, que además exige el correo.
+ * shortcut: `endsWith` recorre la tabla (sin índice); con decenas de miles de pedidos, guardar el número corto en una columna indexada.
+ */
+export async function findOrdersByShortNumber(shortNumber: string) {
+  return prisma.order.findMany({
+    where: { id: { endsWith: shortNumber, mode: "insensitive" } },
+    include: { items: { include: { product: true, variant: true } }, user: true },
+    take: 5,
+  })
+}
+
+export type OrderTimelineField = "shippedAt" | "readyForPickupAt" | "deliveredAt"
+
+/** Guarda la fecha de un paso del recorrido solo la primera vez (volver a guardar el estado no la mueve). */
+export async function stampOrderTimeline(id: string, field: OrderTimelineField) {
+  return prisma.order.updateMany({ where: { id, [field]: null }, data: { [field]: new Date() } })
+}

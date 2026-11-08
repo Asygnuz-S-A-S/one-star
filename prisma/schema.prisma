@@ -352,6 +352,16 @@ model Order {
   paymentReference     String? // Referencia de la pasarela (ej. ref_payco de ePayco)
   paymentStatus        PaymentStatus    @default(PENDING)
   paidAt               DateTime? // Momento en que se confirmó el pago
+  /// true mientras el pedido tiene descontadas sus unidades sin pago confirmado (reserva del checkout).
+  stockReserved        Boolean          @default(false)
+  /// Hasta cuándo se guardan esas unidades si nadie empieza a pagar; luego vuelven a la venta.
+  stockReservedUntil   DateTime?
+  /// Pasó a «Enviado» (con domicilio) por primera vez.
+  shippedAt            DateTime?
+  /// Pedido de recoger en tienda marcado «Listo para recoger» por primera vez.
+  readyForPickupAt     DateTime?
+  /// Entregado al cliente (o recogido en tienda).
+  deliveredAt          DateTime?
   customerEmail        String?
   customerName         String?
   customerDocumentType String?
@@ -372,6 +382,7 @@ model Order {
   @@index([customerDocument])
   @@index([customerPhone])
   @@index([leadId])
+  @@index([stockReserved, stockReservedUntil])
 }
 
 // unitPrice se congela al momento de la compra (no varía si el producto cambia de precio)
@@ -458,6 +469,7 @@ enum LandingSectionType {
   CUSTOM_HTML
   PRODUCT_CAROUSEL
   MEDIA_CAROUSEL
+  RECENTLY_VIEWED
 }
 
 model LandingSection {
@@ -715,6 +727,8 @@ model StoreSettings {
   contactPhone String?
   /// Oculta del catálogo público los productos que no tienen ninguna foto.
   hideImagelessProducts Boolean @default(true)
+  /// Oculta SALE (menú, footer y colección del inicio) mientras no tenga productos visibles.
+  hideEmptySale         Boolean @default(true)
   /// Cuántos días cuenta un producto como lanzamiento.
   newArrivalDays        Int     @default(30)
   chatEnabled           Boolean @default(true)

@@ -35,6 +35,10 @@ const txMock = {
   },
 }
 
+vi.mock("@/server/repositories/order.repository", () => ({
+  getReservedQuantities: vi.fn().mockResolvedValue(new Map()),
+}))
+
 vi.mock("@/server/db/prisma", () => ({
   prisma: {
     $transaction: vi.fn(async (cb: (tx: typeof txMock) => unknown) => cb(txMock)),
@@ -563,6 +567,21 @@ describe("previewProductImport", () => {
           stock: 12,
         }),
       })
+    )
+
+    // Celda de oferta vacía: una oferta del admin que quedó más cara que el precio nuevo se apaga.
+    const emptySale = buildBuffer([baseRow({ sku: "NK-1", size: "40", price: 499000, stock: 12, isOnSale: "" })])
+    await applyProductImport(emptySale, (await previewProductImport(emptySale)).fingerprint)
+    expect(txMock.product.updateMany).toHaveBeenCalledWith({
+      where: { id: "prod-erp-1", isOnSale: true, salePrice: { gte: 499000 } },
+      data: { isOnSale: false, salePrice: null },
+    })
+    // Lo apartado en checkouts abiertos no vuelve a la venta con el archivo.
+    const orders = await import("@/server/repositories/order.repository")
+    vi.mocked(orders.getReservedQuantities).mockResolvedValueOnce(new Map([["v-erp-1", 2]]))
+    await applyProductImport(buffer, preview.fingerprint)
+    expect(txMock.variant.update).toHaveBeenLastCalledWith(
+      expect.objectContaining({ where: { id: "v-erp-1" }, data: expect.objectContaining({ stock: 10 }) })
     )
 
     expect(txMock.inventoryLevel.create).toHaveBeenCalledWith(

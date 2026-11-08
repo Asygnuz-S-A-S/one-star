@@ -9,13 +9,18 @@ const erpMocks = vi.hoisted(() => ({
 }))
 
 vi.mock("@/server/repositories/order.repository", () => ({
-  createOrder: vi.fn(),
+  createOrderReservingStock: vi.fn(),
+  releaseExpiredStockReservations: vi.fn(async () => []),
+  StockReservationError: class StockReservationError extends Error {
+    constructor(public readonly variantId: string) { super("sin stock") }
+  },
   findOrderById: vi.fn(),
   findManyOrders: vi.fn(),
   findOrdersByUserId: vi.fn(),
   countOrders: vi.fn(),
   updateOrderStatus: vi.fn(),
   updateOrderStatusAndTracking: vi.fn(),
+  stampOrderTimeline: vi.fn(),
   getOrderStats: vi.fn(),
   getVariantsStock: vi.fn(),
   getStoreVariantsStock: vi.fn(),
@@ -51,6 +56,7 @@ vi.mock("@/server/services/gift-card.service", () => ({
 vi.mock("@/server/services/email.service", () => ({
   sendOrderConfirmationEmail: vi.fn(),
   sendOrderShippedEmail: vi.fn().mockResolvedValue({ success: true }),
+  sendOrderReadyForPickupEmail: vi.fn().mockResolvedValue({ success: true }),
 }))
 
 const giftCardLimits = vi.hoisted(() => ({ value: { minAmount: 20_000, maxAmount: 2_000_000, validityMonths: 12 } }))
@@ -77,13 +83,16 @@ import {
   sendOrderConfirmation,
 } from "../order.service"
 import {
-  createOrder,
+  createOrderReservingStock,
+  releaseExpiredStockReservations,
+  StockReservationError,
   findOrderById,
   findManyOrders,
   findOrdersByUserId,
   countOrders,
   updateOrderStatus,
   updateOrderStatusAndTracking,
+  stampOrderTimeline,
   getVariantsStock,
   getStoreVariantsStock,
   markOrderPaidWithStock,
@@ -91,7 +100,7 @@ import {
   findAbandonedPendingOrders,
   updateOrderCustomerData,
 } from "@/server/repositories/order.repository"
-import { sendOrderConfirmationEmail, sendOrderShippedEmail } from "@/server/services/email.service"
+import { sendOrderConfirmationEmail, sendOrderReadyForPickupEmail, sendOrderShippedEmail } from "@/server/services/email.service"
 import { findVariantsForPricing } from "@/server/repositories/variant.repository"
 import {
   validateCouponForOrder,
@@ -100,7 +109,7 @@ import {
   releaseCouponUsageByCode,
 } from "@/server/services/coupon.service"
 
-const mockCreate = vi.mocked(createOrder)
+const mockCreate = vi.mocked(createOrderReservingStock)
 const mockFindById = vi.mocked(findOrderById)
 const mockFindMany = vi.mocked(findManyOrders)
 const mockFindByUser = vi.mocked(findOrdersByUserId)
@@ -353,7 +362,7 @@ describe("placeOrder — cupones", () => {
     expect(mockValidateCoupon).toHaveBeenCalledWith("PROMO20", [
       { categoryId: "cat-1", unitPrice: 135000, quantity: 2 },
     ], { isClubMember: false })
-    expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ total: 264900 }))
+    expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ total: 264900 }), expect.any(Array), expect.any(Date))
   })
 
   it("registra el uso del cupón antes de crear el pedido", async () => {
@@ -425,7 +434,9 @@ describe("placeOrder — cupones", () => {
           couponCode: "PROMO20",
           couponDiscount: 20000,
         }),
-      })
+      }),
+      expect.any(Array),
+      expect.any(Date)
     )
   })
 
@@ -448,7 +459,9 @@ describe("placeOrder — seguridad de precios", () => {
     // 2 × 135.000 (precio BD) = 270.000 ≥ 200.000 → envío gratis
     await placeOrder("user-1", orderInput)
     expect(mockCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ total: 284900 })
+      expect.objectContaining({ total: 284900 }),
+      expect.any(Array),
+      expect.any(Date)
     )
     const input = mockCreate.mock.calls[0][0] as {
       items: { create: { unitPrice: number }[] }
@@ -470,7 +483,9 @@ describe("placeOrder — seguridad de precios", () => {
     await placeOrder("user-1", orderInput)
     // 2 × 100.000 = 200.000 → envío 14.900 → total 214.900
     expect(mockCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ total: 214900 })
+      expect.objectContaining({ total: 214900 }),
+      expect.any(Array),
+      expect.any(Date)
     )
   })
 
@@ -478,7 +493,9 @@ describe("placeOrder — seguridad de precios", () => {
     await placeOrder("user-1", { ...orderInput, items: [{ ...orderInput.items[0], quantity: 1 }] })
     // 135.000 < 299.900 → envío 14.900 → total 149.900
     expect(mockCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ total: 149900 })
+      expect.objectContaining({ total: 149900 }),
+      expect.any(Array),
+      expect.any(Date)
     )
   })
 
@@ -1028,5 +1045,79 @@ describe("updateOrderCustomerData", () => {
 
     await expect(updateCustomer("nope", input)).rejects.toThrow(/no encontrado/)
     expect(mockUpdateCustomer).not.toHaveBeenCalled()
+  })
+})
+
+describe("changeOrderStatusAndTracking — fechas del timeline", () => {
+  const mockStamp = vi.mocked(stampOrderTimeline)
+  const pickupAddress = { shippingMethod: "pickup", pickupStoreName: "One Star Fundadores", address: "C.C. Fundadores", city: "Manizales" }
+  const flush = () => new Promise((resolve) => setTimeout(resolve, 0))
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockUpdateTracking.mockResolvedValue(undefined as never)
+  })
+
+  it("al enviar un pedido a domicilio guarda la fecha de envío", async () => {
+    mockFindById.mockResolvedValue({ ...rawOrder, status: "PAID" } as never)
+    await changeOrderStatusAndTracking("order-1", "SHIPPED", "TRK1")
+    expect(mockStamp).toHaveBeenCalledWith("order-1", "shippedAt")
+  })
+
+  it("en recoger en tienda guarda «listo para recoger» y avisa con el correo de la tienda", async () => {
+    mockFindById.mockResolvedValue({ ...rawOrder, status: "PAID", shippingAddress: pickupAddress } as never)
+    await changeOrderStatusAndTracking("order-1", "SHIPPED")
+    await flush()
+    expect(mockStamp).toHaveBeenCalledWith("order-1", "readyForPickupAt")
+    expect(sendOrderReadyForPickupEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ orderId: "order-1", storeName: "One Star Fundadores", storeAddress: "C.C. Fundadores, Manizales" })
+    )
+    expect(sendOrderShippedEmail).not.toHaveBeenCalled()
+  })
+
+  it("al entregar guarda la fecha de entrega", async () => {
+    await changeOrderStatusAndTracking("order-1", "DELIVERED")
+    expect(mockStamp).toHaveBeenCalledWith("order-1", "deliveredAt")
+  })
+
+  it("otros estados no tocan las fechas", async () => {
+    mockFindById.mockResolvedValue({ ...rawOrder, status: "PAID", paymentStatus: "APPROVED" } as never)
+    await changeOrderStatusAndTracking("order-1", "CANCELLED")
+    expect(mockStamp).not.toHaveBeenCalled()
+  })
+})
+
+
+describe("placeOrder — reserva de stock", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockPricing.mockResolvedValue([pricedVariant] as never)
+    mockGetStock.mockResolvedValue([{ id: "var-1", stock: 5, sku: "NK-001" }])
+    mockCreate.mockResolvedValue(rawOrder as never)
+  })
+
+  it("aparta las unidades al crear el pedido por 15 minutos", async () => {
+    const before = Date.now()
+
+    await placeOrder("user-1", orderInput)
+
+    const [, items, until] = mockCreate.mock.calls[0]
+    expect(items).toEqual([{ variantId: "var-1", quantity: 2 }])
+    const minutes = ((until as Date).getTime() - before) / 60_000
+    expect(minutes).toBeGreaterThan(14.9)
+    expect(minutes).toBeLessThan(15.1)
+  })
+
+  it("libera las reservas vencidas antes de validar el stock", async () => {
+
+    await placeOrder("user-1", orderInput)
+
+    expect(releaseExpiredStockReservations).toHaveBeenCalled()
+  })
+
+  it("si otra compra se llevó la última unidad, explica el motivo", async () => {
+    mockCreate.mockRejectedValue(new StockReservationError("var-1"))
+
+    await expect(placeOrder("user-1", orderInput)).rejects.toThrow(/última unidad/)
   })
 })

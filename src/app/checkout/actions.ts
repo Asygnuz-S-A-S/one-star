@@ -5,14 +5,15 @@ import { cookies, headers } from "next/headers"
 import { auth } from "@/lib/auth"
 import { LEAD_COOKIE_NAME, verifyLeadCookieValue } from "@/lib/lead-cookie"
 import { prisma } from "@/server/db/prisma"
-import { placeOrder } from "@/server/services/order.service"
+import { cancelUnpaidOrder, getOrderById, placeOrder } from "@/server/services/order.service"
+import { extendStockReservation } from "@/server/repositories/order.repository"
 import { linkOrderToLead } from "@/server/services/lead.service"
 import { markCartsRecoveredForEmail } from "@/server/services/abandoned-cart.service"
 import { getUserById } from "@/server/services/user.service"
 import { checkoutSchema } from "@/server/validators/checkout.validator"
 import { getPickupStores } from "@/server/services/store.service"
 import { consumePublicRateLimit } from "@/server/services/public-rate-limit.service"
-import { signGuestOrderSuccessToken } from "@/server/services/guest-order.service"
+import { signGuestOrderSuccessToken, verifyGuestOrderSuccessToken } from "@/server/services/guest-order.service"
 import type { EpaycoCheckoutData } from "@/components/checkout/EpaycoButton"
 
 interface CheckoutItem {
@@ -96,6 +97,20 @@ export async function createOrder(data: CheckoutData): Promise<CreateOrderResult
             code: "ORDER_ERROR",
             error: "Demasiados intentos de pedido para este correo. Por favor intenta más tarde.",
           }
+        }
+      }
+    } else {
+      // Cada pedido aparta unidades: una cuenta no puede acaparar el inventario.
+      const customerLimit = await consumePublicRateLimit("customer_order", reqHeaders, {
+        max: 15,
+        windowMs: 60 * 60 * 1000,
+        subject: userId,
+      })
+      if (!customerLimit.allowed) {
+        return {
+          success: false,
+          code: "ORDER_ERROR",
+          error: "Demasiados intentos de pedido desde esta cuenta. Por favor intenta más tarde.",
         }
       }
     }
@@ -235,6 +250,33 @@ export async function createOrder(data: CheckoutData): Promise<CreateOrderResult
 /**
  * Obtiene los datos del perfil del cliente autenticado para autocompletar el formulario de checkout.
  */
+/** El pedido si sigue sin pagar y quien llama es su dueño (cuenta o invitado con su token firmado). */
+async function findOwnedUnpaidOrder(input: { orderId: string; guestToken?: string }) {
+  const orderId = typeof input?.orderId === "string" ? input.orderId.trim() : ""
+  if (!orderId) return null
+  const order = await getOrderById(orderId)
+  if (!order || order.status !== "PENDING" || order.paymentStatus !== "PENDING") return null
+  if (order.userId === null) return verifyGuestOrderSuccessToken(input.guestToken)?.orderId === order.id ? order : null
+  const session = await auth.api.getSession({ headers: await headers() })
+  return session?.user?.id === order.userId ? order : null
+}
+
+/** El cliente abrió ePayco: las unidades se guardan mientras termina de pagar. */
+export async function holdStockWhilePaying(input: { orderId: string; guestToken?: string }): Promise<void> {
+  const order = await findOwnedUnpaidOrder(input)
+  if (order) await extendStockReservation(order.id)
+}
+
+/**
+ * El cliente volvió a modificar sus datos: al confirmar se crea otro pedido, y
+ * este no puede seguir reteniendo sus unidades ni su cupón. Con referencia de
+ * la pasarela hay un pago en curso y no se toca.
+ */
+export async function abandonCheckoutOrder(input: { orderId: string; guestToken?: string }): Promise<void> {
+  const order = await findOwnedUnpaidOrder(input)
+  if (order && !order.paymentReference) await cancelUnpaidOrder(order.id)
+}
+
 export async function getCustomerCheckoutProfile(): Promise<{
   email: string
   name?: string

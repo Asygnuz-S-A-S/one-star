@@ -140,6 +140,8 @@ export function orderConfirmationEmail(params: {
   total: number
   /** Pedido para recoger: reemplaza el aviso de despacho. */
   pickupStore?: { name: string; address: string }
+  /** Página pública de seguimiento (sirve sin cuenta). */
+  trackOrderUrl?: string
   copy?: EmailCopy
 }): EmailContent {
   const rows = params.items
@@ -179,7 +181,8 @@ export function orderConfirmationEmail(params: {
       ${params.pickupStore
         ? `Recoges tu pedido en <strong>${escapeHtml(params.pickupStore.name)}</strong>${params.pickupStore.address ? ` (${escapeHtml(params.pickupStore.address)})` : ""}. Te avisaremos cuando esté listo; lleva tu documento.`
         : "Te avisaremos cuando tu pedido sea despachado."} ¡Gracias por confiar en One Star!
-    </p>`
+    </p>
+    ${params.trackOrderUrl ? `<p style="margin:16px 0 0;font-size:14px;line-height:1.6;color:${COLOR.muted};">Consulta el estado cuando quieras en <a href="${escapeHtml(params.trackOrderUrl)}" style="color:${COLOR.text};">Rastrear mi pedido</a>, con este número y tu correo.</p>` : ""}`
 
   return {
     subject: subjectOr(params.copy, vars, `Confirmación de tu pedido One Star #${shortId}`),
@@ -425,6 +428,8 @@ export function orderShippedEmail(params: {
   carrierLabel?: string | null
   trackingNumber?: string | null
   trackingUrl?: string | null
+  /** Página pública de seguimiento (sirve sin cuenta). */
+  trackOrderUrl?: string
   copy?: EmailCopy
 }): EmailContent {
   const shortId = params.orderId.slice(-8).toUpperCase()
@@ -442,13 +447,44 @@ export function orderShippedEmail(params: {
       ${introOr(params.copy, vars, `Tu pedido <strong>#${escapeHtml(shortId)}</strong> ya salió de nuestra bodega y va en camino.`)}
     </p>
     ${details}
-    ${params.trackingUrl ? button(params.trackingUrl, "RASTREAR MI PEDIDO") : ""}
+    ${params.trackingUrl ? button(params.trackingUrl, "RASTREAR MI PEDIDO") : params.trackOrderUrl ? button(params.trackOrderUrl, "VER ESTADO DEL PEDIDO") : ""}
     <p style="margin:0 0 8px;font-size:14px;line-height:1.6;color:${COLOR.muted};">
       Si tienes alguna pregunta sobre tu envío, escríbenos y con gusto te ayudamos.
     </p>`
   return {
     subject: subjectOr(params.copy, vars, `Tu pedido One Star #${shortId} va en camino`),
     html: layout(inner, `Tu pedido #${shortId} ya fue despachado.`),
+  }
+}
+
+/** Pedido de recoger en tienda listo: el cliente ya puede pasar por él. */
+export function orderReadyForPickupEmail(params: {
+  name?: string
+  orderId: string
+  storeName: string
+  storeAddress?: string
+  trackOrderUrl?: string
+  copy?: EmailCopy
+}): EmailContent {
+  const shortId = params.orderId.slice(-8).toUpperCase()
+  const vars = { nombre: firstName(params.name), pedido: shortId }
+  const inner = `
+    <h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;">Tu pedido está listo para recoger</h1>
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${COLOR.text};">${greeting(params.name)}</p>
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${COLOR.text};">
+      ${introOr(params.copy, vars, `Tu pedido <strong>#${escapeHtml(shortId)}</strong> ya está separado y puedes recogerlo.`)}
+    </p>
+    <div style="background:#F9F9F9;border:1px solid #E0E0E0;border-radius:8px;padding:16px;margin:16px 0;">
+      <p style="margin:0 0 8px;font-size:14px;color:${COLOR.text};"><strong>Tienda:</strong> ${escapeHtml(params.storeName)}</p>
+      ${params.storeAddress ? `<p style="margin:0;font-size:14px;color:${COLOR.text};"><strong>Dirección:</strong> ${escapeHtml(params.storeAddress)}</p>` : ""}
+    </div>
+    <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:${COLOR.muted};">
+      Lleva tu documento de identidad y el número de pedido. Si otra persona lo recoge, debe llevar una copia de tu documento.
+    </p>
+    ${params.trackOrderUrl ? button(params.trackOrderUrl, "VER ESTADO DEL PEDIDO") : ""}`
+  return {
+    subject: subjectOr(params.copy, vars, `Tu pedido One Star #${shortId} está listo para recoger`),
+    html: layout(inner, `Ya puedes recoger tu pedido #${shortId}.`),
   }
 }
 

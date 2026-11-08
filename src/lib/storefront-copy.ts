@@ -34,6 +34,7 @@ export const DEFAULT_FOOTER_LINKS: FooterLink[] = [
   { label: "One Star Club", href: "/club" },
   { label: "Tarjeta de regalo", href: "/tarjeta-regalo" },
   { label: "Tiendas", href: "/tiendas" },
+  { label: "Rastrear pedido", href: "/rastrear-pedido" },
   { label: "Términos", href: "/terminos" },
   { label: "Privacidad", href: "/privacidad" },
   { label: "Cookies", href: "/cookies" },
@@ -124,4 +125,9 @@ export function giftCardExpiry(from: Date, months: number): Date {
   const next = new Date(from)
   next.setMonth(next.getMonth() + months)
   return next
+}
+
+/** true para enlaces a la página de ofertas (/sale, con o sin barra final, query o ancla). */
+export function isSaleHref(href: string): boolean {
+  return href.split(/[?#]/)[0].replace(/\/+$/, "").toLowerCase() === "/sale"
 }

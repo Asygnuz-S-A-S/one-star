@@ -10,7 +10,7 @@ import {
 import { buildAddiApplication, createAddiApplication } from "@/server/services/addi-payment.service"
 import { verifyGuestOrderSuccessToken } from "@/server/services/guest-order.service"
 import { getOrderById } from "@/server/services/order.service"
-import { updateOrderPaymentMethod } from "@/server/repositories/order.repository"
+import { extendStockReservation, updateOrderPaymentMethod } from "@/server/repositories/order.repository"
 
 export async function getAddiWidgetEvaluationAction(
   amount: number
@@ -72,5 +72,6 @@ export async function startAddiPaymentAction(input: {
   }
 
   await updateOrderPaymentMethod(order.id, "addi")
+  await extendStockReservation(order.id)
   return { success: true, redirectUrl: result.redirectUrl }
 }

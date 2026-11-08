@@ -223,6 +223,13 @@ export default function StoreInfoForm({ settings }: StoreInfoFormProps) {
           <input type="checkbox" name="groupColorsInCatalog" defaultChecked={settings.groupColorsInCatalog} className="h-4 w-4 accent-[#E31C23]" />
           Agrupar colores del mismo modelo en el catálogo
         </label>
+        <label className="mb-4 flex items-start gap-2 text-sm text-[#1C1C1C]">
+          <input type="checkbox" name="hideEmptySale" defaultChecked={settings.hideEmptySale} className="mt-0.5 h-4 w-4 accent-[#E31C23]" />
+          <span>
+            Ocultar SALE mientras no tenga productos
+            <span className="block text-xs text-[#4A4A4A]">Quita SALE del menú, del footer y la colección del inicio que lleva a /sale. Vuelve solo cuando marques un producto en oferta.</span>
+          </span>
+        </label>
         <div>
           <label htmlFor="new-arrival-days" className={labelClass}>Días que un producto cuenta como lanzamiento</label>
           <input id="new-arrival-days" name="newArrivalDays" inputMode="numeric" defaultValue={settings.newArrivalDays} className={inputClass} />

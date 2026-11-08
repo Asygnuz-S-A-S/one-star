@@ -2,10 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 vi.mock("server-only", () => ({}))
 
-const mocks = vi.hoisted(() => ({ expireAbandonedOrders: vi.fn() }))
+const mocks = vi.hoisted(() => ({ expireAbandonedOrders: vi.fn(), releaseStockReservations: vi.fn(async () => ["r-1"]) }))
 
 vi.mock("@/server/services/order.service", () => ({
   expireAbandonedOrders: mocks.expireAbandonedOrders,
+  releaseStockReservations: mocks.releaseStockReservations,
 }))
 
 import { GET } from "./route"
@@ -23,7 +24,7 @@ describe("GET /api/cron/expire-orders", () => {
     const response = await GET(new Request("http://localhost/api/cron/expire-orders"))
 
     expect(response.status).toBe(200)
-    await expect(response.json()).resolves.toMatchObject({ success: true, expired: 2 })
+    await expect(response.json()).resolves.toMatchObject({ success: true, expired: 2, releasedReservations: 1 })
   })
 
   it("rechaza un secreto incorrecto antes de tocar los pedidos", async () => {

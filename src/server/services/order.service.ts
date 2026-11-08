@@ -1,12 +1,15 @@
 import "server-only"
 import {
-  createOrder,
+  createOrderReservingStock,
+  StockReservationError,
+  releaseExpiredStockReservations,
   findOrderById,
   findManyOrders,
   findOrdersByUserId,
   countOrders,
   updateOrderStatus,
   updateOrderStatusAndTracking,
+  stampOrderTimeline,
   getOrderStats,
   getVariantsStock,
   getStoreVariantsStock,
@@ -18,7 +21,9 @@ import {
 import { findVariantsForPricing } from "../repositories/variant.repository"
 import type { Prisma, OrderStatus, PaymentStatus } from "@prisma/client"
 import { getERPAdapter } from "../erp"
-import { sendOrderConfirmationEmail, sendOrderShippedEmail } from "./email.service"
+import { isPickupShipping } from "@/lib/order-status"
+import { STOCK_RESERVATION_MINUTES } from "@/lib/stock-reservation"
+import { sendOrderConfirmationEmail, sendOrderReadyForPickupEmail, sendOrderShippedEmail } from "./email.service"
 import { getShippingTrackingAdapter } from "../shipping/tracking"
 import { issueAndSendGiftCardsForOrder } from "./gift-card.service"
 import { DEFAULT_SHIPPING_RATES, getShippingCost, type ShippingMethod } from "@/lib/shipping"
@@ -40,6 +45,8 @@ import type { OrderCustomerDataInput } from "../validators/order.validator"
  */
 export const ABANDONED_ORDER_TTL_HOURS = 24
 
+export { STOCK_RESERVATION_MINUTES } from "@/lib/stock-reservation"
+
 export interface OrderItemDTO {
   id: string
   productId: string
@@ -57,6 +64,9 @@ export interface OrderDTO {
   paymentStatus: string
   paymentReference: string | null
   paidAt: string | null
+  shippedAt?: string | null
+  readyForPickupAt?: string | null
+  deliveredAt?: string | null
   total: number
   paymentMethod: string | null
   trackingNumber: string | null
@@ -82,6 +92,9 @@ function mapToDTO(raw: {
   paymentStatus?: string | null
   paymentReference?: string | null
   paidAt?: Date | null
+  shippedAt?: Date | null
+  readyForPickupAt?: Date | null
+  deliveredAt?: Date | null
   total: { toNumber: () => number }
   paymentMethod: string | null
   trackingNumber: string | null
@@ -113,6 +126,9 @@ function mapToDTO(raw: {
     paymentStatus: raw.paymentStatus ?? "PENDING",
     paymentReference: raw.paymentReference ?? null,
     paidAt: raw.paidAt ? raw.paidAt.toISOString() : null,
+    shippedAt: raw.shippedAt ? raw.shippedAt.toISOString() : null,
+    readyForPickupAt: raw.readyForPickupAt ? raw.readyForPickupAt.toISOString() : null,
+    deliveredAt: raw.deliveredAt ? raw.deliveredAt.toISOString() : null,
     total: raw.total.toNumber(),
     paymentMethod: raw.paymentMethod,
     trackingNumber: raw.trackingNumber,
@@ -272,9 +288,13 @@ export async function placeOrder(
   const discountAmount = appliedCoupon?.discountAmount ?? 0
   const total = subtotal - discountAmount + shippingCost
 
-  // 0.1 Valida disponibilidad de stock ANTES de crear el pedido.
-  //     El stock se descuenta luego al marcar el pedido como PAID, pero se
-  //     rechaza de entrada si ya no hay unidades suficientes.
+  // 0.1 Valida disponibilidad de stock ANTES de crear el pedido. Primero
+  //     devuelve a la venta las reservas vencidas, para no rechazar una compra
+  //     por unidades que otro cliente apartó y nunca pagó. La reserva real
+  //     (atómica) ocurre al crear el pedido; esto solo da un mensaje claro.
+  await releaseExpiredStockReservations(new Date()).catch((error: unknown) => {
+    console.error("[order] no se pudieron liberar las reservas vencidas:", error)
+  })
   const variantIds = pricedItems.map((i) => i.variantId)
 
   if (variantIds.length > 0) {
@@ -390,14 +410,24 @@ export async function placeOrder(
     }
   }
 
-  // 1. Persiste el pedido en la BD de One Star primero.
-  //    El pedido siempre queda registrado, independientemente del ERP.
-  let order: Awaited<ReturnType<typeof createOrder>>
+  // 1. Persiste el pedido y aparta sus unidades en la misma transacción: el
+  //    stock baja ya y vuelve a la venta si nadie empieza a pagar en
+  //    STOCK_RESERVATION_MINUTES (ver releaseExpiredStockReservations).
+  const reservedUntil = new Date(Date.now() + STOCK_RESERVATION_MINUTES * 60 * 1000)
+  let order: Awaited<ReturnType<typeof createOrderReservingStock>>
   try {
-    order = await createOrder(orderInput)
+    order = await createOrderReservingStock(
+      orderInput,
+      pricedItems.map((i) => ({ variantId: i.variantId, quantity: i.quantity })),
+      reservedUntil
+    )
   } catch (error) {
     if (appliedCoupon) {
       await releaseCouponUsage(appliedCoupon.id)
+    }
+    if (error instanceof StockReservationError) {
+      const item = pricedItems.find((i) => i.variantId === error.variantId)
+      throw new Error(`Alguien más acaba de comprar la última unidad de "${item?.productName ?? "un producto de tu bolsa"}". Actualiza tu bolsa.`)
     }
     throw error
   }
@@ -581,6 +611,15 @@ export async function cancelUnpaidOrder(id: string): Promise<void> {
  * pasarela y más antiguos que `ABANDONED_ORDER_TTL_HOURS`. Devuelve los ids
  * que quedaron cerrados. Pensado para el cron diario.
  */
+/**
+ * Devuelve a la venta las unidades de los pedidos cuya reserva venció sin que
+ * el cliente empezara a pagar. El pedido sigue PENDING: si el pago llega
+ * después, se descuenta de nuevo al aprobarse (si aún hay stock).
+ */
+export async function releaseStockReservations(now: Date = new Date()): Promise<string[]> {
+  return releaseExpiredStockReservations(now)
+}
+
 export async function expireAbandonedOrders(now: Date = new Date()): Promise<string[]> {
   const before = new Date(now.getTime() - ABANDONED_ORDER_TTL_HOURS * 60 * 60 * 1000)
   const stale = await findAbandonedPendingOrders(before)
@@ -639,11 +678,18 @@ export async function changeOrderStatusAndTracking(
     }
   }
   // Solo se avisa el despacho la primera vez que pasa a SHIPPED (editar la guía después no reenvía).
-  const wasShipped = status === "SHIPPED" ? (await findOrderById(id))?.status === "SHIPPED" : true
+  const current = status === "SHIPPED" ? await findOrderById(id) : null
+  const wasShipped = status === "SHIPPED" ? current?.status === "SHIPPED" : true
   if (carrier !== undefined) {
     await updateOrderStatusAndTracking(id, status, trackingNumber, carrier)
   } else {
     await updateOrderStatusAndTracking(id, status, trackingNumber)
+  }
+  // Fechas del timeline: «Enviado» en un pedido de recoger en tienda significa «Listo para recoger».
+  if (status === "SHIPPED") {
+    await stampOrderTimeline(id, isPickupShipping(current?.shippingAddress) ? "readyForPickupAt" : "shippedAt")
+  } else if (status === "DELIVERED") {
+    await stampOrderTimeline(id, "deliveredAt")
   }
   if (!wasShipped) {
     notifyOrderShipped(id).catch((error: unknown) => {
@@ -659,10 +705,21 @@ export function orderTrackingUrl(order: { trackingNumber: string | null; carrier
   return getShippingTrackingAdapter(order.carrier).buildTrackingUrl(guide)
 }
 
-/** Correo «tu pedido va en camino». Fire-and-forget desde el cambio de estado. */
+/** Correo «tu pedido va en camino» o, si recoge en tienda, «ya puedes recogerlo». Fire-and-forget desde el cambio de estado. */
 export async function notifyOrderShipped(id: string): Promise<void> {
   const order = await getOrderById(id)
   if (!order?.customerEmail) return
+  if (isPickupShipping(order.shippingAddress)) {
+    const shipping = order.shippingAddress as Record<string, unknown>
+    await sendOrderReadyForPickupEmail({
+      email: order.customerEmail,
+      name: order.customerName ?? undefined,
+      orderId: order.id,
+      storeName: typeof shipping.pickupStoreName === "string" ? shipping.pickupStoreName : "nuestra tienda",
+      storeAddress: [shipping.address, shipping.city].filter((v) => typeof v === "string" && v).join(", "),
+    })
+    return
+  }
   const guide = order.trackingNumber?.trim() || null
   await sendOrderShippedEmail({
     email: order.customerEmail,

@@ -83,6 +83,9 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
   const tiltRef = useRef<HTMLDivElement | null>(null)
   // Solo se anima el cambio de foto tras recorrerla con el cursor, no al cargar la página.
   const [scrubbed, setScrubbed] = useState(false)
+  // Las demás fotos de la galería solo se montan al interactuar: en celular (sin hover) cada
+  // tarjeta pedía 6-8 imágenes a la vez y la grilla quedaba en gris mientras cargaban.
+  const [galleryReady, setGalleryReady] = useState(false)
   const imageColorOptions = (colorSummary?.imageOptions ?? []).filter((option) =>
     allFrames.includes(option.imageUrl)
   )
@@ -124,6 +127,7 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
   }
 
   const handleMouseEnterSequence = () => {
+    setGalleryReady(true)
     setActiveColorName(null)
     setActiveFrame(0)
   }
@@ -143,6 +147,7 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
 
   const previewColorImage = (option: ProductCardColorImageOption) => {
     if (!allFrames.includes(option.imageUrl)) return
+    setGalleryReady(true)
 
     // Al fijar el color, `frames` pasa a ser el de ese color y su primera
     // foto es justamente la de la miniatura.
@@ -166,11 +171,11 @@ export default function ProductCard({ id, slug, name, brand, price, salePrice, i
       <div 
         ref={imageFrameRef}
         data-testid="product-card-media"
-        className="relative mb-3 aspect-square overflow-hidden rounded-store-sm bg-white border border-gray-200/80 shadow-sm dark:bg-white/5 dark:border-white/10"
+        className="relative mb-3 aspect-square overflow-hidden rounded-store-sm bg-white dark:bg-white/5"
       >
         <div ref={tiltRef} className="h-full w-full bg-inherit transition-transform duration-500 ease-[cubic-bezier(.22,1,.36,1)] [transform:perspective(900px)_rotateY(var(--card-ry,0deg))_scale(1.08)]">
           <div className="absolute inset-0 w-full h-full pointer-events-none [mask-image:radial-gradient(ellipse_92%_88%_at_50%_50%,black_80%,transparent_100%)] [-webkit-mask-image:radial-gradient(ellipse_92%_88%_at_50%_50%,black_80%,transparent_100%)]">
-            {frames.map((src, index) => (
+            {frames.map((src, index) => (galleryReady || index === visibleFrame) && (
               <Image
                 key={`frame-${index}`}
                 src={src}

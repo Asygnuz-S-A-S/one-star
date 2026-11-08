@@ -14,6 +14,22 @@ const campaign = {
 }
 
 describe("EditorialCampaignHero", () => {
+  it("banner solo imagen: sin título visible, sin botones y sin degradado", () => {
+    const html = renderToStaticMarkup(<EditorialCampaignHero campaign={{ version: 1, kind: "campaignHero", accent: "carbon", noOverlay: true, desktopMedia: { src: "/converse.jpg", alt: "Converse Chuck Taylor" } }} />)
+
+    expect(html).toContain('<h1 class="sr-only">Converse Chuck Taylor</h1>')
+    expect(html).not.toContain("bg-gradient-to-t")
+    expect(html).not.toContain(">ONE<")
+    expect(html).not.toMatch(/href="\/(productos|lanzamientos)"/)
+  })
+
+  it("con degradado y botón cuando se configuran", () => {
+    const html = renderToStaticMarkup(<EditorialCampaignHero campaign={{ ...campaign, desktopMedia: { src: "/d.jpg", alt: "Campaña" } }} />)
+
+    expect(html).toContain("bg-gradient-to-t")
+    expect(html).toContain('href="/lanzamientos"')
+  })
+
   it("renders named campaign CTAs and a stable fallback without media", () => {
     const html = renderToStaticMarkup(<EditorialCampaignHero campaign={campaign} />)
 

@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   closeOrderWithoutPayment: vi.fn(),
   sendOrderConfirmation: vi.fn(),
   updateOrderPaymentReference: vi.fn(),
+  releaseOrderStockReservation: vi.fn(),
   sendMetaPurchaseForOrder: vi.fn(),
   fetchEpaycoTransaction: vi.fn(),
   getUserByEmail: vi.fn(),
@@ -24,6 +25,7 @@ vi.mock("@/server/services/order.service", () => ({
 }))
 vi.mock("@/server/repositories/order.repository", () => ({
   updateOrderPaymentReference: mocks.updateOrderPaymentReference,
+  releaseOrderStockReservation: mocks.releaseOrderStockReservation,
 }))
 vi.mock("@/server/services/meta-conversions.service", () => ({
   sendMetaPurchaseForOrder: mocks.sendMetaPurchaseForOrder,
@@ -247,6 +249,16 @@ describe("applyPaymentNotification", () => {
     const result = await applyPaymentNotification({ ...accepted, codResponse: "2" })
 
     expect(result.outcome).toBe("already_cancelled")
+    expect(mocks.closeOrderWithoutPayment).not.toHaveBeenCalled()
+  })
+
+  it.each(["9", "10", "11"])("intento muerto (%s): libera la reserva y deja el pedido abierto", async (codResponse) => {
+    mocks.getOrderById.mockResolvedValue(pendingOrder)
+
+    const result = await applyPaymentNotification({ ...accepted, codResponse })
+
+    expect(result.outcome).toBe("pending")
+    expect(mocks.releaseOrderStockReservation).toHaveBeenCalledWith("order-1")
     expect(mocks.closeOrderWithoutPayment).not.toHaveBeenCalled()
   })
 

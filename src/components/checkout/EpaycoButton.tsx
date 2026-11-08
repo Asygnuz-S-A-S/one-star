@@ -4,6 +4,7 @@ import { useCallback, useState } from "react"
 import Script from "next/script"
 
 import { useCspNonce } from "@/app/providers"
+import { holdStockWhilePaying } from "@/app/checkout/actions"
 
 export interface EpaycoCheckoutData {
   orderId: string
@@ -86,6 +87,7 @@ export default function EpaycoButton({
         ? `${baseUrl}/checkout/success?token=${encodeURIComponent(guestToken)}`
         : `${baseUrl}/checkout/success?orderId=${encodeURIComponent(orderId)}`
 
+      holdStockWhilePaying({ orderId, guestToken }).catch(() => undefined)
       handler.open({
         name: `Pedido One Star #${reference}`,
         description: `One Star · Pedido #${reference}`,

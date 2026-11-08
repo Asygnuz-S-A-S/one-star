@@ -173,7 +173,7 @@ export default function Header({
 
       {/* ── Barra de navegación ──────────────────────────────────────── */}
       <div 
-        className={`relative z-10 transition-all duration-300 backdrop-blur-xl ${isScrolled || menuOpen ? "bg-white/95 dark:bg-black/80 shadow-sm" : "bg-white/92 dark:bg-black/78"}`}
+        className={`relative z-10 transition-all duration-300 bg-white dark:bg-black ${isScrolled || menuOpen ? "shadow-sm" : ""}`}
         // Margen, relleno y radio de la configuración se ignoran a propósito (HU-11):
         // despegaban la barra del anuncio y la hacían más alta que el espacio que
         // reserva PublicSiteFrame, tapando el contenido. El encabezado es una sola
@@ -363,7 +363,8 @@ export default function Header({
             <motion.button
               type="button"
               aria-label="Cerrar menú"
-              className={`fixed inset-x-0 top-0 z-0 bg-black/40 lg:hidden ${compactMobileNav ? "bottom-[calc(6.75rem+env(safe-area-inset-bottom))]" : "inset-y-0"}`}
+              // Toda la pantalla, con desenfoque degradado: el menú inferior flota y ya no deja una franja blanca.
+              className="fixed inset-0 z-0 bg-gradient-to-b from-black/55 via-black/35 to-black/20 backdrop-blur-[6px] lg:hidden"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}

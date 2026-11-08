@@ -37,11 +37,17 @@ export default function StoreFooter({
               {link.label}
             </Link>
           ))}
+          {/* Los enlaces se editan en Configuración; el rastreo sin cuenta siempre debe estar a la mano. */}
+          {!links.some((link) => link.href === "/rastrear-pedido") && (
+            <Link href="/rastrear-pedido" className="min-h-11 font-montserrat text-sm text-white/80 underline-offset-2 hover:text-white hover:underline">
+              Rastrear pedido
+            </Link>
+          )}
           <CookiePreferencesButton />
         </nav>
       </div>
       <div className="border-t border-white/10 py-4 text-center font-montserrat text-xs text-white/50">
-        <p>© {new Date().getFullYear()} {storeName}. Todos los derechos reservados. · Versión 16</p>
+        <p>© {new Date().getFullYear()} {storeName}. Todos los derechos reservados. · Versión 17</p>
       </div>
     </footer>
   )

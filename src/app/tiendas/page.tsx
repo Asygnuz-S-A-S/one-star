@@ -1,3 +1,5 @@
+import Image from "next/image"
+import { canUseNextImageOptimization } from "@/lib/image-optimization"
 import React from "react"
 import { prisma } from "@/server/db/prisma"
 import DynamicStoreMap from "@/components/tiendas/DynamicStoreMap"
@@ -62,14 +64,29 @@ export default async function TiendasPage() {
                   const coords = resolveStoreCoordinates(store)
                   // Una sola tienda en la ciudad: tarjeta ancha con el mapa al lado, sin dejar la página vacía.
                   const wide = cityStores.length === 1
+                  const [cover, ...rest] = store.photos ?? []
+                  const morePhotos = rest.slice(0, 3)
                   return (
                     <article
                       key={store.id}
                       className={`overflow-hidden rounded-[var(--store-radius-lg)] border border-[#ECECEA] bg-white transition-shadow hover:shadow-[var(--store-elevation-raised)] ${
-                        wide ? "md:col-span-2 xl:col-span-3 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)]" : "flex flex-col"
+                        wide ? "md:col-span-2 xl:col-span-3" : "flex flex-col"
                       }`}
                     >
-                      <div className={`relative z-0 h-56 w-full ${wide ? "sm:h-72 lg:order-2 lg:h-full lg:min-h-[340px]" : ""}`}>
+                      {/* Foto principal como banner de la tarjeta; las demás quedan en miniatura abajo. */}
+                      {cover && (
+                        <div className={`relative w-full overflow-hidden bg-[#F5F5F5] ${wide ? "aspect-[16/9] md:aspect-[21/8]" : "aspect-[16/10]"}`}>
+                          <Image src={cover} alt={`${store.name}, fachada`} fill sizes="(min-width: 1280px) 1152px, 100vw" unoptimized={!canUseNextImageOptimization(cover)} className="object-cover" />
+                          <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+                          <div className="absolute inset-x-0 bottom-0 p-5 md:p-8">
+                            <p className="font-barlow text-xs font-bold uppercase tracking-[0.18em] text-white/80">{store.city}</p>
+                            <h3 className="font-barlow text-2xl font-bold uppercase leading-tight text-white md:text-4xl">{store.name}</h3>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className={wide ? "flex flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]" : "flex flex-1 flex-col"}>
+                      <div className={`relative z-0 order-2 h-56 w-full ${wide ? "sm:h-72 lg:h-full lg:min-h-[340px]" : ""}`}>
                         <DynamicStoreMap
                           position={coords}
                           query={getStoreMapQuery(store)}
@@ -80,31 +97,27 @@ export default async function TiendasPage() {
 
                       <div className="flex flex-1 flex-col justify-between gap-6 p-6 lg:p-8">
                         <div>
-                          <p className="store-eyebrow mb-2">{store.city}</p>
-                          <h3 className="font-barlow text-2xl font-bold uppercase leading-tight text-[#1C1C1C]">
-                            {store.name}
-                          </h3>
-                          {store.photos && store.photos.length > 0 && (
-                            <div className={`mt-5 grid gap-2 ${
-                              store.photos.length === 1 ? "grid-cols-1" : store.photos.length === 2 ? "grid-cols-2" : "grid-cols-3"
-                            }`}>
-                              {store.photos.slice(0, 3).map((photoUrl, idx) => (
+                          {!cover && (
+                            <>
+                              <p className="store-eyebrow mb-2">{store.city}</p>
+                              <h3 className="font-barlow text-2xl font-bold uppercase leading-tight text-[#1C1C1C]">
+                                {store.name}
+                              </h3>
+                            </>
+                          )}
+                          {morePhotos.length > 0 && (
+                            <div className="mt-1 grid grid-cols-3 gap-2">
+                              {morePhotos.map((photoUrl, idx) => (
                                 <div
                                   key={photoUrl}
                                   className="relative aspect-[4/3] overflow-hidden rounded-[var(--store-radius)] bg-[#F5F5F5]"
                                 >
-                                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                                  <img
-                                    src={photoUrl}
-                                    alt={`${store.name}, foto ${idx + 1}`}
-                                    className="h-full w-full object-cover"
-                                    loading="lazy"
-                                  />
+                                  <Image src={photoUrl} alt={`${store.name}, foto ${idx + 2}`} fill sizes="160px" unoptimized={!canUseNextImageOptimization(photoUrl)} className="object-cover" />
                                 </div>
                               ))}
                             </div>
                           )}
-                          <dl className="mt-5 space-y-3 font-montserrat text-sm text-[#4A4A4A]">
+                        <dl className="mt-5 space-y-3 font-montserrat text-sm text-[#4A4A4A]">
                             <div className="flex gap-3">
                               <dt className="sr-only">Dirección</dt>
                               <svg aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-[#1C1C1C]" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657 13.414 20.9a2 2 0 0 1-2.827 0l-4.244-4.243a8 8 0 1 1 11.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 1 1-6 0 3 3 0 0 1 6 0z" /></svg>
@@ -134,6 +147,7 @@ export default async function TiendasPage() {
                           latitude={coords?.lat}
                           longitude={coords?.lng}
                         />
+                      </div>
                       </div>
                     </article>
                   )

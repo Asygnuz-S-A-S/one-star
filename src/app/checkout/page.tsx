@@ -18,6 +18,7 @@ import {
   type CheckoutFormDraft,
 } from "@/lib/checkout-draft"
 import CheckoutStepper from "@/components/checkout/CheckoutStepper"
+import { STOCK_RESERVATION_MINUTES } from "@/lib/stock-reservation"
 import OrderSummary, { type AppliedCoupon } from "@/components/checkout/OrderSummary"
 import EpaycoButton, { type EpaycoCheckoutData } from "@/components/checkout/EpaycoButton"
 import AddiPayButton from "@/components/checkout/AddiPayButton"
@@ -26,7 +27,7 @@ import { captureAbandonedCartAction } from "@/server/actions/abandoned-cart.acti
 import { trackLeadCheckoutStageAction } from "@/server/actions/lead-stage.actions"
 import { validateCouponAction } from "@/server/actions/coupon.actions"
 import { getAddiWidgetEvaluationAction, startAddiPaymentAction } from "@/server/actions/addi.actions"
-import { createOrder, getCustomerCheckoutProfile, getPickupStoresAction } from "./actions"
+import { abandonCheckoutOrder, createOrder, getCustomerCheckoutProfile, getPickupStoresAction } from "./actions"
 
 const sectionVariants = {
   hidden: { opacity: 0, y: 18 },
@@ -480,6 +481,9 @@ function CheckoutForm({
               <span className="font-bold text-[#1C1C1C]">{formatCOP(epaycoData.amount)}</span>
             </p>
 
+            <p className="mx-auto mb-4 max-w-sm rounded-lg bg-amber-50 px-3 py-2 font-montserrat text-xs font-medium text-amber-900" role="status">
+              Te guardamos estos productos por {STOCK_RESERVATION_MINUTES} minutos mientras pagas. Si no inicias el pago en ese tiempo, vuelven a estar a la venta.
+            </p>
             <p className="font-montserrat text-xs text-[#4A4A4A] mb-4">
               Haz clic en el botón para completar tu pago de forma segura con ePayco.
               Podrás pagar con tarjeta crédito/débito, PSE o efectivo.
@@ -494,7 +498,11 @@ function CheckoutForm({
             />
 
             <button
-              onClick={() => setEpaycoData(null)}
+              onClick={async () => {
+                // Antes de volver: si no, el pedido nuevo chocaría con la reserva de este.
+                await abandonCheckoutOrder({ orderId: epaycoData.orderId, guestToken: epaycoData.guestToken }).catch(() => undefined)
+                setEpaycoData(null)
+              }}
               className="mt-4 w-full text-center border border-[#E0E0E0] text-[#4A4A4A] font-montserrat text-sm py-2.5 rounded hover:border-[#1C1C1C] transition-colors"
             >
               ← Volver y modificar datos

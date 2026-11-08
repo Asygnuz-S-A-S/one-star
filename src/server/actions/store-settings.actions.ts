@@ -50,6 +50,7 @@ export async function updateStoreInfoAction(
       legalAddress: text(formData, "legalAddress"),
       contactPhone: text(formData, "contactPhone"),
       hideImagelessProducts: checkbox(formData, "hideImagelessProducts"),
+      hideEmptySale: checkbox(formData, "hideEmptySale"),
       groupColorsInCatalog: checkbox(formData, "groupColorsInCatalog"),
       newArrivalDays: text(formData, "newArrivalDays").trim(),
       chatEnabled: checkbox(formData, "chatEnabled"),

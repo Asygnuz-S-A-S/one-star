@@ -1,8 +1,10 @@
+import { getPickupStores } from "@/server/services/store.service"
+import TrackRecentlyViewed from "@/components/product/TrackRecentlyViewed"
+import ProductCutoutImage from "@/components/product/ProductCutoutImage"
 import { cache } from "react"
 import { INTERNAL_CATEGORY_SLUG } from "@/lib/internal-category"
 import { notFound } from "next/navigation"
 import Link from "next/link"
-import Image from "next/image"
 import type { Metadata } from "next"
 import { getProductBySlug, type InventoryStoreDTO } from "@/server/services/product.service"
 import { getDeliveryWindow, getPublicStoreInfo, getShippingRates } from "@/server/services/store-settings.service"
@@ -76,7 +78,7 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
   if (!product) notFound()
 
   // Consulta secuencial: primero producto, luego dependencias en paralelo
-  const [brandDetail, globalContent, productReviews, productReviewStats, settings, shippingRates, delivery] = await Promise.all([
+  const [brandDetail, globalContent, productReviews, productReviewStats, settings, shippingRates, delivery, pickupStores] = await Promise.all([
     product.brandId ? getBrandDetailById(product.brandId) : null,
     getPublicSiteContent(),
     getProductReviews(product.id),
@@ -84,6 +86,7 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
     getPublicStoreInfo().catch(() => null),
     getShippingRates().catch(() => DEFAULT_SHIPPING_RATES),
     getDeliveryWindow().catch(() => ({ min: 3, max: 5 })),
+    getPickupStores().catch(() => []),
   ])
 
   const hasWhatsapp = Boolean(settings?.whatsapp)
@@ -181,6 +184,9 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
         </nav>
 
         {/* ── Main product grid ── */}
+        <TrackRecentlyViewed
+          item={{ id: product.id, slug: product.slug, name: product.name, brand: product.brand ?? null, imageUrl: product.images[0]?.url ?? null, price: displayPrice }}
+        />
         <MetaViewContent
           productId={product.id}
           name={product.name}
@@ -194,6 +200,7 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
           whatsappUrl={whatsappUrl}
           brand={brandDetail}
           initialColor={initialColor}
+          pickupStores={pickupStores.map(({ id, name, city }) => ({ id, name, city }))}
         />
 
         {/* ── Por qué comprarlo ── */}
@@ -217,12 +224,10 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
                 </p>
               </div>
               {product.images[1] && (
-                <div className="relative h-64 md:h-80">
-                  <Image
+                <div className="relative h-56 md:h-80">
+                  <ProductCutoutImage
                     src={product.images[1].url}
                     alt={product.images[1].alt || product.name}
-                    fill
-                    className="object-contain object-right-bottom drop-shadow-2xl"
                     sizes="(max-width: 768px) 100vw, 50vw"
                   />
                 </div>

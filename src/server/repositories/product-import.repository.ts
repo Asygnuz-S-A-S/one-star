@@ -5,6 +5,7 @@ import { matchCrossSellRefs, parseCrossSellRefs } from "@/lib/cross-sell"
 import { slugify } from "@/lib/utils"
 import type { Gender, Prisma } from "@prisma/client"
 import { prisma } from "@/server/db/prisma"
+import { getReservedQuantities } from "@/server/repositories/order.repository"
 import type { ProductForImport } from "@/server/repositories/product.repository"
 import type { PlannedGroup } from "@/server/services/product-import.service"
 import { normalizeKey, resolveBrandAlias } from "@/server/validators/product-import.validator"
@@ -97,6 +98,7 @@ export async function persistProductImport(
   let newProducts = 0
   let newVariants = 0
   let updatedVariants = 0
+  const reservedUnits = await getReservedQuantities()
 
   await prisma.$transaction(
     async (tx) => {
@@ -190,13 +192,23 @@ export async function persistProductImport(
               ? await resolveBrandId(tx, group.brandName, brands, brandCache)
               : existingProduct.brandId
 
+          // Celda vacía con precio nuevo: la oferta del admin no puede quedar más cara que el precio normal.
+          if (first.isOnSale === undefined) {
+            await tx.product.updateMany({
+              where: { id: productId, isOnSale: true, salePrice: { gte: first.price } },
+              data: { isOnSale: false, salePrice: null },
+            })
+          }
+
           await tx.product.update({
             where: { id: productId },
             data: {
               // Precios y disponibilidad web siempre los manda el archivo en ARCHIVO
               basePrice: first.price,
-              isOnSale: first.isOnSale ?? false,
-              salePrice: first.isOnSale ? (first.salePrice ?? null) : null,
+              // Celda vacía en «¿En oferta?»: se respeta la oferta puesta en el admin; SÍ/NO la cambian.
+              ...(first.isOnSale !== undefined
+                ? { isOnSale: first.isOnSale, salePrice: first.isOnSale ? (first.salePrice ?? null) : null }
+                : {}),
               availableOnline: first.availableOnline ?? true,
               availableInStores: first.availableInStores ?? true,
               isPublished: first.isPublished ?? true,
@@ -276,7 +288,7 @@ export async function persistProductImport(
               data: {
                 size: v.row.size,
                 color: v.row.color,
-                stock: v.row.stock,
+                stock: Math.max(0, v.row.stock - (reservedUnits.get(v.existingVariantId) ?? 0)),
                 sizeUS: v.row.sizeUS ?? null,
                 sizeCM: v.row.sizeCM ?? null,
                 sizeEUR: v.row.sizeEUR ?? null,

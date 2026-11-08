@@ -21,6 +21,7 @@ export interface StoreSettingsPatch {
   legalAddress?: string | null
   contactPhone?: string | null
   hideImagelessProducts?: boolean
+  hideEmptySale?: boolean
   newArrivalDays?: number
   chatEnabled?: boolean
   chatWelcome?: string | null
