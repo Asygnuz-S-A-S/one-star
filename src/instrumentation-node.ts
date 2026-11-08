@@ -60,6 +60,22 @@ if (!isInternalCronDisabled && !globalWithCron.__cronInitialized) {
       }
     })
 
+    // Devuelve a la venta el stock que apartó un checkout sin pago iniciado
+    // (reserva de STOCK_RESERVATION_MINUTES). Cada minuto: la reserva dura 15.
+    cron.schedule("* * * * *", async () => {
+      try {
+        const { releaseStockReservations } = await import(
+          "./server/services/order.service"
+        )
+        const released = await releaseStockReservations()
+        if (released.length > 0) {
+          console.log(`[Cron] Reservas de stock liberadas: ${released.length}.`)
+        }
+      } catch (err) {
+        console.error("[Cron] Error liberando reservas de stock:", err)
+      }
+    })
+
     // Vence los pedidos que quedaron PENDING sin notificación de la pasarela
     // y marca como ABANDONO los leads de WhatsApp con 24 h sin pago.
     // Mismo horario que tenía la programación externa: 07:30 en la zona horaria
