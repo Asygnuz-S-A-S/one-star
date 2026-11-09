@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next"
+import { getPublicLandingPages } from "@/server/services/landing-section.service"
 import { getCategories } from "@/server/services/category.service"
 import { INTERNAL_CATEGORY_SLUG } from "@/lib/internal-category"
 import { getProductSitemapEntries } from "@/server/services/product.service"
@@ -37,7 +38,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Si la base de datos falla, el sitemap sigue sirviendo las rutas estáticas
   // en lugar de tumbar el build o devolver un 500 (mismo criterio que el layout).
-  const [categories, products, brands] = await Promise.all([
+  const [categories, products, brands, landings] = await Promise.all([
     getCategories().catch((error: unknown) => {
       console.error("[sitemap] getCategories falló:", error)
       return []
@@ -48,6 +49,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }),
     getStorefrontBrands().catch((error: unknown) => {
       console.error("[sitemap] getStorefrontBrands falló:", error)
+      return []
+    }),
+    getPublicLandingPages().catch((error: unknown) => {
+      console.error("[sitemap] getPublicLandingPages falló:", error)
       return []
     }),
   ])
@@ -62,6 +67,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...categories.filter((category) => category.slug !== INTERNAL_CATEGORY_SLUG).map((category) => ({
       url: `${siteUrl}/c/${category.slug}`,
       lastModified: now,
+      changeFrequency: "weekly" as const,
+      priority: 0.7,
+    })),
+    ...landings.map((landing) => ({
+      url: `${siteUrl}/${landing.slug}`,
+      lastModified: landing.updatedAt,
       changeFrequency: "weekly" as const,
       priority: 0.7,
     })),

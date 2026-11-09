@@ -2,13 +2,15 @@ import "server-only"
 
 import { revalidatePath } from "next/cache"
 import type { Prisma, LandingSectionType } from "@prisma/client"
-import { ZodError } from "zod"
+import { z, ZodError } from "zod"
 import { requireSuperAdmin } from "@/server/auth/require-admin"
 import {
+  createLandingFromProduct,
   createLandingSection,
   deleteLandingSection,
   setLandingSectionActive,
   publishLandingPage,
+  saveLandingPageSettings,
   updateLandingSectionConfig,
   updateLandingSectionPositions,
 } from "@/server/services/landing-section.service"
@@ -79,7 +81,7 @@ function revalidateLandingEditor() {
 
 function revalidateLanding() {
   revalidatePath("/")
-  revalidatePath("/campanas/[slug]", "page")
+  revalidatePath("/[landing]", "page")
   revalidateLandingEditor()
 }
 
@@ -132,6 +134,29 @@ export async function updateLandingSectionConfigAction(id: string, config: Prism
   }
 }
 
+const LandingSettingsSchema = z.object({
+  page: LandingPageSchema,
+  title: z.string().trim().max(70).transform((v) => v || null),
+  description: z.string().trim().max(160).transform((v) => v || null),
+  isActive: z.boolean(),
+})
+
+/** Activa o desactiva una landing y guarda su título y descripción para Google. Solo Super Admin. */
+export async function updateLandingPageSettingsAction(input: { page: string; title: string; description: string; isActive: boolean }) {
+  "use server"
+  try {
+    await requireSuperAdmin()
+    const valid = LandingSettingsSchema.parse(input)
+    if (valid.page === "home") return { success: false, error: "El inicio no se puede desactivar" }
+    await saveLandingPageSettings({ slug: valid.page, title: valid.title, description: valid.description, isActive: valid.isActive })
+    revalidateLanding()
+    return { success: true }
+  } catch (error) {
+    console.error("Error updating landing page settings:", error)
+    return { success: false, error: error instanceof ZodError ? (error.issues[0]?.message ?? "Revisa los datos") : "No se pudieron guardar los ajustes" }
+  }
+}
+
 export async function publishLandingPageAction(page: string) {
   "use server"
   try {
@@ -155,7 +180,23 @@ export async function createLandingSectionAction(type: LandingSectionType, page:
     return { success: true, newSection }
   } catch (error) {
     console.error("Error creating landing section:", error)
-    return { success: false, error: "No se pudo crear la sección" }
+    const reserved = error instanceof Error && error.message.includes("es una ruta de la tienda")
+    return { success: false, error: reserved ? error.message : "No se pudo crear la sección" }
+  }
+}
+
+/** Crea una landing base (desactivada) a partir de un producto. Solo Super Admin. */
+export async function createLandingFromProductAction(page: string, productSlug: string) {
+  "use server"
+  try {
+    await requireSuperAdmin()
+    const slug = await createLandingFromProduct(LandingPageSchema.parse(page), z.string().trim().min(1).max(200).parse(productSlug))
+    revalidateLanding()
+    return { success: true as const, page: slug }
+  } catch (error) {
+    console.error("Error creating landing from product:", error)
+    const known = error instanceof Error && /ruta de la tienda|Ya existe una landing|no está publicado/.test(error.message)
+    return { success: false as const, error: known ? (error as Error).message : "No se pudo armar la landing" }
   }
 }
 

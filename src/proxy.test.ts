@@ -110,12 +110,14 @@ describe("proxy CSP", () => {
     )
   })
 
-  it("allows the builder to preview campaign landings", async () => {
-    const campaignPreview = await proxy(new NextRequest("https://example.com/campanas/hoka-running?preview=true"))
-    const nestedPath = await proxy(new NextRequest("https://example.com/campanas/hoka/extra?preview=true"))
+  it("deja previsualizar landings en la raíz, pero no rutas fijas ni anidadas", async () => {
+    const landingPreview = await proxy(new NextRequest("https://example.com/hoka-running?preview=true"))
+    const nestedPath = await proxy(new NextRequest("https://example.com/hoka/extra?preview=true"))
+    const reserved = await proxy(new NextRequest("https://example.com/checkout?preview=true"))
 
-    expect(campaignPreview.headers.get("content-security-policy")).toContain("frame-ancestors 'self'")
+    expect(landingPreview.headers.get("content-security-policy")).toContain("frame-ancestors 'self'")
     expect(nestedPath.headers.get("content-security-policy")).toContain("frame-ancestors 'none'")
+    expect(reserved.headers.get("content-security-policy")).toContain("frame-ancestors 'none'")
   })
 })
 

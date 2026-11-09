@@ -69,7 +69,7 @@ function toFormData(values: Record<string, string>): FormData {
 }
 
 const id = z.string().trim().min(1).max(64)
-const page = z.string().trim().min(1).max(60).default("home").describe('"home" = Inicio; otro slug = /campanas/<slug>')
+const page = z.string().trim().min(1).max(60).default("home").describe('"home" = Inicio; otro slug = /<slug>')
 const mediaExtension = /\.(jpe?g|png|webp|gif|avif|mp4|mov|webm)$/i
 
 // ---------------------------------------------------------------- productos
