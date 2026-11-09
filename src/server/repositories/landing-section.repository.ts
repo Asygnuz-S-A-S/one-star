@@ -73,3 +73,21 @@ export async function getLandingPages(): Promise<string[]> {
   const rows = await prisma.landingSection.findMany({ distinct: ["page"], select: { page: true }, orderBy: { page: "asc" } })
   return rows.map((row) => row.page)
 }
+
+export async function findLandingPageSettings(slug: string) {
+  return prisma.landingPage.findUnique({ where: { slug } })
+}
+
+export async function upsertLandingPageSettings(slug: string, data: { title: string | null; description: string | null; isActive: boolean }) {
+  return prisma.landingPage.upsert({ where: { slug }, create: { slug, ...data }, update: data })
+}
+
+/** Landings con al menos una sección activa y sin desactivar (las que no tienen fila están activas). */
+export async function findPublicLandingPages(): Promise<{ slug: string; updatedAt: Date }[]> {
+  const [pages, inactive] = await Promise.all([
+    prisma.landingSection.groupBy({ by: ["page"], where: { isActive: true, page: { not: HOME_LANDING_PAGE } }, _max: { updatedAt: true } }),
+    prisma.landingPage.findMany({ where: { isActive: false }, select: { slug: true } }),
+  ])
+  const off = new Set(inactive.map((row) => row.slug))
+  return pages.filter((row) => !off.has(row.page)).map((row) => ({ slug: row.page, updatedAt: row._max.updatedAt ?? new Date() }))
+}

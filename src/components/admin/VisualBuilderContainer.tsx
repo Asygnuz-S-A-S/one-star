@@ -8,6 +8,8 @@ import type { CategoryDTO } from "@/server/services/category.service"
 import LandingBuilderList, { type BuilderGlobals } from "@/components/admin/LandingBuilderList"
 import Link from "next/link"
 import type { LandingBuilderActions } from "@/types/landing-builder-actions"
+import LandingPageSettingsForm, { type LandingSettingsValue } from "@/components/admin/LandingPageSettingsForm"
+import { isReservedLandingSlug, landingPath } from "@/lib/landing-paths"
 
 interface VisualBuilderContainerProps {
   actions: LandingBuilderActions
@@ -20,12 +22,14 @@ interface VisualBuilderContainerProps {
   dataVersion: string
   page: string
   pages: string[]
+  pageSettings?: LandingSettingsValue | null
+  saveSettings?: (input: { page: string; title: string; description: string; isActive: boolean }) => Promise<{ success: boolean; error?: string }>
 }
 
 const pageLabel = (page: string) => page === "home"
   ? "Inicio"
   : page.split("-").map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(" ")
-const pagePath = (page: string) => page === "home" ? "/" : `/campanas/${page}`
+const pagePath = landingPath
 const DESKTOP_PREVIEW_WIDTH = 1280
 
 function campaignSlug(name: string) {
@@ -39,7 +43,7 @@ function campaignSlug(name: string) {
 }
 
 /** The builder is a workspace: preview controls and exit are always separate from section navigation. */
-export default function VisualBuilderContainer({ actions, initialSections, initialGlobals, initialBanners, initialGridBlocks, categories, unavailableAreas, dataVersion, page, pages }: VisualBuilderContainerProps) {
+export default function VisualBuilderContainer({ actions, initialSections, initialGlobals, initialBanners, initialGridBlocks, categories, unavailableAreas, dataVersion, page, pages, pageSettings, saveSettings }: VisualBuilderContainerProps) {
   const router = useRouter()
   const [refreshKey, setRefreshKey] = useState(0)
   const [previewAnchor, setPreviewAnchor] = useState("")
@@ -57,6 +61,10 @@ export default function VisualBuilderContainer({ actions, initialSections, initi
     event.preventDefault()
     if (nextSlug === "home" || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(nextSlug)) {
       setNewPageError("Escribe un nombre, por ejemplo HOKA running")
+      return
+    }
+    if (isReservedLandingSlug(nextSlug) && !pages.includes(nextSlug)) {
+      setNewPageError(`/${nextSlug} ya es una página de la tienda; usa otro nombre`)
       return
     }
     setNewPageError("")
@@ -153,11 +161,14 @@ export default function VisualBuilderContainer({ actions, initialSections, initi
               />
               <button type="submit" className="min-h-11 rounded-md border border-gray-300 px-3 text-xs font-bold text-[#1C1C1C] hover:bg-gray-50">Crear</button>
             </form>
-            {nextSlug && <p id="new-landing-path" className="mt-1 text-xs text-gray-500">Se publicará en /campanas/{nextSlug}</p>}
+            {nextSlug && <p id="new-landing-path" className="mt-1 text-xs text-gray-500">Se publicará en /{nextSlug}</p>}
             {newPageError && <p id="new-landing-error" role="alert" className="mt-1 text-xs text-[#E31C23]">{newPageError}</p>}
             <p className="mt-2 text-xs text-gray-500">
               Guardar deja un borrador en la vista previa. Publicar lo pone en {page === "home" ? "Inicio" : pagePath(page)}.
             </p>
+            {page !== "home" && pageSettings && saveSettings && (
+              <LandingPageSettingsForm key={page} page={page} initial={pageSettings} save={saveSettings} onSaved={() => router.refresh()} />
+            )}
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto">
             <LandingBuilderList
