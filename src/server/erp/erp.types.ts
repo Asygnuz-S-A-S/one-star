@@ -34,7 +34,7 @@ export interface ERPInvoice {
   items: ERPOrderItem[]
   /** Total en COP */
   total: number
-  /** e.g. "epayco" | "mercadopago" | "addi" | "pending" */
+  /** e.g. "epayco" | "addi" | "pending" */
   paymentMethod: string
   /** Dirección de envío serializada */
   shippingAddress?: Record<string, unknown>

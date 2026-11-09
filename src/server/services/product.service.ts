@@ -670,6 +670,12 @@ export interface ProductSitemapEntry {
 }
 
 /** Entradas de producto para `src/app/sitemap.ts`. */
+/** Productos para el feed de Google Merchant Center: publicados, vendibles en línea y con foto. */
+export async function getGoogleFeedProducts(): Promise<ProductDTO[]> {
+  const rows = await findManyProducts({ isPublished: true, availableOnline: true, images: { some: {} } }, { createdAt: "desc" })
+  return rows.map(mapToDTO)
+}
+
 export async function getProductSitemapEntries(): Promise<ProductSitemapEntry[]> {
   const { hideImagelessProducts } = await getCatalogRules()
   const rows = await findPublishedProductSitemapEntries(hideImagelessProducts)

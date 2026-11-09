@@ -329,7 +329,7 @@ export default function CarritoPage() {
             <div className="border-t border-[#E0E0E0] pt-4">
               <p className="font-montserrat text-xs text-[#4A4A4A] mb-2">Métodos de pago aceptados:</p>
               <div className="flex gap-3 flex-wrap">
-                {["ePayco", "Mercadopago", "Addi"].map((method) => (
+                {["ePayco", "Addi"].map((method) => (
                   <span
                     key={method}
                     className="border border-[#E0E0E0] font-montserrat text-xs text-[#4A4A4A] px-3 py-1.5"
