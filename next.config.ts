@@ -4,6 +4,10 @@ import { NEXT_IMAGE_REMOTE_PATTERNS } from "./src/lib/image-optimization"
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  // Las landings pasaron de /campanas/<slug> a /<slug>: redirección permanente real (308) desde el servidor.
+  async redirects() {
+    return [{ source: "/campanas/:slug", destination: "/:slug", permanent: true }]
+  },
   async headers() {
     return [
       {

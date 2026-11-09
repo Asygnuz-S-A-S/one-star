@@ -4,7 +4,7 @@ import { notFound, redirect } from "next/navigation"
 import LandingSections from "@/components/landing/LandingSections"
 import { parseEditorialConfig } from "@/lib/editorial-config"
 import { isReservedLandingSlug } from "@/lib/landing-paths"
-import { getActiveLandingSections, getLandingPageSettings, getLandingSectionsForRequest } from "@/server/services/landing-section.service"
+import { getLandingPageSettings, getLandingSectionsForRequest } from "@/server/services/landing-section.service"
 
 export const dynamic = "force-dynamic"
 
@@ -18,12 +18,15 @@ async function validSlug(params: Props["params"]): Promise<string> {
   return landing
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const slug = await validSlug(params)
+  const { preview } = await searchParams
   const [settings, sections] = await Promise.all([
     getLandingPageSettings(slug).catch(() => null),
-    getActiveLandingSections(slug).catch(() => []),
+    getLandingSectionsForRequest(slug, preview === "true").catch(() => []),
   ])
+  // Aquí (antes de que empiece a cargar la página) notFound responde un 404 real, no un "404 suave".
+  if (sections.length === 0) notFound()
   const hero = sections
     .map((section) => parseEditorialConfig((section.config ?? {}) as Record<string, unknown>))
     .find((config) => config.kind === "campaignHero")

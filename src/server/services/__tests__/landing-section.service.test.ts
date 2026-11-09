@@ -13,6 +13,9 @@ vi.mock("@/server/repositories/landing-section.repository", () => ({
   deleteLandingSection: vi.fn(),
   getMaximumLandingSectionPosition: vi.fn(),
   publishLandingDrafts: vi.fn(),
+  findLandingPageSettings: vi.fn(),
+  upsertLandingPageSettings: vi.fn(),
+  findPublicLandingPages: vi.fn(),
 }))
 
 vi.mock("@/server/auth/require-admin", () => ({
@@ -177,5 +180,45 @@ describe("deleteLandingSection", () => {
     await service.deleteLandingSection("sec_1")
 
     expect(repository.deleteLandingSection).toHaveBeenCalledWith("sec_1")
+  })
+})
+
+describe("landing activa u oculta y nombres reservados", () => {
+  const section = { id: "s1", page: "black-friday", config: { a: 1 }, draftConfig: { a: 2 } }
+
+  it("una landing oculta no se ve en la tienda", async () => {
+    vi.mocked(repository.getActiveLandingSections).mockResolvedValue([section] as never)
+    vi.mocked(repository.findLandingPageSettings).mockResolvedValue({ isActive: false } as never)
+
+    expect(await service.getLandingSectionsForRequest("black-friday", false)).toEqual([])
+  })
+
+  it("el admin la sigue viendo en la vista previa, con el borrador", async () => {
+    vi.mocked(repository.getActiveLandingSections).mockResolvedValue([section] as never)
+    vi.mocked(repository.findLandingPageSettings).mockResolvedValue({ isActive: false } as never)
+    vi.mocked(getAdminSession).mockResolvedValue({ user: { id: "a1" } } as never)
+
+    const result = await service.getLandingSectionsForRequest("black-friday", true)
+    expect(result).toHaveLength(1)
+    expect(result[0].config).toEqual({ a: 2 })
+  })
+
+  it("sin ajustes guardados la landing está activa", async () => {
+    vi.mocked(repository.getActiveLandingSections).mockResolvedValue([section] as never)
+    vi.mocked(repository.findLandingPageSettings).mockResolvedValue(null)
+
+    expect(await service.getLandingSectionsForRequest("black-friday", false)).toHaveLength(1)
+  })
+
+  it("no deja crear una landing nueva con el nombre de una ruta de la tienda", async () => {
+    vi.mocked(repository.getAllLandingSections).mockResolvedValue([])
+
+    await expect(service.createLandingSection("HERO", "checkout")).rejects.toThrow("es una ruta de la tienda")
+    expect(repository.createLandingSection).not.toHaveBeenCalled()
+  })
+
+  it("el inicio no se puede desactivar", async () => {
+    await expect(service.saveLandingPageSettings({ slug: "home", title: null, description: null, isActive: false })).rejects.toThrow()
+    expect(repository.upsertLandingPageSettings).not.toHaveBeenCalled()
   })
 })

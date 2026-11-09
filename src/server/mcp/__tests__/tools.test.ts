@@ -23,7 +23,7 @@ vi.mock("@/server/services/media-asset.service")
 vi.mock("@/server/storage/storage.container")
 vi.mock("@/server/validators/landing-section.validator", async () => {
   const { z } = await import("zod")
-  return { LandingSectionTypeSchema: z.enum(["HERO", "CATEGORY_GRID"]) }
+  return { LandingSectionTypeSchema: z.enum(["HERO", "CATEGORY_GRID"]), LandingPageSchema: z.string() }
 })
 
 import { MCP_TOOLS, productFormData } from "../tools"
