@@ -5,6 +5,7 @@ import { DELIVERY_BUSINESS_DAYS } from "@/lib/conversion-signals"
 import { RETURN_WINDOW_DAYS } from "@/lib/store-promises"
 import { isRealColor } from "@/lib/colors"
 import type { ProductFaq } from "@/lib/product-faq"
+import { INTERNAL_CATEGORY_SLUG } from "@/lib/internal-category"
 
 const TITLE_MAX = 60
 const DESCRIPTION_MAX = 155
@@ -54,6 +55,12 @@ export function truncateAtWord(text: string, max: number): string {
   return `${(lastSpace > max * 0.6 ? cut.slice(0, lastSpace) : cut).trim()}…`
 }
 
+/** Las marcas de relleno ("Sin marca", "Por nombrar (002001)") no se muestran a Google. */
+export function seoBrand(name: string | null): string | null {
+  const brand = name?.trim()
+  return brand && !/^(sin marca|por nombrar)/i.test(brand) ? brand : null
+}
+
 export function getDisplayPrice(product: Pick<SeoProduct, "basePrice" | "salePrice" | "isOnSale">): number {
   return product.isOnSale && product.salePrice ? product.salePrice : product.basePrice
 }
@@ -61,9 +68,10 @@ export function getDisplayPrice(product: Pick<SeoProduct, "basePrice" | "salePri
 export function buildProductTitle(product: SeoProduct, storeName: string): string {
   if (product.metaTitle?.trim()) return product.metaTitle.trim()
   const suffix = ` | ${storeName}`
+  const brand = seoBrand(product.brand)
   const withBrand =
-    product.brand && !product.name.toLowerCase().includes(product.brand.toLowerCase())
-      ? `${product.name} ${product.brand}`
+    brand && !product.name.toLowerCase().includes(brand.toLowerCase())
+      ? `${product.name} ${brand}`
       : product.name
   const commercial = ` | Comprar en Colombia - ${storeName}`
   if (withBrand.length + commercial.length <= TITLE_MAX) return `${withBrand}${commercial}`
@@ -76,7 +84,8 @@ export function buildProductDescription(product: SeoProduct, storeName: string, 
   if (product.metaDescription?.trim()) return truncateAtWord(product.metaDescription, DESCRIPTION_MAX)
   const base = product.description?.trim()
   if (base && base.length >= 70) return truncateAtWord(base, DESCRIPTION_MAX)
-  const brandPart = product.brand ? ` ${product.brand}` : ""
+  const brand = seoBrand(product.brand)
+  const brandPart = brand ? ` ${brand}` : ""
   const generated =
     `Compra ${product.name}${brandPart} en ${storeName} desde ${formatCOP(getDisplayPrice(product))}. ` +
     `Envío a todo Colombia y ${returnWindowDays} días para cambios.`
@@ -102,6 +111,7 @@ export function buildProductMetadata(product: SeoProduct, ctx: SeoContext): Meta
     alt: image.alt || product.name,
   }))
   const price = getDisplayPrice(product)
+  const brand = seoBrand(product.brand)
 
   return {
     title: { absolute: title },
@@ -114,7 +124,7 @@ export function buildProductMetadata(product: SeoProduct, ctx: SeoContext): Meta
       "product:price:amount": String(Math.round(price)),
       "product:price:currency": "COP",
       "product:availability": product.variants.some((v) => v.stock > 0) ? "in stock" : "out of stock",
-      ...(product.brand ? { "product:brand": product.brand } : {}),
+      ...(brand ? { "product:brand": brand } : {}),
     },
   }
 }
@@ -184,7 +194,8 @@ export function buildProductJsonLd(product: SeoProduct, ctx: SeoContext): Record
   const description = buildProductDescription(product, ctx.storeName, returnDays)
   if (description) productNode.description = description
   if (product.variants[0]?.sku) productNode.sku = product.variants[0].sku
-  if (product.brand) productNode.brand = { "@type": "Brand", name: product.brand }
+  const brand = seoBrand(product.brand)
+  if (brand) productNode.brand = { "@type": "Brand", name: brand }
   if (colors.length > 0) productNode.color = colors.join(", ")
 
   if (ctx.reviewStats.count > 0) {
@@ -210,7 +221,8 @@ export function buildProductJsonLd(product: SeoProduct, ctx: SeoContext): Record
     itemListElement: [
       { name: "Inicio", item: ctx.siteUrl },
       { name: "Productos", item: `${ctx.siteUrl}/productos` },
-      { name: product.category.name, item: `${ctx.siteUrl}/c/${product.category.slug}` },
+      // La categoría interna de importación no tiene página pública (404).
+      ...(product.category.slug === INTERNAL_CATEGORY_SLUG ? [] : [{ name: product.category.name, item: `${ctx.siteUrl}/c/${product.category.slug}` }]),
       { name: product.name, item: url },
     ].map((entry, index) => ({ "@type": "ListItem", position: index + 1, ...entry })),
   }
@@ -236,4 +248,27 @@ export function serializeJsonLd(data: unknown): string {
     .replace(/</g, "\\u003c")
     .replace(new RegExp("\\u2028", "g"), "\\u2028")
     .replace(new RegExp("\\u2029", "g"), "\\u2029")
+}
+
+/** Datos de la tienda para el inicio: nombre y logo en los resultados de Google. */
+export function buildSiteJsonLd(ctx: { siteUrl: string; storeName: string; contactEmail?: string | null; contactPhone?: string | null }) {
+  const contact = ctx.contactEmail || ctx.contactPhone
+    ? {
+        contactPoint: {
+          "@type": "ContactPoint",
+          contactType: "customer service",
+          areaServed: "CO",
+          availableLanguage: "es",
+          ...(ctx.contactEmail ? { email: ctx.contactEmail } : {}),
+          ...(ctx.contactPhone ? { telephone: ctx.contactPhone } : {}),
+        },
+      }
+    : {}
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "Organization", "@id": `${ctx.siteUrl}/#organization`, name: ctx.storeName, url: ctx.siteUrl, logo: `${ctx.siteUrl}/logos/logopositivo.svg`, ...contact },
+      { "@type": "WebSite", "@id": `${ctx.siteUrl}/#website`, name: ctx.storeName, url: ctx.siteUrl, inLanguage: "es-CO", publisher: { "@id": `${ctx.siteUrl}/#organization` } },
+    ],
+  }
 }

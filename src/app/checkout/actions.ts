@@ -41,7 +41,7 @@ export interface CheckoutData {
   shippingMethod: "standard" | "express" | "pickup"
   /** Tienda donde se recoge; solo con shippingMethod "pickup". */
   pickupStoreId?: string
-  paymentMethod: "epayco" | "mercadopago" | "addi"
+  paymentMethod: "epayco" | "addi"
   /** Código de cupón aplicado; el servidor lo revalida y recalcula el descuento */
   couponCode?: string
   termsAccepted?: boolean

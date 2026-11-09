@@ -4,6 +4,8 @@ import {
   buildProductJsonLd,
   buildProductMetadata,
   buildProductTitle,
+  buildSiteJsonLd,
+  seoBrand,
   serializeJsonLd,
   truncateAtWord,
   type SeoContext,
@@ -119,5 +121,33 @@ describe("JSON-LD", () => {
 
   it("serializa sin permitir cerrar el script", () => {
     expect(serializeJsonLd({ a: "</script><script>x" })).not.toContain("</script>")
+  })
+})
+
+describe("marca de relleno, migas internas y datos de la tienda", () => {
+  it("no muestra 'Sin marca' ni 'Por nombrar' como marca", () => {
+    expect(seoBrand("Sin marca")).toBeNull()
+    expect(seoBrand("Por nombrar (002001)")).toBeNull()
+    expect(seoBrand("HOKA")).toBe("HOKA")
+    const sinMarca = { ...product, brand: "Sin marca" }
+    expect(buildProductTitle(sinMarca, "One Star")).not.toContain("Sin marca")
+    const graph = buildProductJsonLd(sinMarca, ctx)["@graph"] as Node[]
+    expect(graph[0].brand).toBeUndefined()
+    expect(buildProductMetadata(sinMarca, ctx).other).not.toHaveProperty("product:brand")
+  })
+
+  it("las migas saltan la categoría interna sin página pública", () => {
+    const graph = buildProductJsonLd({ ...product, category: { name: "Sin Categoría", slug: "sin-categoria" } }, ctx)["@graph"] as Node[]
+    const items = graph[1].itemListElement.map((e: Node) => e.item)
+    expect(items).toEqual(["https://onestar.test", "https://onestar.test/productos", "https://onestar.test/productos/air-zoom-pegasus-41"])
+    expect(graph[1].itemListElement.map((e: Node) => e.position)).toEqual([1, 2, 3])
+  })
+
+  it("arma Organization y WebSite con logo y contacto", () => {
+    const graph = buildSiteJsonLd({ siteUrl: "https://onestar.test", storeName: "One Star", contactEmail: "hola@onestar.test" })["@graph"] as Node[]
+    expect(graph[0]).toMatchObject({ "@type": "Organization", name: "One Star", logo: "https://onestar.test/logos/logopositivo.svg" })
+    expect(graph[0].contactPoint.email).toBe("hola@onestar.test")
+    expect(graph[1]).toMatchObject({ "@type": "WebSite", url: "https://onestar.test" })
+    expect(buildSiteJsonLd({ siteUrl: "https://x.test", storeName: "X" })["@graph"][0]).not.toHaveProperty("contactPoint")
   })
 })

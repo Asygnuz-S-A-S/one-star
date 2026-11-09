@@ -36,7 +36,7 @@ export const checkoutSchema = z.object({
   shippingMethod: z.enum(["standard", "express", "pickup"]),
   /** Tienda donde se recoge el pedido; obligatoria con shippingMethod "pickup". */
   pickupStoreId: z.string().trim().min(1).max(64).optional(),
-  paymentMethod: z.enum(["epayco", "mercadopago", "addi"]),
+  paymentMethod: z.enum(["epayco", "addi"]),
   couponCode: z.string().trim().max(40).optional(),
   termsAccepted: z.boolean().refine((val) => val === true, {
     message: "Debes aceptar los términos y condiciones y el tratamiento de datos para continuar",
