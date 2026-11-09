@@ -1,4 +1,5 @@
-import { getAllLandingSections, getLandingPages } from "@/server/services/landing-section.service"
+import { getAllLandingSections, getLandingPageSettings, getLandingPages } from "@/server/services/landing-section.service"
+import { createLandingFromProductAction, updateLandingPageSettingsAction } from "@/server/actions/landing.actions"
 import { getTopBanner } from "@/server/services/top-banner.service"
 import { getAllStoreLogos, getPrimaryStoreLogos } from "@/server/services/site-logo.service"
 import { getAllNavigationItems } from "@/server/services/navigation.service"
@@ -112,6 +113,7 @@ export default async function LandingBuilderPage({ searchParams }: { searchParam
     loadEditorData("pages", getLandingPages(), ["home"], unavailableAreas),
   ])
   const [logos, allLogos] = logoData
+  const pageSettings = page === "home" ? null : await getLandingPageSettings(page).catch(() => null)
 
   // Las secciones nuevas se crean en la landing que se está editando.
   async function createSectionInPage(type: LandingSectionType) {
@@ -158,6 +160,9 @@ export default async function LandingBuilderPage({ searchParams }: { searchParam
       dataVersion={`${page}-${new Date().toISOString()}`}
       page={page}
       pages={pages.includes(page) ? pages : [...pages, page]}
+      pageSettings={pageSettings}
+      saveSettings={updateLandingPageSettingsAction}
+      createFromProduct={createLandingFromProductAction}
     />
   )
 }

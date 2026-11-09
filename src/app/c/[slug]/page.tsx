@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation"
+import { getSiteUrl } from "@/lib/site-url"
 import ProductGrid from "@/components/shop/ProductGrid"
 import FilterSidebar from "@/components/shop/FilterSidebar"
 import ShopLayout from "@/components/shop/ShopLayout"
@@ -41,6 +42,7 @@ export async function generateMetadata({ params }: CategoryPageProps) {
   return {
     title: `${category.name} | One Star`,
     description: `Descubre nuestra colección de ${category.name.toLowerCase()}.`,
+    alternates: { canonical: `${getSiteUrl()}/c/${category.slug}` },
   }
 }
 

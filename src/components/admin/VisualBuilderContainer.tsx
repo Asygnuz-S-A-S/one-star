@@ -8,6 +8,9 @@ import type { CategoryDTO } from "@/server/services/category.service"
 import LandingBuilderList, { type BuilderGlobals } from "@/components/admin/LandingBuilderList"
 import Link from "next/link"
 import type { LandingBuilderActions } from "@/types/landing-builder-actions"
+import LandingPageSettingsForm, { type LandingSettingsValue } from "@/components/admin/LandingPageSettingsForm"
+import { isReservedLandingSlug, landingPath } from "@/lib/landing-paths"
+import { searchProductsAction } from "@/server/actions/product.actions"
 
 interface VisualBuilderContainerProps {
   actions: LandingBuilderActions
@@ -20,12 +23,17 @@ interface VisualBuilderContainerProps {
   dataVersion: string
   page: string
   pages: string[]
+  pageSettings?: LandingSettingsValue | null
+  saveSettings?: (input: { page: string; title: string; description: string; isActive: boolean }) => Promise<{ success: boolean; error?: string }>
+  createFromProduct?: (page: string, productSlug: string) => Promise<{ success: true; page: string } | { success: false; error: string }>
 }
+
+type ProductHit = Awaited<ReturnType<typeof searchProductsAction>>[number]
 
 const pageLabel = (page: string) => page === "home"
   ? "Inicio"
   : page.split("-").map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(" ")
-const pagePath = (page: string) => page === "home" ? "/" : `/campanas/${page}`
+const pagePath = landingPath
 const DESKTOP_PREVIEW_WIDTH = 1280
 
 function campaignSlug(name: string) {
@@ -39,7 +47,7 @@ function campaignSlug(name: string) {
 }
 
 /** The builder is a workspace: preview controls and exit are always separate from section navigation. */
-export default function VisualBuilderContainer({ actions, initialSections, initialGlobals, initialBanners, initialGridBlocks, categories, unavailableAreas, dataVersion, page, pages }: VisualBuilderContainerProps) {
+export default function VisualBuilderContainer({ actions, initialSections, initialGlobals, initialBanners, initialGridBlocks, categories, unavailableAreas, dataVersion, page, pages, pageSettings, saveSettings, createFromProduct }: VisualBuilderContainerProps) {
   const router = useRouter()
   const [refreshKey, setRefreshKey] = useState(0)
   const [previewAnchor, setPreviewAnchor] = useState("")
@@ -59,9 +67,65 @@ export default function VisualBuilderContainer({ actions, initialSections, initi
       setNewPageError("Escribe un nombre, por ejemplo HOKA running")
       return
     }
+    if (isReservedLandingSlug(nextSlug) && !pages.includes(nextSlug)) {
+      setNewPageError(`/${nextSlug} ya es una página de la tienda; usa otro nombre`)
+      return
+    }
     setNewPageError("")
     setNewPage("")
     router.push(`/admin/landing-builder?page=${nextSlug}`)
+  }
+  const [productQuery, setProductQuery] = useState("")
+  const [productHits, setProductHits] = useState<ProductHit[]>([])
+  const [productError, setProductError] = useState("")
+  const [buildingFrom, setBuildingFrom] = useState("")
+
+  useEffect(() => {
+    const query = productQuery.trim()
+    if (query.length < 2) return
+    let stale = false
+    const timer = setTimeout(async () => {
+      const hits = await searchProductsAction(query)
+      if (!stale) setProductHits(hits)
+    }, 250)
+    return () => {
+      stale = true
+      clearTimeout(timer)
+    }
+  }, [productQuery])
+
+  const visibleHits = productQuery.trim().length >= 2 ? productHits : []
+
+  // Usa el nombre escrito arriba si hay uno; si no, el del producto, numerado si ya existe (-2, -3...).
+  const productLandingSlug = (name: string) => {
+    if (nextSlug) return nextSlug
+    const base = campaignSlug(name).slice(0, 56).replace(/-+$/, "")
+    let slug = base
+    for (let n = 2; pages.includes(slug); n++) slug = `${base}-${n}`
+    return slug
+  }
+  const buildFromProduct = async (product: ProductHit) => {
+    if (!createFromProduct) return
+    const slug = productLandingSlug(product.name)
+    if (!slug || slug === "home" || isReservedLandingSlug(slug)) {
+      setProductError(`/${slug} ya es una página de la tienda; escribe otro nombre arriba`)
+      return
+    }
+    if (pages.includes(slug)) {
+      setProductError(`Ya existe /${slug}; escribe otro nombre arriba y vuelve a elegir el producto`)
+      return
+    }
+    setProductError("")
+    setBuildingFrom(product.slug)
+    const result = await createFromProduct(slug, product.slug)
+    setBuildingFrom("")
+    if (!result.success) {
+      setProductError(result.error)
+      return
+    }
+    setNewPage("")
+    setProductQuery("")
+    router.push(`/admin/landing-builder?page=${result.page}`)
   }
   const [previewDevice, setPreviewDevice] = useState<"desktop" | "mobile">("desktop")
   const [mobilePanel, setMobilePanel] = useState<"editor" | "preview">("editor")
@@ -130,7 +194,7 @@ export default function VisualBuilderContainer({ actions, initialSections, initi
       </div>
 
       <div className="min-h-0 flex flex-1 md:flex-row">
-        <aside className={`flex w-full shrink-0 flex-col border-r border-gray-200 bg-gray-50 md:w-[400px] ${mobilePanel === "preview" ? "hidden md:flex" : "flex"}`} aria-label="Contenido de la landing">
+        <aside className={`flex w-full shrink-0 flex-col overflow-y-auto border-r border-gray-200 bg-gray-50 md:w-[400px] ${mobilePanel === "preview" ? "hidden md:flex" : "flex"}`} aria-label="Contenido de la landing">
           <div className="border-b border-gray-200 bg-white px-4 py-3">
             <label htmlFor="landing-page-select" className="font-barlow text-sm font-black uppercase tracking-[0.08em] text-[#1C1C1C]">Landing que editas</label>
             <select
@@ -153,13 +217,57 @@ export default function VisualBuilderContainer({ actions, initialSections, initi
               />
               <button type="submit" className="min-h-11 rounded-md border border-gray-300 px-3 text-xs font-bold text-[#1C1C1C] hover:bg-gray-50">Crear</button>
             </form>
-            {nextSlug && <p id="new-landing-path" className="mt-1 text-xs text-gray-500">Se publicará en /campanas/{nextSlug}</p>}
+            {nextSlug && <p id="new-landing-path" className="mt-1 text-xs text-gray-500">Se publicará en /{nextSlug}</p>}
             {newPageError && <p id="new-landing-error" role="alert" className="mt-1 text-xs text-[#E31C23]">{newPageError}</p>}
+            {createFromProduct && (
+              <details className="mt-3 rounded-md border border-gray-200 bg-gray-50 p-3">
+                <summary className="cursor-pointer text-xs font-bold uppercase tracking-[0.08em] text-[#1C1C1C]">Armar desde un producto</summary>
+                <p className="mt-2 text-xs text-gray-500">
+                  Elige el producto que vas a vender y se arma una landing base: portada con la foto, vitrina con sus colores, beneficios y preguntas, y relacionados. Queda desactivada para que la termines.
+                </p>
+                <input
+                  type="search"
+                  value={productQuery}
+                  onChange={(event) => setProductQuery(event.target.value)}
+                  placeholder="Buscar producto, ej. Clifton"
+                  aria-label="Buscar producto para la landing"
+                  aria-describedby={productError ? "product-landing-error" : undefined}
+                  className="mt-2 min-h-11 w-full border bg-white px-3 text-sm"
+                />
+                {visibleHits.length > 0 && (
+                  <ul className="mt-2 max-h-64 divide-y overflow-y-auto border bg-white" aria-label="Productos encontrados">
+                    {visibleHits.map((product) => (
+                      <li key={product.id}>
+                        <button
+                          type="button"
+                          disabled={Boolean(buildingFrom)}
+                          onClick={() => buildFromProduct(product)}
+                          className="flex min-h-11 w-full items-center gap-3 px-3 py-2 text-left text-sm hover:bg-gray-50 disabled:opacity-50"
+                        >
+                          {product.imageUrl
+                            ? <img src={product.imageUrl} alt="" className="h-10 w-10 shrink-0 object-cover" />
+                            : <span className="h-10 w-10 shrink-0 bg-gray-100" aria-hidden="true" />}
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate font-bold">{product.name}</span>
+                            <span className="block text-xs text-gray-500">{product.brand ?? "Sin marca"} · /{productLandingSlug(product.name)}</span>
+                          </span>
+                          {buildingFrom === product.slug && <span className="text-xs text-gray-500">Armando...</span>}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {productError && <p id="product-landing-error" role="alert" className="mt-1 text-xs text-[#E31C23]">{productError}</p>}
+              </details>
+            )}
             <p className="mt-2 text-xs text-gray-500">
               Guardar deja un borrador en la vista previa. Publicar lo pone en {page === "home" ? "Inicio" : pagePath(page)}.
             </p>
+            {page !== "home" && pageSettings && saveSettings && (
+              <LandingPageSettingsForm key={page} page={page} initial={pageSettings} save={saveSettings} onSaved={() => router.refresh()} />
+            )}
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="flex-1">
             <LandingBuilderList
               key={dataVersion}
               actions={actions}

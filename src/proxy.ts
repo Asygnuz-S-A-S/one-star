@@ -1,4 +1,5 @@
 import { auth } from "@/lib/auth"
+import { isReservedLandingSlug } from "@/lib/landing-paths"
 import { buildContentSecurityPolicy } from "@/lib/content-security-policy"
 import { canAccessAdminPath } from "@/lib/admin-access"
 import {
@@ -24,15 +25,20 @@ function clearAuthCookies(response: NextResponse): void {
   }
 }
 
+/** Inicio o landing del constructor: un solo segmento que no es una ruta fija de la tienda. */
+export function isBuilderPreviewPath(pathname: string): boolean {
+  if (pathname === "/") return true
+  const slug = /^\/([a-z0-9]+(?:-[a-z0-9]+)*)$/.exec(pathname)?.[1]
+  return Boolean(slug && !isReservedLandingSlug(slug))
+}
+
 function createCspContext(request: NextRequest): CspContext {
   const nonce = crypto.randomUUID().replaceAll("-", "")
   const policy = buildContentSecurityPolicy({
     nonce,
     isDevelopment: process.env.NODE_ENV === "development",
-    // El constructor visual previsualiza la home y las landings de campaña en un iframe propio.
-    allowSameOriginFraming:
-      (request.nextUrl.pathname === "/" || /^\/campanas\/[a-z0-9-]+$/.test(request.nextUrl.pathname)) &&
-      request.nextUrl.searchParams.get("preview") === "true",
+    // El constructor visual previsualiza la home y las landings (/<slug>) en un iframe propio.
+    allowSameOriginFraming: isBuilderPreviewPath(request.nextUrl.pathname) && request.nextUrl.searchParams.get("preview") === "true",
   })
   const requestHeaders = new Headers(request.headers)
 

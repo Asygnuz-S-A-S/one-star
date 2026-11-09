@@ -13,6 +13,15 @@ vi.mock("@/server/repositories/landing-section.repository", () => ({
   deleteLandingSection: vi.fn(),
   getMaximumLandingSectionPosition: vi.fn(),
   publishLandingDrafts: vi.fn(),
+  findLandingPageSettings: vi.fn(),
+  upsertLandingPageSettings: vi.fn(),
+  findPublicLandingPages: vi.fn(),
+  createLandingPageWithSections: vi.fn(),
+}))
+
+vi.mock("@/server/services/product.service", () => ({
+  getProductBySlug: vi.fn(),
+  getRelatedProducts: vi.fn(),
 }))
 
 vi.mock("@/server/auth/require-admin", () => ({
@@ -22,6 +31,7 @@ vi.mock("@/server/auth/require-admin", () => ({
 import * as service from "../landing-section.service"
 import * as repository from "@/server/repositories/landing-section.repository"
 import { getAdminSession } from "@/server/auth/require-admin"
+import { getProductBySlug, getRelatedProducts } from "@/server/services/product.service"
 
 beforeEach(() => vi.clearAllMocks())
 
@@ -177,5 +187,78 @@ describe("deleteLandingSection", () => {
     await service.deleteLandingSection("sec_1")
 
     expect(repository.deleteLandingSection).toHaveBeenCalledWith("sec_1")
+  })
+})
+
+describe("landing activa u oculta y nombres reservados", () => {
+  const section = { id: "s1", page: "black-friday", config: { a: 1 }, draftConfig: { a: 2 } }
+
+  it("una landing oculta no se ve en la tienda", async () => {
+    vi.mocked(repository.getActiveLandingSections).mockResolvedValue([section] as never)
+    vi.mocked(repository.findLandingPageSettings).mockResolvedValue({ isActive: false } as never)
+
+    expect(await service.getLandingSectionsForRequest("black-friday", false)).toEqual([])
+  })
+
+  it("el admin la sigue viendo en la vista previa, con el borrador", async () => {
+    vi.mocked(repository.getActiveLandingSections).mockResolvedValue([section] as never)
+    vi.mocked(repository.findLandingPageSettings).mockResolvedValue({ isActive: false } as never)
+    vi.mocked(getAdminSession).mockResolvedValue({ user: { id: "a1" } } as never)
+
+    const result = await service.getLandingSectionsForRequest("black-friday", true)
+    expect(result).toHaveLength(1)
+    expect(result[0].config).toEqual({ a: 2 })
+  })
+
+  it("sin ajustes guardados la landing está activa", async () => {
+    vi.mocked(repository.getActiveLandingSections).mockResolvedValue([section] as never)
+    vi.mocked(repository.findLandingPageSettings).mockResolvedValue(null)
+
+    expect(await service.getLandingSectionsForRequest("black-friday", false)).toHaveLength(1)
+  })
+
+  it("no deja crear una landing nueva con el nombre de una ruta de la tienda", async () => {
+    vi.mocked(repository.getAllLandingSections).mockResolvedValue([])
+
+    await expect(service.createLandingSection("HERO", "checkout")).rejects.toThrow("es una ruta de la tienda")
+    expect(repository.createLandingSection).not.toHaveBeenCalled()
+  })
+
+  it("el inicio no se puede desactivar", async () => {
+    await expect(service.saveLandingPageSettings({ slug: "home", title: null, description: null, isActive: false })).rejects.toThrow()
+    expect(repository.upsertLandingPageSettings).not.toHaveBeenCalled()
+  })
+})
+
+describe("createLandingFromProduct", () => {
+  const product = {
+    slug: "clifton-9", name: "Hoka Clifton 9", brand: "HOKA", basePrice: 650000, isOnSale: false, salePrice: null,
+    description: "Ligera", extendedDescription: null, metaTitle: null, metaDescription: "Para correr", highlights: [], faqs: [],
+    images: [{ url: "https://res.cloudinary.com/x/c.jpg", alt: "Clifton" }], colorSiblings: [], categoryId: "cat-1",
+  }
+
+  it("crea la landing desactivada con portada, vitrina, detalles y relacionados", async () => {
+    vi.mocked(repository.getAllLandingSections).mockResolvedValue([])
+    vi.mocked(getProductBySlug).mockResolvedValue(product as never)
+    vi.mocked(getRelatedProducts).mockResolvedValue([{ slug: "otro" }] as never)
+
+    expect(await service.createLandingFromProduct("clifton", "clifton-9")).toBe("clifton")
+    const [slug, settings, sections] = vi.mocked(repository.createLandingPageWithSections).mock.calls[0]
+    expect(slug).toBe("clifton")
+    expect(settings).toEqual({ title: "Hoka Clifton 9", description: "Para correr", isActive: false })
+    expect(sections.map((section) => section.type)).toEqual(["HERO", "PRODUCT_CAROUSEL", "CUSTOM_HTML", "PRODUCT_CAROUSEL"])
+  })
+
+  it("no pisa una landing que ya existe ni usa rutas de la tienda", async () => {
+    vi.mocked(repository.getAllLandingSections).mockResolvedValue([{ id: "s1" }] as never)
+    await expect(service.createLandingFromProduct("clifton", "clifton-9")).rejects.toThrow("Ya existe una landing")
+    await expect(service.createLandingFromProduct("checkout", "clifton-9")).rejects.toThrow("ruta de la tienda")
+    expect(repository.createLandingPageWithSections).not.toHaveBeenCalled()
+  })
+
+  it("rechaza un producto que no está publicado", async () => {
+    vi.mocked(repository.getAllLandingSections).mockResolvedValue([])
+    vi.mocked(getProductBySlug).mockResolvedValue(null)
+    await expect(service.createLandingFromProduct("clifton", "no-existe")).rejects.toThrow("no está publicado")
   })
 })

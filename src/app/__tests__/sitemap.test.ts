@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
+vi.mock("@/server/services/landing-section.service", () => ({ getPublicLandingPages: vi.fn().mockResolvedValue([]) }))
 vi.mock("@/server/services/category.service", () => ({
   getCategories: vi.fn(),
 }))

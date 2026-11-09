@@ -472,9 +472,20 @@ enum LandingSectionType {
   RECENTLY_VIEWED
 }
 
+/// Ajustes de una landing del constructor (el contenido vive en LandingSection.page = slug).
+/// Sin fila = activa y sin título propio, así las landings anteriores siguen igual.
+model LandingPage {
+  slug        String   @id
+  title       String?
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 model LandingSection {
   id        String             @id @default(cuid())
-  /// Landing a la que pertenece: "home" es la página de inicio; cualquier otro slug se publica en /campanas/<slug>.
+  /// Landing a la que pertenece: "home" es la página de inicio; cualquier otro slug se publica en /<slug>.
   page      String             @default("home")
   type      LandingSectionType
   position  Int                @default(0)
