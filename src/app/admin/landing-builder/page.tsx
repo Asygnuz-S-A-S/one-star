@@ -1,5 +1,5 @@
 import { getAllLandingSections, getLandingPageSettings, getLandingPages } from "@/server/services/landing-section.service"
-import { updateLandingPageSettingsAction } from "@/server/actions/landing.actions"
+import { createLandingFromProductAction, updateLandingPageSettingsAction } from "@/server/actions/landing.actions"
 import { getTopBanner } from "@/server/services/top-banner.service"
 import { getAllStoreLogos, getPrimaryStoreLogos } from "@/server/services/site-logo.service"
 import { getAllNavigationItems } from "@/server/services/navigation.service"
@@ -162,6 +162,7 @@ export default async function LandingBuilderPage({ searchParams }: { searchParam
       pages={pages.includes(page) ? pages : [...pages, page]}
       pageSettings={pageSettings}
       saveSettings={updateLandingPageSettingsAction}
+      createFromProduct={createLandingFromProductAction}
     />
   )
 }

@@ -11,6 +11,9 @@ import {
 } from "@/server/validators/landing-section.validator"
 import { campaignHeroDefaults, collectionTileDefaults } from "@/lib/editorial-builder-form"
 import { isReservedLandingSlug } from "@/lib/landing-paths"
+import { buildProductLandingSections } from "@/lib/product-landing"
+import { getProductBySlug, getRelatedProducts } from "@/server/services/product.service"
+import { EditorialContentConfigSchema } from "@/server/validators/editorial-content.validator"
 
 export async function getAllLandingSections(page: string = repository.HOME_LANDING_PAGE) {
   return repository.getAllLandingSections(LandingPageSchema.parse(page))
@@ -135,6 +138,32 @@ export async function createLandingSection(type: string, page: string = reposito
     isActive: true,
     config: defaultConfig,
   })
+}
+
+/**
+ * Arma una landing base desde un producto publicado. Queda desactivada (solo el admin la ve en la
+ * vista previa) hasta que la termine y la active desde los ajustes.
+ */
+export async function createLandingFromProduct(page: string, productSlug: string) {
+  const slug = LandingPageSchema.parse(page)
+  if (slug === repository.HOME_LANDING_PAGE || isReservedLandingSlug(slug)) {
+    throw new Error(`"${slug}" es una ruta de la tienda; elige otro nombre`)
+  }
+  if ((await repository.getAllLandingSections(slug)).length > 0) {
+    throw new Error(`Ya existe una landing en /${slug}; elige otro nombre`)
+  }
+  const product = await getProductBySlug(productSlug)
+  if (!product) throw new Error("El producto no existe o no está publicado")
+  const related = await getRelatedProducts(product.categoryId, product.slug, 8).catch(() => [])
+  const sections = buildProductLandingSections(product, related.map((item) => item.slug))
+  // El hero debe pasar el mismo validador que el editor, para que el admin pueda guardarlo después.
+  EditorialContentConfigSchema.parse(sections[0].config)
+  await repository.createLandingPageWithSections(
+    slug,
+    { title: (product.metaTitle || product.name).slice(0, 70), description: product.metaDescription?.slice(0, 160) ?? null, isActive: false },
+    sections.map((section) => ({ type: section.type, config: section.config as Prisma.InputJsonObject })),
+  )
+  return slug
 }
 
 export async function deleteLandingSection(id: string) {

@@ -5,6 +5,7 @@ import type { Prisma, LandingSectionType } from "@prisma/client"
 import { z, ZodError } from "zod"
 import { requireSuperAdmin } from "@/server/auth/require-admin"
 import {
+  createLandingFromProduct,
   createLandingSection,
   deleteLandingSection,
   setLandingSectionActive,
@@ -181,6 +182,21 @@ export async function createLandingSectionAction(type: LandingSectionType, page:
     console.error("Error creating landing section:", error)
     const reserved = error instanceof Error && error.message.includes("es una ruta de la tienda")
     return { success: false, error: reserved ? error.message : "No se pudo crear la sección" }
+  }
+}
+
+/** Crea una landing base (desactivada) a partir de un producto. Solo Super Admin. */
+export async function createLandingFromProductAction(page: string, productSlug: string) {
+  "use server"
+  try {
+    await requireSuperAdmin()
+    const slug = await createLandingFromProduct(LandingPageSchema.parse(page), z.string().trim().min(1).max(200).parse(productSlug))
+    revalidateLanding()
+    return { success: true as const, page: slug }
+  } catch (error) {
+    console.error("Error creating landing from product:", error)
+    const known = error instanceof Error && /ruta de la tienda|Ya existe una landing|no está publicado/.test(error.message)
+    return { success: false as const, error: known ? (error as Error).message : "No se pudo armar la landing" }
   }
 }
 
