@@ -29,6 +29,7 @@ describe("buildProductLandingSections", () => {
       primaryCta: { label: "Comprar ahora", href: "/productos/hoka-clifton-9-negro" },
       foregroundMedia: { src: "https://res.cloudinary.com/x/clifton.jpg", alt: "Hoka Clifton 9" },
     })
+    expect(slide.spinMode).toBeUndefined()
     expect(sections[1].config.productSlugs).toEqual(["hoka-clifton-9-negro", "hoka-clifton-9-blanco"])
     expect(sections[3].config.productSlugs).toEqual(["otro-1", "otro-2"])
   })

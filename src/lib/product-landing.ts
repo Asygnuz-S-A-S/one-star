@@ -104,7 +104,8 @@ export function buildProductLandingSections(
           headline,
           ...(copy && { copy }),
           primaryCta: cta,
-          ...(foregroundMedia && { foregroundMedia, spinMode: "static" }),
+          // Sin spinMode: "static" agranda la foto al tamaño del giro 360, y una foto recortada sin fondo llenaba todo el ancho en móvil.
+          ...(foregroundMedia && { foregroundMedia }),
         }],
       },
     },
