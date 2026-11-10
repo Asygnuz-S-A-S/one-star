@@ -34,19 +34,35 @@ export interface LandingPageSettings {
   title: string | null
   description: string | null
   isActive: boolean
+  /** Menú de la tienda (barra superior y menú inferior en celular). */
+  showHeader: boolean
+  showFooter: boolean
 }
 
-/** Ajustes de la landing; sin fila guardada está activa y sin título propio. */
+/** Ajustes de la landing; sin fila guardada está activa, con menú y footer, y sin título propio. */
 export async function getLandingPageSettings(page: string): Promise<LandingPageSettings> {
   const slug = LandingPageSchema.parse(page)
   const row = await repository.findLandingPageSettings(slug)
-  return { slug, title: row?.title ?? null, description: row?.description ?? null, isActive: row?.isActive ?? true }
+  return {
+    slug,
+    title: row?.title ?? null,
+    description: row?.description ?? null,
+    isActive: row?.isActive ?? true,
+    showHeader: row?.showHeader ?? true,
+    showFooter: row?.showFooter ?? true,
+  }
 }
 
 export async function saveLandingPageSettings(settings: LandingPageSettings) {
   const slug = LandingPageSchema.parse(settings.slug)
   if (slug === repository.HOME_LANDING_PAGE) throw new Error("El inicio no se puede desactivar")
-  return repository.upsertLandingPageSettings(slug, { title: settings.title, description: settings.description, isActive: settings.isActive })
+  return repository.upsertLandingPageSettings(slug, {
+    title: settings.title,
+    description: settings.description,
+    isActive: settings.isActive,
+    showHeader: settings.showHeader,
+    showFooter: settings.showFooter,
+  })
 }
 
 export async function getPublicLandingPages() {

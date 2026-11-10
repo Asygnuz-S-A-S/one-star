@@ -59,30 +59,34 @@ export default function PublicSiteFrame({
 
   return (
     <div className="public-storefront relative flex h-dvh min-h-0 flex-col overflow-hidden print:block print:h-auto print:overflow-visible" style={headerOffset as CSSProperties}>
-      <div className="contents print:hidden">
+      <div className="contents print:hidden" data-site-header>
         <Header {...headerProps} />
       </div>
       <div id="public-scroll" className="min-h-0 flex-1 overflow-y-auto print:overflow-visible">
         <div aria-hidden="true" className="print:hidden h-[var(--public-header-offset)] lg:h-[var(--public-header-offset-desktop)]" data-testid="public-site-spacer" />
         <main id="contenido-principal">{children}</main>
         <div className="contents print:hidden">
-          <StoreFooter
-            links={footerLinks}
-            storeName={storeName}
-            contactEmail={contactEmail}
-            whatsapp={whatsapp}
-          />
+          <div className="contents" data-site-footer>
+            <StoreFooter
+              links={footerLinks}
+              storeName={storeName}
+              contactEmail={contactEmail}
+              whatsapp={whatsapp}
+            />
+          </div>
           {/* Espacio para que el menú flotante no tape el final del footer; mismo color del footer. */}
           {/* En la ficha la barra fija de compra ocupa el mismo lugar que el menú. */}
           {(shouldShowMobileBottomNav(pathname) || pathname.startsWith("/productos/")) && (
-            <div aria-hidden="true" className="h-[calc(4.75rem+env(safe-area-inset-bottom))] bg-[#1C1C1C] lg:hidden" />
+            <div aria-hidden="true" data-site-bottom-nav className="h-[calc(4.75rem+env(safe-area-inset-bottom))] bg-[#1C1C1C] lg:hidden" />
           )}
         </div>
       </div>
       <div className="contents print:hidden">
         {/* En el checkout el botón flotante tapaba los campos en celular. */}
         {chatEnabled && !pathname.startsWith("/checkout") && <ChatWidget welcome={chatWelcome} />}
-        <MobileBottomNav items={bottomNav} />
+        <div className="contents" data-site-bottom-nav>
+          <MobileBottomNav items={bottomNav} />
+        </div>
       </div>
     </div>
   )

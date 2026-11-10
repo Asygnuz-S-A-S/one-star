@@ -224,8 +224,20 @@ describe("landing activa u oculta y nombres reservados", () => {
     expect(repository.createLandingSection).not.toHaveBeenCalled()
   })
 
+  it("sin ajustes guardados la landing lleva menú y footer", async () => {
+    vi.mocked(repository.findLandingPageSettings).mockResolvedValue(null)
+
+    expect(await service.getLandingPageSettings("black-friday")).toMatchObject({ showHeader: true, showFooter: true })
+  })
+
+  it("guarda si la landing muestra el menú y el footer", async () => {
+    await service.saveLandingPageSettings({ slug: "black-friday", title: null, description: null, isActive: true, showHeader: false, showFooter: true })
+
+    expect(repository.upsertLandingPageSettings).toHaveBeenCalledWith("black-friday", { title: null, description: null, isActive: true, showHeader: false, showFooter: true })
+  })
+
   it("el inicio no se puede desactivar", async () => {
-    await expect(service.saveLandingPageSettings({ slug: "home", title: null, description: null, isActive: false })).rejects.toThrow()
+    await expect(service.saveLandingPageSettings({ slug: "home", title: null, description: null, isActive: false, showHeader: true, showFooter: true })).rejects.toThrow()
     expect(repository.upsertLandingPageSettings).not.toHaveBeenCalled()
   })
 })

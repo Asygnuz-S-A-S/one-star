@@ -7,18 +7,24 @@ export interface LandingSettingsValue {
   title: string | null
   description: string | null
   isActive: boolean
+  showHeader: boolean
+  showFooter: boolean
 }
+
+type SaveInput = { page: string; title: string; description: string; isActive: boolean; showHeader: boolean; showFooter: boolean }
 
 interface Props {
   page: string
   initial: LandingSettingsValue
-  save: (input: { page: string; title: string; description: string; isActive: boolean }) => Promise<{ success: boolean; error?: string }>
+  save: (input: SaveInput) => Promise<{ success: boolean; error?: string }>
   onSaved: () => void
 }
 
-/** Ajustes de la landing: si se ve en la tienda y cómo aparece en Google. */
+/** Ajustes de la landing: si se ve en la tienda, si lleva menú y footer, y cómo aparece en Google. */
 export default function LandingPageSettingsForm({ page, initial, save, onSaved }: Props) {
   const [isActive, setIsActive] = useState(initial.isActive)
+  const [showHeader, setShowHeader] = useState(initial.showHeader)
+  const [showFooter, setShowFooter] = useState(initial.showFooter)
   const [title, setTitle] = useState(initial.title ?? "")
   const [description, setDescription] = useState(initial.description ?? "")
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null)
@@ -28,7 +34,7 @@ export default function LandingPageSettingsForm({ page, initial, save, onSaved }
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setSaving(true)
-    const result = await save({ page, title, description, isActive })
+    const result = await save({ page, title, description, isActive, showHeader, showFooter })
     setSaving(false)
     setStatus(result.success ? { ok: true, text: isActive ? "Guardado. La landing está activa." : "Guardado. La landing quedó oculta." } : { ok: false, text: result.error ?? "No se pudo guardar" })
     if (result.success) onSaved()
@@ -45,6 +51,18 @@ export default function LandingPageSettingsForm({ page, initial, save, onSaved }
           Ver {path}
         </a>
       </div>
+      {/* Sin menú ni footer la landing queda como página de venta: el visitante solo puede comprar. */}
+      <fieldset className="grid gap-1 sm:grid-cols-2">
+        <legend className="sr-only">Partes de la tienda en esta landing</legend>
+        <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm text-[#1C1C1C]">
+          <input type="checkbox" checked={showHeader} onChange={(event) => setShowHeader(event.target.checked)} className="h-5 w-5 accent-[#E31C23]" />
+          Mostrar menú
+        </label>
+        <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm text-[#1C1C1C]">
+          <input type="checkbox" checked={showFooter} onChange={(event) => setShowFooter(event.target.checked)} className="h-5 w-5 accent-[#E31C23]" />
+          Mostrar footer
+        </label>
+      </fieldset>
       <div>
         <label htmlFor="landing-seo-title" className="text-xs font-bold text-gray-700">Título en Google (opcional)</label>
         <input id="landing-seo-title" value={title} onChange={(event) => setTitle(event.target.value)} maxLength={70} placeholder="Black Friday One Star: hasta 40 % en tenis" className="mt-1 min-h-11 w-full border bg-white px-3 text-sm" />

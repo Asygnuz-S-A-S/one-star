@@ -481,3 +481,15 @@ html[data-intro] .store-intro__logo {
   min-height: 44px;
   padding-block: 0;
 }
+
+/* Landings sin menú o sin footer: la página deja una marca y el marco de la tienda la lee aquí,
+   desde el primer render. !important gana a las variables que PublicSiteFrame pone en línea. */
+.public-storefront:has([data-landing-hide-header]) {
+  --public-header-offset: 0px !important;
+  --public-header-offset-desktop: 0px !important;
+}
+.public-storefront:has([data-landing-hide-header]) [data-site-header],
+.public-storefront:has([data-landing-hide-header]) [data-site-bottom-nav],
+.public-storefront:has([data-landing-hide-footer]) [data-site-footer] {
+  display: none !important;
+}

@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
+import { useCallback, useEffect, useRef, useState, type ComponentProps, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
 import { LandingSection, HomeGridBlock } from "@prisma/client"
 import type { BannerDTO } from "@/server/services/banner.service"
@@ -24,7 +24,7 @@ interface VisualBuilderContainerProps {
   page: string
   pages: string[]
   pageSettings?: LandingSettingsValue | null
-  saveSettings?: (input: { page: string; title: string; description: string; isActive: boolean }) => Promise<{ success: boolean; error?: string }>
+  saveSettings?: ComponentProps<typeof LandingPageSettingsForm>["save"]
   createFromProduct?: (page: string, productSlug: string) => Promise<{ success: true; page: string } | { success: false; error: string }>
 }
 

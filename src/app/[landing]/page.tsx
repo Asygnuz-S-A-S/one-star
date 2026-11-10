@@ -41,7 +41,15 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
 export default async function LandingPage({ params, searchParams }: Props) {
   const slug = await validSlug(params)
   const { preview } = await searchParams
-  const sections = await getLandingSectionsForRequest(slug, preview === "true").catch(() => [])
+  const [sections, settings] = await Promise.all([
+    getLandingSectionsForRequest(slug, preview === "true").catch(() => []),
+    getLandingPageSettings(slug).catch(() => null),
+  ])
   if (sections.length === 0) notFound()
-  return <LandingSections sections={sections} />
+  // Marcas que PublicSiteFrame lee con CSS (:has) para ocultar menú o footer desde el primer render, sin parpadeo.
+  return <>
+    {settings && !settings.showHeader && <span hidden data-landing-hide-header />}
+    {settings && !settings.showFooter && <span hidden data-landing-hide-footer />}
+    <LandingSections sections={sections} />
+  </>
 }
