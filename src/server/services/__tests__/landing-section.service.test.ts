@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 vi.mock("server-only", () => ({}))
 
@@ -231,6 +231,8 @@ describe("landing activa u oculta y nombres reservados", () => {
 })
 
 describe("createLandingFromProduct", () => {
+  afterEach(() => vi.unstubAllGlobals())
+
   const product = {
     slug: "clifton-9", name: "Hoka Clifton 9", brand: "HOKA", basePrice: 650000, isOnSale: false, salePrice: null,
     description: "Ligera", extendedDescription: null, metaTitle: null, metaDescription: "Para correr", highlights: [], faqs: [],
@@ -247,6 +249,25 @@ describe("createLandingFromProduct", () => {
     expect(slug).toBe("clifton")
     expect(settings).toEqual({ title: "Hoka Clifton 9", description: "Para correr", isActive: false })
     expect(sections.map((section) => section.type)).toEqual(["HERO", "PRODUCT_CAROUSEL", "CUSTOM_HTML", "PRODUCT_CAROUSEL"])
+  })
+
+  it("usa la foto sin fondo si Cloudinary la está procesando y la original si no puede", async () => {
+    const withPhoto = { ...product, images: [{ url: "https://res.cloudinary.com/x/image/upload/v1/c.jpg", alt: "Clifton" }] }
+    const heroSrc = () => {
+      const sections = vi.mocked(repository.createLandingPageWithSections).mock.calls.at(-1)![2]
+      return ((sections[0].config as { slides: { foregroundMedia: { src: string } }[] }).slides[0].foregroundMedia.src)
+    }
+    vi.mocked(repository.getAllLandingSections).mockResolvedValue([])
+    vi.mocked(getProductBySlug).mockResolvedValue(withPhoto as never)
+    vi.mocked(getRelatedProducts).mockResolvedValue([])
+
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ status: 423 }))
+    await service.createLandingFromProduct("clifton", "clifton-9")
+    expect(heroSrc()).toContain("/image/upload/e_background_removal/e_trim/")
+
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ status: 400 }))
+    await service.createLandingFromProduct("clifton", "clifton-9")
+    expect(heroSrc()).toBe("https://res.cloudinary.com/x/image/upload/v1/c.jpg")
   })
 
   it("no pisa una landing que ya existe ni usa rutas de la tienda", async () => {

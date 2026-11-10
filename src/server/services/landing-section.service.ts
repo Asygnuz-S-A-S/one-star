@@ -12,6 +12,7 @@ import {
 import { campaignHeroDefaults, collectionTileDefaults } from "@/lib/editorial-builder-form"
 import { isReservedLandingSlug } from "@/lib/landing-paths"
 import { buildProductLandingSections } from "@/lib/product-landing"
+import { productCutoutUrl } from "@/lib/cloudinary-loader"
 import { getProductBySlug, getRelatedProducts } from "@/server/services/product.service"
 import { EditorialContentConfigSchema } from "@/server/validators/editorial-content.validator"
 
@@ -141,6 +142,22 @@ export async function createLandingSection(type: string, page: string = reposito
 }
 
 /**
+ * Pide a Cloudinary la foto sin fondo (así empieza a procesarla) y dice si se puede usar:
+ * 200 = lista, 423 = procesando (estará lista en segundos; la landing se crea oculta).
+ * Cualquier otra respuesta (complemento apagado, sin cupo) o un fallo de red = usar la original.
+ */
+async function canUseCutout(url: string): Promise<boolean> {
+  const cutout = productCutoutUrl(url)
+  if (cutout === url) return false
+  try {
+    const response = await fetch(cutout, { headers: { Accept: "image/webp" }, signal: AbortSignal.timeout(8000) })
+    return response.status === 200 || response.status === 423
+  } catch {
+    return false
+  }
+}
+
+/**
  * Arma una landing base desde un producto publicado. Queda desactivada (solo el admin la ve en la
  * vista previa) hasta que la termine y la active desde los ajustes.
  */
@@ -155,7 +172,9 @@ export async function createLandingFromProduct(page: string, productSlug: string
   const product = await getProductBySlug(productSlug)
   if (!product) throw new Error("El producto no existe o no está publicado")
   const related = await getRelatedProducts(product.categoryId, product.slug, 8).catch(() => [])
-  const sections = buildProductLandingSections(product, related.map((item) => item.slug))
+  const firstPhoto = product.images.find((image) => image.url)?.url
+  const heroCutout = firstPhoto ? await canUseCutout(firstPhoto) : false
+  const sections = buildProductLandingSections(product, related.map((item) => item.slug), { heroCutout })
   // El hero debe pasar el mismo validador que el editor, para que el admin pueda guardarlo después.
   EditorialContentConfigSchema.parse(sections[0].config)
   await repository.createLandingPageWithSections(
