@@ -29,6 +29,7 @@ describe("buildProductLandingSections", () => {
       primaryCta: { label: "Comprar ahora", href: "/productos/hoka-clifton-9-negro" },
       foregroundMedia: { src: "https://res.cloudinary.com/x/clifton.jpg", alt: "Hoka Clifton 9" },
     })
+    expect(slide.spinMode).toBeUndefined()
     expect(sections[1].config.productSlugs).toEqual(["hoka-clifton-9-negro", "hoka-clifton-9-blanco"])
     expect(sections[3].config.productSlugs).toEqual(["otro-1", "otro-2"])
   })
@@ -49,5 +50,15 @@ describe("buildProductLandingSections", () => {
     expect(sections).toHaveLength(3)
     expect((sections[0].config.slides as Record<string, unknown>[])[0].foregroundMedia).toBeUndefined()
     expect(sections[1].config.title).toBe("Elige el tuyo")
+  })
+
+  it("usa la foto sin fondo en la portada solo si se pide", () => {
+    const withPhoto = { ...product, images: [{ url: "https://res.cloudinary.com/x/image/upload/v1/clifton.jpg", alt: "" }] }
+    const heroSrc = (sections: ReturnType<typeof buildProductLandingSections>) =>
+      (sections[0].config.slides as Record<string, { src: string }>[])[0].foregroundMedia.src
+
+    expect(heroSrc(buildProductLandingSections(withPhoto, []))).toBe("https://res.cloudinary.com/x/image/upload/v1/clifton.jpg")
+    expect(heroSrc(buildProductLandingSections(withPhoto, [], { heroCutout: true })))
+      .toBe("https://res.cloudinary.com/x/image/upload/e_background_removal/e_trim/v1/clifton.jpg")
   })
 })

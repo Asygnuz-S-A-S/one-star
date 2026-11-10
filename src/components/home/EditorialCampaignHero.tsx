@@ -1,11 +1,12 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent, type RefObject } from "react"
-import Image, { getImageProps } from "next/image"
+import Image, { getImageProps, type ImageProps } from "next/image"
 
 import { PublicButton } from "@/components/storefront/public-primitives"
 import { resolveCampaignSlides, type CampaignHeroConfig, type CampaignHeroSlide } from "@/lib/editorial-config"
 import { canUseNextImageOptimization } from "@/lib/image-optimization"
+import { withoutCutout } from "@/lib/cloudinary-loader"
 
 // Móvil: el texto va abajo, así que el velo sube desde abajo; desde md el texto va a la izquierda.
 const ACCENT_CLASSES = {
@@ -49,6 +50,16 @@ const STAGE_BACKGROUNDS = {
 
 const AUTOPLAY_MS = 6500
 
+/**
+ * Cloudinary genera cada tamaño de una foto sin fondo la primera vez que se pide y mientras tanto
+ * responde 423: en ese caso se muestra la foto original en vez de una imagen rota.
+ */
+function CutoutSafeImage({ src, alt, ...props }: ImageProps & { src: string }) {
+  const [failed, setFailed] = useState(false)
+  const fallback = withoutCutout(src)
+  return <Image {...props} alt={alt} src={failed ? fallback : src} onError={() => { if (fallback !== src) setFailed(true) }} />
+}
+
 const isStageSlide = (slide: CampaignHeroSlide) => Boolean(slide.foregroundMedia) && !slide.mobileMedia && !slide.tabletMedia && !slide.desktopMedia
 
 /** Fondo de un slide. Todos quedan apilados y solo cambia la opacidad: eso hace el crossfade. */
@@ -58,7 +69,7 @@ function SlideBackdrop({ slide, active, priority, instant = false }: { slide: Ca
     {!stage && <CampaignMedia slide={slide} priority={priority} />}
     {!stage && !slide.noOverlay && <div className={`absolute inset-0 -z-10 bg-gradient-to-t md:bg-gradient-to-r ${ACCENT_CLASSES[slide.accent]}`} />}
     {!stage && slide.foregroundMedia && <div className="pointer-events-none absolute inset-x-0 top-12 z-0 h-[42%] sm:top-auto sm:bottom-0 sm:left-[38%] sm:h-[72%]" data-testid="editorial-hero-foreground">
-      <Image src={slide.foregroundMedia.src} alt={slide.foregroundMedia.alt} fill priority={priority} sizes="(max-width: 640px) 100vw, 62vw" unoptimized={!canUseNextImageOptimization(slide.foregroundMedia.src)} className="object-contain object-right-bottom drop-shadow-[0_28px_25px_rgba(0,0,0,0.35)]" />
+      <CutoutSafeImage src={slide.foregroundMedia.src} alt={slide.foregroundMedia.alt} fill priority={priority} sizes="(max-width: 640px) 100vw, 62vw" unoptimized={!canUseNextImageOptimization(slide.foregroundMedia.src)} className="object-contain object-right-bottom drop-shadow-[0_28px_25px_rgba(0,0,0,0.35)]" />
     </div>}
     {!stage && !slide.noOverlay && <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden="true"><span className="absolute right-[-0.12em] top-1/2 -translate-y-1/2 font-barlow text-[31vw] font-black leading-none tracking-[-0.12em] text-white/10">ONE</span></div>}
   </div>
@@ -136,7 +147,7 @@ function ProductStage({ slide }: { slide: CampaignHeroSlide }) {
           >
             {unique.map((frame, index) => <Image key={frame.src} src={frame.src} alt={index === 0 ? frame.alt : ""} aria-hidden={index === 0 ? undefined : true} width={1120} height={720} priority={index === 0} loading={index === 0 ? undefined : "eager"} sizes="(max-width: 1024px) 96vw, 720px" unoptimized draggable={false} className={`[grid-area:1/1] ${SPIN_IMAGE_CLASSES} ${index === frameIndex ? "opacity-100" : "opacity-0"}`} />)}
           </div>
-          : <Image key={media.src} src={media.src} alt={media.alt} width={1120} height={720} priority sizes="(max-width: 1024px) 88vw, 560px" unoptimized={!canUseNextImageOptimization(media.src)} className={`${mode === "static" ? SPIN_IMAGE_CLASSES : PRODUCT_IMAGE_CLASSES} motion-safe:animate-[hero-product-enter_900ms_cubic-bezier(.22,1,.36,1)_both]`} />}
+          : <CutoutSafeImage key={media.src} src={media.src} alt={media.alt} width={1120} height={720} priority sizes="(max-width: 1024px) 88vw, 560px" unoptimized={!canUseNextImageOptimization(media.src)} className={`${mode === "static" ? SPIN_IMAGE_CLASSES : PRODUCT_IMAGE_CLASSES} motion-safe:animate-[hero-product-enter_900ms_cubic-bezier(.22,1,.36,1)_both]`} />}
       </div>
     </div>
     <div aria-hidden="true" style={SHADOW_DEPTH} className="-mt-2 h-6 w-[42%] max-w-sm shrink-0 blur-xl">

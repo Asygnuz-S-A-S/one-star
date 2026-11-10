@@ -479,6 +479,10 @@ model LandingPage {
   title       String?
   description String?
   isActive    Boolean  @default(true)
+  /// Muestra el menú (barra superior y menú inferior en celular) en esta landing.
+  showHeader  Boolean  @default(true)
+  /// Muestra el footer de la tienda en esta landing.
+  showFooter  Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }

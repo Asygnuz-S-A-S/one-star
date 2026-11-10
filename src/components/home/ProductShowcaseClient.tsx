@@ -5,6 +5,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence, useReducedMotion, type Variants } from "motion/react"
+import ProductCutoutImage from "@/components/product/ProductCutoutImage"
 
 export interface ShowcaseItem {
   id: string
@@ -178,16 +179,14 @@ export default function ProductShowcaseClient({ title, products, theme = "light"
                 aria-label={active.name}
                 onClick={(e) => { e.preventDefault(); launchTo(active.slug) }}
               />
+              {/* Sin fondo, como en la ficha: la foto de estudio en blanco se veía como una tarjeta. */}
               {frames.map((src, i) => (
-                <Image
+                <ProductCutoutImage
                   key={`${active.id}-${i}`}
                   src={src}
                   alt={`${active.name} vista ${i + 1}`}
-                  fill
                   priority={i === 0}
-                  className={`object-contain drop-shadow-2xl transition-opacity duration-150 ${
-                    i === frame ? "opacity-100" : "opacity-0"
-                  }`}
+                  className={`transition-opacity duration-150 ${i === frame ? "opacity-100" : "opacity-0"}`}
                   sizes="(max-width: 768px) 68vw, 440px"
                 />
               ))}

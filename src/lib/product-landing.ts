@@ -1,4 +1,5 @@
 import type { LandingSectionType } from "@prisma/client"
+import { productCutoutUrl } from "@/lib/cloudinary-loader"
 
 /** Lo mínimo del producto que necesita la landing base (sale de ProductDTO). */
 export interface ProductLandingSource {
@@ -69,7 +70,11 @@ ${faqs}
  * Landing base para vender un producto: portada, vitrina (con sus colores), detalles y relacionados.
  * Solo usa secciones que el constructor ya sabe editar, para que el admin la termine a mano.
  */
-export function buildProductLandingSections(product: ProductLandingSource, relatedSlugs: string[]): ProductLandingSection[] {
+export function buildProductLandingSections(
+  product: ProductLandingSource,
+  relatedSlugs: string[],
+  { heroCutout = false }: { heroCutout?: boolean } = {},
+): ProductLandingSection[] {
   const href = `/productos/${product.slug}`
   const cta = { label: "Comprar ahora", href }
   const headline = clip(product.name, 120)
@@ -77,7 +82,10 @@ export function buildProductLandingSections(product: ProductLandingSource, relat
   const copy = copySource ? clip(copySource.replace(/\s+/g, " ").trim(), 320) : undefined
   const eyebrow = product.brand ? clip(product.brand, 60) : undefined
   const photo = product.images.find((image) => image.url)
-  const foregroundMedia = photo ? { src: photo.url, alt: clip(photo.alt || product.name, 180) } : undefined
+  // El hero no tiene imagen de respaldo: la versión sin fondo solo se usa si Cloudinary la puede generar.
+  const foregroundMedia = photo
+    ? { src: heroCutout ? productCutoutUrl(photo.url) : photo.url, alt: clip(photo.alt || product.name, 180) }
+    : undefined
 
   const sections: ProductLandingSection[] = [
     {
@@ -96,7 +104,8 @@ export function buildProductLandingSections(product: ProductLandingSource, relat
           headline,
           ...(copy && { copy }),
           primaryCta: cta,
-          ...(foregroundMedia && { foregroundMedia, spinMode: "static" }),
+          // Sin spinMode: "static" agranda la foto al tamaño del giro 360, y una foto recortada sin fondo llenaba todo el ancho en móvil.
+          ...(foregroundMedia && { foregroundMedia }),
         }],
       },
     },

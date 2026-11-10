@@ -139,16 +139,18 @@ const LandingSettingsSchema = z.object({
   title: z.string().trim().max(70).transform((v) => v || null),
   description: z.string().trim().max(160).transform((v) => v || null),
   isActive: z.boolean(),
+  showHeader: z.boolean(),
+  showFooter: z.boolean(),
 })
 
-/** Activa o desactiva una landing y guarda su título y descripción para Google. Solo Super Admin. */
-export async function updateLandingPageSettingsAction(input: { page: string; title: string; description: string; isActive: boolean }) {
+/** Activa o desactiva una landing, su menú y su footer, y guarda su título y descripción para Google. Solo Super Admin. */
+export async function updateLandingPageSettingsAction(input: { page: string; title: string; description: string; isActive: boolean; showHeader: boolean; showFooter: boolean }) {
   "use server"
   try {
     await requireSuperAdmin()
     const valid = LandingSettingsSchema.parse(input)
     if (valid.page === "home") return { success: false, error: "El inicio no se puede desactivar" }
-    await saveLandingPageSettings({ slug: valid.page, title: valid.title, description: valid.description, isActive: valid.isActive })
+    await saveLandingPageSettings({ slug: valid.page, ...valid })
     revalidateLanding()
     return { success: true }
   } catch (error) {

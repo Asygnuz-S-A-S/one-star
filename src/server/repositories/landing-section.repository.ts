@@ -78,7 +78,7 @@ export async function findLandingPageSettings(slug: string) {
   return prisma.landingPage.findUnique({ where: { slug } })
 }
 
-export async function upsertLandingPageSettings(slug: string, data: { title: string | null; description: string | null; isActive: boolean }) {
+export async function upsertLandingPageSettings(slug: string, data: { title: string | null; description: string | null; isActive: boolean; showHeader: boolean; showFooter: boolean }) {
   return prisma.landingPage.upsert({ where: { slug }, create: { slug, ...data }, update: data })
 }
 
