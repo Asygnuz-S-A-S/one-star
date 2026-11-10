@@ -149,8 +149,15 @@ export async function createLandingSection(type: string, page: string = reposito
 async function canUseCutout(url: string): Promise<boolean> {
   const cutout = productCutoutUrl(url)
   if (cutout === url) return false
+  // El servidor solo consulta a Cloudinary: la URL de la foto la escribe un admin y no debe llevar a otro host.
   try {
-    const response = await fetch(cutout, { headers: { Accept: "image/webp" }, signal: AbortSignal.timeout(8000) })
+    const { protocol, hostname } = new URL(cutout)
+    if (protocol !== "https:" || hostname !== "res.cloudinary.com") return false
+  } catch {
+    return false
+  }
+  try {
+    const response = await fetch(cutout, { headers: { Accept: "image/webp" }, redirect: "error", signal: AbortSignal.timeout(8000) })
     return response.status === 200 || response.status === 423
   } catch {
     return false

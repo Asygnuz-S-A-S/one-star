@@ -270,6 +270,20 @@ describe("createLandingFromProduct", () => {
     expect(heroSrc()).toBe("https://res.cloudinary.com/x/image/upload/v1/c.jpg")
   })
 
+  it("no consulta hosts que solo mencionan a Cloudinary en la ruta", async () => {
+    const tramposa = "http://169.254.169.254/res.cloudinary.com/image/upload/v1/c.jpg"
+    vi.mocked(repository.getAllLandingSections).mockResolvedValue([])
+    vi.mocked(getProductBySlug).mockResolvedValue({ ...product, images: [{ url: tramposa, alt: "Clifton" }] } as never)
+    vi.mocked(getRelatedProducts).mockResolvedValue([])
+    const fetchMock = vi.fn().mockResolvedValue({ status: 200 })
+    vi.stubGlobal("fetch", fetchMock)
+
+    await service.createLandingFromProduct("clifton", "clifton-9")
+    expect(fetchMock).not.toHaveBeenCalled()
+    const sections = vi.mocked(repository.createLandingPageWithSections).mock.calls.at(-1)![2]
+    expect((sections[0].config as { slides: { foregroundMedia: { src: string } }[] }).slides[0].foregroundMedia.src).toBe(tramposa)
+  })
+
   it("no pisa una landing que ya existe ni usa rutas de la tienda", async () => {
     vi.mocked(repository.getAllLandingSections).mockResolvedValue([{ id: "s1" }] as never)
     await expect(service.createLandingFromProduct("clifton", "clifton-9")).rejects.toThrow("Ya existe una landing")
