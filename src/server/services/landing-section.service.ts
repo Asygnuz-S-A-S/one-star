@@ -12,6 +12,7 @@ import {
 import { campaignHeroDefaults, collectionTileDefaults } from "@/lib/editorial-builder-form"
 import { isReservedLandingSlug } from "@/lib/landing-paths"
 import { buildProductLandingSections } from "@/lib/product-landing"
+import { productCutoutUrl } from "@/lib/cloudinary-loader"
 import { getProductBySlug, getRelatedProducts } from "@/server/services/product.service"
 import { EditorialContentConfigSchema } from "@/server/validators/editorial-content.validator"
 
@@ -33,19 +34,35 @@ export interface LandingPageSettings {
   title: string | null
   description: string | null
   isActive: boolean
+  /** Menú de la tienda (barra superior y menú inferior en celular). */
+  showHeader: boolean
+  showFooter: boolean
 }
 
-/** Ajustes de la landing; sin fila guardada está activa y sin título propio. */
+/** Ajustes de la landing; sin fila guardada está activa, con menú y footer, y sin título propio. */
 export async function getLandingPageSettings(page: string): Promise<LandingPageSettings> {
   const slug = LandingPageSchema.parse(page)
   const row = await repository.findLandingPageSettings(slug)
-  return { slug, title: row?.title ?? null, description: row?.description ?? null, isActive: row?.isActive ?? true }
+  return {
+    slug,
+    title: row?.title ?? null,
+    description: row?.description ?? null,
+    isActive: row?.isActive ?? true,
+    showHeader: row?.showHeader ?? true,
+    showFooter: row?.showFooter ?? true,
+  }
 }
 
 export async function saveLandingPageSettings(settings: LandingPageSettings) {
   const slug = LandingPageSchema.parse(settings.slug)
   if (slug === repository.HOME_LANDING_PAGE) throw new Error("El inicio no se puede desactivar")
-  return repository.upsertLandingPageSettings(slug, { title: settings.title, description: settings.description, isActive: settings.isActive })
+  return repository.upsertLandingPageSettings(slug, {
+    title: settings.title,
+    description: settings.description,
+    isActive: settings.isActive,
+    showHeader: settings.showHeader,
+    showFooter: settings.showFooter,
+  })
 }
 
 export async function getPublicLandingPages() {
@@ -141,6 +158,29 @@ export async function createLandingSection(type: string, page: string = reposito
 }
 
 /**
+ * Pide a Cloudinary la foto sin fondo (así empieza a procesarla) y dice si se puede usar:
+ * 200 = lista, 423 = procesando (estará lista en segundos; la landing se crea oculta).
+ * Cualquier otra respuesta (complemento apagado, sin cupo) o un fallo de red = usar la original.
+ */
+async function canUseCutout(url: string): Promise<boolean> {
+  const cutout = productCutoutUrl(url)
+  if (cutout === url) return false
+  // El servidor solo consulta a Cloudinary: la URL de la foto la escribe un admin y no debe llevar a otro host.
+  try {
+    const { protocol, hostname } = new URL(cutout)
+    if (protocol !== "https:" || hostname !== "res.cloudinary.com") return false
+  } catch {
+    return false
+  }
+  try {
+    const response = await fetch(cutout, { headers: { Accept: "image/webp" }, redirect: "error", signal: AbortSignal.timeout(8000) })
+    return response.status === 200 || response.status === 423
+  } catch {
+    return false
+  }
+}
+
+/**
  * Arma una landing base desde un producto publicado. Queda desactivada (solo el admin la ve en la
  * vista previa) hasta que la termine y la active desde los ajustes.
  */
@@ -155,7 +195,9 @@ export async function createLandingFromProduct(page: string, productSlug: string
   const product = await getProductBySlug(productSlug)
   if (!product) throw new Error("El producto no existe o no está publicado")
   const related = await getRelatedProducts(product.categoryId, product.slug, 8).catch(() => [])
-  const sections = buildProductLandingSections(product, related.map((item) => item.slug))
+  const firstPhoto = product.images.find((image) => image.url)?.url
+  const heroCutout = firstPhoto ? await canUseCutout(firstPhoto) : false
+  const sections = buildProductLandingSections(product, related.map((item) => item.slug), { heroCutout })
   // El hero debe pasar el mismo validador que el editor, para que el admin pueda guardarlo después.
   EditorialContentConfigSchema.parse(sections[0].config)
   await repository.createLandingPageWithSections(

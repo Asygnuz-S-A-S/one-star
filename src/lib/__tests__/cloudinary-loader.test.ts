@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import cloudinaryLoader, { productCutoutUrl } from "../cloudinary-loader"
+import cloudinaryLoader, { productCutoutUrl, withoutCutout } from "../cloudinary-loader"
 
 describe("cloudinaryLoader", () => {
   it("transforma URLs de Cloudinary insertando f_auto,q_auto,w_{width} tras /image/upload/", () => {
@@ -55,5 +55,14 @@ describe("productCutoutUrl", () => {
   it("no toca otras URLs ni repite el efecto", () => {
     expect(productCutoutUrl("/placeholder-product.svg")).toBe("/placeholder-product.svg")
     expect(productCutoutUrl(productCutoutUrl(src))).toBe(productCutoutUrl(src))
+  })
+})
+
+describe("withoutCutout", () => {
+  it("vuelve a la foto original desde la versión sin fondo y deja igual las demás", () => {
+    const src = "https://res.cloudinary.com/demo/image/upload/v1/one-star/productos/hoka.jpg"
+
+    expect(withoutCutout(productCutoutUrl(src))).toBe(src)
+    expect(withoutCutout(src)).toBe(src)
   })
 })

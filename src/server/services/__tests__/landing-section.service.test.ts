@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 vi.mock("server-only", () => ({}))
 
@@ -224,13 +224,27 @@ describe("landing activa u oculta y nombres reservados", () => {
     expect(repository.createLandingSection).not.toHaveBeenCalled()
   })
 
+  it("sin ajustes guardados la landing lleva menú y footer", async () => {
+    vi.mocked(repository.findLandingPageSettings).mockResolvedValue(null)
+
+    expect(await service.getLandingPageSettings("black-friday")).toMatchObject({ showHeader: true, showFooter: true })
+  })
+
+  it("guarda si la landing muestra el menú y el footer", async () => {
+    await service.saveLandingPageSettings({ slug: "black-friday", title: null, description: null, isActive: true, showHeader: false, showFooter: true })
+
+    expect(repository.upsertLandingPageSettings).toHaveBeenCalledWith("black-friday", { title: null, description: null, isActive: true, showHeader: false, showFooter: true })
+  })
+
   it("el inicio no se puede desactivar", async () => {
-    await expect(service.saveLandingPageSettings({ slug: "home", title: null, description: null, isActive: false })).rejects.toThrow()
+    await expect(service.saveLandingPageSettings({ slug: "home", title: null, description: null, isActive: false, showHeader: true, showFooter: true })).rejects.toThrow()
     expect(repository.upsertLandingPageSettings).not.toHaveBeenCalled()
   })
 })
 
 describe("createLandingFromProduct", () => {
+  afterEach(() => vi.unstubAllGlobals())
+
   const product = {
     slug: "clifton-9", name: "Hoka Clifton 9", brand: "HOKA", basePrice: 650000, isOnSale: false, salePrice: null,
     description: "Ligera", extendedDescription: null, metaTitle: null, metaDescription: "Para correr", highlights: [], faqs: [],
@@ -247,6 +261,39 @@ describe("createLandingFromProduct", () => {
     expect(slug).toBe("clifton")
     expect(settings).toEqual({ title: "Hoka Clifton 9", description: "Para correr", isActive: false })
     expect(sections.map((section) => section.type)).toEqual(["HERO", "PRODUCT_CAROUSEL", "CUSTOM_HTML", "PRODUCT_CAROUSEL"])
+  })
+
+  it("usa la foto sin fondo si Cloudinary la está procesando y la original si no puede", async () => {
+    const withPhoto = { ...product, images: [{ url: "https://res.cloudinary.com/x/image/upload/v1/c.jpg", alt: "Clifton" }] }
+    const heroSrc = () => {
+      const sections = vi.mocked(repository.createLandingPageWithSections).mock.calls.at(-1)![2]
+      return ((sections[0].config as { slides: { foregroundMedia: { src: string } }[] }).slides[0].foregroundMedia.src)
+    }
+    vi.mocked(repository.getAllLandingSections).mockResolvedValue([])
+    vi.mocked(getProductBySlug).mockResolvedValue(withPhoto as never)
+    vi.mocked(getRelatedProducts).mockResolvedValue([])
+
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ status: 423 }))
+    await service.createLandingFromProduct("clifton", "clifton-9")
+    expect(heroSrc()).toContain("/image/upload/e_background_removal/e_trim/")
+
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ status: 400 }))
+    await service.createLandingFromProduct("clifton", "clifton-9")
+    expect(heroSrc()).toBe("https://res.cloudinary.com/x/image/upload/v1/c.jpg")
+  })
+
+  it("no consulta hosts que solo mencionan a Cloudinary en la ruta", async () => {
+    const tramposa = "http://169.254.169.254/res.cloudinary.com/image/upload/v1/c.jpg"
+    vi.mocked(repository.getAllLandingSections).mockResolvedValue([])
+    vi.mocked(getProductBySlug).mockResolvedValue({ ...product, images: [{ url: tramposa, alt: "Clifton" }] } as never)
+    vi.mocked(getRelatedProducts).mockResolvedValue([])
+    const fetchMock = vi.fn().mockResolvedValue({ status: 200 })
+    vi.stubGlobal("fetch", fetchMock)
+
+    await service.createLandingFromProduct("clifton", "clifton-9")
+    expect(fetchMock).not.toHaveBeenCalled()
+    const sections = vi.mocked(repository.createLandingPageWithSections).mock.calls.at(-1)![2]
+    expect((sections[0].config as { slides: { foregroundMedia: { src: string } }[] }).slides[0].foregroundMedia.src).toBe(tramposa)
   })
 
   it("no pisa una landing que ya existe ni usa rutas de la tienda", async () => {

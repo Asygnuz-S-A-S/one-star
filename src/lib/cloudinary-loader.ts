@@ -40,3 +40,8 @@ export function productCutoutUrl(src: string): string {
   if (!src.includes("res.cloudinary.com") || !src.includes("/image/upload/") || src.includes("e_background_removal")) return src
   return src.replace("/image/upload/", "/image/upload/e_background_removal/e_trim/")
 }
+
+/** La foto original de una URL sin fondo (respaldo mientras Cloudinary procesa ese tamaño). */
+export function withoutCutout(src: string): string {
+  return src.replace("/image/upload/e_background_removal/e_trim/", "/image/upload/")
+}
