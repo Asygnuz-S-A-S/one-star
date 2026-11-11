@@ -37,10 +37,13 @@ function validateReview(data: ReviewInput) {
   if (!data.userName.trim()) throw new Error("El nombre es requerido")
 }
 
-/** Reseña de un cliente: queda pendiente hasta que un admin la apruebe (evita spam en el SEO). */
-export async function submitProductReview(data: ReviewInput) {
+/**
+ * Reseña de un cliente. Por defecto queda pendiente hasta que un admin la apruebe (evita spam en el SEO);
+ * con `autoPublish` (Admin → Reseñas → «Publicar automáticamente») sale de una vez.
+ */
+export async function submitProductReview(data: ReviewInput, autoPublish = false) {
   validateReview(data)
-  return createReview({ ...data, isApproved: false })
+  return createReview({ ...data, isApproved: autoPublish })
 }
 
 /** Reseña cargada por un admin (p. ej. testimonios reales recibidos por otros canales): se publica directo. */

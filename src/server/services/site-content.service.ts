@@ -1,7 +1,13 @@
 import "server-only"
 import { revalidatePath } from "next/cache"
-import { findSiteContent, upsertSiteContentRecord } from "../repositories/site-content.repository"
-import type { UpdateSiteContentInput } from "../validators/site-content.validator"
+import {
+  findSiteContent,
+  getStorefrontSettingsRecord,
+  upsertSiteContentRecord,
+  upsertStorefrontSettingsRecord,
+} from "../repositories/site-content.repository"
+import type { UpdateSiteContentInput, UpdateStorefrontSettingsInput } from "../validators/site-content.validator"
+import { DEFAULT_STOREFRONT_SETTINGS, parseStorefrontSettings, type StorefrontSettings } from "@/lib/storefront-settings"
 import {
   DEFAULT_SITE_FAQS,
   DEFAULT_SITE_HIGHLIGHTS,
@@ -68,6 +74,28 @@ export async function getPublicSiteContent(): Promise<SiteContentDTO> {
 export async function getSiteContentForAdmin(): Promise<SiteContentDTO> {
   const content = await findSiteContent()
   return mapToDTO(content)
+}
+
+/** Textos de la ficha y regla de reseñas. Si la base falla, la tienda sigue con los valores por defecto. */
+export async function getStorefrontSettings(): Promise<StorefrontSettings> {
+  try {
+    return parseStorefrontSettings(await getStorefrontSettingsRecord())
+  } catch {
+    return DEFAULT_STOREFRONT_SETTINGS
+  }
+}
+
+/** Cambia solo los campos enviados; el resto se conserva. */
+export async function updateStorefrontSettings(input: UpdateStorefrontSettingsInput): Promise<StorefrontSettings> {
+  const current = parseStorefrontSettings(await getStorefrontSettingsRecord())
+  const next: StorefrontSettings = { ...current }
+  if (input.addToCartLabel !== undefined) next.addToCartLabel = input.addToCartLabel
+  if (input.buyNowLabel !== undefined) next.buyNowLabel = input.buyNowLabel
+  if (input.storeStockText !== undefined) next.storeStockText = input.storeStockText
+  if (input.autoPublishReviews !== undefined) next.autoPublishReviews = input.autoPublishReviews
+  await upsertStorefrontSettingsRecord({ ...next })
+  revalidatePath("/productos", "layout")
+  return next
 }
 
 export async function updateSiteContent(input: UpdateSiteContentInput): Promise<SiteContentDTO> {

@@ -84,7 +84,7 @@ export default function CarritoPage() {
       <div className="min-h-[60vh] flex flex-col items-center justify-center gap-5 px-6 text-center">
         <IconCartEmpty />
         <h1 className="font-barlow font-bold text-2xl text-[#1C1C1C] uppercase tracking-wide">
-          Tu bolsa está vacía
+          Tu carrito está vacío
         </h1>
         <p className="font-montserrat text-base text-[#4A4A4A] max-w-md">
           Explora la tienda, los lanzamientos o arma una tarjeta de regalo. El envío estándar es gratis desde {formatCOP(shippingRates.freeThreshold)}.
@@ -110,7 +110,7 @@ export default function CarritoPage() {
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       <h1 className="font-barlow font-bold text-2xl md:text-3xl text-[#1C1C1C] uppercase tracking-wide mb-8">
-        Mi bolsa
+        Mi carrito
       </h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
@@ -214,7 +214,7 @@ export default function CarritoPage() {
               onClick={clearCart}
               className="font-montserrat text-sm text-[#4A4A4A] underline hover:text-[#E31C23] transition-colors"
             >
-              Vaciar bolsa
+              Vaciar carrito
             </button>
           </div>
         </div>

@@ -22,3 +22,13 @@ export const updateSiteContentSchema = z.object({
 })
 
 export type UpdateSiteContentInput = z.infer<typeof updateSiteContentSchema>
+
+/** Textos de la ficha y regla de reseñas (Admin → Contenido / Reseñas). Todo opcional: se mezcla con lo guardado. */
+export const updateStorefrontSettingsSchema = z.object({
+  addToCartLabel: z.string().trim().min(1, "Escribe el texto del botón").max(40, "Máximo 40 caracteres").optional(),
+  buyNowLabel: z.string().trim().min(1, "Escribe el texto del botón").max(40, "Máximo 40 caracteres").optional(),
+  storeStockText: z.string().trim().min(1, "Escribe el texto de tiendas").max(160, "Máximo 160 caracteres").optional(),
+  autoPublishReviews: z.boolean().optional(),
+})
+
+export type UpdateStorefrontSettingsInput = z.infer<typeof updateStorefrontSettingsSchema>

@@ -303,8 +303,8 @@ export default function StoreInfoForm({ settings }: StoreInfoFormProps) {
 
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <h2 className="font-['Barlow',sans-serif] text-lg font-bold text-[#1C1C1C] mb-1">Barra inferior del celular</h2>
-        <p className="text-xs text-[#4A4A4A] mb-4">Hasta cinco líneas: Etiqueta | /ruta | icono. Iconos: home, shop, search, bag, user. Usa #bolsa para abrir el carrito. Vacío = Inicio, Tienda, Buscar, Bolsa y Cuenta.</p>
-        <textarea id="bottom-nav" name="bottomNav" rows={5} defaultValue={settings.bottomNav} placeholder={"Inicio | / | home\nBolsa | #bolsa | bag"} className={inputClass} />
+        <p className="text-xs text-[#4A4A4A] mb-4">Hasta cinco líneas: Etiqueta | /ruta | icono. Iconos: home, shop, search, bag, user. Usa #bolsa para abrir el carrito. Vacío = Inicio, Tienda, Buscar, Carrito y Cuenta.</p>
+        <textarea id="bottom-nav" name="bottomNav" rows={5} defaultValue={settings.bottomNav} placeholder={"Inicio | / | home\nCarrito | #bolsa | bag"} className={inputClass} />
       </div>
 
       <div className="sticky bottom-4 z-10 flex flex-wrap items-center justify-end gap-3 rounded-xl border border-gray-200 bg-white/95 p-3 shadow-sm backdrop-blur">

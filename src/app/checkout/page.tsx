@@ -387,7 +387,7 @@ function CheckoutForm({
     }
 
     if (items.length === 0) {
-      setServerError("Tu bolsa está vacía")
+      setServerError("Tu carrito está vacío")
       return
     }
 
@@ -518,7 +518,7 @@ function CheckoutForm({
     return (
       <div className="min-h-screen bg-[var(--store-canvas)]">
         <div className="mx-auto flex max-w-md flex-col items-center px-4 py-24 text-center">
-          <h1 className="font-barlow text-3xl font-extrabold uppercase tracking-[-0.02em] text-[#1C1C1C]">Tu bolsa está vacía</h1>
+          <h1 className="font-barlow text-3xl font-extrabold uppercase tracking-[-0.02em] text-[#1C1C1C]">Tu carrito está vacío</h1>
           <p className="mt-2 font-montserrat text-sm text-[#4A4A4A]">Agrega productos para finalizar tu compra.</p>
           <Link href="/productos" className="mt-6 inline-flex min-h-12 items-center rounded-[var(--store-radius-md)] bg-[#1C1C1C] px-6 font-barlow text-sm font-bold uppercase tracking-wide text-white hover:bg-[#E31C23]">
             Ver productos

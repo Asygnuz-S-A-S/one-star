@@ -14,3 +14,13 @@ describe("QuantityStepper", () => {
     expect(atMax.match(/disabled/g)?.length).toBeGreaterThanOrEqual(1)
   })
 })
+
+describe("QuantityStepper con aviso", () => {
+  it("en el tope el «+» queda tocable para avisar por qué no sube", () => {
+    const html = renderToStaticMarkup(<QuantityStepper value={2} max={2} onChange={() => {}} onBlocked={() => {}} />)
+    expect(html).toContain('aria-disabled="true"')
+    expect(html).toContain('aria-label="Agregar una unidad"')
+    // Solo el «−» está deshabilitado de verdad cuando value > 1: ninguno lo está aquí.
+    expect(html.match(/ disabled=""/g)).toBeNull()
+  })
+})

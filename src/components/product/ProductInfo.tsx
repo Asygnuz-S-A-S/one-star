@@ -16,7 +16,8 @@ import { META_CURRENCY, trackMetaEvent } from "@/lib/tracking/meta-pixel"
 import { useToast } from "@/hooks/useToast"
 import ToastContainer from "@/components/ui/ToastContainer"
 import { buildProductFamilyCardColorSummary } from "@/lib/product-card-colors"
-import { getVariantStoreStock } from "@/lib/store-location"
+import { DEFAULT_STOREFRONT_SETTINGS } from "@/lib/storefront-settings"
+import { getQuantityHint } from "@/lib/quantity-hint"
 import { getConversionSignals } from "@/lib/conversion-signals"
 import { GIFT_CARD_CATEGORY_SLUG } from "@/lib/gift-card"
 import ConversionSignals from "./ConversionSignals"
@@ -42,6 +43,20 @@ interface ProductInfoProps {
   onColorChange?: (color: string) => void
   /** Tiendas donde se puede recoger la compra (Admin → Tiendas). */
   pickupStores?: PickupStoreOption[]
+  /** Textos editables en Admin → Contenido → «Textos de la ficha de producto». */
+  labels?: ProductInfoLabels
+}
+
+export interface ProductInfoLabels {
+  addToCart: string
+  buyNow: string
+  storeStock: string
+}
+
+const DEFAULT_LABELS: ProductInfoLabels = {
+  addToCart: DEFAULT_STOREFRONT_SETTINGS.addToCartLabel,
+  buyNow: DEFAULT_STOREFRONT_SETTINGS.buyNowLabel,
+  storeStock: DEFAULT_STOREFRONT_SETTINGS.storeStockText,
 }
 
 /** Entrada escalonada del panel: cada bloque aparece con un resorte con rebote. */
@@ -87,6 +102,7 @@ export default function ProductInfo({
   selectedColor: controlledColor,
   onColorChange,
   pickupStores = [],
+  labels = DEFAULT_LABELS,
 }: ProductInfoProps) {
   // Color no controlado — solo se usa si el padre no gestiona el estado.
   const [internalColor, setInternalColor] = useState<string>(
@@ -98,8 +114,10 @@ export default function ProductInfo({
   const [sizeModalOpen, setSizeModalOpen] = useState(false)
   const [shakeActive, setShakeActive] = useState(false)
   const [justAdded, setJustAdded] = useState(false)
+  // Sube cada vez que el cliente choca con el tope de cantidad: re-dispara el «zumbido» del aviso.
+  const [limitPulse, setLimitPulse] = useState(0)
 
-  const { addItem, openCart } = useCart()
+  const { addItem, openCart, items: cartItems } = useCart()
   const { toasts, dismissToast } = useToast()
   const router = useRouter()
 
@@ -167,7 +185,14 @@ export default function ProductInfo({
     }
     const cartItem = buildCartItem()
     if (!cartItem) return
+    // Ya están en el carrito todas las unidades de esta talla: se avisa en vez de no hacer nada.
+    const alreadyInCart = cartItems.find((item) => item.id === cartItem.id)?.quantity ?? 0
+    if (alreadyInCart >= cartItem.maxQuantity) {
+      setLimitPulse((value) => value + 1)
+      return
+    }
     addItem(cartItem)
+    setQuantity(1)
     void trackLeadCartStageAction({
       productId: cartItem.productId,
       variantId: cartItem.id,
@@ -185,7 +210,7 @@ export default function ProductInfo({
     openCart()
     setJustAdded(true)
     setTimeout(() => setJustAdded(false), 1600)
-  }, [selectedSize, triggerShake, buildCartItem, addItem, openCart])
+  }, [selectedSize, triggerShake, buildCartItem, addItem, openCart, cartItems])
 
   const handleBuyNow = useCallback(() => {
     if (!selectedSize) {
@@ -223,11 +248,18 @@ export default function ProductInfo({
   const selectedVariant = selectedSize
     ? product.variants.find((v) => v.color === selectedColor && v.size === selectedSize)
     : undefined
-  const storeStock = selectedVariant ? getVariantStoreStock(selectedVariant.inventory) : []
-  // Con el catálogo por Excel no hay stock por sede: en vez de "no hay", se invita a preguntar.
-  const hasStoreBreakdown = product.variants.some((v) =>
-    (v.inventory ?? []).some((level) => level.storeLocation && !level.storeLocation.isWebWarehouse)
-  )
+  // Lo que ya está en el carrito de esta talla cuenta contra el stock: el selector no deja pasarse.
+  const inCart = selectedVariant ? cartItems.find((item) => item.id === selectedVariant.id)?.quantity ?? 0 : 0
+  const available = selectedVariant ? Math.max(0, selectedVariant.stock - inCart) : 0
+  const quantityMax = Math.max(1, available)
+  const quantityHint = getQuantityHint({ hasSize: Boolean(selectedSize), available, inCart, quantity })
+  const handleQuantityBlocked = useCallback(() => {
+    if (!selectedSize) {
+      focusSizeSelector()
+      return
+    }
+    setLimitPulse((value) => value + 1)
+  }, [selectedSize, focusSizeSelector])
 
   // Mensajes de confianza y urgencia (HU-12), calculados con datos reales.
   const shippingRates = useShippingRates()
@@ -523,9 +555,7 @@ export default function ProductInfo({
               delivery={deliveryDays}
               pickupStores={pickupStores}
               availableInStores={product.availableInStores !== false}
-              selectedSize={selectedSize}
-              storeStock={storeStock}
-              hasStoreBreakdown={hasStoreBreakdown}
+              storeStockText={labels.storeStock}
             />
           </motion.div>
         )}
@@ -539,7 +569,7 @@ export default function ProductInfo({
           ) : (
             <>
               <div className="flex items-center gap-3">
-              <QuantityStepper value={quantity} max={Math.max(1, selectedVariant?.stock ?? 1)} onChange={setQuantity} />
+              <QuantityStepper value={quantity} max={quantityMax} onChange={setQuantity} onBlocked={handleQuantityBlocked} />
               <motion.button
                 onClick={handleAddToCart}
                 aria-disabled={!canAct}
@@ -580,12 +610,24 @@ export default function ProductInfo({
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -10 }}
                     >
-                      Agregar a la bolsa
+                      {labels.addToCart}
                     </motion.span>
                   )}
                 </AnimatePresence>
               </motion.button>
               </div>
+              {quantityHint && (
+                <motion.p
+                  key={`${quantityHint.tone}-${limitPulse}`}
+                  role="status"
+                  animate={limitPulse > 0 ? { x: [0, -6, 6, -4, 4, 0] } : undefined}
+                  transition={{ duration: 0.4 }}
+                  className={`-mt-1 font-montserrat text-xs ${quantityHint.tone === "limit" ? "font-semibold text-[#E31C23]" : "text-[#4A4A4A] dark:text-gray-400"}`}
+                  data-testid="quantity-hint"
+                >
+                  {quantityHint.text}
+                </motion.p>
+              )}
               <motion.button
                 onClick={handleBuyNow}
                 aria-disabled={!canAct}
@@ -594,7 +636,7 @@ export default function ProductInfo({
                 transition={springy}
                 className="min-h-12 w-full rounded-full border-2 border-[#1C1C1C] bg-transparent py-4 font-barlow text-sm font-bold uppercase tracking-widest text-[#1C1C1C] hover:bg-[#1C1C1C] hover:text-white dark:border-white dark:text-white dark:hover:bg-white dark:hover:text-black"
               >
-                Comprar Ahora
+                {labels.buyNow}
               </motion.button>
               {/* Envío y entrega ya se ven en «Despacho a domicilio»: aquí solo queda la urgencia. */}
               <ConversionSignals signals={conversionSignals.filter((signal) => signal.kind !== "shipping" && signal.kind !== "delivery")} />
@@ -634,8 +676,10 @@ export default function ProductInfo({
       {product.availableOnline !== false && (
         <StickyBuyBar
           quantity={quantity}
-          maxQuantity={Math.max(1, selectedVariant?.stock ?? 1)}
+          maxQuantity={quantityMax}
           onQuantityChange={setQuantity}
+          onQuantityBlocked={handleQuantityBlocked}
+          addLabel={labels.addToCart}
           needsSize={!selectedSize}
           onAdd={handleAddToCart}
           onNeedSize={focusSizeSelector}

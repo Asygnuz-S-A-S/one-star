@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test"
 
-/** El checkout con la bolsa vacía muestra "Tu bolsa está vacía": los tests del formulario necesitan un producto. */
+/** El checkout con la bolsa vacía muestra "Tu carrito está vacío": los tests del formulario necesitan un producto. */
 // Igual a CART_STORAGE_VERSION de src/store/cart.store.ts.
 const CART_STORAGE_VERSION = 1
 
