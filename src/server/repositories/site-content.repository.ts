@@ -41,6 +41,22 @@ export async function getCatalogSettingsRecord(): Promise<{ groupColorsInCatalog
   }
 }
 
+const STOREFRONT_SETTINGS_ID = "storefront_settings"
+
+/** JSON crudo de los textos de la ficha (fila propia, como catalog_settings). */
+export async function getStorefrontSettingsRecord(): Promise<unknown> {
+  const record = await prisma.siteContent.findUnique({ where: { id: STOREFRONT_SETTINGS_ID } })
+  return record?.promises ?? null
+}
+
+export async function upsertStorefrontSettingsRecord(config: Record<string, unknown>) {
+  return prisma.siteContent.upsert({
+    where: { id: STOREFRONT_SETTINGS_ID },
+    create: { id: STOREFRONT_SETTINGS_ID, promises: config as Prisma.InputJsonValue },
+    update: { promises: config as Prisma.InputJsonValue },
+  })
+}
+
 export async function upsertCatalogSettingsRecord(config: { groupColorsInCatalog: boolean }) {
   return prisma.siteContent.upsert({
     where: { id: "catalog_settings" },

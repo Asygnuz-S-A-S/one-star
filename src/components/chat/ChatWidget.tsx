@@ -188,7 +188,7 @@ export default function ChatWidget({ welcome = DEFAULT_CHAT_WELCOME }: { welcome
                 onClick={() => { setOpen(false); openCart() }}
                 className="mt-2 min-h-11 w-full rounded-full border border-gray-300 text-sm font-semibold text-[#1C1C1C] hover:bg-gray-50"
               >
-                Ver bolsa
+                Ver carrito
               </button>
             )}
           </div>

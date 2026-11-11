@@ -4,6 +4,7 @@ import { headers } from "next/headers"
 import { consumePublicRateLimit } from "@/server/services/public-rate-limit.service"
 import { auth } from "@/lib/auth"
 import { submitProductReview } from "@/server/services/review.service"
+import { getStorefrontSettings } from "@/server/services/site-content.service"
 import { revalidatePath } from "next/cache"
 
 export async function submitReviewAction(formData: FormData) {
@@ -32,16 +33,20 @@ export async function submitReviewAction(formData: FormData) {
   const userName = sessionName || guestName || ""
 
   try {
-    await submitProductReview({
-      productId,
-      userId: userId || undefined,
-      userName,
-      rating,
-      title: title || undefined,
-      body,
-    })
+    const { autoPublishReviews } = await getStorefrontSettings()
+    await submitProductReview(
+      {
+        productId,
+        userId: userId || undefined,
+        userName,
+        rating,
+        title: title || undefined,
+        body,
+      },
+      autoPublishReviews
+    )
     revalidatePath("/productos/[slug]", "page")
-    return { ok: true }
+    return { ok: true, published: autoPublishReviews }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Error al enviar reseña"
     return { ok: false, error: message }

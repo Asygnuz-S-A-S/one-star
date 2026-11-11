@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "motion/react"
 import { submitReviewAction } from "@/server/actions/review.actions"
 import { useSession } from "@/lib/auth-client"
@@ -49,13 +50,15 @@ function InteractiveStars({ value, onChange }: { value: number; onChange: (v: nu
 }
 
 export default function ProductReviews({ productId, initialReviews, stats }: ProductReviewsProps) {
-  const [reviews] = useState(initialReviews)
+  // Sin copia en estado: tras router.refresh() llegan las reseñas nuevas del servidor.
+  const reviews = initialReviews
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [rating, setRating] = useState(5)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
   const { data: session } = useSession()
+  const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -71,6 +74,8 @@ export default function ProductReviews({ productId, initialReviews, stats }: Pro
     if (result.ok) {
       setSuccess(true)
       setIsFormOpen(false)
+      // Con publicación automática la reseña ya está aprobada: se recarga la lista para mostrarla.
+      if (result.published) router.refresh()
     } else {
       setError(result.error ?? "Error al enviar")
     }
@@ -282,7 +287,7 @@ export default function ProductReviews({ productId, initialReviews, stats }: Pro
             animate={{ opacity: 1 }}
             className="text-green-600 dark:text-green-400 font-montserrat text-sm mt-4"
           >
-            ✓ ¡Gracias por tu reseña! La publicaremos en cuanto la revisemos.
+            ✓ ¡Gracias por tu reseña!
           </motion.p>
         )}
       </div>

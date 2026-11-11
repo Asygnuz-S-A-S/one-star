@@ -1,8 +1,8 @@
 "use server"
 
 import { requireSuperAdmin } from "@/server/auth/require-admin"
-import { updateSiteContent } from "@/server/services/site-content.service"
-import { updateSiteContentSchema } from "@/server/validators/site-content.validator"
+import { updateSiteContent, updateStorefrontSettings } from "@/server/services/site-content.service"
+import { updateSiteContentSchema, updateStorefrontSettingsSchema } from "@/server/validators/site-content.validator"
 import { faqsFromText, highlightsFromText } from "@/lib/product-faq"
 import type { StorePromise, StorePromiseIcon } from "@/lib/store-promises"
 import type { ActionResult } from "@/types/admin"
@@ -67,5 +67,24 @@ export async function updateSiteContentAction(formData: FormData): Promise<Actio
       success: false,
       error: error instanceof Error ? error.message : "Error al actualizar el contenido global.",
     }
+  }
+}
+
+/** Textos de la ficha de producto (botones y fila de tiendas). Solo Super Admin, como el resto de Contenido. */
+export async function updateStorefrontLabelsAction(formData: FormData): Promise<ActionResult> {
+  try {
+    await requireSuperAdmin()
+    const validated = updateStorefrontSettingsSchema.safeParse({
+      addToCartLabel: formData.get("addToCartLabel") ?? undefined,
+      buyNowLabel: formData.get("buyNowLabel") ?? undefined,
+      storeStockText: formData.get("storeStockText") ?? undefined,
+    })
+    if (!validated.success) {
+      return { success: false, error: validated.error.issues[0]?.message ?? "Textos inválidos." }
+    }
+    await updateStorefrontSettings(validated.data)
+    return { success: true }
+  } catch (error: unknown) {
+    return { success: false, error: error instanceof Error ? error.message : "No se pudieron guardar los textos." }
   }
 }

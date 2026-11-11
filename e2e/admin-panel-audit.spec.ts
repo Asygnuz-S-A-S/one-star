@@ -229,7 +229,7 @@ test.describe("Admin — auditoría E2E integral", () => {
 
     await expect(page.getByRole("banner")).toHaveCount(1)
     await expect(page.getByRole("navigation", { name: "Menú principal", exact: true })).toBeVisible()
-    await expect(page.getByRole("button", { name: "Bolsa", exact: true })).toBeVisible()
+    await expect(page.getByRole("button", { name: "Carrito", exact: true })).toBeVisible()
     await expect(page.getByTestId("public-site-spacer")).toBeVisible()
     await expect(page.getByRole("main")).toHaveCount(1)
   })

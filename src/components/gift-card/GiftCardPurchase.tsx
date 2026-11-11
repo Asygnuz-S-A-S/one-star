@@ -156,7 +156,7 @@ export default function GiftCardPurchase({ options, intro, validityMonths = 12, 
 
   function addToBag(option: GiftCardOption) {
     addItem(createGiftCardCartItem(option, limits))
-    setMessage(`Tarjeta de ${formatCOP(option.amount)} añadida a la bolsa.`)
+    setMessage(`Tarjeta de ${formatCOP(option.amount)} añadida al carrito.`)
     openCart()
   }
 
@@ -256,7 +256,7 @@ export default function GiftCardPurchase({ options, intro, validityMonths = 12, 
               {adding
                 ? "Preparando…"
                 : displayAmount
-                  ? `Añadir ${formatCOP(displayAmount)} a la bolsa`
+                  ? `Añadir ${formatCOP(displayAmount)} al carrito`
                   : "Selecciona o escribe un monto"}
             </button>
           </>

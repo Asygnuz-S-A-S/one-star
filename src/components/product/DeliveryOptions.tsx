@@ -11,13 +11,6 @@ export interface PickupStoreOption {
   city: string | null
 }
 
-interface StoreStockRow {
-  id: string
-  name: string
-  city: string | null
-  stock: number
-}
-
 interface DeliveryOptionsProps {
   price: number
   freeThreshold: number
@@ -25,12 +18,11 @@ interface DeliveryOptionsProps {
   /** Tiendas activas donde se puede recoger (Admin → Tiendas). Sin tiendas no se ofrece. */
   pickupStores: PickupStoreOption[]
   availableInStores: boolean
-  /** Talla elegida; sin talla no se puede decir en qué tienda hay. */
-  selectedSize: string
-  /** Existencias de esa talla por tienda (solo si el inventario trae el desglose). */
-  storeStock: StoreStockRow[]
-  /** true si el inventario trae stock por tienda; si no, se invita a preguntar. */
-  hasStoreBreakdown: boolean
+  /**
+   * Texto de la fila «Stock en tienda» (Admin → Contenido). No se nombra una sede:
+   * One Star traslada entre tiendas, así que cualquier tienda puede conseguir la talla.
+   */
+  storeStockText: string
 }
 
 const icon = { width: 20, height: 20, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true }
@@ -76,9 +68,7 @@ export default function DeliveryOptions({
   delivery,
   pickupStores,
   availableInStores,
-  selectedSize,
-  storeStock,
-  hasStoreBreakdown,
+  storeStockText,
 }: DeliveryOptionsProps) {
   const freeShipping = price >= freeThreshold
   const days = delivery.min === delivery.max ? `${delivery.min}` : `${delivery.min} a ${delivery.max}`
@@ -122,30 +112,10 @@ export default function DeliveryOptions({
         <Row
           icon={<svg {...icon}><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z" /><circle cx="12" cy="10" r="2.5" /></svg>}
           title="Stock en tienda"
-          summary={selectedSize ? `Talla ${selectedSize}: dónde comprarla en persona` : "Elige una talla para ver disponibilidad"}
+          summary={storeStockText}
         >
-          {!selectedSize ? (
-            <p className="font-montserrat text-xs text-[#4A4A4A] dark:text-gray-300">Elige tu talla arriba y aquí verás en qué tienda la hay.</p>
-          ) : hasStoreBreakdown ? (
-            storeStock.length > 0 ? (
-              <ul className="space-y-1" data-testid="store-stock">
-                {storeStock.map((store) => (
-                  <li key={store.id} className="font-montserrat text-xs text-[#4A4A4A] dark:text-gray-300">
-                    <span className="font-semibold text-[#1C1C1C] dark:text-white">{store.name}</span>
-                    {store.city ? ` (${store.city})` : ""}: {store.stock} disponible{store.stock !== 1 ? "s" : ""}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="font-montserrat text-xs text-[#4A4A4A] dark:text-gray-300" data-testid="store-stock">Sin existencias en tiendas físicas para esta talla.</p>
-            )
-          ) : (
-            <p className="font-montserrat text-xs text-[#4A4A4A] dark:text-gray-300" data-testid="store-stock">
-              Pregunta por la talla {selectedSize} en nuestras tiendas.
-            </p>
-          )}
-          <p className="mt-2 font-montserrat text-[11px] text-[#4A4A4A] dark:text-gray-400">
-            El stock de tienda es para compra presencial: la web no lo aparta.{" "}
+          <p className="font-montserrat text-xs text-[#4A4A4A] dark:text-gray-300">
+            Si tu talla no está en la tienda que visitas, te la trasladamos desde otra sede.{" "}
             <Link href="/tiendas" className="font-semibold underline underline-offset-2">Ver tiendas y horarios</Link>
           </p>
         </Row>

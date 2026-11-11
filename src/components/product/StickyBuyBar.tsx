@@ -7,6 +7,9 @@ interface StickyBuyBarProps {
   quantity: number
   maxQuantity: number
   onQuantityChange: (value: number) => void
+  onQuantityBlocked?: () => void
+  /** Texto del botón (Admin → Contenido). */
+  addLabel?: string
   onAdd: () => void
   onNeedSize: () => void
 }
@@ -15,7 +18,7 @@ interface StickyBuyBarProps {
  * Barra fija inferior en móvil, siempre a la vista (como en las fichas de los grandes retailers):
  * cantidad y "Agregar". Si falta la talla, el botón la pide en lugar de fallar en silencio.
  */
-export default function StickyBuyBar({ needsSize, quantity, maxQuantity, onQuantityChange, onAdd, onNeedSize }: StickyBuyBarProps) {
+export default function StickyBuyBar({ needsSize, quantity, maxQuantity, onQuantityChange, onQuantityBlocked, addLabel = "Agregar al carrito", onAdd, onNeedSize }: StickyBuyBarProps) {
   return (
     <div
       role="region"
@@ -25,13 +28,13 @@ export default function StickyBuyBar({ needsSize, quantity, maxQuantity, onQuant
       data-testid="sticky-buy-bar"
     >
       <div className="flex items-center gap-3">
-        <QuantityStepper value={quantity} max={maxQuantity} onChange={onQuantityChange} size="sm" />
+        <QuantityStepper value={quantity} max={maxQuantity} onChange={onQuantityChange} onBlocked={onQuantityBlocked} size="sm" />
         <button
           type="button"
           onClick={needsSize ? onNeedSize : onAdd}
           className="min-h-11 flex-1 rounded-full bg-[#E31C23] px-5 font-barlow text-sm font-bold uppercase tracking-widest text-white active:bg-[#C01920]"
         >
-          {needsSize ? "Elige tu talla" : "Agregar a la bolsa"}
+          {needsSize ? "Elige tu talla" : addLabel}
         </button>
       </div>
     </div>

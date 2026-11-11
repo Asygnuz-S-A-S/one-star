@@ -140,7 +140,7 @@ export default function CartDrawer() {
             className="fixed top-0 right-0 z-50 flex h-full w-full max-w-md flex-col bg-white shadow-2xl sm:rounded-l-[var(--store-radius-xl)]"
             role="dialog"
             aria-modal="true"
-            aria-label="Bolsa"
+            aria-label="Carrito"
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
@@ -150,7 +150,7 @@ export default function CartDrawer() {
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#E0E0E0]">
               <div className="flex items-center gap-2">
                 <h2 className="font-barlow text-xl font-extrabold uppercase tracking-[-0.01em] text-[#1C1C1C]">
-                  Tu bolsa
+                  Tu carrito
                 </h2>
                 {totalItems > 0 && (
                   <span className="font-montserrat text-sm text-[#4A4A4A]">
@@ -161,7 +161,7 @@ export default function CartDrawer() {
               <button
                 ref={closeButtonRef}
                 onClick={closeCart}
-                aria-label="Cerrar bolsa"
+                aria-label="Cerrar carrito"
                 className="-mr-2 grid h-11 w-11 place-items-center rounded-full text-[#4A4A4A] transition-colors hover:bg-[#F2F2F0] hover:text-[#1C1C1C] focus-visible:outline-2 focus-visible:outline-[#E31C23]"
               >
                 <IconX />
@@ -173,7 +173,7 @@ export default function CartDrawer() {
               <div className="flex flex-col items-center justify-center flex-1 gap-4 px-6 text-center">
                 <IconCartEmpty />
                 <p className="font-barlow font-bold text-lg text-[#1C1C1C] uppercase tracking-wide">
-                  Tu bolsa está vacía
+                  Tu carrito está vacío
                 </p>
                 <p className="font-montserrat text-sm text-[#4A4A4A]">
                   Agrega productos para comenzar

@@ -27,7 +27,7 @@ export function getProductAvailability(availableOnline: boolean, hasStock: boole
 
   return {
     label: "Disponible en línea",
-    detail: "Elige talla y agrégalo a la bolsa.",
+    detail: "Elige talla y agrégalo al carrito.",
     tone: "available",
   }
 }

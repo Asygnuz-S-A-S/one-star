@@ -80,9 +80,24 @@ export default function SizeGuideModal({ isOpen, onClose, brand, initialGender }
 
   const [selectedTab, setSelectedTab] = useState<GenderTab | null>(null)
   const activeTab = selectedTab ?? resolveInitialTab()
+  // Imagen de la guía a pantalla completa: en el modal la tabla se leía muy pequeña (QA, 10 nov).
+  const [zoomed, setZoomed] = useState(false)
+
+  // Con la imagen ampliada, Escape solo cierra la imagen: se atrapa antes que el Escape de la guía.
+  useEffect(() => {
+    if (!zoomed) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return
+      e.stopImmediatePropagation()
+      setZoomed(false)
+    }
+    window.addEventListener("keydown", onKey, true)
+    return () => window.removeEventListener("keydown", onKey, true)
+  }, [zoomed])
 
   const handleClose = useCallback(() => {
     setSelectedTab(null)
+    setZoomed(false)
     onClose()
   }, [onClose])
 
@@ -149,7 +164,7 @@ export default function SizeGuideModal({ isOpen, onClose, brand, initialGender }
 
       {/* Modal Card */}
       <div
-        className="relative z-10 bg-white dark:bg-[#1C1C1C] w-full max-w-2xl max-h-[88vh] rounded-2xl shadow-2xl overflow-y-auto flex flex-col border border-gray-100 dark:border-white/10"
+        className="relative z-10 bg-white dark:bg-[#1C1C1C] w-full max-w-3xl max-h-[90vh] rounded-2xl shadow-2xl overflow-y-auto overscroll-contain flex flex-col border border-gray-100 dark:border-white/10"
       >
         {/* Header */}
         <div className="sticky top-0 z-20 bg-white/95 dark:bg-[#1C1C1C]/95 backdrop-blur-sm flex items-center justify-between px-5 sm:px-6 py-4 border-b border-[#E0E0E0] dark:border-white/10">
@@ -207,17 +222,27 @@ export default function SizeGuideModal({ isOpen, onClose, brand, initialGender }
         {/* Content Body */}
         <div className="p-4 sm:p-6 space-y-5">
           {customImageUrl ? (
-            <div className="overflow-auto max-h-[60vh] flex items-center justify-center bg-gray-50 dark:bg-black/20 rounded-xl p-2 sm:p-4">
+            // Un solo scroll (el del modal): la imagen ocupa todo el ancho y se amplía al tocarla.
+            <button
+              type="button"
+              onClick={() => setZoomed(true)}
+              className="group relative block w-full cursor-zoom-in rounded-xl bg-gray-50 p-2 dark:bg-black/20 sm:p-3"
+              aria-label="Ampliar la guía de tallas"
+            >
               <Image
                 src={customImageUrl}
                 alt={`Guía oficial de tallas para ${brand?.name ?? "calzado"} (${activeTab})`}
                 width={1000}
                 height={1200}
-                className="w-full h-auto max-h-[58vh] object-contain mx-auto select-none rounded-lg"
-                sizes="(max-width: 768px) 95vw, 650px"
+                className="mx-auto h-auto w-full select-none rounded-lg"
+                sizes="(max-width: 768px) 95vw, 760px"
                 priority={false}
               />
-            </div>
+              <span className="absolute bottom-4 right-4 inline-flex items-center gap-1.5 rounded-full bg-[#1C1C1C]/85 px-3 py-1.5 font-montserrat text-xs font-semibold text-white shadow">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3M11 8v6M8 11h6" /></svg>
+                Ampliar
+              </span>
+            </button>
           ) : (
             <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-white/10">
               <table className="w-full text-sm font-montserrat text-left">
@@ -276,6 +301,28 @@ export default function SizeGuideModal({ isOpen, onClose, brand, initialGender }
           ) : null}
         </div>
       </div>
+
+      {zoomed && customImageUrl && (
+        <div className="fixed inset-0 z-[60] overflow-auto bg-black/95" role="dialog" aria-modal="true" aria-label="Guía de tallas ampliada">
+          <button
+            type="button"
+            onClick={() => setZoomed(false)}
+            className="fixed right-3 top-3 z-10 grid h-11 w-11 place-items-center rounded-full bg-white text-[#1C1C1C] shadow"
+            aria-label="Cerrar imagen ampliada"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
+          </button>
+          {/* Ancho completo (hasta 1400px): en celular se puede pellizcar para acercar más. */}
+          <Image
+            src={customImageUrl}
+            alt={`Guía oficial de tallas para ${brand?.name ?? "calzado"} (${activeTab}), ampliada`}
+            width={1400}
+            height={1680}
+            className="mx-auto h-auto w-full max-w-[1400px] select-none"
+            sizes="100vw"
+          />
+        </div>
+      )}
     </div>
   )
 }

@@ -1,6 +1,8 @@
 import Link from "next/link"
 import { listReviewsForAdmin } from "@/server/services/review.service"
 import ReviewModeration from "@/components/admin/ReviewModeration"
+import AutoPublishReviewsToggle from "@/components/admin/AutoPublishReviewsToggle"
+import { getStorefrontSettings } from "@/server/services/site-content.service"
 
 export const metadata = { title: "Reseñas | Admin One Star" }
 export const dynamic = "force-dynamic"
@@ -19,15 +21,16 @@ export default async function ResenasPage({
 }) {
   const { estado } = await searchParams
   const active = FILTERS.find((f) => f.value === estado) ?? FILTERS[0]
-  const reviews = await listReviewsForAdmin(active.filter)
+  const [reviews, settings] = await Promise.all([listReviewsForAdmin(active.filter), getStorefrontSettings()])
 
   return (
     <div className="p-6 md:p-8 max-w-5xl">
       <h1 className="font-['Barlow',sans-serif] text-2xl font-bold text-[#1C1C1C] mb-1">Reseñas</h1>
       <p className="text-sm text-[#4A4A4A] mb-6">
-        Las reseñas de clientes llegan como pendientes: solo se publican (y suman a las estrellas en Google) cuando las apruebas.
-        Puedes editar testimonios y marcar reseñas aprobadas como destacadas para que aparezcan en la página de su marca.
+        Solo las reseñas publicadas suman a las estrellas en Google. Puedes editar testimonios y marcar reseñas aprobadas como destacadas para que aparezcan en la página de su marca.
       </p>
+
+      <AutoPublishReviewsToggle initialEnabled={settings.autoPublishReviews} />
 
       <div className="mb-6 flex flex-wrap gap-2">
         {FILTERS.map((f) => (

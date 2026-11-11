@@ -6,10 +6,10 @@ import { INTERNAL_CATEGORY_SLUG } from "@/lib/internal-category"
 import { notFound } from "next/navigation"
 import Link from "next/link"
 import type { Metadata } from "next"
-import { getProductBySlug, type InventoryStoreDTO } from "@/server/services/product.service"
+import { getProductBySlug } from "@/server/services/product.service"
 import { getDeliveryWindow, getPublicStoreInfo, getShippingRates } from "@/server/services/store-settings.service"
 import { DEFAULT_SHIPPING_RATES } from "@/lib/shipping"
-import { getPublicSiteContent } from "@/server/services/site-content.service"
+import { getPublicSiteContent, getStorefrontSettings } from "@/server/services/site-content.service"
 import { getBrandDetailById } from "@/server/services/brand.service"
 import { getProductReviews, getProductReviewStats } from "@/server/services/review.service"
 import ProductDetail from "@/components/product/ProductDetail"
@@ -78,7 +78,7 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
   if (!product) notFound()
 
   // Consulta secuencial: primero producto, luego dependencias en paralelo
-  const [brandDetail, globalContent, productReviews, productReviewStats, settings, shippingRates, delivery, pickupStores] = await Promise.all([
+  const [brandDetail, globalContent, productReviews, productReviewStats, settings, shippingRates, delivery, pickupStores, storefront] = await Promise.all([
     product.brandId ? getBrandDetailById(product.brandId) : null,
     getPublicSiteContent(),
     getProductReviews(product.id),
@@ -87,6 +87,7 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
     getShippingRates().catch(() => DEFAULT_SHIPPING_RATES),
     getDeliveryWindow().catch(() => ({ min: 3, max: 5 })),
     getPickupStores().catch(() => []),
+    getStorefrontSettings(),
   ])
 
   const hasWhatsapp = Boolean(settings?.whatsapp)
@@ -118,35 +119,9 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
     }
   )
 
-  // Disponibilidad online = stock vendible por variante (lo mismo que valida el
-  // checkout). El desglose por sede es solo informativo: la web no lo reserva.
-  const storeMap = new Map<string, { store: InventoryStoreDTO; stock: number }>()
+  // Disponibilidad online = stock vendible por variante (lo mismo que valida el checkout).
   const webStock = product.variants.reduce((total, variant) => total + variant.stock, 0)
-  for (const variant of product.variants) {
-    for (const inv of variant.inventory ?? []) {
-      if (!inv.storeLocation || inv.storeLocation.isWebWarehouse) continue
-      if (inv.storeLocation.isActive) {
-        const existing = storeMap.get(inv.storeLocation.id)
-        if (existing) {
-          existing.stock += inv.stock
-        } else {
-          storeMap.set(inv.storeLocation.id, { store: inv.storeLocation, stock: inv.stock })
-        }
-      }
-    }
-  }
-  const physicalStores = Array.from(storeMap.values()).map(({ store, stock }) => ({
-    id: store.id,
-    name: store.name,
-    address: store.address,
-    city: store.city,
-    phone: store.phone,
-    schedule: store.schedule,
-    googleMapsUrl: store.googleMapsUrl,
-    latitude: store.latitude,
-    longitude: store.longitude,
-    stock,
-  }))
+  const storeOptions = pickupStores.map(({ id, name, city }) => ({ id, name, city }))
 
   return (
     <>
@@ -200,7 +175,8 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
           whatsappUrl={whatsappUrl}
           brand={brandDetail}
           initialColor={initialColor}
-          pickupStores={pickupStores.map(({ id, name, city }) => ({ id, name, city }))}
+          pickupStores={storeOptions}
+          labels={{ addToCart: storefront.addToCartLabel, buyNow: storefront.buyNowLabel, storeStock: storefront.storeStockText }}
         />
 
         {/* ── Por qué comprarlo ── */}
@@ -256,8 +232,9 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
       <StoreAvailability
         availableOnline={product.availableOnline ?? true}
         availableInStores={product.availableInStores ?? true}
-        stores={physicalStores}
+        stores={storeOptions}
         webStock={webStock}
+        storeText={storefront.storeStockText}
       />
 
       {/* ── Cross-selling ── */}

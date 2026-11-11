@@ -10,6 +10,8 @@ import {
   updateReview,
 } from "@/server/services/review.service"
 import { editReviewSchema } from "@/server/validators/review.validator"
+import { updateStorefrontSettingsSchema } from "@/server/validators/site-content.validator"
+import { updateStorefrontSettings } from "@/server/services/site-content.service"
 
 interface ReviewActionResult {
   success: boolean
@@ -103,6 +105,20 @@ export async function createReviewAction(formData: FormData): Promise<ReviewActi
       isFeatured: formData.get("isFeatured") === "on" || formData.get("isFeatured") === "true",
     })
     refresh()
+    return { success: true }
+  } catch (error: unknown) {
+    return { success: false, error: errorMessage(error) }
+  }
+}
+
+/** Interruptor «Publicar reseñas automáticamente» de Admin → Reseñas. */
+export async function setAutoPublishReviewsAction(enabled: boolean): Promise<ReviewActionResult> {
+  try {
+    await requireAdmin()
+    const validated = updateStorefrontSettingsSchema.safeParse({ autoPublishReviews: enabled })
+    if (!validated.success) return { success: false, error: "Valor inválido." }
+    await updateStorefrontSettings(validated.data)
+    revalidatePath("/admin/resenas")
     return { success: true }
   } catch (error: unknown) {
     return { success: false, error: errorMessage(error) }

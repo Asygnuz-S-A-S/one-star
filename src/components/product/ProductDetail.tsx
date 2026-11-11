@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react"
 import type { ProductWithRelations } from "@/types/shop"
 import ProductGallery from "./ProductGallery"
-import ProductInfo from "./ProductInfo"
+import ProductInfo, { type ProductInfoLabels } from "./ProductInfo"
 import { filterImagesByColor } from "@/lib/product-image"
 import type { StorePromise } from "@/lib/store-promises"
 import type { BrandSizeGuide } from "./SizeGuideModal"
@@ -22,13 +22,14 @@ interface ProductDetailProps {
    */
   initialColor?: string
   pickupStores?: PickupStoreOption[]
+  labels?: ProductInfoLabels
 }
 
 /**
  * Une galería e información porque comparten el color seleccionado:
  * al cambiar de color, la galería pasa a mostrar las fotos de ese color.
  */
-export default function ProductDetail({ product, reviewStats, promises, whatsappUrl, brand, initialColor, pickupStores }: ProductDetailProps) {
+export default function ProductDetail({ product, reviewStats, promises, whatsappUrl, brand, initialColor, pickupStores, labels }: ProductDetailProps) {
   const [selectedColor, setSelectedColor] = useState<string>(() => {
     const match = product.variants.find(
       (variant) => variant.color?.toLowerCase() === initialColor?.trim().toLowerCase()
@@ -59,6 +60,7 @@ export default function ProductDetail({ product, reviewStats, promises, whatsapp
         selectedColor={selectedColor}
         onColorChange={setSelectedColor}
         pickupStores={pickupStores}
+        labels={labels}
       />
     </div>
   )
