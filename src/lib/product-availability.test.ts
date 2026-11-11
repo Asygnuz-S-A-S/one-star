@@ -5,7 +5,7 @@ describe("getProductAvailability", () => {
   it("identifies a purchasable online product", () => {
     expect(getProductAvailability(true, true)).toEqual({
       label: "Disponible en línea",
-      detail: "Elige talla y agrégalo a la bolsa.",
+      detail: "Elige talla y agrégalo al carrito.",
       tone: "available",
     })
   })

@@ -201,6 +201,8 @@ export default function EditorialCampaignHero({ campaign }: { campaign: Campaign
   const [shift, setShift] = useState(0)
   const [live, setLive] = useState(false)
   const gesture = useRef<{ id: number; x: number; lastX: number; lastT: number; width: number } | null>(null)
+  // Deslizar con dos dedos en el trackpad (scroll horizontal): suma el desplazamiento y cambia una sola vez por gesto.
+  const wheel = useRef({ total: 0, lockedUntil: 0 })
   const currentIndex = Math.min(current, slides.length - 1)
   const slide = slides[currentIndex]
   const multipleSlides = slides.length > 1
@@ -267,6 +269,16 @@ export default function EditorialCampaignHero({ campaign }: { campaign: Campaign
       }, 260)
     }}
     onPointerCancel={() => { gesture.current = null; setLive(false); setShift(0) }}
+    onWheel={(event) => {
+      if (!multipleSlides || Math.abs(event.deltaX) <= Math.abs(event.deltaY)) return
+      const state = wheel.current
+      // La inercia del trackpad sigue mandando eventos tras soltar: se ignoran un momento para no saltar dos slides.
+      if (event.timeStamp < state.lockedUntil) return
+      state.total += event.deltaX
+      if (Math.abs(state.total) < 60) return
+      goTo(currentIndex + (state.total > 0 ? 1 : -1))
+      wheel.current = { total: 0, lockedUntil: event.timeStamp + 900 }
+    }}
   >
     <div className="absolute inset-0 overflow-hidden">
       {slides.map((item, index) => {
@@ -298,21 +310,21 @@ export default function EditorialCampaignHero({ campaign }: { campaign: Campaign
       </div>
     </div>
 
-    {multipleSlides && <div className={`absolute inset-x-4 bottom-3 z-20 flex items-center justify-between sm:inset-x-8 md:inset-x-12 lg:inset-x-16 ${controlTone}`} aria-label="Controles del carrusel">
+    {multipleSlides && <div className={`absolute inset-x-4 bottom-4 z-20 flex items-center justify-between sm:inset-x-8 md:inset-x-12 lg:inset-x-16 ${controlTone}`} aria-label="Controles del carrusel">
       <div className="flex items-center" role="tablist" aria-label="Seleccionar campaña">
         {slides.map((item, index) => <button key={item.id} type="button" role="tab" aria-selected={index === currentIndex} onClick={() => goTo(index)} className="group grid h-11 min-w-11 place-items-center px-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current" aria-label={`Ir al slide ${index + 1}${item.headline ? `: ${item.headline}` : ""}`}>
-          <span className={`relative block h-0.5 overflow-hidden rounded-full bg-current/25 transition-[width] duration-300 ${index === currentIndex ? "w-10" : "w-5 group-hover:bg-current/50"}`}>
+          <span className={`relative block h-1 overflow-hidden rounded-full bg-current/30 transition-[width] duration-300 ${index === currentIndex ? "w-12" : "w-6 group-hover:bg-current/60"}`}>
             {index === currentIndex && <span key={`${item.id}-${currentIndex}`} className="absolute inset-y-0 left-0 w-full origin-left bg-current motion-safe:animate-[hero-progress_linear_both]" style={{ animationDuration: `${AUTOPLAY_MS}ms`, animationPlayState: paused ? "paused" : "running" }} />}
           </span>
         </button>)}
-        <span className="ml-2 font-barlow text-[11px] font-semibold tabular-nums tracking-[0.12em] opacity-70" aria-hidden="true">{String(currentIndex + 1).padStart(2, "0")} / {String(slides.length).padStart(2, "0")}</span>
+        <span className="ml-2 font-barlow text-sm font-semibold tabular-nums tracking-[0.12em] opacity-90" aria-hidden="true">{String(currentIndex + 1).padStart(2, "0")} / {String(slides.length).padStart(2, "0")}</span>
       </div>
-      <div className="hidden items-center sm:flex">
-        <button type="button" onClick={() => goTo(currentIndex - 1)} className="grid h-11 w-11 place-items-center opacity-70 transition-opacity hover:opacity-100 focus-visible:outline-2 focus-visible:outline-current" aria-label="Anterior">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
+      <div className="hidden items-center gap-2 sm:flex">
+        <button type="button" onClick={() => goTo(currentIndex - 1)} className="grid h-11 w-11 place-items-center rounded-full border border-current/40 backdrop-blur-sm transition-colors hover:border-current hover:bg-current/15 focus-visible:outline-2 focus-visible:outline-current" aria-label="Anterior">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
         </button>
-        <button type="button" onClick={() => goTo(currentIndex + 1)} className="grid h-11 w-11 place-items-center opacity-70 transition-opacity hover:opacity-100 focus-visible:outline-2 focus-visible:outline-current" aria-label="Siguiente">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+        <button type="button" onClick={() => goTo(currentIndex + 1)} className="grid h-11 w-11 place-items-center rounded-full border border-current/40 backdrop-blur-sm transition-colors hover:border-current hover:bg-current/15 focus-visible:outline-2 focus-visible:outline-current" aria-label="Siguiente">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
         </button>
       </div>
     </div>}

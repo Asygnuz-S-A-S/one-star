@@ -1,5 +1,5 @@
 export const DEFAULT_CHAT_WELCOME =
-  "¡Hola! Soy el asistente de One Star. Pregúntame por cualquier producto — puedo revisar precio, tallas y stock, y agregarlo directo a tu bolsa."
+  "¡Hola! Soy el asistente de One Star. Pregúntame por cualquier producto — puedo revisar precio, tallas y stock, y agregarlo directo a tu carrito."
 
 export const DEFAULT_CLUB_HEADLINE = "One Star Club"
 
@@ -90,7 +90,7 @@ export const DEFAULT_BOTTOM_NAV: BottomNavItem[] = [
   { label: "Inicio", href: "/", icon: "home" },
   { label: "Tienda", href: "/productos", icon: "shop" },
   { label: "Buscar", href: "/buscar", icon: "search" },
-  { label: "Bolsa", href: "#bolsa", icon: "bag" },
+  { label: "Carrito", href: "#bolsa", icon: "bag" },
   { label: "Cuenta", href: "/cuenta", icon: "user" },
 ]
 

@@ -1,22 +1,31 @@
 import { renderToStaticMarkup } from "react-dom/server"
-import { describe, expect, it, vi } from "vitest"
-
-vi.mock("next/dynamic", () => ({ default: () => () => null }))
+import { describe, expect, it } from "vitest"
 
 import StoreAvailability from "./StoreAvailability"
 
-const base = { availableOnline: true, webStock: 5 }
+const base = {
+  availableOnline: true,
+  webStock: 5,
+  storeText: "Disponible en cualquiera de nuestras tiendas.",
+  stores: [{ id: "s1", name: "One Star Fundadores", city: "Manizales" }],
+}
 
 describe("StoreAvailability", () => {
-  it("sin stock por sede invita a preguntar en tienda en vez de decir no disponible", () => {
-    const html = renderToStaticMarkup(<StoreAvailability {...base} availableInStores stores={[]} />)
-    expect(html).toContain("Pregunta por tu talla en nuestras tiendas")
+  it("muestra el texto de tiendas del admin, las sedes y el enlace a tiendas", () => {
+    const html = renderToStaticMarkup(<StoreAvailability {...base} availableInStores />)
+    expect(html).toContain("Disponible en cualquiera de nuestras tiendas.")
+    expect(html).toContain("One Star Fundadores · Manizales")
     expect(html).toContain('href="/tiendas"')
-    expect(html).not.toContain("No disponible en tiendas físicas")
+    expect(html).toContain("Envío a todo Colombia")
   })
 
-  it("si el producto no se vende en tiendas sigue diciendo no disponible", () => {
-    const html = renderToStaticMarkup(<StoreAvailability {...base} availableInStores={false} stores={[]} />)
-    expect(html).toContain("No disponible en tiendas físicas")
+  it("si no se vende en tiendas no muestra la columna de tienda", () => {
+    const html = renderToStaticMarkup(<StoreAvailability {...base} availableInStores={false} />)
+    expect(html).not.toContain("En tienda")
+    expect(html).toContain("En línea")
+  })
+
+  it("si no está ni en línea ni en tienda no pinta nada", () => {
+    expect(renderToStaticMarkup(<StoreAvailability {...base} webStock={0} availableInStores={false} />)).toBe("")
   })
 })

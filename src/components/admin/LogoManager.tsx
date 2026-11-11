@@ -132,7 +132,7 @@ export default function LogoManager({ actions, initialLogos, onChange }: LogoMan
   const renderLogoGallery = (type: string, title: string, items: StoreLogo[]) => {
     return (
       <div className="mb-12">
-        <div className="flex justify-between items-center mb-4 border-b pb-2">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b pb-2">
           <h2 className="text-lg font-semibold text-gray-800">{title}</h2>
           <div>
             <input 
@@ -156,7 +156,9 @@ export default function LogoManager({ actions, initialLogos, onChange }: LogoMan
             No hay logos subidos en esta categoría. Sube uno para comenzar.
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          // Columnas según el ancho real del panel (no de la pantalla): en el constructor el panel es angosto
+          // y con 3 columnas fijas las tarjetas se aplastaban y escondían «Hacer principal» y «Eliminar».
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4">
             {items.map(logo => (
               <div 
                 key={logo.id} 
@@ -179,7 +181,7 @@ export default function LogoManager({ actions, initialLogos, onChange }: LogoMan
                     {logo.fileName || "Logo sin nombre"}
                   </div>
                   
-                  <div className="flex justify-between items-center mt-auto">
+                  <div className="mt-auto flex flex-wrap items-center justify-between gap-2">
                     <select 
                       value={logo.theme} 
                       onChange={(e) => handleThemeChange(logo.id, e.target.value)}

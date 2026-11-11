@@ -2947,6 +2947,11 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
             <span className="text-sm font-medium text-gray-800">Banners de respaldo</span>
             <span className="text-xs font-bold text-gray-500">Ver</span>
           </button>
+          {/* Los textos de la ficha son de todos los productos, no de una página: se editan en Contenido. */}
+          <Link href="/admin/contenido#textos-ficha" className="flex min-h-11 w-full items-center justify-between rounded border border-gray-200 bg-gray-50 p-3 text-left">
+            <span className="text-sm font-medium text-gray-800">Botones de la ficha de producto</span>
+            <span className="text-xs font-bold text-[#E31C23]">Editar</span>
+          </Link>
         </div>
       </div>
 

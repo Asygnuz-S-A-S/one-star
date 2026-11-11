@@ -44,7 +44,7 @@ export const checkoutSchema = z.object({
   /** Consentimiento opcional de publicidad (política §8.2, Ley 2300 de 2023). */
   marketingConsent: z.boolean().default(false),
   marketingConsentVersion: z.string().trim().max(40).optional(),
-  items: z.array(checkoutItemSchema).min(1, "La bolsa está vacía").max(100),
+  items: z.array(checkoutItemSchema).min(1, "El carrito está vacío").max(100),
 }).superRefine((data, ctx) => {
   if (data.shippingMethod === "pickup") {
     if (!data.pickupStoreId) ctx.addIssue({ code: "custom", path: ["pickupStoreId"], message: "Elige la tienda donde vas a recoger tu pedido" })

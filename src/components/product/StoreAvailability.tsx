@@ -1,233 +1,86 @@
-"use client"
-
-import dynamic from "next/dynamic"
 import Link from "next/link"
-import { motion } from "motion/react"
 
-import { getStoreMapQuery, resolveStoreCoordinates } from "@/lib/store-location"
-
-const ClientStoreMap = dynamic(() => import("@/components/tiendas/ClientStoreMap"), { ssr: false })
-
-interface StoreInfo {
+interface StoreOption {
   id: string
   name: string
-  address: string
-  city: string
-  phone: string | null
-  schedule: string | null
-  googleMapsUrl: string | null
-  latitude: number | null
-  longitude: number | null
-  stock: number
+  city: string | null
 }
 
 interface StoreAvailabilityProps {
   availableOnline: boolean
   availableInStores: boolean
-  stores: StoreInfo[]
   webStock: number
+  /** Texto de tiendas (Admin → Contenido), el mismo de la fila «Stock en tienda». */
+  storeText: string
+  /** Sedes activas (Admin → Tiendas). Solo se nombran: no se dice cuántas unidades hay en cada una. */
+  stores: StoreOption[]
 }
 
-export default function StoreAvailability({
-  availableOnline,
-  availableInStores,
-  stores,
-  webStock,
-}: StoreAvailabilityProps) {
-  const physicalStores = stores.filter((s) => s.stock > 0)
-  // Sin stock por sede (catálogo por Excel, sin ERP) no se puede decir en cuál tienda está:
-  // se invita a preguntar en vez de mostrar "No disponible" en todos los productos.
-  const askInStore = availableInStores && stores.length === 0
-  const inStores = (availableInStores && physicalStores.length > 0) || askInStore
+function Star({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={className}>
+      <path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6-4.9-4.6 6.6-.8z" />
+    </svg>
+  )
+}
+
+/**
+ * Cierre de la ficha con la marca de One Star (tinta, gris claro y rojo; el cierre de compra de arriba ya es negro): dónde se consigue el producto.
+ * Reemplaza las tarjetas verde y azul, que repetían lo de arriba y se veían genéricas (QA, 10 nov).
+ */
+export default function StoreAvailability({ availableOnline, availableInStores, webStock, storeText, stores }: StoreAvailabilityProps) {
+  const online = availableOnline && webStock > 0
+  if (!online && !availableInStores) return null
 
   return (
-    <section className="py-12 border-t border-[#E0E0E0] dark:border-white/10">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h2 className="font-barlow font-bold text-2xl uppercase tracking-wider text-[#1C1C1C] dark:text-white mb-8">
-          Disponibilidad
-        </h2>
+    <section className="py-12" aria-labelledby="titulo-disponibilidad">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="relative overflow-hidden rounded-3xl border border-[#E0E0E0] bg-[#F5F5F5] px-6 py-10 text-[#1C1C1C] sm:px-10 md:px-14 dark:border-white/10 dark:bg-white/5 dark:text-white">
+          <Star className="pointer-events-none absolute -right-10 -top-10 h-56 w-56 text-[#1C1C1C]/[0.04] dark:text-white/[0.04]" />
+          <p className="font-barlow text-xs font-bold uppercase tracking-[0.2em] text-[#E31C23]">Disponibilidad</p>
+          <h2 id="titulo-disponibilidad" className="mt-2 font-barlow text-3xl font-black uppercase leading-none tracking-tight md:text-4xl">
+            Cómpralo como prefieras
+          </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
-          {/* Online */}
-          <div className={`flex items-start gap-4 p-5 rounded-2xl border-2 transition-colors ${
-            availableOnline && webStock > 0
-              ? "border-green-500/30 bg-green-50 dark:bg-green-500/5"
-              : "border-[#E0E0E0] dark:border-white/10 opacity-60"
-          }`}>
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
-              availableOnline && webStock > 0 ? "bg-green-500" : "bg-gray-300 dark:bg-white/10"
-            }`}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
-                <circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-              </svg>
-            </div>
-            <div>
-              <p className="font-barlow font-bold text-sm uppercase tracking-wider text-[#1C1C1C] dark:text-white mb-1">
-                Compra en línea
+          <div className="relative mt-8 grid gap-8 md:grid-cols-2 md:gap-0 md:divide-x md:divide-[#1C1C1C]/10 dark:md:divide-white/10">
+            <div className="md:pr-10">
+              <p className="flex items-center gap-2 font-barlow text-sm font-bold uppercase tracking-widest">
+                <Star className="h-3.5 w-3.5 text-[#E31C23]" />
+                En línea
               </p>
-              {availableOnline && webStock > 0 ? (
-                <p className="font-montserrat text-xs text-green-600 dark:text-green-400 font-semibold">
-                  ● Disponible — Envío a todo Colombia
-                </p>
-              ) : (
-                <p className="font-montserrat text-xs text-[#4A4A4A] dark:text-gray-400">
-                  No disponible en línea
-                </p>
-              )}
+              <p className="mt-2 font-montserrat text-sm text-[#4A4A4A] dark:text-white/75">
+                {online ? "Disponible. Envío a todo Colombia." : "Por ahora no se vende en línea."}
+              </p>
             </div>
-          </div>
 
-          {/* In-store */}
-          <div className={`flex items-start gap-4 p-5 rounded-2xl border-2 transition-colors ${
-            inStores
-              ? "border-blue-500/30 bg-blue-50 dark:bg-blue-500/5"
-              : "border-[#E0E0E0] dark:border-white/10 opacity-60"
-          }`}>
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
-              inStores ? "bg-blue-500" : "bg-gray-300 dark:bg-white/10"
-            }`}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
-              </svg>
-            </div>
-            <div>
-              <p className="font-barlow font-bold text-sm uppercase tracking-wider text-[#1C1C1C] dark:text-white mb-1">
-                Tiendas físicas
-              </p>
-              {askInStore ? (
-                <>
-                  <p className="font-montserrat text-xs text-blue-600 dark:text-blue-400 font-semibold">
-                    ● Pregunta por tu talla en nuestras tiendas
-                  </p>
-                  <Link href="/tiendas" className="relative z-10 mt-1 inline-block font-montserrat text-xs font-semibold text-[#1C1C1C] underline underline-offset-2 dark:text-white">
-                    Ver tiendas y horarios
-                  </Link>
-                </>
-              ) : inStores ? (
-                <>
-                  <p className="font-montserrat text-xs text-blue-600 dark:text-blue-400 font-semibold">
-                    ● Disponible en {physicalStores.length} tienda{physicalStores.length !== 1 ? "s" : ""}
-                  </p>
-                  <p className="font-montserrat text-xs text-[#4A4A4A] dark:text-gray-400 mt-1">
-                    Compra presencial. La web no aparta ni reserva unidades de tienda.
-                  </p>
-                </>
-              ) : (
-                <p className="font-montserrat text-xs text-[#4A4A4A] dark:text-gray-400">
-                  No disponible en tiendas físicas
+            {availableInStores && (
+              <div className="md:pl-10">
+                <p className="flex items-center gap-2 font-barlow text-sm font-bold uppercase tracking-widest">
+                  <Star className="h-3.5 w-3.5 text-[#E31C23]" />
+                  En tienda
                 </p>
-              )}
-            </div>
+                <p className="mt-2 font-montserrat text-sm text-[#4A4A4A] dark:text-white/75">{storeText}</p>
+                {stores.length > 0 && (
+                  <ul className="mt-3 flex flex-wrap gap-2">
+                    {stores.map((store) => (
+                      <li key={store.id} className="rounded-full border border-[#1C1C1C]/15 bg-white px-3 py-1 font-montserrat text-xs text-[#1C1C1C] dark:border-white/15 dark:bg-transparent dark:text-white/85">
+                        {store.name}
+                        {store.city ? ` · ${store.city}` : ""}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <Link
+                  href="/tiendas"
+                  className="mt-4 inline-flex min-h-11 items-center gap-2 font-barlow text-sm font-bold uppercase tracking-widest text-[#1C1C1C] underline-offset-4 hover:text-[#E31C23] dark:text-white hover:underline"
+                >
+                  Ver tiendas y horarios
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+                </Link>
+              </div>
+            )}
           </div>
         </div>
-
-        {/* Physical stores list with maps */}
-        {physicalStores.length > 0 && (
-          <div className="flex flex-col gap-6">
-            {physicalStores.map((store, i) => (
-              <motion.div
-                key={store.id}
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: i * 0.1 }}
-                className="bg-[#F5F5F5] dark:bg-white/5 dark:border dark:border-white/10 rounded-2xl overflow-hidden"
-              >
-                <div className="grid grid-cols-1 md:grid-cols-2">
-                  {/* Store info */}
-                  <div className="p-6 flex flex-col gap-3">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="font-barlow font-bold text-base uppercase tracking-wide text-[#1C1C1C] dark:text-white">
-                          {store.name}
-                        </h3>
-                        <p className="font-montserrat text-xs text-[#4A4A4A] dark:text-gray-400 mt-0.5">
-                          {store.city}
-                        </p>
-                      </div>
-                      <span
-                        className="text-xs font-bold bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 px-2 py-1 rounded-full uppercase tracking-wider"
-                        title="Existencias en tienda según el ERP. Sin reserva por la web."
-                      >
-                        {store.stock} en tienda
-                      </span>
-                    </div>
-
-                    <div className="flex flex-col gap-2 text-sm">
-                      <div className="flex items-start gap-2">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[#4A4A4A] dark:text-gray-400 mt-0.5 shrink-0">
-                          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
-                        </svg>
-                        <span className="font-montserrat text-[#4A4A4A] dark:text-gray-300 text-xs leading-relaxed">
-                          {store.address}
-                        </span>
-                      </div>
-                      {store.phone && (
-                        <div className="flex items-center gap-2">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[#4A4A4A] dark:text-gray-400 shrink-0">
-                            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.86 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.77 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 17z"/>
-                          </svg>
-                          <a href={`tel:${store.phone}`} className="font-montserrat text-xs text-[#4A4A4A] dark:text-gray-300 hover:text-[#1C1C1C] dark:hover:text-white transition-colors">
-                            {store.phone}
-                          </a>
-                        </div>
-                      )}
-                      {store.schedule && (
-                        <div className="flex items-start gap-2">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[#4A4A4A] dark:text-gray-400 mt-0.5 shrink-0">
-                            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-                          </svg>
-                          <span className="font-montserrat text-xs text-[#4A4A4A] dark:text-gray-300 leading-relaxed">
-                            {store.schedule}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* CTA Buttons */}
-                    <div className="flex gap-2 mt-auto pt-3">
-                      {store.googleMapsUrl && (
-                        <Link
-                          href={store.googleMapsUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest border border-[#1C1C1C] dark:border-white text-[#1C1C1C] dark:text-white px-3 py-2 hover:bg-[#1C1C1C] hover:text-white dark:hover:bg-white dark:hover:text-black transition-colors"
-                        >
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
-                          </svg>
-                          Ver en Maps
-                        </Link>
-                      )}
-                      {store.latitude && store.longitude && (
-                        <Link
-                          href={`https://www.google.com/maps/dir/?api=1&destination=${store.latitude},${store.longitude}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest bg-[#1C1C1C] dark:bg-white text-white dark:text-black px-3 py-2 hover:bg-[#E31C23] dark:hover:bg-gray-200 transition-colors"
-                        >
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <polygon points="3 11 22 2 13 21 11 13 3 11"/>
-                          </svg>
-                          Cómo llegar
-                        </Link>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Map */}
-                  <div className="min-h-[200px] md:min-h-0 relative">
-                    <ClientStoreMap
-                      position={resolveStoreCoordinates(store)}
-                      query={getStoreMapQuery(store)}
-                      name={store.name}
-                      address={store.address}
-                    />
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        )}
       </div>
     </section>
   )

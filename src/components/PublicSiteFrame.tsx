@@ -72,6 +72,7 @@ export default function PublicSiteFrame({
               storeName={storeName}
               contactEmail={contactEmail}
               whatsapp={whatsapp}
+              logoUrl={headerProps.logos?.large?.url ?? null}
             />
           </div>
           {/* Espacio para que el menú flotante no tape el final del footer; mismo color del footer. */}

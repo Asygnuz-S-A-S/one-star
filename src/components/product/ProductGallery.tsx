@@ -58,7 +58,8 @@ export default function ProductGallery({ images, videoUrl }: ProductGalleryProps
   }
 
   return (
-    <div className="flex min-w-0 flex-col-reverse gap-3 lg:flex-row lg:gap-4">
+    // En escritorio la galería queda fija mientras se recorre la info de la derecha (antes quedaba un hueco blanco).
+    <div className="flex min-w-0 flex-col-reverse gap-3 lg:sticky lg:top-[calc(var(--public-header-offset-desktop,96px)+1.5rem)] lg:flex-row lg:gap-4 lg:self-start">
       {/* Miniaturas: fila deslizable en móvil, columna pegada a la foto en escritorio. */}
       <div className="-mx-4 min-w-0 px-4 lg:mx-0 lg:px-0">
         <div className="flex snap-x gap-2 overflow-x-auto pb-1 scrollbar-hide lg:max-h-[620px] lg:flex-col lg:overflow-y-auto lg:overflow-x-visible" role="tablist" aria-label="Fotos del producto">
@@ -108,7 +109,8 @@ export default function ProductGallery({ images, videoUrl }: ProductGalleryProps
 
       {/* Foto principal */}
       <div
-        className="group relative aspect-square min-w-0 flex-1 overflow-hidden"
+        // Caja horizontal: las fotos de tenis son apaisadas y en un cuadrado sobraba espacio arriba y abajo.
+        className="group relative aspect-[5/4] min-w-0 flex-1 overflow-hidden lg:aspect-[4/3]"
         onMouseMove={handleMouseMove}
         onMouseLeave={() => setHoverFrame(null)}
         onTouchStart={(e) => { touchStart.current = e.changedTouches[0]?.clientX ?? null }}
@@ -141,25 +143,24 @@ export default function ProductGallery({ images, videoUrl }: ProductGalleryProps
             </div>
 
             {/* Sombra de contacto: el tenis "apoya" sobre la superficie. */}
-            <div aria-hidden="true" className="pointer-events-none absolute inset-x-[24%] bottom-[22%] h-6 rounded-[50%] bg-black/10 blur-xl" />
+            <div aria-hidden="true" className="pointer-events-none absolute inset-x-[24%] bottom-[16%] h-6 rounded-[50%] bg-black/10 blur-xl" />
 
+            {/* Controles juntos y centrados bajo el tenis, del tamaño de la foto (QA: antes quedaban lejos en las esquinas). */}
             {total > 1 && (
-              <div className="absolute inset-x-4 bottom-3 flex items-center justify-between text-store-ink">
-                <div className="flex items-center gap-3 font-barlow text-xs font-semibold tabular-nums tracking-[0.12em]">
+              <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 items-center gap-3 rounded-full bg-white/85 px-1.5 py-1 text-store-ink shadow-sm backdrop-blur dark:bg-black/60">
+                <button type="button" onClick={() => select(activeIndex - 1)} className="grid h-11 w-11 place-items-center rounded-full transition hover:bg-store-ink hover:text-white" aria-label="Foto anterior">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
+                </button>
+                <div className="flex items-center gap-2 font-barlow text-sm font-semibold tabular-nums tracking-[0.08em]" aria-live="polite">
                   <span>{pad(visibleIndex + 1)}</span>
-                  <span aria-hidden="true" className="relative h-0.5 w-16 overflow-hidden rounded-full bg-store-ink/15">
-                    <span className="absolute inset-y-0 left-0 bg-store-ink transition-[width] duration-300" style={{ width: `${((visibleIndex + 1) / total) * 100}%` }} />
+                  <span aria-hidden="true" className="relative h-0.5 w-12 overflow-hidden rounded-full bg-store-ink/15">
+                    <span className="absolute inset-y-0 left-0 bg-store-action transition-[width] duration-300" style={{ width: `${((visibleIndex + 1) / total) * 100}%` }} />
                   </span>
                   <span className="opacity-50">{pad(total)}</span>
                 </div>
-                <div className="flex items-center">
-                  <button type="button" onClick={() => select(activeIndex - 1)} className="grid h-11 w-11 place-items-center rounded-full opacity-70 transition hover:bg-white/70 hover:opacity-100" aria-label="Foto anterior">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
-                  </button>
-                  <button type="button" onClick={() => select(activeIndex + 1)} className="grid h-11 w-11 place-items-center rounded-full opacity-70 transition hover:bg-white/70 hover:opacity-100" aria-label="Foto siguiente">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
-                  </button>
-                </div>
+                <button type="button" onClick={() => select(activeIndex + 1)} className="grid h-11 w-11 place-items-center rounded-full transition hover:bg-store-ink hover:text-white" aria-label="Foto siguiente">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+                </button>
               </div>
             )}
           </>

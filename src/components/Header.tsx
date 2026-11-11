@@ -239,7 +239,7 @@ export default function Header({
               <>
                 <button
                   onClick={toggleCart}
-                  aria-label="Bolsa"
+                  aria-label="Carrito"
                   className="relative grid h-11 w-11 place-items-center rounded-sm focus-visible:outline-2 focus-visible:outline-[#E31C23]"
                 >
                   <IconCart />
@@ -331,7 +331,7 @@ export default function Header({
             {config?.showCart !== false && (
               <button
                 onClick={toggleCart}
-                aria-label="Bolsa"
+                aria-label="Carrito"
                 className="relative grid h-11 w-11 place-items-center rounded-sm transition-colors hover:text-[#E31C23] focus-visible:outline-2 focus-visible:outline-[#E31C23]"
               >
                 <IconCart />

@@ -336,7 +336,7 @@ export async function placeOrder(
     const isValidInERP = await erp.validateStock(erpItemsToValidate)
 
     if (!isValidInERP) {
-      throw new Error(`Lo sentimos, el stock de uno o más productos se agotó en la tienda principal justo ahora. Por favor actualiza tu bolsa.`)
+      throw new Error(`Lo sentimos, el stock de uno o más productos se agotó en la tienda principal justo ahora. Por favor actualiza tu carrito.`)
     }
   }
 
@@ -427,7 +427,7 @@ export async function placeOrder(
     }
     if (error instanceof StockReservationError) {
       const item = pricedItems.find((i) => i.variantId === error.variantId)
-      throw new Error(`Alguien más acaba de comprar la última unidad de "${item?.productName ?? "un producto de tu bolsa"}". Actualiza tu bolsa.`)
+      throw new Error(`Alguien más acaba de comprar la última unidad de "${item?.productName ?? "un producto de tu carrito"}". Actualiza tu carrito.`)
     }
     throw error
   }

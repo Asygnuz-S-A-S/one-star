@@ -37,7 +37,7 @@ export default async function CookiesPage() {
         </p>
         <LegalList
           items={[
-            "Cookies estrictamente necesarias (técnicas): Son indispensables para que puedas navegar por la tienda y utilizar sus funciones esenciales, como mantener tu sesión iniciada, recordar los artículos agregados a tu bolsa de compra y prevenir fraudes o ataques de seguridad (CSRF). Estas cookies no recopilan información con fines publicitarios y no pueden ser desactivadas en nuestros sistemas.",
+            "Cookies estrictamente necesarias (técnicas): Son indispensables para que puedas navegar por la tienda y utilizar sus funciones esenciales, como mantener tu sesión iniciada, recordar los artículos agregados a tu carrito de compra y prevenir fraudes o ataques de seguridad (CSRF). Estas cookies no recopilan información con fines publicitarios y no pueden ser desactivadas en nuestros sistemas.",
             "Cookies de analítica y medición (Google Analytics 4): Nos permiten contar las visitas, fuentes de tráfico y páginas más populares para medir y mejorar el rendimiento de nuestro sitio web. Toda la información se recopila de forma agregada y anónima. Solo se activan si otorgas tu consentimiento previo.",
             "Cookies de publicidad y redes sociales (Meta Pixel): Son utilizadas por nosotros y por Meta Platforms para comprender el impacto de nuestras campañas publicitarias, medir eventos comerciales (como visitas o compras) y mostrarte anuncios relevantes en plataformas como Facebook e Instagram. Solo se activan si otorgas tu consentimiento previo.",
           ]}

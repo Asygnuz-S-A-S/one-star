@@ -9,9 +9,7 @@ const base = {
   delivery: { min: 3, max: 5 },
   pickupStores: [{ id: "s1", name: "One Star Fundadores", city: "Manizales" }],
   availableInStores: true,
-  selectedSize: "",
-  storeStock: [],
-  hasStoreBreakdown: false,
+  storeStockText: "Disponible en cualquiera de nuestras tiendas.",
 }
 
 describe("DeliveryOptions", () => {
@@ -29,14 +27,11 @@ describe("DeliveryOptions", () => {
     expect(renderToStaticMarkup(<DeliveryOptions {...base} pickupStores={[]} />)).not.toContain("Retira en tienda")
   })
 
-  it("stock en tienda: pide talla, lista por sede o invita a preguntar", () => {
-    expect(renderToStaticMarkup(<DeliveryOptions {...base} />)).toContain("Elige una talla para ver disponibilidad")
-    const withBreakdown = renderToStaticMarkup(
-      <DeliveryOptions {...base} selectedSize="9" hasStoreBreakdown storeStock={[{ id: "s1", name: "Fundadores", city: "Manizales", stock: 2 }]} />
-    )
-    expect(withBreakdown).toContain("Fundadores")
-    expect(withBreakdown).toContain("2 disponibles")
-    expect(renderToStaticMarkup(<DeliveryOptions {...base} selectedSize="9" />)).toContain("Pregunta por la talla 9")
+  it("stock en tienda muestra el texto del admin sin nombrar una sede", () => {
+    const html = renderToStaticMarkup(<DeliveryOptions {...base} storeStockText="En todas nuestras tiendas." />)
+    expect(html).toContain("Stock en tienda")
+    expect(html).toContain("En todas nuestras tiendas.")
+    expect(html).toContain('href="/tiendas"')
   })
 
   it("sin venta en tiendas no muestra la fila de stock en tienda", () => {
