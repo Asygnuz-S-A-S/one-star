@@ -138,6 +138,16 @@ export default async function PedidoDetailPage({ params }: Props) {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-[#1C1C1C] truncate">{item.productName}</p>
+                      {/* Talla, color y SKU: lo que necesita quien despacha o busca el par en la bodega. */}
+                      <p className="text-xs text-[#1C1C1C]">
+                        {[
+                          item.size ? `Talla ${item.size}` : null,
+                          item.color || null,
+                          item.sku ? `SKU ${item.sku}` : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ") || "Sin variante registrada"}
+                      </p>
                       <p className="text-xs text-[#4A4A4A]">
                         Cantidad: {item.quantity} · Precio unitario:{" "}
                         {formatCurrency(Number(item.unitPrice))}

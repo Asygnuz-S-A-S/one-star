@@ -56,6 +56,10 @@ export interface OrderItemDTO {
   unitPrice: number
   /** SKU de la variante comprada; null en pedidos previos a la migración sin variante. */
   sku: string | null
+  /** Talla de la variante comprada; null en pedidos sin variante. */
+  size: string | null
+  /** Color de la variante comprada; null en pedidos sin variante. */
+  color: string | null
 }
 
 export interface OrderDTO {
@@ -115,7 +119,7 @@ function mapToDTO(raw: {
     id: string
     productId: string
     product?: { name?: string; images?: Array<{ url: string }> }
-    variant?: { sku: string } | null
+    variant?: { sku: string; size?: string | null; color?: string | null } | null
     quantity: number
     unitPrice: { toNumber: () => number }
   }>
@@ -154,6 +158,8 @@ function mapToDTO(raw: {
           quantity: item.quantity,
           unitPrice: item.unitPrice.toNumber(),
           sku: item.variant?.sku ?? null,
+          size: item.variant?.size ?? null,
+          color: item.variant?.color ?? null,
         }))
       : undefined,
   }
