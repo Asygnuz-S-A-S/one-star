@@ -137,10 +137,35 @@ export default async function PedidoDetailPage({ params }: Props) {
                       />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-[#1C1C1C] truncate">{item.productName}</p>
+                      <Link
+                        href={`/admin/productos/${item.productId}`}
+                        className="block font-medium text-[#1C1C1C] truncate hover:underline"
+                      >
+                        {item.productName}
+                      </Link>
+                      {(item.size || item.color) && (
+                        <p className="text-sm text-[#1C1C1C]">
+                          {item.size && (
+                            <>
+                              Talla: <span className="font-semibold">{item.size}</span>
+                            </>
+                          )}
+                          {item.size && item.color && " · "}
+                          {item.color && (
+                            <>
+                              Color: <span className="font-semibold">{item.color}</span>
+                            </>
+                          )}
+                        </p>
+                      )}
                       <p className="text-xs text-[#4A4A4A]">
                         Cantidad: {item.quantity} · Precio unitario:{" "}
                         {formatCurrency(Number(item.unitPrice))}
+                      </p>
+                      <p className="text-xs text-[#4A4A4A] font-mono break-all">
+                        {item.sku ? `SKU ${item.sku}` : "Sin variante registrada (pedido antiguo)"}
+                        {item.erpId && ` · Ref. ERP ${item.erpId}`}
+                        {` · ID producto ${item.productId}`}
                       </p>
                     </div>
                     <div className="text-right shrink-0">
