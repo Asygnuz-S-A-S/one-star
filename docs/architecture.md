@@ -139,7 +139,13 @@ src/
   - La columna `URL FOTOS` enlaza a una carpeta de Drive: se guarda en el campo de referencia `Product.photosFolderUrl` y no se trata como archivo de imagen individual.
   - Si un producto nuevo no tiene fotos individuales cargadas, se crea como no publicado (`isPublished = false`) con advertencia "sin fotos".
 - **Seguridad ERP**:
-  - Los productos y variantes gestionados por ERP (`erpId != null`) están protegidos: si un SKU del Excel coincide con uno del ERP, la fila se rechaza como error y nunca se sobreescribe.
+  - Los productos y variantes gestionados por ERP (`erpId != null`) están protegidos cuando `isErpCatalogOwner()` está activo (`ERP_CATALOG_WRITES_ENABLED`): si un SKU del Excel coincide con uno del ERP, la fila se rechaza como error y nunca se sobreescribe.
+- **Límite de columnas e inventario por sede física**:
+  - `MAX_COLUMNS` se amplió explícitamente de `40` a `60` en `product-import.service.ts` para acomodar las columnas base de la plantilla junto con columnas de inventario por sede física manteniendo la cota contra hojas malformadas o zip bombs.
+  - Además del stock web (`STOCK` / `STOCK WEB` → `Variant.stock` + `InventoryLevel` con `storeLocationId = null`), el archivo puede incluir columnas de stock por tienda física existentes en `StoreLocation` (`stockCentro`, `stockUnicentro`, `stockFundadores` o encabezados dinámicos `Stock <Sede>`, `Sede <Sede>`, `Tienda <Sede>`, o el nombre normalizado/`erpId` de la sede).
+  - Retrocompatibilidad estricta: archivos sin columnas de sede o con celdas en blanco para una tienda conservan intacto el inventario de esa sede; un `0` explícito sí fija `stock = 0` en esa sede.
+  - El stock web (`Variant.stock` y `storeLocationId = null`) nunca se sobreescribe ni se suma con el stock de tiendas físicas.
+  - Si una columna explícita de inventario por sede no corresponde a ninguna `StoreLocation` física existente, las filas procesables fallan la validación indicando la sede faltante (el importador Excel nunca crea sedes automáticamente).
 
 #### Familias de productos por color
 

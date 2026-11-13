@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useRef } from "react"
+import { useState, useCallback, useRef, useEffect } from "react"
 import Image from "next/image"
 import type { ProductImage } from "@/types/shop"
 import { PLACEHOLDER_IMAGE_URL } from "@/lib/product-image"
@@ -18,22 +18,51 @@ export default function ProductGallery({ images, videoUrl }: ProductGalleryProps
   const [hoverFrame, setHoverFrame] = useState<number | null>(null)
   const [direction, setDirection] = useState<1 | -1>(1)
   const touchStart = useRef<number | null>(null)
+  const tablistRef = useRef<HTMLDivElement>(null)
+  const hasMountedRef = useRef(false)
 
   const hasVideo = Boolean(videoUrl)
   const total = images.length
   const visibleIndex = hoverFrame ?? activeIndex
 
+  useEffect(() => {
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true
+      return
+    }
+    const list = tablistRef.current
+    if (!list) return
+    const activeTab = list.querySelector<HTMLElement>('[aria-selected="true"]')
+    if (!activeTab) return
+
+    const listRect = list.getBoundingClientRect()
+    const tabRect = activeTab.getBoundingClientRect()
+    if (tabRect.top < listRect.top) {
+      list.scrollBy({ top: tabRect.top - listRect.top - 4, behavior: "smooth" })
+    } else if (tabRect.bottom > listRect.bottom) {
+      list.scrollBy({ top: tabRect.bottom - listRect.bottom + 4, behavior: "smooth" })
+    }
+    if (tabRect.left < listRect.left) {
+      list.scrollBy({ left: tabRect.left - listRect.left - 8, behavior: "smooth" })
+    } else if (tabRect.right > listRect.right) {
+      list.scrollBy({ left: tabRect.right - listRect.right + 8, behavior: "smooth" })
+    }
+  }, [activeIndex, showVideo])
+
   const select = useCallback((index: number) => {
     if (total === 0) return
     const next = (index + total) % total
     setDirection(next >= activeIndex ? 1 : -1)
+    setHoverFrame(null)
     setActiveIndex(next)
     setShowVideo(false)
   }, [activeIndex, total])
 
   // Con mouse, recorrer la foto de izquierda a derecha la hace "girar" entre ángulos.
+  // Se omiten los controles inferiores para que pulsar flechas no quede congelado en un ángulo de hover.
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (showVideo || total <= 1) return
+    if ((e.target as HTMLElement | null)?.closest("[data-gallery-controls]")) return
     const rect = e.currentTarget.getBoundingClientRect()
     const x = Math.max(0, Math.min(0.9999, (e.clientX - rect.left) / rect.width))
     const frame = Math.floor(x * total)
@@ -59,10 +88,16 @@ export default function ProductGallery({ images, videoUrl }: ProductGalleryProps
 
   return (
     // En escritorio la galería queda fija mientras se recorre la info de la derecha (antes quedaba un hueco blanco).
-    <div className="flex min-w-0 flex-col-reverse gap-3 lg:sticky lg:top-[calc(var(--public-header-offset-desktop,96px)+1.5rem)] lg:flex-row lg:gap-4 lg:self-start">
-      {/* Miniaturas: fila deslizable en móvil, columna pegada a la foto en escritorio. */}
-      <div className="-mx-4 min-w-0 px-4 lg:mx-0 lg:px-0">
-        <div className="flex snap-x gap-2 overflow-x-auto pb-1 scrollbar-hide lg:max-h-[620px] lg:flex-col lg:overflow-y-auto lg:overflow-x-visible" role="tablist" aria-label="Fotos del producto">
+    // Se usa grid en `lg` con carril posicionado absoluto para que muchas miniaturas hagan scroll sin estirar el `aspect-[4/3]` de la foto principal.
+    <div className="flex min-w-0 flex-col-reverse gap-3 lg:sticky lg:top-[calc(var(--public-header-offset-desktop,96px)+1.5rem)] lg:grid lg:grid-cols-[72px_minmax(0,1fr)] lg:gap-4 lg:self-start">
+      {/* Miniaturas: fila deslizable en móvil, columna acotada al alto de la foto en escritorio. */}
+      <div className="-mx-4 min-w-0 px-4 lg:relative lg:mx-0 lg:px-0">
+        <div
+          ref={tablistRef}
+          className="flex snap-x gap-2 overflow-x-auto pb-1 scrollbar-hide lg:absolute lg:inset-0 lg:flex-col lg:overflow-y-auto lg:overflow-x-visible lg:pb-0"
+          role="tablist"
+          aria-label="Fotos del producto"
+        >
           {images.map((img, idx) => {
             const active = !showVideo && activeIndex === idx
             return (
@@ -110,7 +145,7 @@ export default function ProductGallery({ images, videoUrl }: ProductGalleryProps
       {/* Foto principal */}
       <div
         // Caja horizontal: las fotos de tenis son apaisadas y en un cuadrado sobraba espacio arriba y abajo.
-        className="group relative aspect-[5/4] min-w-0 flex-1 overflow-hidden lg:aspect-[4/3]"
+        className="group relative aspect-[5/4] w-full min-w-0 overflow-hidden lg:aspect-[4/3]"
         onMouseMove={handleMouseMove}
         onMouseLeave={() => setHoverFrame(null)}
         onTouchStart={(e) => { touchStart.current = e.changedTouches[0]?.clientX ?? null }}
@@ -134,7 +169,7 @@ export default function ProductGallery({ images, videoUrl }: ProductGalleryProps
                   alt={img.alt || `Vista ${idx + 1}`}
                   fill
                   priority={idx === 0}
-                  className={`object-contain object-center scale-[1.3] mix-blend-multiply dark:mix-blend-normal ${
+                  className={`object-contain object-center scale-105 mix-blend-multiply dark:mix-blend-normal ${
                     idx === visibleIndex ? "opacity-100 motion-safe:animate-[card-frame-in_320ms_cubic-bezier(.22,1,.36,1)]" : "opacity-0"
                   }`}
                   sizes="(max-width: 1024px) 100vw, 55vw"
@@ -147,7 +182,11 @@ export default function ProductGallery({ images, videoUrl }: ProductGalleryProps
 
             {/* Controles juntos y centrados bajo el tenis, del tamaño de la foto (QA: antes quedaban lejos en las esquinas). */}
             {total > 1 && (
-              <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 items-center gap-3 rounded-full bg-white/85 px-1.5 py-1 text-store-ink shadow-sm backdrop-blur dark:bg-black/60">
+              <div
+                data-gallery-controls
+                onMouseEnter={() => setHoverFrame(null)}
+                className="absolute bottom-2 left-1/2 flex -translate-x-1/2 items-center gap-3 rounded-full bg-white/85 px-1.5 py-1 text-store-ink shadow-sm backdrop-blur dark:bg-black/60"
+              >
                 <button type="button" onClick={() => select(activeIndex - 1)} className="grid h-11 w-11 place-items-center rounded-full transition hover:bg-store-ink hover:text-white" aria-label="Foto anterior">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
                 </button>

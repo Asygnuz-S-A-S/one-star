@@ -67,11 +67,18 @@ const {
   mockFindVariantsBySkus,
   mockFindProductsByBaseSkus,
   mockFindProductsByIdsForImport,
+  mockFindStoreLocations,
 } = vi.hoisted(() => ({
   mockIsErpCatalogOwner: vi.fn(async () => false),
   mockFindVariantsBySkus: vi.fn<(skus: string[]) => Promise<unknown[]>>(async () => []),
   mockFindProductsByBaseSkus: vi.fn<(bases: string[]) => Promise<unknown[]>>(async () => []),
   mockFindProductsByIdsForImport: vi.fn<(ids: string[]) => Promise<unknown[]>>(async () => []),
+  mockFindStoreLocations: vi.fn(async () => [
+    { id: "store-web", name: "Bodega Web", erpId: null, isWebWarehouse: true, isActive: true },
+    { id: "store-centro", name: "One Star Centro", erpId: "ERP-CENTRO", isWebWarehouse: false, isActive: true },
+    { id: "store-unicentro", name: "One Star Unicentro", erpId: "ERP-UNIC", isWebWarehouse: false, isActive: true },
+    { id: "store-fundadores", name: "One Star Fundadores", erpId: "ERP-FUND", isWebWarehouse: false, isActive: true },
+  ]),
 }))
 
 vi.mock("@/server/services/catalog-source.service", () => ({
@@ -82,6 +89,10 @@ vi.mock("@/server/repositories/product.repository", () => ({
   findVariantsBySkus: mockFindVariantsBySkus,
   findProductsByBaseSkus: mockFindProductsByBaseSkus,
   findProductsByIdsForImport: mockFindProductsByIdsForImport,
+}))
+
+vi.mock("@/server/repositories/store.repository", () => ({
+  findStoreLocations: mockFindStoreLocations,
 }))
 
 import * as fflate from "fflate"
@@ -1084,8 +1095,8 @@ describe("Límites de contenido y parseo seguro", () => {
     await expect(previewProductImport(largeBuffer)).rejects.toThrow(/excede el tamaño máximo permitido de 2 MB/i)
   })
 
-  it("rechaza si excede el límite de columnas (> 40 columnas)", async () => {
-    const tooManyColumns = Array.from({ length: 41 }, (_, i) => `col_${i}`)
+  it("rechaza si excede el límite de columnas (> 60 columnas)", async () => {
+    const tooManyColumns = Array.from({ length: 61 }, (_, i) => `col_${i}`)
     const aoa = [tooManyColumns, tooManyColumns.map(() => "nota"), tooManyColumns.map(() => "val")]
     const sheet = XLSX.utils.aoa_to_sheet(aoa)
     const wb = XLSX.utils.book_new()
@@ -1093,7 +1104,20 @@ describe("Límites de contenido y parseo seguro", () => {
     const buf = XLSX.write(wb, { bookType: "xlsx", type: "buffer" }) as Buffer
     const buffer = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer
 
-    await expect(previewProductImport(buffer)).rejects.toThrow(/excede el límite máximo de 40 columnas/i)
+    await expect(previewProductImport(buffer)).rejects.toThrow(/excede el límite máximo de 60 columnas/i)
+  })
+
+  it("acepta entre 41 y 60 columnas para acomodar columnas de inventario por sede", async () => {
+    const extraColumns = Array.from({ length: 14 }, (_, i) => `extra_${i}`)
+    const customColumns = [...COLUMNS, ...extraColumns]
+    expect(customColumns).toHaveLength(45)
+
+    const row = [...baseRow({ sku: "NK-45COL" }), ...extraColumns.map(() => "")]
+    const buffer = buildBuffer([row], customColumns)
+    const preview = await previewProductImport(buffer)
+
+    expect(preview.rows).toHaveLength(1)
+    expect(preview.rows[0].action).toBe("create_product")
   })
 
   it("rechaza si una celda excede MAX_CELL_LENGTH (> 5.000 caracteres)", async () => {
@@ -1172,13 +1196,216 @@ describe("Límites de contenido y parseo seguro", () => {
     })
     expect(preview.fingerprint).toBeTruthy()
 
-    const applyResult = await applyProductImport(buffer, preview.fingerprint)
-    expect(applyResult).toEqual({
-      newProducts: 6,
-      newVariants: 12,
-      updatedVariants: 0,
-    })
+    await applyProductImport(buffer, preview.fingerprint)
     expect(txMock.product.create).toHaveBeenCalledTimes(6)
     expect(txMock.variant.create).toHaveBeenCalledTimes(12)
+  })
+})
+
+describe("Inventario por sede desde Excel", () => {
+  const DEFAULT_STORES = [
+    { id: "store-web", name: "Bodega Web", erpId: null, isWebWarehouse: true, isActive: true },
+    { id: "store-centro", name: "One Star Centro", erpId: "ERP-CENTRO", isWebWarehouse: false, isActive: true },
+    { id: "store-unicentro", name: "One Star Unicentro", erpId: "ERP-UNIC", isWebWarehouse: false, isActive: true },
+    { id: "store-fundadores", name: "One Star Fundadores", erpId: "ERP-FUND", isWebWarehouse: false, isActive: true },
+  ]
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockIsErpCatalogOwner.mockResolvedValue(false)
+    mockFindVariantsBySkus.mockResolvedValue([])
+    mockFindProductsByBaseSkus.mockResolvedValue([])
+    mockFindProductsByIdsForImport.mockResolvedValue([])
+    mockFindStoreLocations.mockResolvedValue(DEFAULT_STORES)
+    txMock.product.create.mockImplementation(async (args: { data: Record<string, unknown> }) => ({
+      id: "new-product-id",
+      ...args.data,
+    }))
+    txMock.variant.create.mockImplementation(async (args?: { data: Record<string, unknown> }) => ({
+      id: "new-variant-id",
+      ...(args?.data ?? {}),
+    }))
+  })
+
+  it("retrocompatible: un Excel sin columnas de sede solo toca el inventario web (storeLocationId: null)", async () => {
+    const buffer = buildBuffer([baseRow({ sku: "RETRO-1", stock: 7 })])
+    const preview = await previewProductImport(buffer)
+    expect(preview.summary.errors).toBe(0)
+
+    await applyProductImport(buffer, preview.fingerprint)
+
+    expect(txMock.inventoryLevel.deleteMany).not.toHaveBeenCalled()
+    expect(txMock.inventoryLevel.create).toHaveBeenCalledTimes(1)
+    expect(txMock.inventoryLevel.create).toHaveBeenCalledWith({
+      data: {
+        variantId: "new-variant-id",
+        storeLocationId: null,
+        stock: 7,
+      },
+    })
+  })
+
+  it("actualiza solo sedes con valor presente, omite celdas vacías sin borrar niveles previos y permite 0 explícito", async () => {
+    const existingProd = {
+      id: "p-store-upd",
+      slug: "nkstr",
+      name: "Nike Store Test",
+      erpId: null,
+      basePrice: 480000,
+      salePrice: null,
+      isOnSale: false,
+      description: null,
+      extendedDescription: null,
+      gender: null,
+      isPublished: true,
+      availableOnline: true,
+      availableInStores: true,
+      categoryId: "cat-calzado",
+      category: { id: "cat-calzado", name: "Calzado" },
+      brandId: "brand-nike",
+      brand: { id: "brand-nike", name: "Nike" },
+      images: [],
+      variants: [
+        { id: "var-upd", sku: "NKSTR_40", size: "40", color: "Negro", stock: 2, erpId: null },
+      ],
+    }
+    mockFindVariantsBySkus.mockResolvedValue([
+      {
+        id: "var-upd",
+        sku: "NKSTR_40",
+        size: "40",
+        color: "Negro",
+        stock: 2,
+        sizeUS: null,
+        sizeCM: null,
+        sizeEUR: null,
+        product: existingProd,
+      },
+    ])
+    mockFindProductsByBaseSkus.mockResolvedValue([existingProd])
+    txMock.variant.create.mockResolvedValue({ id: "var-new-41" })
+
+    const headers = [...COLUMNS, "Stock Centro", "Stock Unicentro"]
+    const rows = [
+      // Existente: web=3, Centro=0 explícito, Unicentro=4 (Fundadores no está en archivo)
+      [...baseRow({ sku: "NKSTR", name: "Nike Store Test", size: "40", stock: 3 }), 0, 4],
+      // Nueva: web=5, Centro=12, Unicentro="" (vacío -> no tocar Unicentro)
+      [...baseRow({ sku: "NKSTR", name: "Nike Store Test", size: "41", stock: 5 }), 12, ""],
+    ]
+    const buffer = buildBuffer(rows, headers)
+
+    const preview = await previewProductImport(buffer)
+    expect(preview.summary).toEqual({
+      newProducts: 0,
+      newVariants: 1,
+      updatedVariants: 1,
+      errors: 0,
+    })
+
+    await applyProductImport(buffer, preview.fingerprint)
+
+    // Existente: actualiza Variant.stock=3 (web) y storeLocationId: null = 3
+    expect(txMock.variant.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "var-upd" },
+        data: expect.objectContaining({ stock: 3 }),
+      }),
+    )
+    expect(txMock.inventoryLevel.deleteMany).toHaveBeenCalledWith({
+      where: { variantId: "var-upd", storeLocationId: { in: ["store-centro", "store-unicentro"] } },
+    })
+    expect(txMock.inventoryLevel.create).toHaveBeenCalledWith({
+      data: { variantId: "var-upd", storeLocationId: "store-centro", stock: 0 },
+    })
+    expect(txMock.inventoryLevel.create).toHaveBeenCalledWith({
+      data: { variantId: "var-upd", storeLocationId: "store-unicentro", stock: 4 },
+    })
+
+    // Nueva: Unicentro venía vacío -> deleteMany solo borra store-centro y no crea nivel para Unicentro ni Fundadores
+    expect(txMock.inventoryLevel.deleteMany).toHaveBeenCalledWith({
+      where: { variantId: "var-new-41", storeLocationId: { in: ["store-centro"] } },
+    })
+    expect(txMock.inventoryLevel.create).toHaveBeenCalledWith({
+      data: { variantId: "var-new-41", storeLocationId: "store-centro", stock: 12 },
+    })
+    const unicentroNewCall = txMock.inventoryLevel.create.mock.calls.find(
+      ([arg]) => arg.data.variantId === "var-new-41" && arg.data.storeLocationId === "store-unicentro",
+    )
+    expect(unicentroNewCall).toBeUndefined()
+    const fundadoresCall = txMock.inventoryLevel.create.mock.calls.find(
+      ([arg]) => arg.data.storeLocationId === "store-fundadores",
+    )
+    expect(fundadoresCall).toBeUndefined()
+  })
+
+  it("stock web 0 con stock en tienda 10 mantiene Variant.stock y storeLocationId: null en 0", async () => {
+    const headers = [...COLUMNS, "Stock Centro"]
+    const row = [...baseRow({ sku: "WEBZERO-1", stock: 0 }), 10]
+    const buffer = buildBuffer([row], headers)
+
+    const preview = await previewProductImport(buffer)
+    expect(preview.summary.errors).toBe(0)
+
+    await applyProductImport(buffer, preview.fingerprint)
+
+    expect(txMock.variant.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ sku: "WEBZERO-1", stock: 0 }),
+    })
+    expect(txMock.inventoryLevel.create).toHaveBeenCalledWith({
+      data: { variantId: "new-variant-id", storeLocationId: null, stock: 0 },
+    })
+    expect(txMock.inventoryLevel.create).toHaveBeenCalledWith({
+      data: { variantId: "new-variant-id", storeLocationId: "store-centro", stock: 10 },
+    })
+  })
+
+  it("resuelve encabezados dinámicos por erpId o nombre normalizado de sede", async () => {
+    const headers = [...COLUMNS, "ERP-UNIC", "centro", "Sede Fundadores"]
+    const row = [...baseRow({ sku: "MATCH-DYN-1", stock: 2 }), 6, 8, 1]
+    const buffer = buildBuffer([row], headers)
+
+    const preview = await previewProductImport(buffer)
+    expect(preview.summary.errors).toBe(0)
+
+    await applyProductImport(buffer, preview.fingerprint)
+
+    expect(txMock.inventoryLevel.create).toHaveBeenCalledWith({
+      data: { variantId: "new-variant-id", storeLocationId: "store-unicentro", stock: 6 },
+    })
+    expect(txMock.inventoryLevel.create).toHaveBeenCalledWith({
+      data: { variantId: "new-variant-id", storeLocationId: "store-centro", stock: 8 },
+    })
+    expect(txMock.inventoryLevel.create).toHaveBeenCalledWith({
+      data: { variantId: "new-variant-id", storeLocationId: "store-fundadores", stock: 1 },
+    })
+  })
+
+  it("rechaza con error de fila si la columna de sede no existe en BD y nunca crea sedes", async () => {
+    const headers = [...COLUMNS, "Stock Sede Fantasma"]
+    const row = [...baseRow({ sku: "BAD-STORE-1" }), 5]
+    const buffer = buildBuffer([row], headers)
+
+    const preview = await previewProductImport(buffer)
+    expect(preview.summary.errors).toBe(1)
+    expect(preview.summary.newProducts).toBe(0)
+    expect(preview.rows[0].action).toBe("error")
+    expect(preview.rows[0].message).toMatch(/Stock Sede Fantasma/i)
+    expect(preview.rows[0].message).toMatch(/no se crean sedes/i)
+  })
+
+  it("rechaza valores negativos/decimales por tienda y columnas duplicadas hacia la misma sede", async () => {
+    const headersBadVal = [...COLUMNS, "Stock Centro"]
+    const rowNegative = [...baseRow({ sku: "NEG-STORE-1" }), -3]
+    const previewNeg = await previewProductImport(buildBuffer([rowNegative], headersBadVal))
+    expect(previewNeg.summary.errors).toBe(1)
+    expect(previewNeg.rows[0].action).toBe("error")
+    expect(previewNeg.rows[0].message).toMatch(/no puede ser negativo/i)
+
+    const headersDup = [...COLUMNS, "Stock Centro", "ERP-CENTRO"]
+    const rowDup = [...baseRow({ sku: "DUP-STORE-1" }), 4, 7]
+    const previewDup = await previewProductImport(buildBuffer([rowDup], headersDup))
+    expect(previewDup.summary.errors).toBe(1)
+    expect(previewDup.rows[0].action).toBe("error")
+    expect(previewDup.rows[0].message).toMatch(/Columnas duplicadas/i)
   })
 })
