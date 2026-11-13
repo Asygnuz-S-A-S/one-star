@@ -13,7 +13,9 @@ import {
   type ProductForImport,
 } from "@/server/repositories/product.repository"
 import { findVariantsForCrossSellRefs, persistProductImport } from "@/server/repositories/product-import.repository"
+import { findStoreLocations } from "@/server/repositories/store.repository"
 import { matchCrossSellRefs, parseCrossSellRefs } from "@/lib/cross-sell"
+import { normalizeStoreName } from "@/lib/store-location"
 import { isErpCatalogOwner } from "@/server/services/catalog-source.service"
 import {
   isSkippedBrand,
@@ -42,7 +44,9 @@ export const MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024 // 2 MB
 export const MAX_ENTRY_UNCOMPRESSED_SIZE_BYTES = 20 * 1024 * 1024 // 20 MB
 export const MAX_TOTAL_UNCOMPRESSED_SIZE_BYTES = 50 * 1024 * 1024 // 50 MB
 export const MAX_SHEET_ROWS = 5000 // Máximo 5.000 filas de datos
-export const MAX_COLUMNS = 40 // Máximo 40 columnas
+// Las 38 columnas base + las columnas de stock por sede superan el límite anterior de 40;
+// 60 columnas cubre las 41 actuales más futuras sedes sin abrir el parser a hojas enormes.
+export const MAX_COLUMNS = 60
 export const MAX_CELL_LENGTH = 5000 // Máximo 5.000 caracteres por celda
 export const ALLOWED_FILE_EXTENSION = ".xlsx"
 export const ALLOWED_MIME_TYPES: ReadonlySet<string> = new Set([
@@ -59,12 +63,20 @@ export const DANGEROUS_KEYS: ReadonlySet<string> = new Set([
   "prototype",
 ])
 
+export const STORE_COLUMN_PREFIX = "store:"
+const STORE_TEMPLATE_TOKENS: Record<string, string> = {
+  stockCentro: "centro",
+  stockUnicentro: "unicentro",
+  stockFundadores: "fundadores",
+}
+
 export const TEMPLATE_COLUMNS = [
   "sku", "name", "brandName", "categoryName", "gender", "price", "isOnSale", "salePrice",
   "description", "extendedDescription", "size", "sizeUS", "sizeCM", "sizeEUR", "color", "stock",
   "image1", "image2", "image3", "image4", "image5", "image6", "image7", "image8", "videoUrl",
   "photosFolderUrl", "readyFlag", "colorGroup", "isPublished", "availableOnline", "availableInStores",
   "isFeatured", "isLaunch", "highlights", "faqs", "metaTitle", "metaDescription", "crossSells",
+  "stockCentro", "stockUnicentro", "stockFundadores",
 ] as const
 
 /**
@@ -226,8 +238,26 @@ export const COLUMN_HEADER_ALIASES: Record<string, string> = {
   SIZEEUR: "sizeEUR",
   // Color
   COLOR: "color",
-  // Stock
+  // Stock web y por sede
   STOCK: "stock",
+  "STOCK WEB": "stock",
+  "STOCK ONLINE": "stock",
+  "STOCK TIENDA ONLINE": "stock",
+  "STOCK CENTRO": "stockCentro",
+  "STOCK TIENDA CENTRO": "stockCentro",
+  "STOCK SEDE CENTRO": "stockCentro",
+  "STOCK ONE STAR CENTRO": "stockCentro",
+  STOCKCENTRO: "stockCentro",
+  "STOCK UNICENTRO": "stockUnicentro",
+  "STOCK TIENDA UNICENTRO": "stockUnicentro",
+  "STOCK SEDE UNICENTRO": "stockUnicentro",
+  "STOCK ONE STAR UNICENTRO": "stockUnicentro",
+  STOCKUNICENTRO: "stockUnicentro",
+  "STOCK FUNDADORES": "stockFundadores",
+  "STOCK TIENDA FUNDADORES": "stockFundadores",
+  "STOCK SEDE FUNDADORES": "stockFundadores",
+  "STOCK ONE STAR FUNDADORES": "stockFundadores",
+  STOCKFUNDADORES: "stockFundadores",
   // URL fotos (carpeta Drive)
   "URL FOTOS": "photosFolderUrl",
   "URL FOTO": "photosFolderUrl",
@@ -322,6 +352,23 @@ export const COLUMN_HEADER_ALIASES: Record<string, string> = {
   "META DESCRIPTION": "metaDescription",
 }
 
+function extractStoreColumnToken(trimmed: string): string | null {
+  const camelMatch = trimmed.match(/^stock([A-Z0-9][A-Za-z0-9]+)$/)
+  if (camelMatch) {
+    const token = camelMatch[1].replace(/([a-z0-9])([A-Z])/g, "$1 $2").trim()
+    return DANGEROUS_KEYS.has(token.toLowerCase()) ? null : token
+  }
+
+  const prefixMatch = trimmed.match(
+    /^(?:(?:stock|inventario)\s*(?:[-:_]\s*|\s+)(?:(?:de|en)\s+)?(?:(?:tienda|sede|sucursal|almac[eé]n|punto\s+de\s+venta)\s*(?:[-:_]\s*|\s+))?|(?:tienda|sede|sucursal|almac[eé]n|punto\s+de\s+venta)\s*(?:[-:_]\s*|\s+))(.+)$/i
+  )
+  if (!prefixMatch) return null
+
+  const token = prefixMatch[1].trim()
+  if (!token || DANGEROUS_KEYS.has(token.toLowerCase())) return null
+  return token
+}
+
 export function matchHeader(rawHeader: unknown): string | null {
   const trimmed = String(rawHeader ?? "").trim()
   if (!trimmed) return null
@@ -357,6 +404,11 @@ export function matchHeader(rawHeader: unknown): string | null {
     sizeeur: "sizeEUR",
     color: "color",
     stock: "stock",
+    stockweb: "stock",
+    stockonline: "stock",
+    stockcentro: "stockCentro",
+    stockunicentro: "stockUnicentro",
+    stockfundadores: "stockFundadores",
     image1: "image1",
     image2: "image2",
     image3: "image3",
@@ -381,6 +433,12 @@ export function matchHeader(rawHeader: unknown): string | null {
   if (Object.prototype.hasOwnProperty.call(directMap, lowerKey)) {
     return directMap[lowerKey]
   }
+
+  const storeToken = extractStoreColumnToken(trimmed)
+  if (storeToken) {
+    return `${STORE_COLUMN_PREFIX}${storeToken}`
+  }
+
   return null
 }
 
@@ -432,12 +490,19 @@ export interface ProductImportOptions {
   textUpdateMode?: TextUpdateMode
 }
 
+export interface PlannedStoreInventory {
+  storeLocationId: string
+  storeName: string
+  stock: number
+}
+
 export interface PlannedVariant {
   row: ProductImportRow
   rowNumber: number
   kind: "create" | "update"
   existingVariantId?: string
   isRecoveredFromDate?: boolean
+  storeInventory?: PlannedStoreInventory[]
 }
 
 export interface PlannedGroup {
@@ -451,16 +516,130 @@ export interface PlannedGroup {
   variants: PlannedVariant[]
 }
 
+interface ParsedStoreHeaderCandidate {
+  colIndex: number
+  rawHeader: string
+  token: string
+  isExplicitStoreHeader: boolean
+}
+
+interface ResolvedStoreColumn {
+  colIndex: number
+  rawHeader: string
+  storeLocationId: string
+  storeName: string
+}
+
 interface ParsedRawRow {
   rowNumber: number
   rowObj: Record<string, unknown>
   rawSizeCell: unknown
   cellMetaForSize?: { z?: string; t?: string }
+  storeCellValues: Map<number, unknown>
+}
+
+interface StoreLocationLike {
+  id: string
+  name: string
+  erpId: string | null
+  isWebWarehouse: boolean
+}
+
+function matchPhysicalStore(
+  token: string,
+  physicalStores: StoreLocationLike[],
+): StoreLocationLike | null {
+  const trimmed = token.trim()
+  if (!trimmed) return null
+
+  const lowerToken = trimmed.toLowerCase()
+  const byErpId = physicalStores.find(
+    (store) => store.erpId && store.erpId.trim().toLowerCase() === lowerToken
+  )
+  if (byErpId) return byErpId
+
+  const normTarget = normalizeStoreName(trimmed)
+  if (!normTarget) return null
+  return physicalStores.find((store) => normalizeStoreName(store.name) === normTarget) ?? null
+}
+
+function resolveStoreColumns(
+  candidates: ParsedStoreHeaderCandidate[],
+  storeLocations: StoreLocationLike[],
+): {
+  resolvedColumns: ResolvedStoreColumn[]
+  unknownHeaders: string[]
+  duplicateErrors: string[]
+} {
+  const physicalStores = storeLocations.filter((store) => !store.isWebWarehouse)
+  const resolvedColumns: ResolvedStoreColumn[] = []
+  const unknownHeaders: string[] = []
+  const duplicateErrors: string[] = []
+  const seenStoreIds = new Map<string, string>()
+
+  for (const cand of candidates) {
+    const matched = matchPhysicalStore(cand.token, physicalStores)
+    if (!matched) {
+      // Solo un encabezado con patrón explícito de sede ("Stock ...", "Sede ...", "Tienda ...")
+      // invalida si no existe en BD; columnas informativas sueltas siguen ignorándose.
+      if (cand.isExplicitStoreHeader) {
+        unknownHeaders.push(cand.rawHeader)
+      }
+      continue
+    }
+
+    const previousHeader = seenStoreIds.get(matched.id)
+    if (previousHeader) {
+      duplicateErrors.push(
+        `Columnas duplicadas para la sede "${matched.name}": "${previousHeader}" y "${cand.rawHeader}"`
+      )
+      continue
+    }
+
+    seenStoreIds.set(matched.id, cand.rawHeader)
+    resolvedColumns.push({
+      colIndex: cand.colIndex,
+      rawHeader: cand.rawHeader,
+      storeLocationId: matched.id,
+      storeName: matched.name,
+    })
+  }
+
+  return { resolvedColumns, unknownHeaders, duplicateErrors }
+}
+
+function parseOptionalStoreStockValue(
+  rawValue: unknown,
+  headerLabel: string,
+): { present: false } | { present: true; stock: number } | { present: true; error: string } {
+  if (rawValue === undefined || rawValue === null) {
+    return { present: false }
+  }
+  if (rawValue instanceof Date || typeof rawValue === "boolean") {
+    return {
+      present: true,
+      error: `Stock inválido en "${headerLabel}": debe ser un entero mayor o igual a 0`,
+    }
+  }
+  const text = String(rawValue).trim()
+  if (text === "") {
+    return { present: false }
+  }
+
+  const parsed = Number(text)
+  if (!Number.isFinite(parsed) || !Number.isInteger(parsed)) {
+    return { present: true, error: `Stock en "${headerLabel}" debe ser un entero` }
+  }
+  if (parsed < 0) {
+    return { present: true, error: `Stock en "${headerLabel}" no puede ser negativo` }
+  }
+  return { present: true, stock: parsed }
 }
 
 function parseWorkbook(buffer: ArrayBuffer): {
   rows: ParsedRawRow[]
   hasReadyColumn: boolean
+  storeHeaderCandidates: ParsedStoreHeaderCandidate[]
 } {
   if (buffer.byteLength > MAX_FILE_SIZE_BYTES) {
     throw new Error(
@@ -501,7 +680,7 @@ function parseWorkbook(buffer: ArrayBuffer): {
   const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, blankrows: false })
 
   if (!matrix || matrix.length === 0) {
-    return { rows: [], hasReadyColumn: false }
+    return { rows: [], hasReadyColumn: false, storeHeaderCandidates: [] }
   }
 
   for (let r = 0; r < matrix.length; r++) {
@@ -527,6 +706,7 @@ function parseWorkbook(buffer: ArrayBuffer): {
   // 1. Detectar la fila de encabezados: primera fila con columna "SKU"
   let headerRowIndex = -1
   const colMap = new Map<number, string>()
+  const storeHeaderCandidates: ParsedStoreHeaderCandidate[] = []
   let sizeColIdx = -1
   let hasReadyColumn = false
 
@@ -541,14 +721,47 @@ function parseWorkbook(buffer: ArrayBuffer): {
       }
     }
     if (headerRowIndex !== -1) {
-      // Mapear todas las columnas de esta fila
+      // Mapear todas las columnas de esta fila (estándar + candidatas a sedes)
       for (let c = 0; c < row.length; c++) {
-        const field = matchHeader(row[c])
-        if (field && !DANGEROUS_KEYS.has(field.toLowerCase())) {
-          colMap.set(c, field)
-          if (field === "size") sizeColIdx = c
-          if (field === "readyFlag") hasReadyColumn = true
+        const rawHeader = String(row[c] ?? "").trim()
+        if (!rawHeader || DANGEROUS_KEYS.has(rawHeader.toLowerCase())) continue
+
+        const field = matchHeader(rawHeader)
+        if (!field) {
+          storeHeaderCandidates.push({
+            colIndex: c,
+            rawHeader,
+            token: rawHeader,
+            isExplicitStoreHeader: false,
+          })
+          continue
         }
+
+        if (DANGEROUS_KEYS.has(field.toLowerCase())) continue
+
+        if (Object.prototype.hasOwnProperty.call(STORE_TEMPLATE_TOKENS, field)) {
+          storeHeaderCandidates.push({
+            colIndex: c,
+            rawHeader,
+            token: STORE_TEMPLATE_TOKENS[field],
+            isExplicitStoreHeader: true,
+          })
+          continue
+        }
+
+        if (field.startsWith(STORE_COLUMN_PREFIX)) {
+          storeHeaderCandidates.push({
+            colIndex: c,
+            rawHeader,
+            token: field.slice(STORE_COLUMN_PREFIX.length),
+            isExplicitStoreHeader: true,
+          })
+          continue
+        }
+
+        colMap.set(c, field)
+        if (field === "size") sizeColIdx = c
+        if (field === "readyFlag") hasReadyColumn = true
       }
       break
     }
@@ -612,11 +825,17 @@ function parseWorkbook(buffer: ArrayBuffer): {
       }
     }
 
+    const storeCellValues = new Map<number, unknown>()
+    for (const cand of storeHeaderCandidates) {
+      storeCellValues.set(cand.colIndex, rawRow[cand.colIndex])
+    }
+
     parsedRows.push({
       rowNumber: r + 1, // 1-indexed para el usuario
       rowObj,
       rawSizeCell,
       cellMetaForSize,
+      storeCellValues,
     })
   }
 
@@ -626,7 +845,7 @@ function parseWorkbook(buffer: ArrayBuffer): {
     )
   }
 
-  return { rows: parsedRows, hasReadyColumn }
+  return { rows: parsedRows, hasReadyColumn, storeHeaderCandidates }
 }
 
 /**
@@ -651,8 +870,21 @@ async function planImport(
   existingProductsMap: Map<string, ProductForImport>
   productsToDeactivateIds: string[]
 }> {
-  const { rows: rawRows, hasReadyColumn } = parseWorkbook(buffer)
+  const { rows: rawRows, hasReadyColumn, storeHeaderCandidates } = parseWorkbook(buffer)
   const onlyReady = options?.onlyReadyRows ?? (hasReadyColumn ? true : false)
+
+  const [isErpOwner, storeLocations] = await Promise.all([
+    isErpCatalogOwner(),
+    findStoreLocations(),
+  ])
+  const { resolvedColumns, unknownHeaders, duplicateErrors } = resolveStoreColumns(
+    storeHeaderCandidates,
+    storeLocations,
+  )
+  const storeColumnIssue =
+    unknownHeaders.length > 0
+      ? `Sede(s) no encontrada(s) para la(s) columna(s): ${unknownHeaders.map((h) => `"${h}"`).join(", ")} (no se crean sedes automáticamente)`
+      : duplicateErrors[0] ?? null
 
   const rowResults: ProductImportRowResult[] = []
 
@@ -661,6 +893,7 @@ async function planImport(
     rowNumber: number
     rawSku: string
     isRecoveredFromDate: boolean
+    storeInventory?: PlannedStoreInventory[]
   }
 
   interface NotReadyCandidate {
@@ -671,7 +904,7 @@ async function planImport(
   const validCandidates: ValidCandidate[] = []
   const notReadyCandidates: NotReadyCandidate[] = []
 
-  for (const { rowNumber, rowObj, rawSizeCell, cellMetaForSize } of rawRows) {
+  for (const { rowNumber, rowObj, rawSizeCell, cellMetaForSize, storeCellValues } of rawRows) {
     const rawSku = String(rowObj.sku ?? "").trim()
     const rawName = String(rowObj.name ?? "").trim()
     const rawBrand = String(rowObj.brandName ?? "").trim()
@@ -710,6 +943,17 @@ async function planImport(
       }
     }
 
+    if (storeColumnIssue) {
+      rowResults.push({
+        rowNumber,
+        sku: rawSku,
+        productName: rawName,
+        action: "error",
+        message: storeColumnIssue,
+      })
+      continue
+    }
+
     // 3. Alias de marca
     if (rawBrand) {
       rowObj.brandName = resolveBrandAlias(rawBrand)
@@ -743,11 +987,42 @@ async function planImport(
       continue
     }
 
+    // 5b. Validación de inventario por sede (las celdas en blanco omiten la sede sin tocar BD)
+    const storeInventory: PlannedStoreInventory[] = []
+    let storeCellError: string | null = null
+    for (const col of resolvedColumns) {
+      const parsedCell = parseOptionalStoreStockValue(
+        storeCellValues.get(col.colIndex),
+        col.rawHeader,
+      )
+      if (!parsedCell.present) continue
+      if ("error" in parsedCell) {
+        storeCellError = parsedCell.error
+        break
+      }
+      storeInventory.push({
+        storeLocationId: col.storeLocationId,
+        storeName: col.storeName,
+        stock: parsedCell.stock,
+      })
+    }
+    if (storeCellError) {
+      rowResults.push({
+        rowNumber,
+        sku: rawSku,
+        productName: rawName,
+        action: "error",
+        message: storeCellError,
+      })
+      continue
+    }
+
     validCandidates.push({
       row: parsed.data,
       rowNumber,
       rawSku,
       isRecoveredFromDate,
+      ...(storeInventory.length > 0 ? { storeInventory } : {}),
     })
   }
 
@@ -762,6 +1037,7 @@ async function planImport(
     row: ProductImportRow
     rowNumber: number
     isRecoveredFromDate: boolean
+    storeInventory?: PlannedStoreInventory[]
   }
 
   const preparedRows: PreparedRow[] = []
@@ -799,6 +1075,7 @@ async function planImport(
       row: { ...c.row, sku: finalVariantSku },
       rowNumber: c.rowNumber,
       isRecoveredFromDate: c.isRecoveredFromDate,
+      ...(c.storeInventory ? { storeInventory: c.storeInventory } : {}),
     })
   }
 
@@ -812,8 +1089,6 @@ async function planImport(
   const notReadyBaseSkus = [
     ...new Set(notReadyCandidates.map((c) => c.baseSku).filter(Boolean)),
   ]
-
-  const isErpOwner = await isErpCatalogOwner()
 
   const [
     existingVariants,
@@ -869,7 +1144,7 @@ async function planImport(
   const groups = new Map<string, PlannedGroup>()
   const matchedVariantIds = new Set<string>()
 
-  for (const { row, rowNumber, isRecoveredFromDate } of preparedRows) {
+  for (const { row, rowNumber, isRecoveredFromDate, storeInventory } of preparedRows) {
     const rowBaseSku = parseSku(row.sku).baseSku.trim()
     const rowNormSize = normalizeVariantSize(row.size)
 
@@ -959,9 +1234,24 @@ async function planImport(
       group.colorGroup = row.colorGroup.trim()
     }
 
+    const storeInventoryField =
+      storeInventory && storeInventory.length > 0 ? { storeInventory } : {}
     const plannedVariant: PlannedVariant = matchedVariant
-      ? { row, rowNumber, kind: "update", existingVariantId: matchedVariant.id, isRecoveredFromDate }
-      : { row, rowNumber, kind: "create", isRecoveredFromDate }
+      ? {
+          row,
+          rowNumber,
+          kind: "update",
+          existingVariantId: matchedVariant.id,
+          isRecoveredFromDate,
+          ...storeInventoryField,
+        }
+      : {
+          row,
+          rowNumber,
+          kind: "create",
+          isRecoveredFromDate,
+          ...storeInventoryField,
+        }
     group.variants.push(plannedVariant)
   }
 
@@ -1020,6 +1310,10 @@ async function planImport(
         msg = "Se agrega como variante nueva del producto existente"
       } else {
         msg = `Se crea como producto nuevo (${totalVariants} variante(s) generadas)`
+      }
+      if (v.storeInventory && v.storeInventory.length > 0) {
+        const storeSummary = v.storeInventory.map((s) => `${s.storeName}: ${s.stock}`).join(", ")
+        msg += ` · sedes: ${storeSummary}`
       }
       if (warnings.length > 0) {
         msg += ` (${warnings.join(", ")})`
@@ -1158,6 +1452,14 @@ async function planImport(
       }))
       .sort((a, b) => a.id.localeCompare(b.id)),
     deactivatedProductIds: productsToDeactivateIds.slice().sort(),
+    storeLocations: storeLocations
+      .filter((s) => !s.isWebWarehouse)
+      .map((s) => ({
+        id: s.id,
+        name: s.name,
+        erpId: s.erpId,
+      }))
+      .sort((a, b) => a.id.localeCompare(b.id)),
     categoryNames,
     brandNames,
     onlyReady,
