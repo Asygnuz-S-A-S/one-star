@@ -498,7 +498,7 @@ export default function ProductInfo({
           </div>
 
           <motion.div
-            className="grid grid-cols-5 gap-2"
+            className="grid grid-cols-4 gap-2 sm:grid-cols-5"
             animate={shakeActive ? { x: [0, -8, 8, -5, 5, 0] } : { x: 0 }}
             transition={{ duration: 0.5 }}
           >
@@ -516,12 +516,12 @@ export default function ProductInfo({
                   animate={{ scale: isActive ? 1.06 : 1 }}
                   transition={springy}
                   className={`
-                    min-h-11 rounded-store-md border font-montserrat text-sm font-medium
+                    min-h-12 rounded-store-md border font-montserrat text-base font-medium px-2
                     ${isActive
                       ? "bg-[#1C1C1C] text-white border-[#1C1C1C] dark:bg-white dark:text-black dark:border-white"
                       : available
                         ? "bg-white text-[#1C1C1C] border-[#E0E0E0] hover:border-[#1C1C1C] dark:bg-white/5 dark:text-white dark:border-white/20"
-                        : "bg-white text-[#4A4A4A] border-[#E0E0E0] opacity-40 cursor-not-allowed line-through dark:bg-white/5"
+                        : "bg-white text-[#4A4A4A] border-[#E0E0E0] opacity-40 cursor-not-allowed line-through dark:bg-white/5 dark:text-gray-400 dark:border-white/15"
                     }
                   `}
                 >

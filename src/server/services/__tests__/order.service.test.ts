@@ -541,6 +541,25 @@ describe("getOrderById", () => {
     const result = await getOrderById("no-existe")
     expect(result).toBeNull()
   })
+
+  it("expone talla, color, SKU y ref. ERP de la variante comprada (para el admin)", async () => {
+    const conVariante = {
+      ...rawOrder,
+      items: rawOrder.items.map((item) => ({
+        ...item,
+        variant: { sku: "NK-001-42-NEG", size: "42", color: "Negro", erpId: "MK-555" },
+      })),
+    }
+    mockFindById.mockResolvedValue(conVariante as never)
+    const result = await getOrderById("order-1")
+    expect(result!.items![0]).toMatchObject({ sku: "NK-001-42-NEG", size: "42", color: "Negro", erpId: "MK-555" })
+  })
+
+  it("deja talla y color en null en pedidos antiguos sin variante", async () => {
+    mockFindById.mockResolvedValue({ ...rawOrder, items: rawOrder.items.map((item) => ({ ...item, variant: null })) } as never)
+    const result = await getOrderById("order-1")
+    expect(result!.items![0]).toMatchObject({ sku: null, size: null, color: null, erpId: null })
+  })
 })
 
 describe("getRecentOrders", () => {
