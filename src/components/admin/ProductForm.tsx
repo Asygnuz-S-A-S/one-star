@@ -23,6 +23,11 @@ import {
   isImageDragData,
   type ImageRow,
 } from "./images/types"
+import {
+  moveImageToColorPanelEnd,
+  moveImageWithinColorGroup,
+  reorderImageOnCardDrop,
+} from "./images/image-order"
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -255,29 +260,14 @@ export default function ProductForm({
         // arrastrada adopta ese color (arrastrar entre secciones la traslada).
         if (isImageDragData(target.data)) {
           const to = target.data.index
-          if (from === to) return
-          setImages((prev) => {
-            const targetColor = prev[to]?.color ?? null
-            const next = [...prev]
-            const [moved] = next.splice(from, 1)
-            // Tras quitar el origen, todo lo que estaba detrás corre una posición.
-            const insertAt = from < to ? to - 1 : to
-            next.splice(insertAt, 0, { ...moved, color: targetColor })
-            return next.map((img, i) => ({ ...img, position: i }))
-          })
+          setImages((prev) => reorderImageOnCardDrop(prev, from, to))
           return
         }
 
         // Sobre la zona libre de un panel: la foto pasa al final de ese color.
         if (isColorPanelDropData(target.data)) {
           const targetColor = target.data.color
-          setImages((prev) => {
-            if (prev[from]?.color === targetColor) return prev
-            const next = [...prev]
-            const [moved] = next.splice(from, 1)
-            next.push({ ...moved, color: targetColor })
-            return next.map((img, i) => ({ ...img, position: i }))
-          })
+          setImages((prev) => moveImageToColorPanelEnd(prev, from, targetColor))
         }
       },
     })
@@ -369,21 +359,7 @@ export default function ProductForm({
    * intercaladas en la lista, un simple `idx ± 1` la sacaría de su sección.
    */
   function moveImageWithinGroup(idx: number, dir: -1 | 1) {
-    const current = images[idx]
-    if (!current) return
-
-    let neighbor = -1
-    for (let i = idx + dir; i >= 0 && i < images.length; i += dir) {
-      if (images[i].color === current.color) {
-        neighbor = i
-        break
-      }
-    }
-    if (neighbor < 0) return
-
-    const next = [...images]
-    ;[next[idx], next[neighbor]] = [next[neighbor], next[idx]]
-    setImages(next.map((img, i) => ({ ...img, position: i })))
+    setImages((prev) => moveImageWithinColorGroup(prev, idx, dir))
   }
 
   const handleCrossSearch = useCallback(async (q: string) => {

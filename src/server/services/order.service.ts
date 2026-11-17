@@ -56,6 +56,11 @@ export interface OrderItemDTO {
   unitPrice: number
   /** SKU de la variante comprada; null en pedidos previos a la migración sin variante. */
   sku: string | null
+  /** Talla y color comprados (de la variante); null si la consulta no trae la variante o el pedido es previo. */
+  size: string | null
+  color: string | null
+  /** Código del producto en el ERP (Mekano), para buscarlo en bodega. */
+  erpId: string | null
 }
 
 export interface OrderDTO {
@@ -115,7 +120,7 @@ function mapToDTO(raw: {
     id: string
     productId: string
     product?: { name?: string; images?: Array<{ url: string }> }
-    variant?: { sku: string } | null
+    variant?: { sku: string; size?: string | null; color?: string | null; erpId?: string | null } | null
     quantity: number
     unitPrice: { toNumber: () => number }
   }>
@@ -154,6 +159,9 @@ function mapToDTO(raw: {
           quantity: item.quantity,
           unitPrice: item.unitPrice.toNumber(),
           sku: item.variant?.sku ?? null,
+          size: item.variant?.size || null,
+          color: item.variant?.color || null,
+          erpId: item.variant?.erpId ?? null,
         }))
       : undefined,
   }

@@ -78,11 +78,30 @@ export default function ImportarProductosPage() {
         </Link>
       </div>
 
-      <p className="mb-6 max-w-3xl text-sm text-gray-600">
+      <p className="mb-4 max-w-3xl text-sm text-gray-600">
         Sube el archivo con la plantilla de carga de productos. Primero se genera una vista previa
         (no se guarda nada todavía); revísala y confirma para escribir los cambios. Los productos
         que ya gestiona el ERP nunca se modifican desde aquí.
       </p>
+
+      <div className="mb-6 max-w-3xl rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
+        <p className="mb-2 font-medium text-gray-900">Stock por sede (columnas opcionales)</p>
+        <p>
+          La columna <span className="font-mono">Stock</span> es el inventario web: es el que
+          habilita la venta en línea. Para cargar además el inventario de una tienda física, agrega
+          una columna por sede con el encabezado{" "}
+          <span className="font-mono">Stock &lt;Sede&gt;</span> (también sirven{" "}
+          <span className="font-mono">Sede &lt;Sede&gt;</span> y{" "}
+          <span className="font-mono">Tienda &lt;Sede&gt;</span>), por ejemplo{" "}
+          <span className="font-mono">Stock Unicentro</span>. El nombre debe coincidir con una sede
+          activa ya creada en el admin de Tiendas: el importador nunca crea sedes.
+        </p>
+        <p className="mt-2">
+          Una celda en blanco deja intacto el inventario de esa sede; un{" "}
+          <span className="font-mono">0</span> sí lo pone en cero. Las columnas que no se reconocen
+          se ignoran.
+        </p>
+      </div>
 
       {result && (
         <div className="mb-6 rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-900">

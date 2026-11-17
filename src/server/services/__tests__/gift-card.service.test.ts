@@ -184,7 +184,7 @@ function baseOrder(overrides: Partial<OrderDTO> = {}): OrderDTO {
 describe("issueGiftCardsForOrder", () => {
   it("no emite nada si el pedido no tiene tarjetas de regalo", async () => {
     const order = baseOrder({
-      items: [{ id: "i1", productId: "p1", productName: "Tenis", productImage: null, quantity: 1, unitPrice: 200000, sku: "NK-001" }],
+      items: [{ id: "i1", productId: "p1", productName: "Tenis", productImage: null, quantity: 1, unitPrice: 200000, sku: "NK-001", size: null, color: null, erpId: null }],
     })
     const issued = await issueGiftCardsForOrder(order)
     expect(issued).toEqual([])
@@ -196,7 +196,7 @@ describe("issueGiftCardsForOrder", () => {
       params.balances.map((balance) => ({ code: gen(), balance }))
     )
     const order = baseOrder({
-      items: [{ id: "i1", productId: "p1", productName: "Tarjeta de Regalo $100.000", productImage: null, quantity: 2, unitPrice: 100000, sku: "GIFT-CARD-100000" }],
+      items: [{ id: "i1", productId: "p1", productName: "Tarjeta de Regalo $100.000", productImage: null, quantity: 2, unitPrice: 100000, sku: "GIFT-CARD-100000", size: null, color: null, erpId: null }],
     })
     const issued = await issueGiftCardsForOrder(order)
     expect(issued).toHaveLength(2)
@@ -214,8 +214,8 @@ describe("issueGiftCardsForOrder", () => {
     )
     const order = baseOrder({
       items: [
-        { id: "i1", productId: "p1", productName: "Tenis", productImage: null, quantity: 1, unitPrice: 200000, sku: "NK-001" },
-        { id: "i2", productId: "p2", productName: "Tarjeta de Regalo $50.000", productImage: null, quantity: 1, unitPrice: 50000, sku: "GIFT-CARD-50000" },
+        { id: "i1", productId: "p1", productName: "Tenis", productImage: null, quantity: 1, unitPrice: 200000, sku: "NK-001", size: null, color: null, erpId: null },
+        { id: "i2", productId: "p2", productName: "Tarjeta de Regalo $50.000", productImage: null, quantity: 1, unitPrice: 50000, sku: "GIFT-CARD-50000", size: null, color: null, erpId: null },
       ],
     })
     const issued = await issueGiftCardsForOrder(order)
@@ -230,7 +230,7 @@ describe("issueAndSendGiftCardsForOrder", () => {
       params.balances.map((balance) => ({ code: gen(), balance }))
     )
     const order = baseOrder({
-      items: [{ id: "i1", productId: "p1", productName: "Tarjeta", productImage: null, quantity: 1, unitPrice: 100000, sku: "GIFT-CARD-100000" }],
+      items: [{ id: "i1", productId: "p1", productName: "Tarjeta", productImage: null, quantity: 1, unitPrice: 100000, sku: "GIFT-CARD-100000", size: null, color: null, erpId: null }],
     })
     await issueAndSendGiftCardsForOrder(order)
     expect(sendGiftCardEmail).toHaveBeenCalledTimes(1)
