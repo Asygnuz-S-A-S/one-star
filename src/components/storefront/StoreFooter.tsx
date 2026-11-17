@@ -1,6 +1,6 @@
 import Image from "next/image"
 import Link from "next/link"
-import { DEFAULT_FOOTER_LINKS, type FooterLink } from "@/lib/storefront-copy"
+import { DEFAULT_FOOTER_LINKS, splitFooterLinks, type FooterLink } from "@/lib/storefront-copy"
 import CookiePreferencesButton from "@/components/legal/CookiePreferencesButton"
 
 export default function StoreFooter({
@@ -20,6 +20,8 @@ export default function StoreFooter({
   const phone = whatsapp?.replace(/[^\d+]/g, "")
   // Más compacto en escritorio; en celular se conserva el alto de 44 px para tocar cada enlace.
   const linkClass = "inline-flex min-h-11 items-center font-montserrat text-sm text-white/80 underline-offset-2 hover:text-white hover:underline lg:min-h-0 lg:py-1"
+  const headingClass = "mb-1 font-barlow text-xs font-bold uppercase tracking-[0.18em] text-white/50"
+  const { shop, legal } = splitFooterLinks(links)
   return (
     <footer className="border-t border-[#E0E0E0] bg-[#1C1C1C] text-white">
       <div className="store-gutter mx-auto grid max-w-6xl gap-6 py-8 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] md:gap-10">
@@ -43,19 +45,31 @@ export default function StoreFooter({
             )}
           </div>
         </div>
-        <nav aria-label="Pie de página" className="grid grid-cols-2 content-start gap-x-6 sm:grid-cols-3 lg:gap-y-1">
-          {links.map((link) => (
-            <Link key={`${link.href}-${link.label}`} href={link.href} className={linkClass}>
-              {link.label}
-            </Link>
-          ))}
-          {/* Los enlaces se editan en Configuración; el rastreo sin cuenta siempre debe estar a la mano. */}
-          {!links.some((link) => link.href === "/rastrear-pedido") && (
-            <Link href="/rastrear-pedido" className={linkClass}>
-              Rastrear pedido
-            </Link>
-          )}
-          <CookiePreferencesButton className={`${linkClass} text-left`} />
+        <nav aria-label="Pie de página" className="grid grid-cols-2 content-start gap-x-6">
+          {/* Los enlaces se editan en Configuración; las rutas legales siempre caen en su propia columna. */}
+          <div className="flex flex-col">
+            <p className={headingClass}>Tienda</p>
+            {shop.map((link) => (
+              <Link key={`${link.href}-${link.label}`} href={link.href} className={linkClass}>
+                {link.label}
+              </Link>
+            ))}
+            {/* El rastreo sin cuenta siempre debe estar a la mano. */}
+            {!links.some((link) => link.href === "/rastrear-pedido") && (
+              <Link href="/rastrear-pedido" className={linkClass}>
+                Rastrear pedido
+              </Link>
+            )}
+          </div>
+          <div className="flex flex-col">
+            <p className={headingClass}>Información legal</p>
+            {legal.map((link) => (
+              <Link key={`${link.href}-${link.label}`} href={link.href} className={linkClass}>
+                {link.label}
+              </Link>
+            ))}
+            <CookiePreferencesButton className={`${linkClass} text-left`} />
+          </div>
         </nav>
       </div>
       <div className="border-t border-white/10 py-3 text-center font-montserrat text-xs text-white/50">

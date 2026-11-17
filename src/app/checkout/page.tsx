@@ -1,5 +1,6 @@
 "use client"
 
+import { formatPickupReadyTime } from "@/lib/pickup-ready"
 import { useState, useCallback, useEffect, useId, useRef, cloneElement, isValidElement } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -560,6 +561,9 @@ function CheckoutForm({
                       >
                         Inicia sesión para autocompletar tus datos
                       </button>
+                      <p className="basis-full text-[#4A4A4A]">
+                        Crear una cuenta es opcional: puedes comprar como invitado. Después del pago te enviamos un enlace por si quieres crearla.
+                      </p>
                     </div>
                   )}
                   <div data-field="email">
@@ -723,7 +727,7 @@ function CheckoutForm({
                             onChange={() => set("shippingMethod", "pickup")} className="h-5 w-5 shrink-0 accent-[#E31C23]" />
                           <span>
                             <span className="block text-sm font-montserrat font-medium text-[#1C1C1C]">Pagar y recoger en tienda</span>
-                            <span className="mt-0.5 block font-montserrat text-xs text-[#4A4A4A]">Te avisamos cuando tu pedido esté listo para recoger.</span>
+                            <span className="mt-0.5 block font-montserrat text-xs text-[#4A4A4A]">{formatPickupReadyTime(deliveryDays.pickupMin, deliveryDays.pickupMax) ?? ""} Te avisamos cuando tu pedido esté listo para recoger.</span>
                           </span>
                         </span>
                         <span className="text-sm font-montserrat font-medium text-green-600">Gratis</span>
@@ -823,7 +827,7 @@ function CheckoutForm({
                 type="submit"
                 disabled={submitting || isSessionPending || !formReady}
                 aria-describedby={!formReady ? "checkout-pendiente" : undefined}
-                className="flex min-h-14 w-full items-center justify-center gap-2 rounded-[var(--store-radius-md)] bg-[#E31C23] font-barlow text-base font-bold uppercase tracking-wider text-white transition-colors hover:bg-[#c21920] disabled:bg-[#4A4A4A]"
+                className="flex min-h-14 w-full items-center justify-center gap-2 rounded-[var(--store-radius-md)] bg-[#E31C23] px-3 text-center font-barlow text-sm font-bold uppercase leading-tight tracking-wide text-white transition-colors hover:bg-[#c21920] disabled:bg-[#4A4A4A] sm:text-base sm:tracking-wider"
               >
                 {submitting ? (
                   <>
@@ -837,10 +841,12 @@ function CheckoutForm({
                   "Verificando sesión..."
                 ) : (
                   <>
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="hidden h-5 w-5 shrink-0 sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                     </svg>
-                    Confirmar datos — {formatCOP(total)}
+                    <span>Confirmar datos</span>
+                    <span aria-hidden="true">·</span>
+                    <span className="whitespace-nowrap">{formatCOP(total)}</span>
                   </>
                 )}
               </button>

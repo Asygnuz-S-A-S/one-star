@@ -4,6 +4,7 @@ vi.mock("server-only", () => ({}))
 
 vi.mock("@/server/repositories/category.repository", () => ({
   findManyCategories: vi.fn(),
+  findCategoriesWithPublishedProducts: vi.fn(),
   findCategoryBySlug: vi.fn(),
   createCategory: vi.fn(),
   updateCategory: vi.fn(),
@@ -16,12 +17,14 @@ import {
   deleteCategoryFromAdmin,
   getCategories,
   getCategoryBySlug,
+  getFilterCategories,
   updateCategoryFromAdmin,
 } from "../category.service"
 import {
   countProductsByCategoryId,
   createCategory,
   deleteCategory,
+  findCategoriesWithPublishedProducts,
   findManyCategories,
   findCategoryBySlug,
   updateCategory,
@@ -92,5 +95,22 @@ describe("mutaciones de categoría", () => {
       error: "No se puede eliminar porque tiene 2 productos asignados.",
     })
     expect(mockDelete).not.toHaveBeenCalled()
+  })
+})
+
+describe("getFilterCategories", () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it("pide solo categorías con productos publicados y excluye la interna", async () => {
+    vi.mocked(findCategoriesWithPublishedProducts).mockResolvedValue([rawCategory])
+    const result = await getFilterCategories()
+    expect(findCategoriesWithPublishedProducts).toHaveBeenCalledWith("sin-categoria", undefined)
+    expect(result).toEqual([{ id: "cat-1", name: "Zapatillas", slug: "zapatillas" }])
+  })
+
+  it("filtra por marca cuando se pasa", async () => {
+    vi.mocked(findCategoriesWithPublishedProducts).mockResolvedValue([])
+    await getFilterCategories("brand-1")
+    expect(findCategoriesWithPublishedProducts).toHaveBeenCalledWith("sin-categoria", "brand-1")
   })
 })

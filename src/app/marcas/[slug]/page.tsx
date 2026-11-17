@@ -8,6 +8,7 @@ import ShopLayout from "@/components/shop/ShopLayout"
 import ProductFaqSection from "@/components/product/ProductFaqSection"
 import { getBrandDetailBySlug } from "@/server/services/brand.service"
 import { getCatalogPriceBounds } from "@/server/services/product.service"
+import { getFilterCategories } from "@/server/services/category.service"
 import { getFeaturedReviewsForBrand } from "@/server/services/review.service"
 import { getPublicSiteContent } from "@/server/services/site-content.service"
 import { getPublicStoreInfo } from "@/server/services/store-settings.service"
@@ -67,7 +68,7 @@ export default async function BrandPage({ params, searchParams }: BrandPageProps
   const brand = await getBrandDetailBySlug(slug)
   if (!brand || !brand.isActive) notFound()
 
-  const [sizes, colors, colorPalette, featuredReviews, globalContent, settings, priceBounds] = await Promise.all([
+  const [sizes, colors, colorPalette, featuredReviews, globalContent, settings, priceBounds, categories] = await Promise.all([
     getUniqueSizes(brand.id),
     getUniqueColors(brand.id),
     getColorPalette(),
@@ -75,6 +76,7 @@ export default async function BrandPage({ params, searchParams }: BrandPageProps
     getPublicSiteContent(),
     getPublicStoreInfo().catch(() => null),
     getCatalogPriceBounds(brand.id),
+    getFilterCategories(brand.id).catch(() => []),
   ])
 
   const resolved = resolveProductContent({
@@ -201,6 +203,7 @@ export default async function BrandPage({ params, searchParams }: BrandPageProps
           <FilterSidebar
           key={currentParams.toString()}
             brands={[]}
+            categories={categories}
             sizes={sizes}
             colors={colors}
             colorPalette={colorPalette}

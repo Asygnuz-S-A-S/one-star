@@ -2,6 +2,7 @@ import ProductGrid from "@/components/shop/ProductGrid"
 import FilterSidebar from "@/components/shop/FilterSidebar"
 import ShopLayout from "@/components/shop/ShopLayout"
 import { getCatalogPriceBounds, getUniqueBrands } from "@/server/services/product.service"
+import { getFilterCategories } from "@/server/services/category.service"
 import { getUniqueSizes, getUniqueColors } from "@/server/services/variant.service"
 import { getColorPalette } from "@/server/services/product-color.service"
 import type { ProductSortValue } from "@/lib/product-sort"
@@ -16,6 +17,7 @@ interface LanzamientosPageProps {
     precio_max?: string
     orden?: ProductSortValue
     page?: string
+    categoria?: string
   }>
 }
 
@@ -26,12 +28,13 @@ export const metadata = {
 
 export default async function LanzamientosPage({ searchParams }: LanzamientosPageProps) {
   const resolvedSearchParams = await searchParams
-  const [brands, sizes, colors, colorPalette, priceBounds] = await Promise.all([
+  const [brands, sizes, colors, colorPalette, priceBounds, categories] = await Promise.all([
     getUniqueBrands(),
     getUniqueSizes(),
     getUniqueColors(),
     getColorPalette(),
     getCatalogPriceBounds(),
+    getFilterCategories().catch(() => []),
   ])
 
   const currentParams = new URLSearchParams(
@@ -47,6 +50,7 @@ export default async function LanzamientosPage({ searchParams }: LanzamientosPag
         <FilterSidebar
           key={currentParams.toString()}
           brands={brands}
+          categories={categories}
           sizes={sizes}
           colors={colors}
           colorPalette={colorPalette}

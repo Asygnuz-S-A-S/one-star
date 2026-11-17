@@ -6,6 +6,14 @@ export async function findManyCategories(): Promise<Category[]> {
   return prisma.category.findMany({ orderBy: { name: "asc" } })
 }
 
+/** Categorías con al menos un producto publicado, sin la interna de importación. Para el filtro del catálogo. */
+export async function findCategoriesWithPublishedProducts(excludeSlug: string, brandId?: string): Promise<Category[]> {
+  return prisma.category.findMany({
+    where: { slug: { not: excludeSlug }, products: { some: { isPublished: true, ...(brandId ? { brandId } : {}) } } },
+    orderBy: { name: "asc" },
+  })
+}
+
 export async function findCategoryBySlug(slug: string): Promise<Category | null> {
   return prisma.category.findUnique({ where: { slug } })
 }

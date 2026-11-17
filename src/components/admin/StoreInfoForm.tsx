@@ -136,6 +136,14 @@ export default function StoreInfoForm({ settings }: StoreInfoFormProps) {
             <label htmlFor="express-max" className={labelClass}>Entrega express, máximo de días hábiles</label>
             <input id="express-max" name="expressDeliveryMaxDays" inputMode="numeric" defaultValue={settings.expressDeliveryMaxDays} className={inputClass} />
           </div>
+          <div>
+            <label htmlFor="pickup-min" className={labelClass}>Recoger en tienda, mínimo de días hábiles (opcional)</label>
+            <input id="pickup-min" name="pickupReadyMinDays" inputMode="numeric" defaultValue={settings.pickupReadyMinDays ?? ""} placeholder="Vacío = sin plazo" className={inputClass} />
+          </div>
+          <div>
+            <label htmlFor="pickup-max" className={labelClass}>Recoger en tienda, máximo de días hábiles (opcional)</label>
+            <input id="pickup-max" name="pickupReadyMaxDays" inputMode="numeric" defaultValue={settings.pickupReadyMaxDays ?? ""} placeholder="0 = el mismo día" className={inputClass} />
+          </div>
         </div>
       </div>
 
@@ -297,7 +305,7 @@ export default function StoreInfoForm({ settings }: StoreInfoFormProps) {
 
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <h2 className="font-['Barlow',sans-serif] text-lg font-bold text-[#1C1C1C] mb-1">Pie de página</h2>
-        <p className="text-xs text-[#4A4A4A] mb-4">Un enlace por línea: Etiqueta | /ruta. Si lo dejas vacío se usan los enlaces de la tienda.</p>
+        <p className="text-xs text-[#4A4A4A] mb-4">Un enlace por línea: Etiqueta | /ruta. Si lo dejas vacío se usan los enlaces de la tienda. Las rutas legales (/privacidad, /envios-y-devoluciones, /cambios, /terminos, /pqrs, /cookies) van solas en la columna «Información legal»; el resto, en «Tienda».</p>
         <textarea id="footer-links" name="footerLinks" rows={6} defaultValue={settings.footerLinks} placeholder={"Tienda | /productos\nTérminos | /terminos"} className={inputClass} />
       </div>
 

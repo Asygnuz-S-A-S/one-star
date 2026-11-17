@@ -93,6 +93,7 @@ export function CampaignHeroSlideFields({ config, onChange, onPickMedia }: Props
       <div>
         <h4 className="text-sm font-bold text-gray-900">Imágenes adaptadas por pantalla</h4>
         <p className="mt-1 text-xs text-gray-600">Selecciona las tres versiones de la misma campaña. La tienda mostrará Web desde 1024 px, Tablet entre 641–1023 px y Móvil hasta 640 px. En campañas ya publicadas sin las tres imágenes, se reutiliza la disponible.</p>
+        <p className="mt-1 text-xs text-gray-600">Medidas recomendadas: <strong>Web 2400 × 1100 px</strong>, <strong>Tablet 1600 × 1200 px</strong> y <strong>Móvil 1080 × 1620 px</strong> (vertical). La foto llena el espacio y se recorta por los bordes según la pantalla: deja lo importante en el centro y no pongas texto ni logos dentro de la imagen (el título y los botones se agregan aquí).</p>
       </div>
       <Media label="Imagen Web / escritorio" media={config.desktopMedia} onChange={(desktopMedia) => onChange({ ...config, desktopMedia })} onPickMedia={onPickMedia} required />
       <Media label="Imagen Tablet" media={config.tabletMedia} onChange={(tabletMedia) => onChange({ ...config, tabletMedia })} onPickMedia={onPickMedia} required />
