@@ -4,6 +4,11 @@ export type EditorialAppearance = "light" | "carbon" | "oneStarRed"
 /** Cómo se mueve el producto con fotos del giro: quieto, girando solo o siguiendo el mouse. */
 export type HeroSpinMode = "static" | "auto" | "mouse"
 export const HERO_SPIN_MODES: HeroSpinMode[] = ["auto", "mouse", "static"]
+/** Dónde va el texto sobre la imagen, para no taparle el logo o el producto. */
+export type HeroTextX = "left" | "center" | "right"
+export type HeroTextY = "top" | "center" | "bottom"
+export const HERO_TEXT_X: HeroTextX[] = ["left", "center", "right"]
+export const HERO_TEXT_Y: HeroTextY[] = ["top", "center", "bottom"]
 
 type EditorialCta = { href: string; label: string }
 type EditorialMedia = { alt: string; src: string }
@@ -12,6 +17,10 @@ export type CampaignHeroSlide = {
   accent: EditorialAppearance
   /** Sin velo de color sobre la imagen. */
   noOverlay?: true
+  /** Lado del banner donde va el texto. Sin valor: izquierda, como siempre. */
+  textX?: HeroTextX
+  /** Altura del texto dentro del banner. Sin valor: el alto de siempre. */
+  textY?: HeroTextY
   copy?: string
   desktopMedia?: EditorialMedia
   eyebrow?: string
@@ -38,6 +47,8 @@ export type CampaignHeroConfig = {
   angles?: EditorialMedia[]
   spinMode?: HeroSpinMode
   noOverlay?: true
+  textX?: HeroTextX
+  textY?: HeroTextY
   headline?: string
   kind: "campaignHero"
   mobileMedia?: EditorialMedia
@@ -158,6 +169,8 @@ export function parseEditorialConfig(value: unknown): EditorialConfig {
         ...(foregroundMedia ? { foregroundMedia } : {}),
         ...(angleList(slide?.angles, headline ?? "Producto") ? { angles: angleList(slide?.angles, headline ?? "Producto") } : {}),
         ...(HERO_SPIN_MODES.includes(slide?.spinMode as HeroSpinMode) ? { spinMode: slide?.spinMode as HeroSpinMode } : {}),
+        ...(HERO_TEXT_X.includes(slide?.textX as HeroTextX) ? { textX: slide?.textX as HeroTextX } : {}),
+        ...(HERO_TEXT_Y.includes(slide?.textY as HeroTextY) ? { textY: slide?.textY as HeroTextY } : {}),
       }
     }
     const slides = Array.isArray(config.slides) ? config.slides.flatMap((slide, index) => {
@@ -239,5 +252,7 @@ export function resolveCampaignSlides(campaign: CampaignHeroConfig): CampaignHer
     ...(campaign.angles?.length ? { angles: campaign.angles } : {}),
     ...(campaign.spinMode ? { spinMode: campaign.spinMode } : {}),
     ...(campaign.noOverlay ? { noOverlay: true as const } : {}),
+    ...(campaign.textX ? { textX: campaign.textX } : {}),
+    ...(campaign.textY ? { textY: campaign.textY } : {}),
   }]
 }
