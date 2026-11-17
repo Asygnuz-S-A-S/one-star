@@ -32,6 +32,8 @@ const CampaignSlideSchema = z.object({
   foregroundMedia: MediaSchema.optional(),
   angles: z.array(MediaSchema).max(MAX_HERO_ANGLES).optional(),
   spinMode: z.enum(["auto", "mouse", "static"]).optional(),
+  textX: z.enum(["left", "center", "right"]).optional(),
+  textY: z.enum(["top", "center", "bottom"]).optional(),
 })
 
 const CampaignHeroSchema = z.object({

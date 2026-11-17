@@ -149,4 +149,28 @@ describe("banner solo imagen", () => {
     expect(config.kind === "campaignHero" && config.slides?.[0]).toMatchObject({ noOverlay: true })
     expect(config.kind === "campaignHero" && config.slides?.[0]?.primaryCta).toBeUndefined()
   })
+
+  it("guarda el lado y la altura del texto cuando vienen en el slide", () => {
+    const config = parseEditorialConfig({
+      version: 1,
+      kind: "campaignHero",
+      slides: [
+        { id: "hoka", accent: "carbon", textX: "right", textY: "bottom", desktopMedia: { src: "https://res.cloudinary.com/demo/hoka.jpg", alt: "Hoka" } },
+      ],
+    })
+    expect(config.kind === "campaignHero" && config.slides?.[0]).toMatchObject({ textX: "right", textY: "bottom" })
+  })
+
+  it("ignora posiciones de texto que no existen y deja el banner como siempre", () => {
+    const config = parseEditorialConfig({
+      version: 1,
+      kind: "campaignHero",
+      slides: [
+        { id: "hoka", accent: "carbon", textX: "diagonal", textY: "flotando", desktopMedia: { src: "https://res.cloudinary.com/demo/hoka.jpg", alt: "Hoka" } },
+      ],
+    })
+    const slide = config.kind === "campaignHero" ? config.slides?.[0] : undefined
+    expect(slide?.textX).toBeUndefined()
+    expect(slide?.textY).toBeUndefined()
+  })
 })

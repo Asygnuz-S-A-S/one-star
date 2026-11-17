@@ -104,6 +104,26 @@ export function CampaignHeroSlideFields({ config, onChange, onPickMedia }: Props
     <Appearance value={(config.accent ?? "carbon") as EditorialAppearance} onChange={(accent) => onChange({ ...config, accent })} />
     <label className="flex min-h-11 items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={!config.noOverlay} onChange={(event) => onChange({ ...config, noOverlay: event.target.checked ? undefined : true })} />Degradado sobre la imagen</label>
     <p className="-mt-3 text-xs text-gray-500">Desmárcalo para mostrar la imagen limpia, sin velo de color (útil si la imagen ya trae su texto).</p>
+    <div className="grid gap-3 sm:grid-cols-2">
+      <div>
+        <label className={label} htmlFor="campaign-text-x">Lado del texto</label>
+        <select id="campaign-text-x" value={config.textX ?? "left"} onChange={(event) => onChange({ ...config, textX: event.target.value === "left" ? undefined : (event.target.value as "center" | "right") })} className={input}>
+          <option value="left">Izquierda</option>
+          <option value="center">Centro</option>
+          <option value="right">Derecha</option>
+        </select>
+      </div>
+      <div>
+        <label className={label} htmlFor="campaign-text-y">Altura del texto</label>
+        <select id="campaign-text-y" value={config.textY ?? ""} onChange={(event) => onChange({ ...config, textY: (event.target.value || undefined) as "top" | "center" | "bottom" | undefined })} className={input}>
+          <option value="">Como siempre</option>
+          <option value="top">Arriba</option>
+          <option value="center">Centro</option>
+          <option value="bottom">Abajo</option>
+        </select>
+      </div>
+    </div>
+    <p className="-mt-2 text-xs text-gray-500">Mueve el texto y los botones para no taparle a la foto lo que importa (el logo de la marca, el producto).</p>
     <div className="border-t pt-3"><label className="flex min-h-11 items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={Boolean(cta)} onChange={(event) => onChange({ ...config, primaryCta: event.target.checked ? { label: "Ver colección", href: "/productos" } : undefined })} />Mostrar botón principal</label>{cta && <div className="mt-3 grid gap-3 sm:grid-cols-2"><div><label className={label}>Botón principal</label><input value={cta.label} onChange={(event) => onChange({ ...config, primaryCta: { ...cta, label: event.target.value } })} className={input} placeholder="Comprar colección" /></div><div><Destination id="campaign-primary-destination" value={cta.href} onChange={(href) => onChange({ ...config, primaryCta: { ...cta, href } })} /></div></div>}</div>
     <div className="border-t pt-3"><label className="flex min-h-11 items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={Boolean(secondary)} onChange={(event) => onChange({ ...config, ...(event.target.checked ? { secondaryCta: { label: "Ver más", href: "/productos" } } : { secondaryCta: undefined }) })} />Añadir un segundo botón</label>{secondary && <div className="mt-3 grid gap-3 sm:grid-cols-2"><div><label className={label}>Segundo botón</label><input value={secondary.label} onChange={(event) => onChange({ ...config, secondaryCta: { ...secondary, label: event.target.value } })} className={input} /></div><div><Destination id="campaign-secondary-destination" value={secondary.href} onChange={(href) => onChange({ ...config, secondaryCta: { ...secondary, href } })} /></div></div>}</div>
     <Media label="Producto en primer plano" media={config.foregroundMedia} onChange={(foregroundMedia) => onChange({ ...config, foregroundMedia })} onPickMedia={onPickMedia} />
