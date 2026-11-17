@@ -80,6 +80,8 @@ export default async function RootLayout({
         deliveryMaxDays: 5,
         expressDeliveryMinDays: 1,
         expressDeliveryMaxDays: 2,
+        pickupReadyMinDays: null,
+        pickupReadyMaxDays: null,
         storeName: "One Star",
         contactEmail: null,
         whatsapp: null,
@@ -110,6 +112,8 @@ export default async function RootLayout({
             deliveryMaxDays={storefront.deliveryMaxDays}
             expressDeliveryMinDays={storefront.expressDeliveryMinDays}
             expressDeliveryMaxDays={storefront.expressDeliveryMaxDays}
+            pickupReadyMinDays={storefront.pickupReadyMinDays}
+            pickupReadyMaxDays={storefront.pickupReadyMaxDays}
           >
           {metaPixel && <MetaPixel pixelId={metaPixel.pixelId} />}
           {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (

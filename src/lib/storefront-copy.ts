@@ -35,13 +35,23 @@ export const DEFAULT_FOOTER_LINKS: FooterLink[] = [
   { label: "Tarjeta de regalo", href: "/tarjeta-regalo" },
   { label: "Tiendas", href: "/tiendas" },
   { label: "Rastrear pedido", href: "/rastrear-pedido" },
-  { label: "Términos", href: "/terminos" },
-  { label: "Privacidad", href: "/privacidad" },
-  { label: "Cookies", href: "/cookies" },
-  { label: "PQRS (Habeas Data)", href: "/pqrs" },
+  { label: "Política de datos", href: "/privacidad" },
+  { label: "Condiciones de envíos y devoluciones", href: "/envios-y-devoluciones" },
   { label: "Cambios", href: "/cambios" },
-  { label: "Envíos y devoluciones", href: "/envios-y-devoluciones" },
+  { label: "Términos y condiciones", href: "/terminos" },
+  { label: "PQRS", href: "/pqrs" },
+  { label: "Política de cookies", href: "/cookies" },
 ]
+
+/** Rutas que el pie agrupa en la columna legal; el resto va en la columna de la tienda. */
+const LEGAL_FOOTER_HREFS = new Set(["/privacidad", "/envios-y-devoluciones", "/cambios", "/terminos", "/pqrs", "/cookies"])
+
+/** Separa los enlaces del pie en dos columnas (tienda y legal), conservando el orden de cada una. */
+export function splitFooterLinks(links: FooterLink[]): { shop: FooterLink[]; legal: FooterLink[] } {
+  const legal = links.filter((link) => LEGAL_FOOTER_HREFS.has(link.href))
+  const shop = links.filter((link) => !LEGAL_FOOTER_HREFS.has(link.href))
+  return { shop, legal }
+}
 
 /** Una línea "título | detalle". Las líneas vacías se ignoran. */
 export function parseClubBenefits(raw: string | null | undefined): ClubBenefit[] {

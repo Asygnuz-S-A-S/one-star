@@ -17,6 +17,8 @@ import { PRODUCT_COLORS, getColorSwatchStyle, isRealColor, type ColorPalette } f
 
 interface FilterSidebarProps {
   brands: string[]
+  /** Categorías con productos publicados (running, lifestyle…). Sin lista no se muestra el filtro. */
+  categories?: { name: string; slug: string }[]
   sizes: string[]
   colors: string[]
   currentParams: string
@@ -52,6 +54,7 @@ function readServerFilterSlot() {
 
 export default function FilterSidebar({
   brands,
+  categories = [],
   sizes,
   colors,
   currentParams: currentParamsString,
@@ -163,6 +166,7 @@ export default function FilterSidebar({
   const currentOrden = currentParams.get("orden") ?? DEFAULT_PRODUCT_SORT
   const currentMarca = currentParams.get("marca") ?? ""
   const currentGenero = currentParams.get("genero") ?? ""
+  const currentCategoria = currentParams.get("categoria") ?? ""
   const currentTalla = currentParams.get("talla") ?? ""
   const currentColor = currentParams.get("color") ?? ""
 
@@ -301,6 +305,42 @@ export default function FilterSidebar({
           ))}
         </div>
       </details>
+
+      {/* Categoría */}
+      {categories.length > 0 && (
+        <details open>
+          <summary className={sectionSummary}>
+            Categoría
+            <span className={chevron}>▾</span>
+          </summary>
+          <div className="pt-3 flex flex-col gap-2">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="categoria"
+                value=""
+                checked={currentCategoria === ""}
+                onChange={() => setParam("categoria", "")}
+                className="h-11 w-11 shrink-0 accent-[#1C1C1C] dark:accent-white"
+              />
+              <span className={optionText}>Todas</span>
+            </label>
+            {categories.map(({ name, slug }) => (
+              <label key={slug} className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="categoria"
+                  value={slug}
+                  checked={currentCategoria === slug}
+                  onChange={() => setParam("categoria", slug)}
+                  className="h-11 w-11 shrink-0 accent-[#1C1C1C] dark:accent-white"
+                />
+                <span className={optionText}>{name}</span>
+              </label>
+            ))}
+          </div>
+        </details>
+      )}
 
       {/* Marca */}
       {brands.length > 0 && (

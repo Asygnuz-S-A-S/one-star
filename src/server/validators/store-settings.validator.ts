@@ -11,6 +11,11 @@ const WHATSAPP_PATTERN = /^\+?\d{7,15}$/
 
 /** "" → null para campos opcionales que llegan vacíos desde un formulario. */
 const emptyToNull = (value: string) => (value.length === 0 ? null : value)
+/** Días hábiles opcionales: vacío = null (0 = el mismo día). */
+const optionalDays = z.union([
+  z.literal("").transform(() => null),
+  z.coerce.number().int("Usa un número entero de días").min(0, "El plazo no puede ser negativo").max(30, "Máximo 30 días"),
+])
 
 const copAmount = z
   .string()
@@ -83,6 +88,8 @@ export const StoreInfoInputSchema = z.object({
   deliveryMaxDays: z.coerce.number().int().min(1).max(60),
   expressDeliveryMinDays: z.coerce.number().int().min(1).max(15),
   expressDeliveryMaxDays: z.coerce.number().int().min(1).max(30),
+  pickupReadyMinDays: optionalDays,
+  pickupReadyMaxDays: optionalDays,
   legalCity: optionalText(80),
   commercialRegistry: optionalText(120),
   dataProtectionEmail: z
@@ -98,6 +105,12 @@ export const StoreInfoInputSchema = z.object({
 }).refine((input) => input.expressDeliveryMinDays <= input.expressDeliveryMaxDays, {
   message: "El plazo express mínimo no puede ser mayor que el máximo",
   path: ["expressDeliveryMinDays"],
+}).refine((input) => (input.pickupReadyMinDays === null) === (input.pickupReadyMaxDays === null), {
+  message: "Llena los dos plazos de recoger en tienda o deja los dos vacíos",
+  path: ["pickupReadyMinDays"],
+}).refine((input) => input.pickupReadyMinDays === null || input.pickupReadyMaxDays === null || input.pickupReadyMinDays <= input.pickupReadyMaxDays, {
+  message: "El plazo mínimo para recoger no puede ser mayor que el máximo",
+  path: ["pickupReadyMinDays"],
 })
 
 export type StoreInfoInput = z.infer<typeof StoreInfoInputSchema>

@@ -65,7 +65,7 @@ export const EMAIL_CATALOG: readonly EmailCatalogEntry[] = [
         name: "Laura Gómez",
         orderId: ORDER_ID,
         items: [
-          { productName: "HOKA Mafate 5 · Talla 38", quantity: 1, unitPrice: 899900 },
+          { productName: "HOKA Mafate 5", quantity: 1, unitPrice: 899900, size: "38", color: "Negro", sku: "HK-MAF5-NEG-38" },
           { productName: "Cordones planos", quantity: 2, unitPrice: 10000 },
         ],
         total: 919900,

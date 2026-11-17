@@ -39,6 +39,8 @@ export interface StoreSettingsPatch {
   deliveryMaxDays?: number
   expressDeliveryMinDays?: number
   expressDeliveryMaxDays?: number
+  pickupReadyMinDays?: number | null
+  pickupReadyMaxDays?: number | null
   legalCity?: string | null
   commercialRegistry?: string | null
   dataProtectionEmail?: string | null

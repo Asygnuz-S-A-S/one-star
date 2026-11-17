@@ -69,6 +69,8 @@ export async function updateStoreInfoAction(
       deliveryMaxDays: text(formData, "deliveryMaxDays").trim(),
       expressDeliveryMinDays: text(formData, "expressDeliveryMinDays").trim(),
       expressDeliveryMaxDays: text(formData, "expressDeliveryMaxDays").trim(),
+      pickupReadyMinDays: text(formData, "pickupReadyMinDays").trim(),
+      pickupReadyMaxDays: text(formData, "pickupReadyMaxDays").trim(),
       legalCity: text(formData, "legalCity"),
       commercialRegistry: text(formData, "commercialRegistry"),
       dataProtectionEmail: text(formData, "dataProtectionEmail").trim(),

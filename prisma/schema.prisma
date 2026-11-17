@@ -765,6 +765,9 @@ model StoreSettings {
   deliveryMaxDays       Int      @default(5)
   expressDeliveryMinDays Int     @default(1)
   expressDeliveryMaxDays Int     @default(2)
+  /// Días hábiles para tener listo un pedido de "recoger en tienda". Vacío = no se muestra plazo.
+  pickupReadyMinDays    Int?
+  pickupReadyMaxDays    Int?
   legalCity             String?
   /// Matrícula mercantil u otro dato de registro.
   commercialRegistry    String?

@@ -13,6 +13,20 @@ export interface OrderEmailItem {
   quantity: number
   /** Precio unitario en COP */
   unitPrice: number
+  /** Talla, color y SKU comprados; se omiten si el pedido no los tiene. */
+  size?: string | null
+  color?: string | null
+  sku?: string | null
+}
+
+/** "Talla 40 · Negro · SKU ABC-40" con solo los datos presentes; null si no hay ninguno. */
+function orderItemDetail(item: OrderEmailItem): string | null {
+  const parts = [
+    item.size ? `Talla ${item.size}` : null,
+    item.color ?? null,
+    item.sku ? `SKU ${item.sku}` : null,
+  ].filter((part): part is string => Boolean(part))
+  return parts.length > 0 ? parts.join(" · ") : null
 }
 
 const COLOR = {
@@ -151,6 +165,10 @@ export function orderConfirmationEmail(params: {
         <td style="padding:12px 0;border-bottom:1px solid ${COLOR.border};font-size:14px;color:${COLOR.text};">
           ${escapeHtml(item.productName)}
           <span style="color:${COLOR.muted};"> × ${item.quantity}</span>
+          ${(() => {
+            const detail = orderItemDetail(item)
+            return detail ? `<br><span style="font-size:12px;color:${COLOR.muted};">${escapeHtml(detail)}</span>` : ""
+          })()}
         </td>
         <td align="right" style="padding:12px 0;border-bottom:1px solid ${COLOR.border};font-size:14px;color:${COLOR.text};white-space:nowrap;">
           ${formatCOP(item.unitPrice * item.quantity)}

@@ -743,9 +743,14 @@ describe("sendOrderConfirmation / resendOrderConfirmation", () => {
         email: "test@example.com",
         orderId: "order-1",
         total: 270000,
-        items: [{ productName: "Nike Air Max", quantity: 2, unitPrice: 120000 }],
+        items: [expect.objectContaining({ productName: "Nike Air Max", quantity: 2, unitPrice: 120000 })],
       })
     )
+    // Talla, color y SKU viajan al correo (null si el pedido no trae la variante).
+    const [{ items }] = mockSendEmail.mock.calls[0] as unknown as [{ items: Record<string, unknown>[] }]
+    expect(items[0]).toHaveProperty("size")
+    expect(items[0]).toHaveProperty("color")
+    expect(items[0]).toHaveProperty("sku")
   })
 
   it("no envía nada si el pedido no tiene correo", async () => {

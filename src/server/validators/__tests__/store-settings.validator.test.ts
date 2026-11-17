@@ -37,6 +37,8 @@ const baseStoreInfo = {
   deliveryMaxDays: 5,
   expressDeliveryMinDays: 1,
   expressDeliveryMaxDays: 2,
+  pickupReadyMinDays: "",
+  pickupReadyMaxDays: "",
   legalCity: "",
   commercialRegistry: "",
   dataProtectionEmail: "",
@@ -79,6 +81,25 @@ describe("StoreInfoInputSchema", () => {
     })
 
     expect(result.success).toBe(false)
+  })
+
+  it("los días de recoger en tienda vacíos quedan en null", () => {
+    const result = StoreInfoInputSchema.parse({ ...baseStoreInfo, storeName: "One Star", contactEmail: "", whatsapp: "" })
+    expect(result.pickupReadyMinDays).toBeNull()
+    expect(result.pickupReadyMaxDays).toBeNull()
+  })
+
+  it("acepta un plazo de recoger en tienda válido, incluido el mismo día", () => {
+    const result = StoreInfoInputSchema.parse({ ...baseStoreInfo, storeName: "One Star", contactEmail: "", whatsapp: "", pickupReadyMinDays: "0", pickupReadyMaxDays: "2" })
+    expect(result.pickupReadyMinDays).toBe(0)
+    expect(result.pickupReadyMaxDays).toBe(2)
+  })
+
+  it("rechaza un solo plazo de recoger en tienda o un mínimo mayor que el máximo", () => {
+    const base = { ...baseStoreInfo, storeName: "One Star", contactEmail: "", whatsapp: "" }
+    expect(StoreInfoInputSchema.safeParse({ ...base, pickupReadyMinDays: "1", pickupReadyMaxDays: "" }).success).toBe(false)
+    expect(StoreInfoInputSchema.safeParse({ ...base, pickupReadyMinDays: "3", pickupReadyMaxDays: "1" }).success).toBe(false)
+    expect(StoreInfoInputSchema.safeParse({ ...base, pickupReadyMinDays: "-1", pickupReadyMaxDays: "1" }).success).toBe(false)
   })
 })
 
