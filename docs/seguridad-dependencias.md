@@ -68,6 +68,24 @@ conviven varias, para no forzar a un consumidor a una API que no espera.
   `prisma.config.ts` correctamente. Solo se usa en tiempo de build y nunca con
   datos de terceros.
 
+## Parches locales
+
+Cuando un aviso **no tiene versión corregida publicada** y el arreglo ya existe
+en el repositorio del paquete, se aplica como parche de pnpm (`patches/` y
+`patchedDependencies` en `pnpm-workspace.yaml`). El Dockerfile copia `patches/`
+antes de instalar. Cada parche tiene una prueba que falla si el parche se pierde.
+
+| Paquete | Aviso | Arreglo aplicado | Prueba | Retirar cuando |
+|---|---|---|---|---|
+| `picomatch` 4.0.7 (todas las copias 4.x se fijan en 4.0.7 con el override `picomatch@4`) | GHSA-fc5q-39xc-vjpf: ReDoS con extglobs de una rama con comodín (`+(*a)`). Publicado como «sin parche» el 17 nov 2026. | `lib/parse.js` de micromatch/picomatch#254: quita la repetición exterior en vez de anidar cuantificadores. Medido: sin parche, 25 caracteres tardan ~380 ms y crece exponencialmente; con parche, 10.000 caracteres tardan ~3 ms. | `src/lib/__tests__/picomatch-patch.test.ts` (se resuelve por `@sentry/nextjs` → `@rollup/plugin-commonjs`, el camino de producción) | Salga `picomatch` >= 4.0.8: borrar el override, `patchedDependencies`, `patches/`, la prueba y la línea de `auditConfig.ignoreGhsas` |
+
+Llega por `@sentry/nextjs` → `@rollup/plugin-commonjs` (compilación) y por
+`vitest`/`vite` (pruebas). La tienda nunca pasa texto de clientes a `picomatch`.
+
+`pnpm audit` compara versiones y no ve parches locales: por eso el aviso se
+declara en `auditConfig.ignoreGhsas` **solo** mientras el parche y su prueba
+existan.
+
 ## Cómo revisar esto en el futuro
 
 ```bash

@@ -4,6 +4,7 @@ import FilterSidebar from "@/components/shop/FilterSidebar"
 import SearchForm from "@/components/shop/SearchForm"
 import ShopLayout from "@/components/shop/ShopLayout"
 import { getCatalogPriceBounds, getUniqueBrands } from "@/server/services/product.service"
+import { getFilterCategories } from "@/server/services/category.service"
 import { getUniqueSizes, getUniqueColors } from "@/server/services/variant.service"
 import { getColorPalette } from "@/server/services/product-color.service"
 import type { ProductSortValue } from "@/lib/product-sort"
@@ -18,6 +19,7 @@ interface BuscarPageProps {
     precio_max?: string
     orden?: ProductSortValue
     page?: string
+    categoria?: string
   }>
 }
 
@@ -35,16 +37,18 @@ const PRESERVED_FILTERS = [
   "precio_min",
   "precio_max",
   "orden",
+  "categoria",
 ] as const
 
 export default async function BuscarPage({ searchParams }: BuscarPageProps) {
   const resolvedSearchParams = await searchParams
-  const [brands, sizes, colors, colorPalette, priceBounds] = await Promise.all([
+  const [brands, sizes, colors, colorPalette, priceBounds, categories] = await Promise.all([
     getUniqueBrands(),
     getUniqueSizes(),
     getUniqueColors(),
     getColorPalette(),
     getCatalogPriceBounds(),
+    getFilterCategories().catch(() => []),
   ])
 
   const query = resolvedSearchParams.q?.trim()
@@ -66,6 +70,7 @@ export default async function BuscarPage({ searchParams }: BuscarPageProps) {
         <FilterSidebar
           key={currentParams.toString()}
           brands={brands}
+          categories={categories}
           sizes={sizes}
           colors={colors}
           colorPalette={colorPalette}

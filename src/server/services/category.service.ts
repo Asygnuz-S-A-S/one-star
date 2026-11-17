@@ -3,6 +3,7 @@ import {
   countProductsByCategoryId,
   createCategory,
   deleteCategory,
+  findCategoriesWithPublishedProducts,
   findManyCategories,
   findCategoryBySlug,
   updateCategory,
@@ -26,6 +27,12 @@ export function mapCategoryToDTO(category: Category): CategoryDTO {
 
 export async function getCategories(): Promise<CategoryDTO[]> {
   const categories = await findManyCategories()
+  return categories.map(mapCategoryToDTO)
+}
+
+/** Categorías para el filtro del catálogo: solo las que tienen productos publicados (de la marca, si se pasa) y nunca la interna. */
+export async function getFilterCategories(brandId?: string): Promise<CategoryDTO[]> {
+  const categories = await findCategoriesWithPublishedProducts(INTERNAL_CATEGORY_SLUG, brandId)
   return categories.map(mapCategoryToDTO)
 }
 

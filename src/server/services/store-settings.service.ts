@@ -69,6 +69,8 @@ export interface StoreSettingsDTO {
   deliveryMaxDays: number
   expressDeliveryMinDays: number
   expressDeliveryMaxDays: number
+  pickupReadyMinDays: number | null
+  pickupReadyMaxDays: number | null
   legalCity: string | null
   commercialRegistry: string | null
   dataProtectionEmail: string | null
@@ -128,6 +130,8 @@ function toDTO(raw: {
   deliveryMaxDays?: number | null
   expressDeliveryMinDays?: number | null
   expressDeliveryMaxDays?: number | null
+  pickupReadyMinDays?: number | null
+  pickupReadyMaxDays?: number | null
   legalCity?: string | null
   commercialRegistry?: string | null
   dataProtectionEmail?: string | null
@@ -174,6 +178,8 @@ function toDTO(raw: {
     deliveryMaxDays: raw.deliveryMaxDays ?? 5,
     expressDeliveryMinDays: raw.expressDeliveryMinDays ?? 1,
     expressDeliveryMaxDays: raw.expressDeliveryMaxDays ?? 2,
+    pickupReadyMinDays: raw.pickupReadyMinDays ?? null,
+    pickupReadyMaxDays: raw.pickupReadyMaxDays ?? null,
     legalCity: raw.legalCity ?? null,
     commercialRegistry: raw.commercialRegistry ?? null,
     dataProtectionEmail: raw.dataProtectionEmail ?? null,
@@ -245,6 +251,8 @@ export async function updateStoreInfo(input: StoreInfoInput): Promise<StoreSetti
     deliveryMaxDays: input.deliveryMaxDays,
     expressDeliveryMinDays: input.expressDeliveryMinDays,
     expressDeliveryMaxDays: input.expressDeliveryMaxDays,
+    pickupReadyMinDays: input.pickupReadyMinDays,
+    pickupReadyMaxDays: input.pickupReadyMaxDays,
     legalCity: input.legalCity,
     commercialRegistry: input.commercialRegistry,
     dataProtectionEmail: input.dataProtectionEmail,
@@ -274,6 +282,8 @@ export interface PublicStorefrontConfig {
   deliveryMaxDays: number
   expressDeliveryMinDays: number
   expressDeliveryMaxDays: number
+  pickupReadyMinDays: number | null
+  pickupReadyMaxDays: number | null
   storeName: string
   contactEmail: string | null
   whatsapp: string | null
@@ -303,6 +313,8 @@ export async function getPublicStorefrontConfig(): Promise<PublicStorefrontConfi
     deliveryMaxDays: dto.deliveryMaxDays,
     expressDeliveryMinDays: dto.expressDeliveryMinDays,
     expressDeliveryMaxDays: dto.expressDeliveryMaxDays,
+    pickupReadyMinDays: dto.pickupReadyMinDays,
+    pickupReadyMaxDays: dto.pickupReadyMaxDays,
     storeName: dto.storeName,
     contactEmail: dto.contactEmail,
     whatsapp: dto.whatsapp,

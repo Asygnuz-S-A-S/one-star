@@ -65,6 +65,8 @@ const rawSettings = {
   deliveryMaxDays: 5,
   expressDeliveryMinDays: 1,
   expressDeliveryMaxDays: 2,
+  pickupReadyMinDays: null,
+  pickupReadyMaxDays: null,
   legalCity: null,
   commercialRegistry: null,
   dataProtectionEmail: null,

@@ -15,6 +15,9 @@ WORKDIR /app
 # `pnpm.overrides` del package.json). Sin este archivo la instalación con
 # lockfile congelado falla con ERR_PNPM_LOCKFILE_CONFIG_MISMATCH.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+# Parches locales de dependencias (patchedDependencies en pnpm-workspace.yaml):
+# sin esta carpeta la instalación con lockfile congelado falla.
+COPY patches ./patches
 
 # Instalar la versión reproducible de pnpm y luego las dependencias con frozen lockfile
 RUN npm install -g pnpm@10.34.5 && pnpm config set node-linker hoisted && pnpm install --frozen-lockfile

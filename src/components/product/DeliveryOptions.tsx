@@ -1,5 +1,6 @@
 "use client"
 
+import { formatPickupReadyTime } from "@/lib/pickup-ready"
 import Link from "next/link"
 import { useId, useState, type ReactNode } from "react"
 
@@ -14,7 +15,7 @@ export interface PickupStoreOption {
 interface DeliveryOptionsProps {
   price: number
   freeThreshold: number
-  delivery: { min: number; max: number }
+  delivery: { min: number; max: number; pickupMin?: number | null; pickupMax?: number | null }
   /** Tiendas activas donde se puede recoger (Admin → Tiendas). Sin tiendas no se ofrece. */
   pickupStores: PickupStoreOption[]
   availableInStores: boolean
@@ -104,7 +105,9 @@ export default function DeliveryOptions({
               </li>
             ))}
           </ul>
-          <p className="mt-2 font-montserrat text-[11px] text-[#4A4A4A] dark:text-gray-400">Te avisamos por correo cuando esté listo para recoger.</p>
+          <p className="mt-2 font-montserrat text-[11px] text-[#4A4A4A] dark:text-gray-400">
+            {formatPickupReadyTime(delivery.pickupMin, delivery.pickupMax) ?? ""} Te avisamos por correo cuando esté listo para recoger.
+          </p>
         </Row>
       )}
 

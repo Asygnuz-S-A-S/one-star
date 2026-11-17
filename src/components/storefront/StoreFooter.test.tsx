@@ -16,4 +16,19 @@ describe("StoreFooter", () => {
   it("sin logo muestra el nombre de la tienda en texto", () => {
     expect(renderToStaticMarkup(<StoreFooter />)).toContain(">ONE STAR<")
   })
+
+  it("agrupa los enlaces en una columna de tienda y otra legal, con los nombres nuevos", () => {
+    const html = renderToStaticMarkup(<StoreFooter />)
+    const legalStart = html.indexOf("Información legal")
+    expect(html.indexOf(">Tienda<")).toBeLessThan(legalStart)
+    for (const label of ["Política de datos", "Condiciones de envíos y devoluciones", "Términos y condiciones", ">PQRS<"]) {
+      expect(html.indexOf(label)).toBeGreaterThan(legalStart)
+    }
+    for (const label of ["Tarjeta de regalo", ">Sale<", "One Star Club", ">Tiendas<"]) {
+      const index = html.indexOf(label)
+      expect(index).toBeGreaterThan(-1)
+      expect(index).toBeLessThan(legalStart)
+    }
+    expect(html).not.toContain(">Privacidad<")
+  })
 })
