@@ -7,10 +7,39 @@ import type { Gender, Prisma } from "@prisma/client"
 import { prisma } from "@/server/db/prisma"
 import { getReservedQuantities } from "@/server/repositories/order.repository"
 import type { ProductForImport } from "@/server/repositories/product.repository"
-import type { PlannedGroup } from "@/server/services/product-import.service"
+import type {
+  PlannedGroup,
+  PlannedStoreInventory,
+} from "@/server/services/product-import.service"
 import { normalizeKey, resolveBrandAlias } from "@/server/validators/product-import.validator"
 
 type TxClient = Prisma.TransactionClient
+
+async function syncVariantStoreInventory(
+  tx: TxClient,
+  variantId: string,
+  storeInventory?: PlannedStoreInventory[],
+): Promise<void> {
+  if (!storeInventory || storeInventory.length === 0) return
+
+  const storeIds = storeInventory.map((entry) => entry.storeLocationId)
+  await tx.inventoryLevel.deleteMany({
+    where: {
+      variantId,
+      storeLocationId: { in: storeIds },
+    },
+  })
+
+  for (const entry of storeInventory) {
+    await tx.inventoryLevel.create({
+      data: {
+        variantId,
+        storeLocationId: entry.storeLocationId,
+        stock: entry.stock,
+      },
+    })
+  }
+}
 
 export interface ProductImportPersistenceResult {
   newProducts: number
@@ -307,6 +336,7 @@ export async function persistProductImport(
                 stock: v.row.stock,
               },
             })
+            await syncVariantStoreInventory(tx, v.existingVariantId, v.storeInventory)
             updatedVariants++
           } else {
             const createdVar = await tx.variant.create({
@@ -328,6 +358,7 @@ export async function persistProductImport(
                 stock: v.row.stock,
               },
             })
+            await syncVariantStoreInventory(tx, createdVar.id, v.storeInventory)
             newVariants++
           }
         }
