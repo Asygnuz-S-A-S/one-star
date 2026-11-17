@@ -48,6 +48,16 @@ const STAGE_BACKGROUNDS = {
   oneStarRed: "bg-[radial-gradient(ellipse_at_70%_45%,#8a1a1f_0%,#3b0d10_60%,#1c1c1c_100%)]",
 } as const
 
+/**
+ * Dónde se para el texto sobre la imagen. Sirve para no taparle a la foto lo que
+ * importa (el logo de la marca, el producto). Sin valor se queda como siempre:
+ * pegado a la izquierda y abajo en celular, centrado en escritorio.
+ */
+const TEXT_X_ROW = { left: "justify-start", center: "justify-center", right: "justify-end" } as const
+const TEXT_X_BLOCK = { left: "", center: "text-center", right: "text-right" } as const
+const TEXT_X_ACTIONS = { left: "", center: "justify-center", right: "justify-end" } as const
+const TEXT_Y_ROW = { top: "items-start pt-24 pb-16", center: "items-center py-16", bottom: "items-end pb-16 pt-20" } as const
+
 const AUTOPLAY_MS = 6500
 
 /**
@@ -297,16 +307,16 @@ export default function EditorialCampaignHero({ campaign }: { campaign: Campaign
     </div>
 
     {/* El contenido se re-monta por slide; solo anima opacidad tras el primer cambio para no retrasar el primer pintado. */}
-    <div key={slide.id} style={{ transform: `translate3d(${shift}px, 0, 0)`, transition: live ? "none" : "transform 260ms cubic-bezier(.22,1,.36,1)" }} className={`hero-scroll-out relative z-10 mx-auto flex h-full max-w-7xl px-4 sm:px-8 md:px-12 lg:px-16 ${isStage ? "flex-col justify-end gap-4 pb-16 pt-4 lg:flex-row-reverse lg:items-center lg:gap-10 lg:pb-16" : "items-end pb-16 pt-20 md:items-center"}`}>
+    <div key={slide.id} style={{ transform: `translate3d(${shift}px, 0, 0)`, transition: live ? "none" : "transform 260ms cubic-bezier(.22,1,.36,1)" }} className={`hero-scroll-out relative z-10 mx-auto flex h-full max-w-7xl px-4 sm:px-8 md:px-12 lg:px-16 ${isStage ? "flex-col justify-end gap-4 pb-16 pt-4 lg:flex-row-reverse lg:items-center lg:gap-10 lg:pb-16" : `${slide.textY ? TEXT_Y_ROW[slide.textY] : "items-end pb-16 pt-20 md:items-center"} ${slide.textX ? TEXT_X_ROW[slide.textX] : ""}`}`}>
       {isStage && <div className="min-h-0 flex-1 lg:h-full"><ProductStage slide={slide} /></div>}
-      <div className={`min-w-0 max-w-2xl ${isStage ? "shrink-0 lg:flex-1" : ""} ${ACCENT_TEXT[slide.accent]} ${changed ? "motion-safe:animate-[hero-copy-swap_650ms_cubic-bezier(.22,1,.36,1)_both]" : "motion-safe:animate-[editorial-copy-in_600ms_cubic-bezier(.22,1,.36,1)_both]"}`} aria-live="polite">
+      <div className={`min-w-0 max-w-2xl ${isStage ? "shrink-0 lg:flex-1" : ""} ${!isStage && slide.textX ? TEXT_X_BLOCK[slide.textX] : ""} ${ACCENT_TEXT[slide.accent]} ${changed ? "motion-safe:animate-[hero-copy-swap_650ms_cubic-bezier(.22,1,.36,1)_both]" : "motion-safe:animate-[editorial-copy-in_600ms_cubic-bezier(.22,1,.36,1)_both]"}`} aria-live="polite">
         {slide.eyebrow && <p className="mb-3 font-barlow text-xs font-bold uppercase tracking-[0.18em] text-[var(--store-action)] md:mb-4">{slide.eyebrow}</p>}
         {slide.headline
           ? <h1 className="font-barlow text-[clamp(2.5rem,12vw,4rem)] font-black uppercase leading-[0.9] tracking-[-0.03em] [overflow-wrap:anywhere] sm:text-6xl md:text-8xl">{slide.headline}</h1>
           // Banner solo imagen: el título queda para lectores de pantalla y buscadores.
           : <h1 className="sr-only">{slide.desktopMedia?.alt ?? slide.mobileMedia?.alt ?? "One Star"}</h1>}
         {slide.copy && <p className="mt-4 line-clamp-3 max-w-xl text-base leading-relaxed opacity-90 md:mt-5 md:text-lg">{slide.copy}</p>}
-        {(slide.primaryCta || slide.secondaryCta) && <div className="mt-6 flex flex-wrap gap-3 md:mt-8">{slide.primaryCta && <PublicButton href={slide.primaryCta.href}>{slide.primaryCta.label}</PublicButton>}{slide.secondaryCta && <PublicButton href={slide.secondaryCta.href} variant="outline" className="border-current bg-white/5 text-current hover:bg-white/15">{slide.secondaryCta.label}</PublicButton>}</div>}
+        {(slide.primaryCta || slide.secondaryCta) && <div className={`mt-6 flex flex-wrap gap-3 md:mt-8 ${!isStage && slide.textX ? TEXT_X_ACTIONS[slide.textX] : ""}`}>{slide.primaryCta && <PublicButton href={slide.primaryCta.href}>{slide.primaryCta.label}</PublicButton>}{slide.secondaryCta && <PublicButton href={slide.secondaryCta.href} variant="outline" className="border-current bg-white/5 text-current hover:bg-white/15">{slide.secondaryCta.label}</PublicButton>}</div>}
       </div>
     </div>
 
