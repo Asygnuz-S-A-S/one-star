@@ -31,3 +31,8 @@ overrides:
   'vitest': '^4.1.12'
 patchedDependencies:
   picomatch@4.0.7: patches/picomatch@4.0.7.patch
+
+# Corregido por patches/picomatch@4.0.7.patch (ver docs/seguridad-dependencias.md). Quitar con picomatch >= 4.0.8.
+auditConfig:
+  ignoreGhsas:
+    - GHSA-fc5q-39xc-vjpf
