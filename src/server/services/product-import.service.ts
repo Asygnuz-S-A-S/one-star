@@ -520,7 +520,6 @@ interface ParsedStoreHeaderCandidate {
   colIndex: number
   rawHeader: string
   token: string
-  isExplicitStoreHeader: boolean
 }
 
 interface ResolvedStoreColumn {
@@ -543,6 +542,7 @@ interface StoreLocationLike {
   name: string
   erpId: string | null
   isWebWarehouse: boolean
+  isActive: boolean
 }
 
 function matchPhysicalStore(
@@ -571,7 +571,7 @@ function resolveStoreColumns(
   unknownHeaders: string[]
   duplicateErrors: string[]
 } {
-  const physicalStores = storeLocations.filter((store) => !store.isWebWarehouse)
+  const physicalStores = storeLocations.filter((store) => !store.isWebWarehouse && store.isActive)
   const resolvedColumns: ResolvedStoreColumn[] = []
   const unknownHeaders: string[] = []
   const duplicateErrors: string[] = []
@@ -580,11 +580,7 @@ function resolveStoreColumns(
   for (const cand of candidates) {
     const matched = matchPhysicalStore(cand.token, physicalStores)
     if (!matched) {
-      // Solo un encabezado con patrón explícito de sede ("Stock ...", "Sede ...", "Tienda ...")
-      // invalida si no existe en BD; columnas informativas sueltas siguen ignorándose.
-      if (cand.isExplicitStoreHeader) {
-        unknownHeaders.push(cand.rawHeader)
-      }
+      unknownHeaders.push(cand.rawHeader)
       continue
     }
 
@@ -727,15 +723,11 @@ function parseWorkbook(buffer: ArrayBuffer): {
         if (!rawHeader || DANGEROUS_KEYS.has(rawHeader.toLowerCase())) continue
 
         const field = matchHeader(rawHeader)
-        if (!field) {
-          storeHeaderCandidates.push({
-            colIndex: c,
-            rawHeader,
-            token: rawHeader,
-            isExplicitStoreHeader: false,
-          })
-          continue
-        }
+        // Una columna que no se reconoce se ignora. Solo los encabezados con patrón
+        // explícito de sede ("Stock <Sede>", "Sede <Sede>", "Tienda <Sede>") mueven
+        // inventario: si bastara el nombre suelto, una columna informativa llamada
+        // como una sede ("Centro") pisaría su stock o rompería el archivo.
+        if (!field) continue
 
         if (DANGEROUS_KEYS.has(field.toLowerCase())) continue
 
@@ -744,7 +736,6 @@ function parseWorkbook(buffer: ArrayBuffer): {
             colIndex: c,
             rawHeader,
             token: STORE_TEMPLATE_TOKENS[field],
-            isExplicitStoreHeader: true,
           })
           continue
         }
@@ -754,7 +745,6 @@ function parseWorkbook(buffer: ArrayBuffer): {
             colIndex: c,
             rawHeader,
             token: field.slice(STORE_COLUMN_PREFIX.length),
-            isExplicitStoreHeader: true,
           })
           continue
         }
@@ -883,7 +873,7 @@ async function planImport(
   )
   const storeColumnIssue =
     unknownHeaders.length > 0
-      ? `Sede(s) no encontrada(s) para la(s) columna(s): ${unknownHeaders.map((h) => `"${h}"`).join(", ")} (no se crean sedes automáticamente)`
+      ? `Sede(s) no encontrada(s) o inactiva(s) para la(s) columna(s): ${unknownHeaders.map((h) => `"${h}"`).join(", ")} (no se crean sedes automáticamente)`
       : duplicateErrors[0] ?? null
 
   const rowResults: ProductImportRowResult[] = []

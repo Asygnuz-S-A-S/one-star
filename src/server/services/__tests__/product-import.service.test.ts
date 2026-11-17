@@ -1360,7 +1360,7 @@ describe("Inventario por sede desde Excel", () => {
   })
 
   it("resuelve encabezados dinámicos por erpId o nombre normalizado de sede", async () => {
-    const headers = [...COLUMNS, "ERP-UNIC", "centro", "Sede Fundadores"]
+    const headers = [...COLUMNS, "Stock ERP-UNIC", "Sede Centro", "Sede Fundadores"]
     const row = [...baseRow({ sku: "MATCH-DYN-1", stock: 2 }), 6, 8, 1]
     const buffer = buildBuffer([row], headers)
 
@@ -1401,11 +1401,44 @@ describe("Inventario por sede desde Excel", () => {
     expect(previewNeg.rows[0].action).toBe("error")
     expect(previewNeg.rows[0].message).toMatch(/no puede ser negativo/i)
 
-    const headersDup = [...COLUMNS, "Stock Centro", "ERP-CENTRO"]
+    const headersDup = [...COLUMNS, "Stock Centro", "Stock ERP-CENTRO"]
     const rowDup = [...baseRow({ sku: "DUP-STORE-1" }), 4, 7]
     const previewDup = await previewProductImport(buildBuffer([rowDup], headersDup))
     expect(previewDup.summary.errors).toBe(1)
     expect(previewDup.rows[0].action).toBe("error")
     expect(previewDup.rows[0].message).toMatch(/Columnas duplicadas/i)
+  })
+
+  it("ignora una columna informativa que se llama como una sede y no toca su inventario", async () => {
+    const headers = [...COLUMNS, "Centro", "One Star Unicentro"]
+    const row = [...baseRow({ sku: "INFO-COL-1", stock: 5 }), 99, "Pereira"]
+    const buffer = buildBuffer([row], headers)
+
+    const preview = await previewProductImport(buffer)
+    expect(preview.summary.errors).toBe(0)
+    expect(preview.rows[0].action).toBe("create_product")
+    expect(preview.rows[0].message).not.toMatch(/sedes:/i)
+
+    await applyProductImport(buffer, preview.fingerprint)
+
+    expect(txMock.inventoryLevel.create).toHaveBeenCalledTimes(1)
+    expect(txMock.inventoryLevel.create).toHaveBeenCalledWith({
+      data: { variantId: "new-variant-id", storeLocationId: null, stock: 5 },
+    })
+    expect(txMock.inventoryLevel.deleteMany).not.toHaveBeenCalled()
+  })
+
+  it("rechaza la carga si la columna apunta a una sede inactiva", async () => {
+    mockFindStoreLocations.mockResolvedValue([
+      { id: "store-web", name: "Bodega Web", erpId: null, isWebWarehouse: true, isActive: true },
+      { id: "store-centro", name: "One Star Centro", erpId: "ERP-CENTRO", isWebWarehouse: false, isActive: false },
+    ])
+
+    const buffer = buildBuffer([[...baseRow({ sku: "INACT-1" }), 4]], [...COLUMNS, "Stock Centro"])
+    const preview = await previewProductImport(buffer)
+
+    expect(preview.summary.errors).toBe(1)
+    expect(preview.rows[0].action).toBe("error")
+    expect(preview.rows[0].message).toMatch(/inactiva/i)
   })
 })
