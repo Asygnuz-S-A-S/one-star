@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react"
 import { useCartStore } from "@/store"
 import { sendChatMessageAction } from "@/server/actions/chat.actions"
 import { DEFAULT_CHAT_WELCOME } from "@/lib/storefront-copy"
+import { META_CURRENCY, trackMetaEvent } from "@/lib/tracking/meta-pixel"
 import ChatMarkdown from "./ChatMarkdown"
 
 interface DisplayMessage {
@@ -78,6 +79,19 @@ export default function ChatWidget({ welcome = DEFAULT_CHAT_WELCOME }: { welcome
             sku: action.sku,
             quantity: action.quantity,
             maxQuantity: action.maxQuantity,
+          })
+          // El chat también agrega a la bolsa: sin esto, esas ventas no
+          // aparecían como AddToCart en Meta.
+          trackMetaEvent("AddToCart", {
+            content_type: "product",
+            content_ids: [action.productId],
+            content_name: action.name,
+            contents: [
+              { id: action.productId, quantity: action.quantity, item_price: action.price },
+            ],
+            value: action.price * action.quantity,
+            currency: META_CURRENCY,
+            num_items: action.quantity,
           })
         }
       }

@@ -4,7 +4,11 @@ import Script from "next/script"
 import { usePathname } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
 import { useCspNonce } from "@/app/providers"
-import { trackMetaEvent } from "@/lib/tracking/meta-pixel"
+import {
+  clearPendingMetaEvents,
+  flushPendingMetaEvents,
+  trackMetaEvent,
+} from "@/lib/tracking/meta-pixel"
 import { COOKIE_CONSENT_EVENT, getCookieConsent } from "@/lib/cookies/consent"
 
 const META_PIXEL_SRC = "https://connect.facebook.net/en_US/fbevents.js"
@@ -33,7 +37,10 @@ export default function MetaPixel({ pixelId }: MetaPixelProps) {
   useEffect(() => {
     const handleConsent = (event: Event) => {
       const custom = event as CustomEvent<{ consent: string }>
-      setHasConsent(custom.detail?.consent === "accepted")
+      const accepted = custom.detail?.consent === "accepted"
+      // Sin consentimiento no debe quedar nada esperando para enviarse.
+      if (!accepted) clearPendingMetaEvents()
+      setHasConsent(accepted)
     }
 
     window.addEventListener(COOKIE_CONSENT_EVENT, handleConsent)
@@ -59,7 +66,16 @@ fbq('init',${JSON.stringify(pixelId)});
 fbq('track','PageView');`
 
   return (
-    <Script id="meta-pixel" nonce={nonce} strategy="afterInteractive">
+    <Script
+      id="meta-pixel"
+      nonce={nonce}
+      strategy="afterInteractive"
+      // En cuanto el snippet corre, `fbq` existe: entregamos lo que se haya
+      // disparado antes (ViewContent e InitiateCheckout montan antes que esto).
+      onReady={() => {
+        flushPendingMetaEvents()
+      }}
+    >
       {snippet}
     </Script>
   )
