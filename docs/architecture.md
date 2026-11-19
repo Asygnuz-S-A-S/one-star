@@ -344,6 +344,19 @@ Client Component → Server Action → Service → Repository → Prisma → Pos
 ### API Routes
 Se usan para endpoints que necesitan acceso desde el cliente sin full-page navigation (e.g., `/api/products`, `/api/cuenta/pedidos`).
 
+#### Feed de catálogo para Meta — `GET /api/meta/catalogo`
+Devuelve el catálogo en RSS 2.0 con el namespace `g:` que Meta espera. Se pega
+en Commerce Manager → Catálogo → Fuentes de datos → **Feed programado**.
+
+- Incluye productos `isPublished` + `availableOnline` + con imagen; los agotados
+  van declarados como `out of stock` en vez de desaparecer del feed.
+- **El `g:id` de cada item es `Product.id`, el mismo valor que el píxel envía en
+  `content_ids`.** Si se cambia uno hay que cambiar el otro: si dejan de
+  coincidir, Meta no empareja los eventos con el catálogo y los anuncios
+  dinámicos dejan de funcionar.
+- `META_CATALOG_TOKEN` (opcional) exige `?token=`; sin ella el feed es público.
+- Se cachea una hora en el borde (`s-maxage=3600`), tope de 5000 items.
+
 ### Validación
 Zod valida en la capa de `validators/` antes de llamar servicios. Los errores se devuelven tipados.
 
@@ -412,6 +425,9 @@ LOGGRO_IVA_RATE="0.19"            # Tasa de IVA de RESPALDO: solo aplica a ítem
 ERP_CATALOG_WRITES_ENABLED="false" # Fail-closed: habilitar solo tras validar dry-run y reparar duplicados
 DISABLE_INTERNAL_CRON=""          # "1" apaga los cron internos; usar solo con disparador externo
 CRON_SECRET=""                    # (opcional) Protege /api/cron/sync-erp para disparadores externos
+
+# Marketing / Meta (píxel y API de Conversiones se configuran en /admin/integraciones)
+META_CATALOG_TOKEN=""             # (opcional) Si se define, /api/meta/catalogo exige ?token=<valor>; sin ella el feed es público
 
 # Correos transaccionales (Resend — ver src/server/email/)
 RESEND_API_KEY=""                 # API key de Resend (https://resend.com/api-keys)
