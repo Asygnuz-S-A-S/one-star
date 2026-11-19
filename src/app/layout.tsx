@@ -8,6 +8,7 @@ import StoreIntro, { STORE_INTRO_SCRIPT } from "@/components/StoreIntro";
 import Providers from "@/app/providers";
 import MetaPixel from "@/components/tracking/MetaPixel";
 import GoogleAnalytics from "@/components/tracking/GoogleAnalytics";
+import WebAnalytics from "@/components/tracking/WebAnalytics";
 import CookieBanner from "@/components/legal/CookieBanner";
 
 export const metadata: Metadata = {
@@ -119,6 +120,7 @@ export default async function RootLayout({
           {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (
             <GoogleAnalytics measurementId={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID} />
           )}
+          <WebAnalytics />
           <CookieBanner />
           <PublicSiteFrame
             items={navigationItems}

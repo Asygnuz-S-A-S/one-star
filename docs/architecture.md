@@ -344,6 +344,28 @@ Client Component → Server Action → Service → Repository → Prisma → Pos
 ### API Routes
 Se usan para endpoints que necesitan acceso desde el cliente sin full-page navigation (e.g., `/api/products`, `/api/cuenta/pedidos`).
 
+#### Analítica propia (first-party) — `POST /api/track`
+Medición en nuestro dominio y nuestra base, pensada para retargeting. A
+diferencia del píxel de Meta, los bloqueadores de anuncios y el iOS de Apple no
+la tumban.
+
+- `WebAnalytics` (en el layout) manda cada vista con `navigator.sendBeacon`. El
+  navegador solo envía ruta + query: **el tipo de evento lo decide el
+  servidor** (`src/lib/analytics/web-events.ts`), así que cambiar la
+  clasificación no obliga a tocar cada página.
+- Identidad: cookie propia `os_vid` (`httpOnly`, 1 año) + `os_sid` de sesión,
+  ambas puestas por el servidor. `WebVisitor.userId` / `leadId` vinculan al
+  visitante con la persona real cuando se identifica.
+- `WebEvent` guarda tipo, ruta, `categorySlug`, `productSlug`, `brandSlug`,
+  término buscado y los filtros aplicados en JSON (talla, color, precio…).
+- **Nunca se guarda la IP ni el user-agent completo**, solo una etiqueta gruesa
+  de dispositivo. Los ids de catálogo se guardan como slug, sin relación de
+  Prisma, para que el histórico sobreviva a que el ERP borre y recree productos.
+- Límite de 60 hits por minuto por visitante, en memoria del proceso. Un fallo
+  midiendo nunca rompe la navegación: la ruta responde 204 igual.
+- Retención: `deleteWebEventsOlderThan` (por defecto 180 días) está lista para
+  colgarse de un cron.
+
 #### Feed de catálogo para Meta — `GET /api/meta/catalogo`
 Devuelve el catálogo en RSS 2.0 con el namespace `g:` que Meta espera. Se pega
 en Commerce Manager → Catálogo → Fuentes de datos → **Feed programado**.
