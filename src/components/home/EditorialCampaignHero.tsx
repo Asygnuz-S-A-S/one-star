@@ -38,7 +38,7 @@ function CampaignMedia({ slide, priority }: { slide: CampaignHeroSlide; priority
   return mobileImageProps && !mediaFailed ? <picture className="hero-parallax absolute inset-0 -z-20" data-testid="editorial-hero-media">
     {desktopImageProps && <source media="(min-width: 1024px)" srcSet={desktopImageProps.srcSet} />}
     {tabletImageProps && <source media="(min-width: 641px)" srcSet={tabletImageProps.srcSet} />}
-    <img {...mobileImageProps} alt={mobileMedia?.alt ?? ""} loading={priority ? "eager" : "lazy"} className="h-full w-full object-cover" onError={() => setMediaFailed(true)} />
+    <img {...mobileImageProps} alt={mobileMedia?.alt ?? ""} loading={priority ? "eager" : "lazy"} className="h-full w-full object-cover object-left md:object-[left_center]" onError={() => setMediaFailed(true)} />
   </picture> : <div className="absolute inset-0 -z-20 bg-[radial-gradient(circle_at_78%_40%,#4a4a4a_0,transparent_28%),linear-gradient(135deg,#1c1c1c,#2b2b2b_55%,#e31c23_180%)]" data-testid="editorial-hero-fallback" role="img" aria-label="Campaña One Star" />
 }
 
@@ -320,23 +320,40 @@ export default function EditorialCampaignHero({ campaign }: { campaign: Campaign
       </div>
     </div>
 
-    {multipleSlides && <div className={`absolute inset-x-4 bottom-4 z-20 flex items-center justify-between sm:inset-x-8 md:inset-x-12 lg:inset-x-16 ${controlTone}`} aria-label="Controles del carrusel">
-      <div className="flex items-center" role="tablist" aria-label="Seleccionar campaña">
-        {slides.map((item, index) => <button key={item.id} type="button" role="tab" aria-selected={index === currentIndex} onClick={() => goTo(index)} className="group grid h-11 min-w-11 place-items-center px-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current" aria-label={`Ir al slide ${index + 1}${item.headline ? `: ${item.headline}` : ""}`}>
-          <span className={`relative block h-1 overflow-hidden rounded-full bg-current/30 transition-[width] duration-300 ${index === currentIndex ? "w-12" : "w-6 group-hover:bg-current/60"}`}>
-            {index === currentIndex && <span key={`${item.id}-${currentIndex}`} className="absolute inset-y-0 left-0 w-full origin-left bg-current motion-safe:animate-[hero-progress_linear_both]" style={{ animationDuration: `${AUTOPLAY_MS}ms`, animationPlayState: paused ? "paused" : "running" }} />}
-          </span>
-        </button>)}
-        <span className="ml-2 font-barlow text-sm font-semibold tabular-nums tracking-[0.12em] opacity-90" aria-hidden="true">{String(currentIndex + 1).padStart(2, "0")} / {String(slides.length).padStart(2, "0")}</span>
-      </div>
-      <div className="hidden items-center gap-2 sm:flex">
-        <button type="button" onClick={() => goTo(currentIndex - 1)} className="grid h-11 w-11 place-items-center rounded-full border border-current/40 backdrop-blur-sm transition-colors hover:border-current hover:bg-current/15 focus-visible:outline-2 focus-visible:outline-current" aria-label="Anterior">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
+    {multipleSlides && (
+      <>
+        {/* Flechas de navegación laterales a izquierda y derecha */}
+        <button
+          type="button"
+          onClick={() => goTo(currentIndex - 1)}
+          className="absolute left-3 top-1/2 z-30 hidden -translate-y-1/2 sm:grid h-12 w-12 place-items-center rounded-full border border-white/30 bg-black/25 text-white shadow-sm backdrop-blur-sm transition-all hover:bg-black/50 hover:scale-105 active:scale-95 focus-visible:outline-2 focus-visible:outline-white lg:left-6"
+          aria-label="Anterior"
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
         </button>
-        <button type="button" onClick={() => goTo(currentIndex + 1)} className="grid h-11 w-11 place-items-center rounded-full border border-current/40 backdrop-blur-sm transition-colors hover:border-current hover:bg-current/15 focus-visible:outline-2 focus-visible:outline-current" aria-label="Siguiente">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+        <button
+          type="button"
+          onClick={() => goTo(currentIndex + 1)}
+          className="absolute right-3 top-1/2 z-30 hidden -translate-y-1/2 sm:grid h-12 w-12 place-items-center rounded-full border border-white/30 bg-black/25 text-white shadow-sm backdrop-blur-sm transition-all hover:bg-black/50 hover:scale-105 active:scale-95 focus-visible:outline-2 focus-visible:outline-white lg:right-6"
+          aria-label="Siguiente"
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
         </button>
-      </div>
-    </div>}
+
+        {/* Indicador de progreso / tabs en la parte inferior */}
+        <div className={`absolute inset-x-4 bottom-4 z-20 flex items-center justify-between sm:inset-x-8 md:inset-x-12 lg:inset-x-16 ${controlTone}`} aria-label="Controles del carrusel">
+          <div className="flex items-center" role="tablist" aria-label="Seleccionar campaña">
+            {slides.map((item, index) => (
+              <button key={item.id} type="button" role="tab" aria-selected={index === currentIndex} onClick={() => goTo(index)} className="group grid h-11 min-w-11 place-items-center px-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current" aria-label={`Ir al slide ${index + 1}${item.headline ? `: ${item.headline}` : ""}`}>
+                <span className={`relative block h-1 overflow-hidden rounded-full bg-current/30 transition-[width] duration-300 ${index === currentIndex ? "w-12" : "w-6 group-hover:bg-current/60"}`}>
+                  {index === currentIndex && <span key={`${item.id}-${currentIndex}`} className="absolute inset-y-0 left-0 w-full origin-left bg-current motion-safe:animate-[hero-progress_linear_both]" style={{ animationDuration: `${AUTOPLAY_MS}ms`, animationPlayState: paused ? "paused" : "running" }} />}
+                </span>
+              </button>
+            ))}
+            <span className="ml-2 font-barlow text-sm font-semibold tabular-nums tracking-[0.12em] opacity-90" aria-hidden="true">{String(currentIndex + 1).padStart(2, "0")} / {String(slides.length).padStart(2, "0")}</span>
+          </div>
+        </div>
+      </>
+    )}
   </section>
 }

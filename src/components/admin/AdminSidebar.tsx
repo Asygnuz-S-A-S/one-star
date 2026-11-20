@@ -25,6 +25,15 @@ const navGroups = [
           </svg>
         ),
       },
+      {
+        label: "Analítica",
+        href: "/admin/analitica",
+        icon: (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 3v18h18M7 15l3.5-4 3 3L21 7" />
+          </svg>
+        ),
+      },
     ]
   },
   {

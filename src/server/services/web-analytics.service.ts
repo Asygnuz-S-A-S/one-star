@@ -10,10 +10,21 @@ import {
 import {
   createWebEvent,
   deleteWebEventsOlderThan,
+  findAnalyticsSummary,
+  findFunnel,
+  findProductsViewedNotPurchased,
   findRecentFilterEvents,
   findTopCategories,
+  findTopProducts,
+  findTopSearches,
+  findTrafficSources,
   upsertWebVisitor,
+  type AnalyticsSummaryRow,
+  type FunnelRow,
+  type SearchTermRow,
+  type TopProductRow,
   type TopSlugRow,
+  type TrafficSourceRow,
 } from "../repositories/web-analytics.repository"
 
 /**
@@ -174,4 +185,92 @@ export async function getTopFilters(days = 30, limit = 20): Promise<FilterUsageR
 
 export async function getTopCategories(days = 30, limit = 20): Promise<TopSlugRow[]> {
   return findTopCategories(days, limit)
+}
+
+// ---------------------------------------------------------------------------
+// Panel de analítica (`/admin/analitica`)
+// ---------------------------------------------------------------------------
+
+/** Ventanas que ofrece el panel. Cerrado a propósito: evita consultas enormes. */
+export const ANALYTICS_WINDOWS = [1, 7, 30] as const
+export type AnalyticsWindow = (typeof ANALYTICS_WINDOWS)[number]
+export const DEFAULT_ANALYTICS_WINDOW: AnalyticsWindow = 7
+
+/** Normaliza el parámetro de la URL: cualquier cosa rara cae en la ventana por defecto. */
+export function parseAnalyticsWindow(raw: string | undefined | null): AnalyticsWindow {
+  const parsed = Number(raw)
+  return (ANALYTICS_WINDOWS as readonly number[]).includes(parsed)
+    ? (parsed as AnalyticsWindow)
+    : DEFAULT_ANALYTICS_WINDOW
+}
+
+export interface AnalyticsFunnel extends FunnelRow {
+  /** % de quienes vieron producto y llegaron al checkout. */
+  viewToCheckout: number
+  /** % de quienes empezaron el checkout y compraron. */
+  checkoutToPurchase: number
+  /** % de quienes vieron producto y terminaron comprando. */
+  viewToPurchase: number
+}
+
+export interface AnalyticsDashboard {
+  days: AnalyticsWindow
+  summary: AnalyticsSummaryRow
+  funnel: AnalyticsFunnel
+  topProducts: TopProductRow[]
+  viewedNotPurchased: TopSlugRow[]
+  topCategories: TopSlugRow[]
+  topFilters: FilterUsageRow[]
+  topSearches: SearchTermRow[]
+  trafficSources: TrafficSourceRow[]
+}
+
+function percentage(part: number, total: number): number {
+  if (total <= 0) return 0
+  return Math.round((part / total) * 1000) / 10
+}
+
+/**
+ * Arma el panel completo. Todas las consultas van en paralelo porque son
+ * independientes entre sí y de solo lectura.
+ */
+export async function getAnalyticsDashboard(
+  days: AnalyticsWindow = DEFAULT_ANALYTICS_WINDOW,
+): Promise<AnalyticsDashboard> {
+  const [
+    summary,
+    funnelRow,
+    topProducts,
+    viewedNotPurchased,
+    topCategories,
+    topFilters,
+    topSearches,
+    trafficSources,
+  ] = await Promise.all([
+    findAnalyticsSummary(days),
+    findFunnel(days),
+    findTopProducts(days, 10),
+    findProductsViewedNotPurchased(days, 10),
+    findTopCategories(days, 10),
+    getTopFilters(days, 10),
+    findTopSearches(days, 10),
+    findTrafficSources(days, 10),
+  ])
+
+  return {
+    days,
+    summary,
+    funnel: {
+      ...funnelRow,
+      viewToCheckout: percentage(funnelRow.checkoutStarters, funnelRow.productViewers),
+      checkoutToPurchase: percentage(funnelRow.buyers, funnelRow.checkoutStarters),
+      viewToPurchase: percentage(funnelRow.buyers, funnelRow.productViewers),
+    },
+    topProducts,
+    viewedNotPurchased,
+    topCategories,
+    topFilters,
+    topSearches,
+    trafficSources,
+  }
 }
