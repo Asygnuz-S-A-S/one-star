@@ -361,7 +361,9 @@ la tumban.
 - **Nunca se guarda la IP ni el user-agent completo**, solo una etiqueta gruesa
   de dispositivo. Los ids de catálogo se guardan como slug, sin relación de
   Prisma, para que el histórico sobreviva a que el ERP borre y recree productos.
-- Límite de 60 hits por minuto por visitante, en memoria del proceso. Un fallo
+- Límite de 120 vistas por minuto **por IP**, con `consumePublicRateLimit`
+  (respaldado en base, como el resto de rutas públicas). No se limita por la
+  cookie del visitante porque la manda el cliente y se puede rotar. Un fallo
   midiendo nunca rompe la navegación: la ruta responde 204 igual.
 - Retención: `deleteWebEventsOlderThan` (por defecto 180 días) está lista para
   colgarse de un cron.
@@ -376,7 +378,9 @@ en Commerce Manager → Catálogo → Fuentes de datos → **Feed programado**.
   `content_ids`.** Si se cambia uno hay que cambiar el otro: si dejan de
   coincidir, Meta no empareja los eventos con el catálogo y los anuncios
   dinámicos dejan de funcionar.
-- `META_CATALOG_TOKEN` (opcional) exige `?token=`; sin ella el feed es público.
+- **Falla cerrado**: exige `?token=<META_CATALOG_TOKEN>`. Sin esa variable, o
+  con un token equivocado, responde 404. El feed expone el catálogo con
+  existencias, así que no puede quedar abierto por olvidar una variable.
 - Se cachea una hora en el borde (`s-maxage=3600`), tope de 5000 items.
 
 ### Validación
@@ -449,7 +453,7 @@ DISABLE_INTERNAL_CRON=""          # "1" apaga los cron internos; usar solo con d
 CRON_SECRET=""                    # (opcional) Protege /api/cron/sync-erp para disparadores externos
 
 # Marketing / Meta (píxel y API de Conversiones se configuran en /admin/integraciones)
-META_CATALOG_TOKEN=""             # (opcional) Si se define, /api/meta/catalogo exige ?token=<valor>; sin ella el feed es público
+META_CATALOG_TOKEN=""             # OBLIGATORIA para el feed: /api/meta/catalogo exige ?token=<valor>; sin ella responde 404
 
 # Correos transaccionales (Resend — ver src/server/email/)
 RESEND_API_KEY=""                 # API key de Resend (https://resend.com/api-keys)

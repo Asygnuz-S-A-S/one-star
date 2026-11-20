@@ -83,7 +83,6 @@ export async function linkWebVisitorIdentity(
 export interface TopSlugRow {
   slug: string
   visits: number
-  visitors: number
 }
 
 /** Categorías más vistas en una ventana de días. Alimenta el retargeting. */
@@ -104,7 +103,6 @@ export async function findTopCategories(days: number, limit: number): Promise<To
   return rows.map((row) => ({
     slug: row.categorySlug ?? "",
     visits: row._count._all,
-    visitors: 0,
   }))
 }
 

@@ -7,11 +7,12 @@ import { metaCatalogQuerySchema } from "@/server/validators/meta-catalog.validat
  * Feed de catálogo para Meta.
  *
  * Se pega en Commerce Manager → Catálogo → Fuentes de datos → Feed programado:
- *   https://tiendaonestar.com/api/meta/catalogo
+ *   https://tiendaonestar.com/api/meta/catalogo?token=<META_CATALOG_TOKEN>
  *
- * Si `META_CATALOG_TOKEN` está definida, la URL debe llevar `?token=...` y sin
- * él responde 401. Sin esa variable el feed es público (son datos que ya se ven
- * en la tienda: nombre, precio, foto y enlace).
+ * **Falla cerrado**: sin `META_CATALOG_TOKEN` configurada el feed responde 404,
+ * igual que con un token equivocado. El feed expone el catálogo completo con
+ * existencias (`quantity_to_sell_on_facebook`), que es información de negocio:
+ * no debe quedar accesible por olvidar una variable de entorno.
  */
 export const dynamic = "force-dynamic"
 export const runtime = "nodejs"
@@ -34,12 +35,17 @@ export async function GET(request: Request) {
     return new Response("Parámetros inválidos", { status: 400 })
   }
 
+  // Mismo 404 para "no configurado" y "token equivocado": no revelamos si el
+  // feed existe ni si el token iba por buen camino.
   const expectedToken = process.env.META_CATALOG_TOKEN?.trim()
-  if (expectedToken) {
-    const received = parsed.data.token ?? ""
-    if (received.length === 0 || !tokenMatches(expectedToken, received)) {
-      return new Response("No autorizado", { status: 401 })
-    }
+  if (!expectedToken) {
+    console.warn("[api/meta/catalogo] META_CATALOG_TOKEN sin configurar: feed deshabilitado")
+    return new Response(null, { status: 404 })
+  }
+
+  const received = parsed.data.token ?? ""
+  if (received.length === 0 || !tokenMatches(expectedToken, received)) {
+    return new Response(null, { status: 404 })
   }
 
   const feed = await getMetaCatalogFeed(getSiteUrl(), parsed.data.limit)

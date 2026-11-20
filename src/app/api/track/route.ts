@@ -1,4 +1,5 @@
 import { cookies } from "next/headers"
+import { consumePublicRateLimit } from "@/server/services/public-rate-limit.service"
 import {
   SESSION_COOKIE,
   VISITOR_COOKIE,
@@ -17,29 +18,13 @@ import { trackHitSchema } from "@/server/validators/web-analytics.validator"
 export const dynamic = "force-dynamic"
 export const runtime = "nodejs"
 
-/** Límite por visitante: 60 hits por minuto, en memoria del proceso. */
-const RATE_LIMIT_MAX = 60
+/**
+ * Límite por IP: 120 vistas por minuto. Va por el servicio compartido
+ * (respaldado en base) y no por la cookie del visitante, que la manda el
+ * cliente y se puede rotar para esquivarlo.
+ */
+const RATE_LIMIT_MAX = 120
 const RATE_LIMIT_WINDOW_MS = 60_000
-const hits = new Map<string, { count: number; resetAt: number }>()
-
-function isRateLimited(key: string): boolean {
-  const now = Date.now()
-  const current = hits.get(key)
-
-  if (!current || now > current.resetAt) {
-    hits.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS })
-    // Limpieza barata: evita que el mapa crezca sin control con tráfico alto.
-    if (hits.size > 10_000) {
-      for (const [mapKey, value] of hits) {
-        if (now > value.resetAt) hits.delete(mapKey)
-      }
-    }
-    return false
-  }
-
-  current.count += 1
-  return current.count > RATE_LIMIT_MAX
-}
 
 export async function POST(request: Request) {
   let payload: unknown
@@ -54,13 +39,17 @@ export async function POST(request: Request) {
     return new Response(null, { status: 400 })
   }
 
+  const rateLimit = await consumePublicRateLimit("web-analytics", request.headers, {
+    max: RATE_LIMIT_MAX,
+    windowMs: RATE_LIMIT_WINDOW_MS,
+  }).catch(() => ({ allowed: true as const }))
+  if (!rateLimit.allowed) {
+    return new Response(null, { status: 429 })
+  }
+
   const cookieStore = await cookies()
   const visitorCookie = cookieStore.get(VISITOR_COOKIE)?.value ?? null
   const sessionCookie = cookieStore.get(SESSION_COOKIE)?.value ?? null
-
-  if (isRateLimited(visitorCookie ?? "anon")) {
-    return new Response(null, { status: 429 })
-  }
 
   try {
     const result = await trackWebHit({
