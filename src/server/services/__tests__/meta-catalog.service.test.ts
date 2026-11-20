@@ -195,6 +195,20 @@ describe("renderMetaCatalogXml", () => {
 
     expect(xml).toContain("<g:title>Tenis A&amp;B</g:title>")
   })
+
+  it("genera XML sintácticamente válido verificable por xmllint", async () => {
+    const { execSync } = await import("node:child_process")
+    const complexProducts = [
+      makeProduct({ id: "p1", name: 'Tenis "Speed" & Fast <Edition>' }),
+      makeProduct({ id: "p2", isOnSale: true, salePrice: 150_000, description: "Con & comercial y 'comillas'" }),
+      makeProduct({ id: "p3", variants: [{ stock: 0 }] }),
+    ]
+    const xml = renderMetaCatalogXml(buildMetaCatalogItems(complexProducts, SITE), SITE)
+
+    expect(() => {
+      execSync("xmllint --noout -", { input: xml, stdio: ["pipe", "pipe", "pipe"] })
+    }).not.toThrow()
+  })
 })
 
 describe("getMetaCatalogFeed", () => {

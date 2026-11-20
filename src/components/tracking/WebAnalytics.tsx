@@ -13,11 +13,11 @@ import { usePathname, useSearchParams } from "next/navigation"
 
 const TRACK_ENDPOINT = "/api/track"
 
-function isAdminPath(pathname: string): boolean {
+export function isAdminPath(pathname: string): boolean {
   return pathname === "/admin" || pathname.startsWith("/admin/")
 }
 
-function sendHit(path: string, query: string, referrer: string): void {
+export function sendHit(path: string, query: string, referrer: string): void {
   const body = JSON.stringify({ path, query, referrer: referrer || null })
 
   try {
