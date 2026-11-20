@@ -7,6 +7,12 @@ const createWebEvent = vi.fn()
 const deleteWebEventsOlderThan = vi.fn()
 const findRecentFilterEvents = vi.fn()
 const findTopCategories = vi.fn()
+const findAnalyticsSummary = vi.fn()
+const findFunnel = vi.fn()
+const findTopProducts = vi.fn()
+const findProductsViewedNotPurchased = vi.fn()
+const findTopSearches = vi.fn()
+const findTrafficSources = vi.fn()
 
 vi.mock("@/server/repositories/web-analytics.repository", () => ({
   upsertWebVisitor: (...args: unknown[]) => upsertWebVisitor(...args),
@@ -14,6 +20,12 @@ vi.mock("@/server/repositories/web-analytics.repository", () => ({
   deleteWebEventsOlderThan: (...args: unknown[]) => deleteWebEventsOlderThan(...args),
   findRecentFilterEvents: (...args: unknown[]) => findRecentFilterEvents(...args),
   findTopCategories: (...args: unknown[]) => findTopCategories(...args),
+  findAnalyticsSummary: (...args: unknown[]) => findAnalyticsSummary(...args),
+  findFunnel: (...args: unknown[]) => findFunnel(...args),
+  findTopProducts: (...args: unknown[]) => findTopProducts(...args),
+  findProductsViewedNotPurchased: (...args: unknown[]) => findProductsViewedNotPurchased(...args),
+  findTopSearches: (...args: unknown[]) => findTopSearches(...args),
+  findTrafficSources: (...args: unknown[]) => findTrafficSources(...args),
 }))
 
 const {
@@ -24,6 +36,9 @@ const {
   getWebAnalyticsRetentionDays,
   getTopFilters,
   trackWebHit,
+  DEFAULT_ANALYTICS_WINDOW,
+  getAnalyticsDashboard,
+  parseAnalyticsWindow,
 } = await import("../web-analytics.service")
 
 const UUID = "0b5f5a6e-61f2-4f0e-9d0e-2f1f4b9a7c31"
@@ -35,6 +50,12 @@ beforeEach(() => {
   deleteWebEventsOlderThan.mockReset().mockResolvedValue(0)
   findRecentFilterEvents.mockReset().mockResolvedValue([])
   findTopCategories.mockReset().mockResolvedValue([])
+  findAnalyticsSummary.mockReset().mockResolvedValue({ visitors: 0, sessions: 0, events: 0, productViews: 0 })
+  findFunnel.mockReset().mockResolvedValue({ productViewers: 0, checkoutStarters: 0, buyers: 0 })
+  findTopProducts.mockReset().mockResolvedValue([])
+  findProductsViewedNotPurchased.mockReset().mockResolvedValue([])
+  findTopSearches.mockReset().mockResolvedValue([])
+  findTrafficSources.mockReset().mockResolvedValue([])
 })
 
 afterEach(() => {
@@ -202,5 +223,59 @@ describe("cleanupOldWebEvents", () => {
 
     vi.stubEnv("WEB_ANALYTICS_RETENTION_DAYS", "abc")
     expect(getWebAnalyticsRetentionDays()).toBe(DEFAULT_RETENTION_DAYS)
+  })
+})
+
+describe("parseAnalyticsWindow", () => {
+  it("acepta solo las ventanas permitidas", () => {
+    expect(parseAnalyticsWindow("1")).toBe(1)
+    expect(parseAnalyticsWindow("7")).toBe(7)
+    expect(parseAnalyticsWindow("30")).toBe(30)
+  })
+
+  it("cae en la ventana por defecto con basura, vacío o valores fuera de lista", () => {
+    for (const entrada of [undefined, null, "", "abc", "0", "-7", "365", "7; DROP TABLE"]) {
+      expect(parseAnalyticsWindow(entrada)).toBe(DEFAULT_ANALYTICS_WINDOW)
+    }
+  })
+})
+
+describe("getAnalyticsDashboard", () => {
+  it("calcula los porcentajes del embudo", async () => {
+    findFunnel.mockResolvedValue({ productViewers: 200, checkoutStarters: 50, buyers: 10 })
+
+    const panel = await getAnalyticsDashboard(7)
+
+    expect(panel.funnel.viewToCheckout).toBe(25)
+    expect(panel.funnel.checkoutToPurchase).toBe(20)
+    expect(panel.funnel.viewToPurchase).toBe(5)
+  })
+
+  it("no divide por cero cuando no hay datos", async () => {
+    findFunnel.mockResolvedValue({ productViewers: 0, checkoutStarters: 0, buyers: 0 })
+
+    const panel = await getAnalyticsDashboard(7)
+
+    expect(panel.funnel.viewToCheckout).toBe(0)
+    expect(panel.funnel.checkoutToPurchase).toBe(0)
+    expect(panel.funnel.viewToPurchase).toBe(0)
+  })
+
+  it("pide todas las secciones con la misma ventana", async () => {
+    await getAnalyticsDashboard(30)
+
+    expect(findAnalyticsSummary).toHaveBeenCalledWith(30)
+    expect(findFunnel).toHaveBeenCalledWith(30)
+    expect(findTopProducts).toHaveBeenCalledWith(30, 10)
+    expect(findProductsViewedNotPurchased).toHaveBeenCalledWith(30, 10)
+    expect(findTopCategories).toHaveBeenCalledWith(30, 10)
+    expect(findTopSearches).toHaveBeenCalledWith(30, 10)
+    expect(findTrafficSources).toHaveBeenCalledWith(30, 10)
+  })
+
+  it("usa la ventana por defecto si no se pasa ninguna", async () => {
+    await getAnalyticsDashboard()
+
+    expect(findAnalyticsSummary).toHaveBeenCalledWith(DEFAULT_ANALYTICS_WINDOW)
   })
 })
