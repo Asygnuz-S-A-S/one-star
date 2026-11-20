@@ -62,8 +62,12 @@ export function buildContentSecurityPolicy({
     "img-src 'self' blob: data: https:",
     "font-src 'self' data: https://s3.amazonaws.com",
     `connect-src ${connectSources.join(" ")}`,
-    "frame-src 'self' https://*.epayco.co https://www.google.com https://maps.google.com https://*.addi.com https://*.addi-staging.com",
-    "form-action 'self' https://*.epayco.co",
+    // `www.facebook.com`: el iframe que fbevents usa para ese form POST.
+    "frame-src 'self' https://*.epayco.co https://www.google.com https://maps.google.com https://*.addi.com https://*.addi-staging.com https://www.facebook.com",
+    // `www.facebook.com`: cuando fbevents agrupa eventos (batching) los envía
+    // con un form POST dentro de un iframe, no por GET. Sin esto el navegador
+    // bloquea todo salvo el PageView simple.
+    "form-action 'self' https://*.epayco.co https://www.facebook.com",
     "media-src 'self' blob: https:",
     "worker-src 'self' blob:",
     "object-src 'none'",
