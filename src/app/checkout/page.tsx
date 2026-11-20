@@ -200,8 +200,12 @@ function CheckoutForm({
   const hasTrackedCheckout = useRef(false)
   useEffect(() => {
     if (hasTrackedCheckout.current || items.length === 0) return
+    // Solo lo damos por enviado si se entregó o quedó encolado. Antes se
+    // marcaba de entrada y, si el píxel no había cargado todavía, el evento
+    // se perdía para siempre: el checkout nunca llegaba a Meta.
+    const tracked = trackMetaEvent("InitiateCheckout", buildMetaCommerceParams(items))
+    if (!tracked) return
     hasTrackedCheckout.current = true
-    trackMetaEvent("InitiateCheckout", buildMetaCommerceParams(items))
     void trackLeadCheckoutStageAction().catch(() => {})
   }, [items])
 

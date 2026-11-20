@@ -5,6 +5,7 @@ import Image from "next/image"
 import { useCart } from "@/store"
 import { createGiftCardCartItem, getGiftCardFinish, type GiftCardFinish, type GiftCardOption } from "@/lib/gift-card"
 import { formatCOP } from "@/lib/shop-utils"
+import { META_CURRENCY, trackMetaEvent } from "@/lib/tracking/meta-pixel"
 import { customGiftCardOptionAction } from "@/server/actions/gift-card.actions"
 
 interface GiftCardPurchaseProps {
@@ -155,7 +156,18 @@ export default function GiftCardPurchase({ options, intro, validityMonths = 12, 
   }
 
   function addToBag(option: GiftCardOption) {
-    addItem(createGiftCardCartItem(option, limits))
+    const item = createGiftCardCartItem(option, limits)
+    addItem(item)
+    // Las tarjetas de regalo también son venta: antes no disparaban AddToCart.
+    trackMetaEvent("AddToCart", {
+      content_type: "product",
+      content_ids: [item.productId],
+      content_name: item.name,
+      contents: [{ id: item.productId, quantity: 1, item_price: option.amount }],
+      value: option.amount,
+      currency: META_CURRENCY,
+      num_items: 1,
+    })
     setMessage(`Tarjeta de ${formatCOP(option.amount)} añadida al carrito.`)
     openCart()
   }

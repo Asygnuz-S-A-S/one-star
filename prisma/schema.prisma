@@ -196,8 +196,8 @@ enum AdminRole {
 }
 
 model RateLimit {
-  id          String   @id
-  key         String   @unique
+  id          String @id
+  key         String @unique
   count       Int
   // Better Auth persists Unix milliseconds and declares this field as bigint.
   lastRequest BigInt
@@ -215,11 +215,11 @@ model RequestRateLimit {
 }
 
 model AdminUser {
-  id           String    @id @default(cuid())
-  email        String    @unique
+  id           String     @id @default(cuid())
+  email        String     @unique
   passwordHash String
   name         String
-  role         AdminRole @default(INVENTORY_OPERATOR)
+  role         AdminRole  @default(INVENTORY_OPERATOR)
   isActive     Boolean    @default(true)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
@@ -268,26 +268,26 @@ enum Role {
 }
 
 model User {
-  id             String    @id @default(cuid())
-  email          String    @unique
-  passwordHash   String
-  role           Role      @default(CUSTOMER)
-  name           String?
-  lastName       String?
-  phone          String?
-  cedula         String?
-  birthDate      DateTime?
-  preferredBrand String?
-  gender         String? // "hombre" | "mujer"
+  id                      String    @id @default(cuid())
+  email                   String    @unique
+  passwordHash            String
+  role                    Role      @default(CUSTOMER)
+  name                    String?
+  lastName                String?
+  phone                   String?
+  cedula                  String?
+  birthDate               DateTime?
+  preferredBrand          String?
+  gender                  String? // "hombre" | "mujer"
   /// One Star Club: membresía gratuita que da acceso a promociones exclusivas.
-  clubMember         Boolean   @default(false)
-  clubJoinedAt       DateTime?
+  clubMember              Boolean   @default(false)
+  clubJoinedAt            DateTime?
   /// Consentimiento explícito para recibir el newsletter (null = no aceptó o lo retiró).
-  marketingConsentAt DateTime?
+  marketingConsentAt      DateTime?
   marketingConsentVersion String?
-  cart           Cart?
-  orders         Order[]
-  createdAt      DateTime  @default(now())
+  cart                    Cart?
+  orders                  Order[]
+  createdAt               DateTime  @default(now())
 }
 
 // ─────────────────────────────────────────────
@@ -343,41 +343,41 @@ enum ShippingCarrier {
 }
 
 model Order {
-  id                   String           @id @default(cuid())
-  status               OrderStatus      @default(PENDING)
-  total                Decimal          @db.Decimal(10, 2)
-  paymentMethod        String?
-  trackingNumber       String?
-  carrier              ShippingCarrier?
-  paymentReference     String? // Referencia de la pasarela (ej. ref_payco de ePayco)
-  paymentStatus        PaymentStatus    @default(PENDING)
-  paidAt               DateTime? // Momento en que se confirmó el pago
+  id                      String           @id @default(cuid())
+  status                  OrderStatus      @default(PENDING)
+  total                   Decimal          @db.Decimal(10, 2)
+  paymentMethod           String?
+  trackingNumber          String?
+  carrier                 ShippingCarrier?
+  paymentReference        String? // Referencia de la pasarela (ej. ref_payco de ePayco)
+  paymentStatus           PaymentStatus    @default(PENDING)
+  paidAt                  DateTime? // Momento en que se confirmó el pago
   /// true mientras el pedido tiene descontadas sus unidades sin pago confirmado (reserva del checkout).
-  stockReserved        Boolean          @default(false)
+  stockReserved           Boolean          @default(false)
   /// Hasta cuándo se guardan esas unidades si nadie empieza a pagar; luego vuelven a la venta.
-  stockReservedUntil   DateTime?
+  stockReservedUntil      DateTime?
   /// Pasó a «Enviado» (con domicilio) por primera vez.
-  shippedAt            DateTime?
+  shippedAt               DateTime?
   /// Pedido de recoger en tienda marcado «Listo para recoger» por primera vez.
-  readyForPickupAt     DateTime?
+  readyForPickupAt        DateTime?
   /// Entregado al cliente (o recogido en tienda).
-  deliveredAt          DateTime?
-  customerEmail        String?
-  customerName         String?
-  customerDocumentType String?
-  customerDocument     String?
-  customerPhone        String?
-  shippingAddress      Json?
+  deliveredAt             DateTime?
+  customerEmail           String?
+  customerName            String?
+  customerDocumentType    String?
+  customerDocument        String?
+  customerPhone           String?
+  shippingAddress         Json?
   /// Consentimiento de publicidad separado (null = no aceptó o lo retiró).
-  marketingConsentAt   DateTime?
+  marketingConsentAt      DateTime?
   marketingConsentVersion String?
-  userId               String?
-  user                 User?            @relation(fields: [userId], references: [id])
-  leadId               String?
-  lead                 Lead?            @relation(fields: [leadId], references: [id], onDelete: SetNull)
-  items                OrderItem[]
-  createdAt            DateTime         @default(now())
-  updatedAt            DateTime         @updatedAt
+  userId                  String?
+  user                    User?            @relation(fields: [userId], references: [id])
+  leadId                  String?
+  lead                    Lead?            @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  items                   OrderItem[]
+  createdAt               DateTime         @default(now())
+  updatedAt               DateTime         @updatedAt
 
   @@index([customerDocument])
   @@index([customerPhone])
@@ -404,16 +404,18 @@ model OrderItem {
 // ─────────────────────────────────────────────
 
 model GiftCard {
-  id            String   @id @default(cuid())
-  code          String   @unique
-  balance       Decimal  @db.Decimal(10, 2)
-  isActive      Boolean  @default(true)
-  /** Pedido que originó esta tarjeta; null en la tarjeta de prueba del seed. */
+  id            String    @id @default(cuid())
+  code          String    @unique
+  balance       Decimal   @db.Decimal(10, 2)
+  isActive      Boolean   @default(true)
+  /**
+   * Pedido que originó esta tarjeta; null en la tarjeta de prueba del seed.
+   */
   orderId       String?
   customerEmail String?
   /// Null en tarjetas emitidas antes de configurar la vigencia: no vencen.
   expiresAt     DateTime?
-  createdAt     DateTime @default(now())
+  createdAt     DateTime  @default(now())
 
   @@index([orderId])
 }
@@ -488,17 +490,17 @@ model LandingPage {
 }
 
 model LandingSection {
-  id        String             @id @default(cuid())
+  id          String             @id @default(cuid())
   /// Landing a la que pertenece: "home" es la página de inicio; cualquier otro slug se publica en /<slug>.
-  page      String             @default("home")
-  type      LandingSectionType
-  position  Int                @default(0)
+  page        String             @default("home")
+  type        LandingSectionType
+  position    Int                @default(0)
   isActive    Boolean            @default(true)
   config      Json?
   /// Cambios aún no publicados. Null: la tienda muestra `config`.
   draftConfig Json?
   createdAt   DateTime           @default(now())
-  updatedAt DateTime           @updatedAt
+  updatedAt   DateTime           @updatedAt
 
   @@index([page, isActive, position])
 }
@@ -595,7 +597,9 @@ model AuthUser {
   emailVerified Boolean       @default(false)
   image         String?
   userType      String        @default("customer")
-  /** Copia de AdminUser.role al iniciar sesión; null en cuentas de cliente. */
+  /**
+   * Copia de AdminUser.role al iniciar sesión; null en cuentas de cliente.
+   */
   adminRole     String?
   createdAt     DateTime
   updatedAt     DateTime
@@ -650,7 +654,7 @@ model AuthVerification {
 }
 
 model StoreLocation {
-  id             String  @id @default(cuid())
+  id             String   @id @default(cuid())
   name           String
   address        String
   city           String
@@ -722,62 +726,62 @@ model HeaderConfig {
 // `metaAccessToken` (API de Conversiones) NUNCA se expone al cliente: solo lo
 // lee el servidor. El píxel solo se inyecta si `metaPixelEnabled` y hay ID.
 model StoreSettings {
-  id                String   @id @default("default")
-  storeName         String   @default("One Star")
-  contactEmail      String?
-  whatsapp          String?
-  metaPixelId       String?
-  metaAccessToken   String?
-  metaTestEventCode String?
-  metaPixelEnabled  Boolean  @default(false)
-  catalogSource     String   @default("ARCHIVO")
+  id                     String   @id @default("default")
+  storeName              String   @default("One Star")
+  contactEmail           String?
+  whatsapp               String?
+  metaPixelId            String?
+  metaAccessToken        String?
+  metaTestEventCode      String?
+  metaPixelEnabled       Boolean  @default(false)
+  catalogSource          String   @default("ARCHIVO")
   /// Umbral de envío estándar gratis, en pesos.
-  freeShippingThreshold Int @default(299900)
-  standardShippingCost  Int @default(14900)
-  expressShippingCost   Int @default(25000)
+  freeShippingThreshold  Int      @default(299900)
+  standardShippingCost   Int      @default(14900)
+  expressShippingCost    Int      @default(25000)
   /// Razón social. Vacío hasta que el admin la confirme.
-  legalName    String?
-  taxId        String?
-  legalAddress String?
-  contactPhone String?
+  legalName              String?
+  taxId                  String?
+  legalAddress           String?
+  contactPhone           String?
   /// Oculta del catálogo público los productos que no tienen ninguna foto.
-  hideImagelessProducts Boolean @default(true)
+  hideImagelessProducts  Boolean  @default(true)
   /// Oculta SALE (menú, footer y colección del inicio) mientras no tenga productos visibles.
-  hideEmptySale         Boolean @default(true)
+  hideEmptySale          Boolean  @default(true)
   /// Cuántos días cuenta un producto como lanzamiento.
-  newArrivalDays        Int     @default(30)
-  chatEnabled           Boolean @default(true)
-  chatWelcome           String?
-  giftCardMinAmount     Int     @default(20000)
-  giftCardMaxAmount     Int     @default(2000000)
-  giftCardValidityMonths Int    @default(12)
-  clubHeadline          String?
-  clubIntro             String?
+  newArrivalDays         Int      @default(30)
+  chatEnabled            Boolean  @default(true)
+  chatWelcome            String?
+  giftCardMinAmount      Int      @default(20000)
+  giftCardMaxAmount      Int      @default(2000000)
+  giftCardValidityMonths Int      @default(12)
+  clubHeadline           String?
+  clubIntro              String?
   /// Líneas "título | detalle", una por beneficio.
-  clubBenefits          String?
-  clubWelcomeSubject    String?
-  clubWelcomeBody       String?
+  clubBenefits           String?
+  clubWelcomeSubject     String?
+  clubWelcomeBody        String?
   /// Líneas "etiqueta | /ruta" del pie de página. Vacío = enlaces de respaldo.
-  footerLinks           String?
+  footerLinks            String?
   /// Líneas "Etiqueta | /ruta | icono". Iconos: home, shop, search, bag, user. Vacío = la barra actual.
-  bottomNav             String?
-  deliveryMinDays       Int      @default(3)
-  deliveryMaxDays       Int      @default(5)
-  expressDeliveryMinDays Int     @default(1)
-  expressDeliveryMaxDays Int     @default(2)
+  bottomNav              String?
+  deliveryMinDays        Int      @default(3)
+  deliveryMaxDays        Int      @default(5)
+  expressDeliveryMinDays Int      @default(1)
+  expressDeliveryMaxDays Int      @default(2)
   /// Días hábiles para tener listo un pedido de "recoger en tienda". Vacío = no se muestra plazo.
-  pickupReadyMinDays    Int?
-  pickupReadyMaxDays    Int?
-  legalCity             String?
+  pickupReadyMinDays     Int?
+  pickupReadyMaxDays     Int?
+  legalCity              String?
   /// Matrícula mercantil u otro dato de registro.
-  commercialRegistry    String?
-  dataProtectionEmail   String?
-  termsDocumentUrl      String?
-  privacyDocumentUrl    String?
-  returnsDocumentUrl    String?
+  commercialRegistry     String?
+  dataProtectionEmail    String?
+  termsDocumentUrl       String?
+  privacyDocumentUrl     String?
+  returnsDocumentUrl     String?
   /// Montos de tarjeta de regalo, uno por línea, en pesos. Vacío = no cambia el catálogo.
-  giftCardAmounts       String?
-  updatedAt         DateTime @updatedAt
+  giftCardAmounts        String?
+  updatedAt              DateTime @updatedAt
 }
 
 // Contenido y promesas globales de conversión: registro único (id = "default").
@@ -902,4 +906,74 @@ model EmailTemplateSetting {
   /// Solo aplica a los correos que se pueden apagar (ver catálogo).
   enabled   Boolean  @default(true)
   updatedAt DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────
+// ANALÍTICA PROPIA (first-party)
+// Medición en nuestro propio dominio y base de datos: a diferencia del píxel,
+// los bloqueadores de anuncios y el iOS de Apple no la tumban. Alimenta el
+// retargeting (categorías y filtros más vistos, productos vistos sin comprar).
+//
+// Los ids de producto/categoría/marca se guardan SIN relación de Prisma a
+// propósito: el histórico debe sobrevivir a que el ERP borre y recree un
+// producto. Nunca se guarda la IP.
+// ─────────────────────────────────────────────
+
+enum WebEventType {
+  PAGE_VIEW
+  CATEGORY_VIEW
+  PRODUCT_VIEW
+  SEARCH
+  FILTER_APPLY
+  ADD_TO_CART
+  CHECKOUT_START
+  PURCHASE
+}
+
+/// Visitante anónimo, identificado por la cookie propia `os_vid`.
+model WebVisitor {
+  id          String     @id @default(cuid())
+  anonId      String     @unique
+  firstSeenAt DateTime   @default(now())
+  lastSeenAt  DateTime   @default(now())
+  /// Primer toque: de dónde llegó. No se sobrescribe en visitas siguientes.
+  landingPath String?
+  referrer    String?
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  utmContent  String?
+  utmTerm     String?
+  device      String?
+  /// Se llenan cuando el visitante se identifica (sesión, lead de WhatsApp).
+  userId      String?
+  leadId      String?
+  events      WebEvent[]
+
+  @@index([lastSeenAt])
+  @@index([userId])
+  @@index([leadId])
+}
+
+model WebEvent {
+  id           String       @id @default(cuid())
+  visitorId    String
+  visitor      WebVisitor   @relation(fields: [visitorId], references: [id], onDelete: Cascade)
+  /// Agrupa los eventos de una misma visita (cookie de sesión `os_sid`).
+  sessionId    String
+  type         WebEventType
+  path         String
+  categorySlug String?
+  productSlug  String?
+  brandSlug    String?
+  searchTerm   String?
+  /// Filtros aplicados: { talla: ["38"], color: ["negro"], precio_max: "200000" }
+  filters      Json?
+  occurredAt   DateTime     @default(now())
+
+  @@index([visitorId, occurredAt])
+  @@index([type, occurredAt])
+  @@index([categorySlug, occurredAt])
+  @@index([productSlug, occurredAt])
+  @@index([sessionId])
 }

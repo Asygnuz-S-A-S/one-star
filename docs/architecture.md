@@ -344,6 +344,45 @@ Client Component → Server Action → Service → Repository → Prisma → Pos
 ### API Routes
 Se usan para endpoints que necesitan acceso desde el cliente sin full-page navigation (e.g., `/api/products`, `/api/cuenta/pedidos`).
 
+#### Analítica propia (first-party) — `POST /api/track`
+Medición en nuestro dominio y nuestra base, pensada para retargeting. A
+diferencia del píxel de Meta, los bloqueadores de anuncios y el iOS de Apple no
+la tumban.
+
+- `WebAnalytics` (en el layout) manda cada vista con `navigator.sendBeacon`. El
+  navegador solo envía ruta + query: **el tipo de evento lo decide el
+  servidor** (`src/lib/analytics/web-events.ts`), así que cambiar la
+  clasificación no obliga a tocar cada página.
+- Identidad: cookie propia `os_vid` (`httpOnly`, 1 año) + `os_sid` de sesión,
+  ambas puestas por el servidor. `WebVisitor.userId` / `leadId` vinculan al
+  visitante con la persona real cuando se identifica.
+- `WebEvent` guarda tipo, ruta, `categorySlug`, `productSlug`, `brandSlug`,
+  término buscado y los filtros aplicados en JSON (talla, color, precio…).
+- **Nunca se guarda la IP ni el user-agent completo**, solo una etiqueta gruesa
+  de dispositivo. Los ids de catálogo se guardan como slug, sin relación de
+  Prisma, para que el histórico sobreviva a que el ERP borre y recree productos.
+- Límite de 120 vistas por minuto **por IP**, con `consumePublicRateLimit`
+  (respaldado en base, como el resto de rutas públicas). No se limita por la
+  cookie del visitante porque la manda el cliente y se puede rotar. Un fallo
+  midiendo nunca rompe la navegación: la ruta responde 204 igual.
+- Retención: `deleteWebEventsOlderThan` (por defecto 180 días) está lista para
+  colgarse de un cron.
+
+#### Feed de catálogo para Meta — `GET /api/meta/catalogo`
+Devuelve el catálogo en RSS 2.0 con el namespace `g:` que Meta espera. Se pega
+en Commerce Manager → Catálogo → Fuentes de datos → **Feed programado**.
+
+- Incluye productos `isPublished` + `availableOnline` + con imagen; los agotados
+  van declarados como `out of stock` en vez de desaparecer del feed.
+- **El `g:id` de cada item es `Product.id`, el mismo valor que el píxel envía en
+  `content_ids`.** Si se cambia uno hay que cambiar el otro: si dejan de
+  coincidir, Meta no empareja los eventos con el catálogo y los anuncios
+  dinámicos dejan de funcionar.
+- **Falla cerrado**: exige `?token=<META_CATALOG_TOKEN>`. Sin esa variable, o
+  con un token equivocado, responde 404. El feed expone el catálogo con
+  existencias, así que no puede quedar abierto por olvidar una variable.
+- Se cachea una hora en el borde (`s-maxage=3600`), tope de 5000 items.
+
 ### Validación
 Zod valida en la capa de `validators/` antes de llamar servicios. Los errores se devuelven tipados.
 
@@ -412,6 +451,9 @@ LOGGRO_IVA_RATE="0.19"            # Tasa de IVA de RESPALDO: solo aplica a ítem
 ERP_CATALOG_WRITES_ENABLED="false" # Fail-closed: habilitar solo tras validar dry-run y reparar duplicados
 DISABLE_INTERNAL_CRON=""          # "1" apaga los cron internos; usar solo con disparador externo
 CRON_SECRET=""                    # (opcional) Protege /api/cron/sync-erp para disparadores externos
+
+# Marketing / Meta (píxel y API de Conversiones se configuran en /admin/integraciones)
+META_CATALOG_TOKEN=""             # OBLIGATORIA para el feed: /api/meta/catalogo exige ?token=<valor>; sin ella responde 404
 
 # Correos transaccionales (Resend — ver src/server/email/)
 RESEND_API_KEY=""                 # API key de Resend (https://resend.com/api-keys)
