@@ -1,22 +1,30 @@
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 vi.mock("server-only", () => ({}))
 
 const upsertWebVisitor = vi.fn()
 const createWebEvent = vi.fn()
+const deleteWebEventsOlderThan = vi.fn()
 const findRecentFilterEvents = vi.fn()
 const findTopCategories = vi.fn()
 
 vi.mock("@/server/repositories/web-analytics.repository", () => ({
   upsertWebVisitor: (...args: unknown[]) => upsertWebVisitor(...args),
   createWebEvent: (...args: unknown[]) => createWebEvent(...args),
+  deleteWebEventsOlderThan: (...args: unknown[]) => deleteWebEventsOlderThan(...args),
   findRecentFilterEvents: (...args: unknown[]) => findRecentFilterEvents(...args),
   findTopCategories: (...args: unknown[]) => findTopCategories(...args),
 }))
 
-const { SESSION_COOKIE, VISITOR_COOKIE, getTopFilters, trackWebHit } = await import(
-  "../web-analytics.service"
-)
+const {
+  DEFAULT_RETENTION_DAYS,
+  SESSION_COOKIE,
+  VISITOR_COOKIE,
+  cleanupOldWebEvents,
+  getWebAnalyticsRetentionDays,
+  getTopFilters,
+  trackWebHit,
+} = await import("../web-analytics.service")
 
 const UUID = "0b5f5a6e-61f2-4f0e-9d0e-2f1f4b9a7c31"
 const OTHER_UUID = "8c2b1d4a-55aa-4e3f-9a11-7d6c5e4f3b22"
@@ -24,8 +32,14 @@ const OTHER_UUID = "8c2b1d4a-55aa-4e3f-9a11-7d6c5e4f3b22"
 beforeEach(() => {
   upsertWebVisitor.mockReset().mockResolvedValue({ id: "visitor-1" })
   createWebEvent.mockReset().mockResolvedValue({ id: "event-1" })
+  deleteWebEventsOlderThan.mockReset().mockResolvedValue(0)
   findRecentFilterEvents.mockReset().mockResolvedValue([])
   findTopCategories.mockReset().mockResolvedValue([])
+})
+
+afterEach(() => {
+  vi.unstubAllEnvs()
+  vi.useRealTimers()
 })
 
 describe("trackWebHit — primera visita", () => {
@@ -146,5 +160,47 @@ describe("getTopFilters", () => {
     findRecentFilterEvents.mockResolvedValue([])
 
     await expect(getTopFilters()).resolves.toEqual([])
+  })
+})
+
+describe("cleanupOldWebEvents", () => {
+  it("usa DEFAULT_RETENTION_DAYS (180) cuando no hay variable de entorno", async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-11-20T12:00:00.000Z"))
+    vi.stubEnv("WEB_ANALYTICS_RETENTION_DAYS", "")
+    deleteWebEventsOlderThan.mockResolvedValue(15)
+
+    const deleted = await cleanupOldWebEvents()
+
+    expect(deleted).toBe(15)
+    expect(getWebAnalyticsRetentionDays()).toBe(DEFAULT_RETENTION_DAYS)
+    const expectedCutoff = new Date(
+      Date.UTC(2026, 10, 20, 12, 0, 0) - 180 * 24 * 60 * 60 * 1000,
+    )
+    expect(deleteWebEventsOlderThan).toHaveBeenCalledWith(expectedCutoff)
+  })
+
+  it("respeta WEB_ANALYTICS_RETENTION_DAYS cuando es un entero positivo", async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-11-20T12:00:00.000Z"))
+    vi.stubEnv("WEB_ANALYTICS_RETENTION_DAYS", "90")
+    deleteWebEventsOlderThan.mockResolvedValue(8)
+
+    const deleted = await cleanupOldWebEvents()
+
+    expect(deleted).toBe(8)
+    expect(getWebAnalyticsRetentionDays()).toBe(90)
+    const expectedCutoff = new Date(
+      Date.UTC(2026, 10, 20, 12, 0, 0) - 90 * 24 * 60 * 60 * 1000,
+    )
+    expect(deleteWebEventsOlderThan).toHaveBeenCalledWith(expectedCutoff)
+  })
+
+  it("cae al default si WEB_ANALYTICS_RETENTION_DAYS es inválido o no positivo", async () => {
+    vi.stubEnv("WEB_ANALYTICS_RETENTION_DAYS", "-5")
+    expect(getWebAnalyticsRetentionDays()).toBe(DEFAULT_RETENTION_DAYS)
+
+    vi.stubEnv("WEB_ANALYTICS_RETENTION_DAYS", "abc")
+    expect(getWebAnalyticsRetentionDays()).toBe(DEFAULT_RETENTION_DAYS)
   })
 })

@@ -9,6 +9,7 @@ import {
 } from "@/lib/analytics/web-events"
 import {
   createWebEvent,
+  deleteWebEventsOlderThan,
   findRecentFilterEvents,
   findTopCategories,
   upsertWebVisitor,
@@ -30,6 +31,25 @@ export const SESSION_COOKIE = "os_sid"
 export const VISITOR_COOKIE_MAX_AGE = 60 * 60 * 24 * 365
 /** Retención por defecto del histórico de eventos. */
 export const DEFAULT_RETENTION_DAYS = 180
+
+export function getWebAnalyticsRetentionDays(): number {
+  const raw = process.env.WEB_ANALYTICS_RETENTION_DAYS?.trim()
+  if (!raw) return DEFAULT_RETENTION_DAYS
+  const parsed = Number.parseInt(raw, 10)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_RETENTION_DAYS
+}
+
+/** Elimina eventos web más antiguos que la ventana de retención configurada. */
+export async function cleanupOldWebEvents(
+  retentionDays = getWebAnalyticsRetentionDays(),
+): Promise<number> {
+  const days =
+    Number.isFinite(retentionDays) && retentionDays > 0
+      ? Math.floor(retentionDays)
+      : DEFAULT_RETENTION_DAYS
+  const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+  return deleteWebEventsOlderThan(cutoff)
+}
 
 export interface TrackHitInput {
   path: string

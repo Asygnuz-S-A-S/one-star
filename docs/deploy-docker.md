@@ -99,7 +99,7 @@ peticiones. Se programan en `src/instrumentation-node.ts`:
 | Tarea | Cadencia |
 |---|---|
 | Sincronización con el ERP | despierta cada minuto; el vencimiento real lo decide `ErpSyncConfig` en PostgreSQL, configurable desde `/admin/integraciones` |
-| Vencimiento de pedidos abandonados | diaria, 07:30 en la zona horaria del contenedor |
+| Vencimiento de pedidos abandonados, leads y limpieza de `WebEvent` (`WEB_ANALYTICS_RETENTION_DAYS`, 180 d por defecto) | diaria, 07:30 en la zona horaria del contenedor |
 
 No hace falta configurar nada fuera del contenedor. Los endpoints
 `GET /api/cron/sync-erp` y `GET /api/cron/expire-orders` siguen disponibles por
