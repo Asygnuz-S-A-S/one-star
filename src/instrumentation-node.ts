@@ -105,6 +105,18 @@ if (!isInternalCronDisabled && !globalWithCron.__cronInitialized) {
       } catch (err) {
         console.error("[Cron] Error marcando leads abandonados:", err)
       }
+
+      try {
+        const { cleanupOldWebEvents } = await import(
+          "./server/services/web-analytics.service"
+        )
+        const deletedEvents = await cleanupOldWebEvents()
+        if (deletedEvents > 0) {
+          console.log(`[Cron] Eventos web antiguos eliminados: ${deletedEvents}.`)
+        }
+      } catch (err) {
+        console.error("[Cron] Error limpiando eventos web antiguos:", err)
+      }
     })
   })()
 }
