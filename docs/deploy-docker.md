@@ -54,6 +54,7 @@ del servidor, nunca en el repositorio:
 ANTHROPIC_API_KEY, ANTHROPIC_MODEL            # chat de ventas con IA
 NEXT_PUBLIC_GA_MEASUREMENT_ID                 # Google Analytics 4 (va en el build: hay que reconstruir)
 ASSISTANT_API_KEY, ASSISTANT_RATE_LIMIT_PER_MIN  # API del asistente de WhatsApp (n8n)
+META_CATALOG_TOKEN                            # feed de catálogo /api/meta/catalogo: sin ella responde 404 (openssl rand -hex 32)
 SENDGRID_API_KEY
 RESEND_WEBHOOK_SECRET                         # webhook de Resend (/api/resend/webhook): bajas y quejas de spam de campañas
 GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
