@@ -365,8 +365,10 @@ la tumban.
   (respaldado en base, como el resto de rutas públicas). No se limita por la
   cookie del visitante porque la manda el cliente y se puede rotar. Un fallo
   midiendo nunca rompe la navegación: la ruta responde 204 igual.
-- Retención: `deleteWebEventsOlderThan` (por defecto 180 días) está lista para
-  colgarse de un cron.
+- Retención: el cron diario (07:30 en `instrumentation-node.ts` y
+  `/api/cron/expire-orders`) ejecuta `cleanupOldWebEvents()` usando
+  `WEB_ANALYTICS_RETENTION_DAYS` (180 días por defecto) vía
+  `deleteWebEventsOlderThan`.
 
 #### Feed de catálogo para Meta — `GET /api/meta/catalogo`
 Devuelve el catálogo en RSS 2.0 con el namespace `g:` que Meta espera. Se pega
