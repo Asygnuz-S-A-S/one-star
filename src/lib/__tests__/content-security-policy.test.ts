@@ -78,9 +78,9 @@ describe("buildContentSecurityPolicy", () => {
       "connect-src 'self' https://*.epayco.co https://*.epayco.io https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://nominatim.openstreetmap.org https://connect.facebook.net https://www.facebook.com https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://*.addi.com https://*.addi-staging.com https://s3.amazonaws.com/widgets.addi.com/ https://*.split.io",
     )
     expect(policy).toContain(
-      "frame-src 'self' https://*.epayco.co https://www.google.com https://maps.google.com https://*.addi.com https://*.addi-staging.com",
+      "frame-src 'self' https://*.epayco.co https://www.google.com https://maps.google.com https://*.addi.com https://*.addi-staging.com https://www.facebook.com",
     )
-    expect(policy).toContain("form-action 'self' https://*.epayco.co")
+    expect(policy).toContain("form-action 'self' https://*.epayco.co https://www.facebook.com")
     expect(policy).toContain("img-src 'self' blob: data: https:")
     expect(policy).toContain("media-src 'self' blob: https:")
     expect(policy).not.toContain("default-src *")
