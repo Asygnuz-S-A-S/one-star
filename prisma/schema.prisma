@@ -557,6 +557,10 @@ model Lead {
   optedOutAt        DateTime?
   botPaused         Boolean     @default(false)
   botPausedAt       DateTime?
+  botPausedUntil    DateTime?
+  needsHuman        Boolean     @default(false)
+  handoffReason     String?
+  handoffAt         DateTime?
   shortCode         String?     @unique
   productSlug       String?
   utmSource         String?
@@ -572,6 +576,7 @@ model Lead {
   @@index([stage])
   @@index([optedOut])
   @@index([botPaused])
+  @@index([needsHuman])
   @@index([createdAt])
 }
 

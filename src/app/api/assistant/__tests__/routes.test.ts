@@ -242,6 +242,10 @@ describe("Assistant API Routes", () => {
         optedOut: false,
         botPaused: false,
         botPausedAt: null,
+        botPausedUntil: null,
+        needsHuman: false,
+        handoffReason: null,
+        handoffAt: null,
       })
       vi.spyOn(leadService, "getWhatsappBotGlobalEnabled").mockResolvedValueOnce(true)
 
@@ -270,6 +274,9 @@ describe("Assistant API Routes", () => {
         ctwaClid: "ctwa_1",
         consent: true,
         optedOut: undefined,
+        botPausedUntil: undefined,
+        needsHuman: undefined,
+        handoffReason: undefined,
       })
     })
 
@@ -291,6 +298,10 @@ describe("Assistant API Routes", () => {
         optedOut: false,
         botPaused: true,
         botPausedAt: "2026-11-23T15:00:00.000Z",
+        botPausedUntil: null,
+        needsHuman: false,
+        handoffReason: null,
+        handoffAt: null,
       })
       vi.spyOn(leadService, "getWhatsappBotGlobalEnabled").mockResolvedValueOnce(true)
 

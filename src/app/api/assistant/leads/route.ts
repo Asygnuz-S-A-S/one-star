@@ -6,6 +6,7 @@ import {
 import {
   getWhatsappBotGlobalEnabled,
   getWhatsappBotStatusForPhone,
+  isLeadBotPausedNow,
   upsertLeadByPhone,
 } from "@/server/services/lead.service"
 import {
@@ -87,7 +88,8 @@ export async function POST(request: Request) {
     getWhatsappBotGlobalEnabled(),
   ])
 
-  const shouldRespond = botGlobalEnabled && !lead.botPaused && !lead.optedOut
+  const shouldRespond =
+    botGlobalEnabled && !isLeadBotPausedNow(lead) && !lead.optedOut
 
   return NextResponse.json({
     lead,

@@ -3,12 +3,15 @@ import { randomBytes } from "node:crypto"
 import type { LeadStage, Prisma } from "@prisma/client"
 import {
   attachLeadToOrderRecord,
+  countPendingHandoffLeads,
   createLeadEventRecord,
   findLeadById,
   findLeadByPhone,
   findLeadByShortCode,
+  findPendingHandoffLeads,
   findStaleLeadsForAbandonment,
   getLeadsData,
+  resolveLeadHandoffRecord,
   updateLeadBotPausedRecord,
   updateLeadShortLinkRecord,
   updateLeadStageRecord,
@@ -68,6 +71,10 @@ export interface LeadDTO {
   optedOut?: boolean
   botPaused?: boolean
   botPausedAt?: string | null
+  botPausedUntil?: string | null
+  needsHuman?: boolean
+  handoffReason?: string | null
+  handoffAt?: string | null
   leadRecordId?: string | null
   consentAt?: string | null
   events?: LeadEventItem[]
@@ -103,12 +110,29 @@ function generateShortCode(): string {
  * Crea o actualiza de forma idempotente un lead de WhatsApp por su teléfono normalizado a dígitos.
  * Nunca crea registros User ni almacena correo o cédula.
  */
+export function isLeadBotPausedNow(
+  lead: { botPaused?: boolean | null; botPausedUntil?: Date | string | null } | null | undefined,
+  now: Date = new Date()
+): boolean {
+  if (!lead) return false
+  if (lead.botPaused) return true
+  if (!lead.botPausedUntil) return false
+  const until =
+    lead.botPausedUntil instanceof Date
+      ? lead.botPausedUntil
+      : new Date(lead.botPausedUntil)
+  return Number.isFinite(until.getTime()) && until.getTime() > now.getTime()
+}
+
 export async function upsertLeadByPhone(input: {
   waPhone: string
   name?: string | null
   ctwaClid?: string | null
   consent?: boolean
   optedOut?: boolean
+  botPausedUntil?: string | null
+  needsHuman?: boolean
+  handoffReason?: string | null
 }) {
   const digits = normalizeWaPhone(input.waPhone)
   if (digits.length < 7 || digits.length > 15) {
@@ -116,6 +140,13 @@ export async function upsertLeadByPhone(input: {
   }
 
   const now = new Date()
+  const parsedPausedUntil =
+    input.botPausedUntil === undefined
+      ? undefined
+      : input.botPausedUntil === null
+        ? null
+        : new Date(input.botPausedUntil)
+
   const lead = await upsertLeadRecord({
     waPhone: digits,
     name: input.name ? input.name.trim() : undefined,
@@ -123,17 +154,33 @@ export async function upsertLeadByPhone(input: {
     consentAt: input.consent === true ? now : undefined,
     optedOut: input.optedOut,
     optedOutAt: input.optedOut === true ? now : input.optedOut === false ? null : undefined,
+    botPausedUntil: parsedPausedUntil,
+    needsHuman: input.needsHuman,
+    handoffReason: input.handoffReason ? input.handoffReason.trim() : undefined,
+    handoffAt: input.needsHuman === true ? now : input.needsHuman === false ? null : undefined,
     source: "WHATSAPP",
   })
 
+  const eventType =
+    input.optedOut === true
+      ? "OPT_OUT"
+      : input.needsHuman === true
+        ? "HANDOFF_REQUESTED"
+        : input.botPausedUntil
+          ? "BOT_AUTO_PAUSED"
+          : "LEAD_UPSERTED"
+
   await createLeadEventRecord({
     leadId: lead.id,
-    type: input.optedOut === true ? "OPT_OUT" : "LEAD_UPSERTED",
+    type: eventType,
     stage: lead.stage,
     metadata: sanitizeEventMetadata({
       ...(input.ctwaClid ? { ctwaClid: input.ctwaClid } : {}),
       ...(input.consent !== undefined ? { consent: input.consent } : {}),
       ...(input.optedOut !== undefined ? { optedOut: input.optedOut } : {}),
+      ...(input.botPausedUntil !== undefined ? { botPausedUntil: input.botPausedUntil } : {}),
+      ...(input.needsHuman !== undefined ? { needsHuman: input.needsHuman } : {}),
+      ...(input.handoffReason ? { handoffReason: input.handoffReason.trim() } : {}),
     }),
   })
 
@@ -147,6 +194,10 @@ export async function upsertLeadByPhone(input: {
     optedOut: lead.optedOut,
     botPaused: Boolean(lead.botPaused),
     botPausedAt: lead.botPausedAt ? lead.botPausedAt.toISOString() : null,
+    botPausedUntil: lead.botPausedUntil ? lead.botPausedUntil.toISOString() : null,
+    needsHuman: Boolean(lead.needsHuman),
+    handoffReason: lead.handoffReason ?? null,
+    handoffAt: lead.handoffAt ? lead.handoffAt.toISOString() : null,
   }
 }
 
@@ -161,8 +212,8 @@ export async function setWhatsappBotGlobalEnabled(enabled: boolean): Promise<boo
 
 /**
  * Consulta si el bot de WhatsApp debe responder a un número dado.
- * Responde solo cuando el suiche global está encendido, el lead no está pausado manualmente
- * y el cliente no pidió la baja (optedOut).
+ * Responde solo cuando el suiche global está encendido, el lead no está pausado
+ * (ni manualmente ni por pausa automática vigente) y el cliente no pidió la baja (optedOut).
  */
 export async function getWhatsappBotStatusForPhone(waPhone: string) {
   const digits = normalizeWaPhone(waPhone)
@@ -171,7 +222,7 @@ export async function getWhatsappBotStatusForPhone(waPhone: string) {
     digits.length >= 7 ? findLeadByPhone(digits) : Promise.resolve(null),
   ])
 
-  const botPaused = Boolean(lead?.botPaused)
+  const pausedNow = isLeadBotPausedNow(lead)
   const optedOut = Boolean(lead?.optedOut)
 
   return {
@@ -183,16 +234,21 @@ export async function getWhatsappBotStatusForPhone(waPhone: string) {
           name: lead.name,
           stage: lead.stage,
           optedOut,
-          botPaused,
+          botPaused: Boolean(lead.botPaused),
           botPausedAt: lead.botPausedAt ? lead.botPausedAt.toISOString() : null,
+          botPausedUntil: lead.botPausedUntil ? lead.botPausedUntil.toISOString() : null,
+          needsHuman: Boolean(lead.needsHuman),
+          handoffReason: lead.handoffReason ?? null,
+          handoffAt: lead.handoffAt ? lead.handoffAt.toISOString() : null,
         }
       : null,
-    shouldRespond: botGlobalEnabled && !botPaused && !optedOut,
+    shouldRespond: botGlobalEnabled && !pausedNow && !optedOut,
   }
 }
 
 /**
  * Apaga o prende el bot de WhatsApp manualmente para un lead puntual.
+ * Al prenderlo (`paused: false`) limpia también cualquier pausa automática vigente y la alerta de traspaso.
  */
 export async function setLeadBotPaused(leadId: string, paused: boolean) {
   const cleanId = leadId.replace(/^wa_/, "").trim()
@@ -217,7 +273,65 @@ export async function setLeadBotPaused(leadId: string, paused: boolean) {
     id: updated.id,
     botPaused: Boolean(updated.botPaused),
     botPausedAt: updated.botPausedAt ? updated.botPausedAt.toISOString() : null,
+    botPausedUntil: updated.botPausedUntil ? updated.botPausedUntil.toISOString() : null,
+    needsHuman: Boolean(updated.needsHuman),
   }
+}
+
+/**
+ * Marca como atendida la solicitud de asesora en el dashboard sin modificar la pausa del bot.
+ */
+export async function resolveLeadHandoff(leadId: string) {
+  const cleanId = leadId.replace(/^wa_/, "").trim()
+  if (!cleanId) {
+    throw new Error("Identificador de lead inválido.")
+  }
+
+  const existing = await findLeadById(cleanId)
+  if (!existing) {
+    throw new Error("Lead de WhatsApp no encontrado.")
+  }
+
+  const updated = await resolveLeadHandoffRecord(cleanId)
+  await createLeadEventRecord({
+    leadId: cleanId,
+    type: "HANDOFF_RESOLVED",
+    stage: updated.stage,
+  })
+
+  return {
+    id: updated.id,
+    needsHuman: false,
+  }
+}
+
+export interface PendingHandoffDTO {
+  id: string
+  waPhone: string
+  name: string
+  handoffReason: string | null
+  handoffAt: string | null
+  botPaused: boolean
+  botPausedUntil: string | null
+  stage: string
+}
+
+export async function getPendingWhatsappHandoffs(limit = 10): Promise<PendingHandoffDTO[]> {
+  const rows = await findPendingHandoffLeads(limit)
+  return rows.map((row) => ({
+    id: row.id,
+    waPhone: row.waPhone,
+    name: row.name || "Prospecto WhatsApp",
+    handoffReason: row.handoffReason ?? null,
+    handoffAt: row.handoffAt ? row.handoffAt.toISOString() : null,
+    botPaused: Boolean(row.botPaused),
+    botPausedUntil: row.botPausedUntil ? row.botPausedUntil.toISOString() : null,
+    stage: String(row.stage),
+  }))
+}
+
+export async function getPendingWhatsappHandoffCount(): Promise<number> {
+  return countPendingHandoffLeads()
 }
 
 /**
@@ -498,6 +612,7 @@ export async function getLeadsList(params: {
   stage?: string
   utm?: string
   hasPhone?: boolean
+  needsHumanOnly?: boolean
   page?: number
   pageSize?: number
 }): Promise<GetLeadsResponse> {
@@ -509,6 +624,7 @@ export async function getLeadsList(params: {
     q: params.q,
     source: params.source,
     hasPhone: params.hasPhone,
+    needsHumanOnly: params.needsHumanOnly,
     ...(params.stage ? { stage: params.stage } : {}),
     ...(params.utm ? { utm: params.utm } : {}),
     take: pageSize,

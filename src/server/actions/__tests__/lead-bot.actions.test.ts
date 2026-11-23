@@ -5,6 +5,7 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }))
 
 const requireAdminMock = vi.fn()
 const setLeadBotPausedMock = vi.fn()
+const resolveLeadHandoffMock = vi.fn()
 const setWhatsappBotGlobalEnabledMock = vi.fn()
 
 vi.mock("@/server/auth/require-admin", () => ({
@@ -13,10 +14,12 @@ vi.mock("@/server/auth/require-admin", () => ({
 
 vi.mock("@/server/services/lead.service", () => ({
   setLeadBotPaused: (...args: unknown[]) => setLeadBotPausedMock(...args),
+  resolveLeadHandoff: (...args: unknown[]) => resolveLeadHandoffMock(...args),
   setWhatsappBotGlobalEnabled: (...args: unknown[]) => setWhatsappBotGlobalEnabledMock(...args),
 }))
 
 import {
+  resolveLeadHandoffAction,
   toggleLeadBotAction,
   toggleWhatsappBotGlobalAction,
 } from "../lead-bot.actions"
@@ -32,13 +35,31 @@ describe("lead-bot.actions (autorización y control manual del bot)", () => {
       id: "lead_1",
       botPaused: true,
       botPausedAt: "2026-11-23T15:30:00.000Z",
+      botPausedUntil: null,
+      needsHuman: false,
     })
 
     const res = await toggleLeadBotAction("wa_lead_1", true)
 
     expect(requireAdminMock).toHaveBeenCalledWith("sales")
     expect(setLeadBotPausedMock).toHaveBeenCalledWith("wa_lead_1", true)
-    expect(res).toEqual({ success: true, botPaused: true })
+    expect(res).toEqual({
+      success: true,
+      botPaused: true,
+      botPausedUntil: null,
+      needsHuman: false,
+    })
+  })
+
+  it("resolveLeadHandoffAction exige área 'sales' y marca el traspaso como atendido", async () => {
+    requireAdminMock.mockResolvedValueOnce({ user: { adminRole: "SALES_OPERATOR" } })
+    resolveLeadHandoffMock.mockResolvedValueOnce({ id: "lead_1", needsHuman: false })
+
+    const res = await resolveLeadHandoffAction("lead_1")
+
+    expect(requireAdminMock).toHaveBeenCalledWith("sales")
+    expect(resolveLeadHandoffMock).toHaveBeenCalledWith("lead_1")
+    expect(res).toEqual({ success: true, needsHuman: false })
   })
 
   it("toggleLeadBotAction rechaza a un operador de inventario o usuario sin permisos", async () => {

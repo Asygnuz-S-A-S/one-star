@@ -16,6 +16,7 @@ interface SearchParams {
   stage?: string
   utm?: string
   hasPhone?: string
+  needsHuman?: string
   page?: string
 }
 
@@ -30,6 +31,7 @@ export default async function AdminLeadsPage({ searchParams }: Props) {
   const stage = params.stage?.trim() || undefined
   const utm = params.utm?.trim() || undefined
   const hasPhone = params.hasPhone === "true"
+  const needsHumanOnly = params.needsHuman === "true"
   const page = Math.max(1, parseInt(params.page ?? "1") || 1)
   const pageSize = 25
 
@@ -40,6 +42,7 @@ export default async function AdminLeadsPage({ searchParams }: Props) {
       stage,
       utm,
       hasPhone,
+      needsHumanOnly,
       page,
       pageSize,
     }),
@@ -94,6 +97,7 @@ export default async function AdminLeadsPage({ searchParams }: Props) {
         stage={stage ?? "ALL"}
         utm={utm ?? ""}
         hasPhone={hasPhone}
+        needsHumanOnly={needsHumanOnly}
         initialBotGlobalEnabled={botGlobalEnabled}
         canToggleGlobalBot={canToggleGlobalBot}
       />

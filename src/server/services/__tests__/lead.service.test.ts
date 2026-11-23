@@ -15,6 +15,9 @@ const repoMocks = vi.hoisted(() => ({
   createLeadEventRecord: vi.fn(),
   attachLeadToOrderRecord: vi.fn(),
   findStaleLeadsForAbandonment: vi.fn(),
+  resolveLeadHandoffRecord: vi.fn(),
+  findPendingHandoffLeads: vi.fn(),
+  countPendingHandoffLeads: vi.fn(),
 }))
 
 const storeSettingsRepoMocks = vi.hoisted(() => ({
@@ -515,7 +518,30 @@ describe("lead.service", () => {
         id: "lead_99",
         botPaused: true,
         botPausedAt: pausedAt.toISOString(),
+        botPausedUntil: null,
+        needsHuman: false,
       })
+    })
+
+    it("getWhatsappBotStatusForPhone retorna shouldRespond=false cuando hay pausa automática vigente (botPausedUntil futuro)", async () => {
+      storeSettingsRepoMocks.getWhatsappBotEnabledRecord.mockResolvedValueOnce(true)
+      repoMocks.findLeadByPhone.mockResolvedValueOnce({
+        id: "lead_auto",
+        waPhone: "573001112233",
+        name: "Laura",
+        stage: "NUEVO",
+        optedOut: false,
+        botPaused: false,
+        botPausedAt: null,
+        botPausedUntil: new Date(Date.now() + 60 * 60 * 1000),
+        needsHuman: true,
+        handoffReason: "quiero hablar con un asesor",
+        handoffAt: new Date(),
+      })
+
+      const res = await getWhatsappBotStatusForPhone("573001112233")
+      expect(res.shouldRespond).toBe(false)
+      expect(res.lead?.needsHuman).toBe(true)
     })
 
     it("getWhatsappBotStatusForPhone retorna shouldRespond=false si el suiche global está apagado o el lead está pausado", async () => {

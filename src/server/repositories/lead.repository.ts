@@ -10,6 +10,7 @@ export interface LeadFilterParams {
   stage?: string
   utm?: string
   hasPhone?: boolean
+  needsHumanOnly?: boolean
   excludeOptedOut?: boolean
   startDate?: string
   endDate?: string
@@ -25,6 +26,7 @@ export interface LeadStats {
   convertedCustomersCount: number
   whatsappLeadsCount?: number
   botPausedCount?: number
+  pendingHandoffCount?: number
 }
 
 export interface LeadEventItem {
@@ -82,6 +84,10 @@ export async function upsertLeadRecord(data: {
   consentAt?: Date | null
   optedOut?: boolean
   optedOutAt?: Date | null
+  botPausedUntil?: Date | null
+  needsHuman?: boolean
+  handoffReason?: string | null
+  handoffAt?: Date | null
   source?: string
 }) {
   const now = new Date()
@@ -94,6 +100,18 @@ export async function upsertLeadRecord(data: {
       ? {
           optedOut: data.optedOut,
           optedOutAt: data.optedOut ? (data.optedOutAt ?? now) : null,
+        }
+      : {}),
+    ...(data.botPausedUntil !== undefined ? { botPausedUntil: data.botPausedUntil } : {}),
+    ...(data.needsHuman !== undefined
+      ? {
+          needsHuman: data.needsHuman,
+          handoffAt: data.needsHuman ? (data.handoffAt ?? now) : null,
+          ...(data.needsHuman && data.handoffReason !== undefined
+            ? { handoffReason: data.handoffReason }
+            : !data.needsHuman
+              ? { handoffReason: null }
+              : {}),
         }
       : {}),
   }
@@ -109,6 +127,10 @@ export async function upsertLeadRecord(data: {
       consentAt: data.consentAt ?? null,
       optedOut: data.optedOut ?? false,
       optedOutAt: data.optedOut ? (data.optedOutAt ?? now) : null,
+      botPausedUntil: data.botPausedUntil ?? null,
+      needsHuman: data.needsHuman ?? false,
+      handoffReason: data.needsHuman ? (data.handoffReason ?? null) : null,
+      handoffAt: data.needsHuman ? (data.handoffAt ?? now) : null,
       lastInteractionAt: now,
     },
     update: updateData,
@@ -128,11 +150,55 @@ export async function updateLeadStageRecord(leadId: string, stage: LeadStage) {
 export async function updateLeadBotPausedRecord(leadId: string, paused: boolean) {
   return prisma.lead.update({
     where: { id: leadId },
+    data: paused
+      ? {
+          botPaused: true,
+          botPausedAt: new Date(),
+        }
+      : {
+          botPaused: false,
+          botPausedAt: null,
+          botPausedUntil: null,
+          needsHuman: false,
+          handoffReason: null,
+          handoffAt: null,
+        },
+  })
+}
+
+export async function resolveLeadHandoffRecord(leadId: string) {
+  return prisma.lead.update({
+    where: { id: leadId },
     data: {
-      botPaused: paused,
-      botPausedAt: paused ? new Date() : null,
+      needsHuman: false,
+      handoffReason: null,
+      handoffAt: null,
     },
   })
+}
+
+export async function findPendingHandoffLeads(limit = 10) {
+  if (!prisma.lead?.findMany) return []
+  return prisma.lead.findMany({
+    where: { needsHuman: true },
+    orderBy: [{ handoffAt: "desc" }, { updatedAt: "desc" }],
+    take: limit,
+    select: {
+      id: true,
+      waPhone: true,
+      name: true,
+      handoffReason: true,
+      handoffAt: true,
+      botPaused: true,
+      botPausedUntil: true,
+      stage: true,
+    },
+  })
+}
+
+export async function countPendingHandoffLeads(): Promise<number> {
+  if (!prisma.lead?.count) return 0
+  return prisma.lead.count({ where: { needsHuman: true } })
 }
 
 export async function updateLeadShortLinkRecord(
@@ -348,6 +414,10 @@ export async function getLeadsData(params: LeadFilterParams) {
       optedOut: false,
       botPaused: false,
       botPausedAt: null as string | null,
+      botPausedUntil: null as string | null,
+      needsHuman: false,
+      handoffReason: null as string | null,
+      handoffAt: null as string | null,
       leadRecordId: null as string | null,
       consentAt: null as string | null,
       events: [] as LeadEventItem[],
@@ -383,6 +453,10 @@ export async function getLeadsData(params: LeadFilterParams) {
         optedOut: false,
         botPaused: false,
         botPausedAt: null as string | null,
+        botPausedUntil: null as string | null,
+        needsHuman: false,
+        handoffReason: null as string | null,
+        handoffAt: null as string | null,
         leadRecordId: null as string | null,
         consentAt: null as string | null,
         events: [] as LeadEventItem[],
@@ -430,6 +504,10 @@ export async function getLeadsData(params: LeadFilterParams) {
       optedOut: Boolean(wl.optedOut),
       botPaused: Boolean(wl.botPaused),
       botPausedAt: wl.botPausedAt ? wl.botPausedAt.toISOString() : null,
+      botPausedUntil: wl.botPausedUntil ? wl.botPausedUntil.toISOString() : null,
+      needsHuman: Boolean(wl.needsHuman),
+      handoffReason: wl.handoffReason ?? null,
+      handoffAt: wl.handoffAt ? wl.handoffAt.toISOString() : null,
       leadRecordId: wl.id,
       consentAt: wl.consentAt ? wl.consentAt.toISOString() : null,
       events: mappedEvents,
@@ -446,6 +524,10 @@ export async function getLeadsData(params: LeadFilterParams) {
 
   if (params.hasPhone) {
     allLeads = allLeads.filter((l) => Boolean(l.phone || l.waPhone))
+  }
+
+  if (params.needsHumanOnly) {
+    allLeads = allLeads.filter((l) => Boolean(l.needsHuman))
   }
 
   // Filtrado por Source si se especificó
@@ -487,18 +569,30 @@ export async function getLeadsData(params: LeadFilterParams) {
   const paginatedLeads = allLeads.slice(skip, skip + take)
 
   // Métricas globales CRM
-  const [totalCustomersWithOrders, totalClubMembers, totalAbandoned, totalWhatsappLeads, totalBotPaused] =
-    await Promise.all([
-      prisma.user.count({
-        where: {
-          orders: { some: { status: { in: ["PAID", "SHIPPED", "DELIVERED"] } } },
-        },
-      }),
-      prisma.user.count({ where: { clubMember: true } }),
-      prisma.abandonedCart.count({ where: { recoveredAt: null } }),
-      prisma.lead?.count ? prisma.lead.count() : Promise.resolve(0),
-      prisma.lead?.count ? prisma.lead.count({ where: { botPaused: true } }) : Promise.resolve(0),
-    ])
+  const now = new Date()
+  const [
+    totalCustomersWithOrders,
+    totalClubMembers,
+    totalAbandoned,
+    totalWhatsappLeads,
+    totalBotPaused,
+    totalPendingHandoff,
+  ] = await Promise.all([
+    prisma.user.count({
+      where: {
+        orders: { some: { status: { in: ["PAID", "SHIPPED", "DELIVERED"] } } },
+      },
+    }),
+    prisma.user.count({ where: { clubMember: true } }),
+    prisma.abandonedCart.count({ where: { recoveredAt: null } }),
+    prisma.lead?.count ? prisma.lead.count() : Promise.resolve(0),
+    prisma.lead?.count
+      ? prisma.lead.count({
+          where: { OR: [{ botPaused: true }, { botPausedUntil: { gt: now } }] },
+        })
+      : Promise.resolve(0),
+    prisma.lead?.count ? prisma.lead.count({ where: { needsHuman: true } }) : Promise.resolve(0),
+  ])
 
   const stats: LeadStats = {
     totalLeads: total,
@@ -508,6 +602,7 @@ export async function getLeadsData(params: LeadFilterParams) {
     convertedCustomersCount: totalCustomersWithOrders,
     whatsappLeadsCount: totalWhatsappLeads,
     botPausedCount: totalBotPaused,
+    pendingHandoffCount: totalPendingHandoff,
   }
 
   return {

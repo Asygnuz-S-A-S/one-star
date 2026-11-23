@@ -60,6 +60,9 @@ export const assistantLeadUpsertSchema = z
     consentimiento: z.boolean().optional(),
     optedOut: z.boolean().optional(),
     baja: z.boolean().optional(),
+    botPausedUntil: z.string().datetime().nullable().optional(),
+    needsHuman: z.boolean().optional(),
+    handoffReason: z.string().trim().min(1).max(300).nullable().optional(),
   })
   .transform((data) => ({
     waPhone: data.waPhone,
@@ -67,6 +70,9 @@ export const assistantLeadUpsertSchema = z
     ctwaClid: data.ctwaClid ?? undefined,
     consent: data.consent ?? data.consentimiento,
     optedOut: data.optedOut ?? data.baja,
+    botPausedUntil: data.botPausedUntil,
+    needsHuman: data.needsHuman,
+    handoffReason: data.handoffReason ?? undefined,
   }))
 
 export type AssistantLeadUpsertInput = z.infer<typeof assistantLeadUpsertSchema>

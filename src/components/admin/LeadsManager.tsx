@@ -4,6 +4,7 @@ import { Fragment, useState } from "react"
 import Link from "next/link"
 import type { LeadDTO, LeadStats } from "@/server/services/lead.service"
 import {
+  resolveLeadHandoffAction,
   toggleLeadBotAction,
   toggleWhatsappBotGlobalAction,
 } from "@/server/actions/lead-bot.actions"
@@ -19,6 +20,7 @@ interface LeadsManagerProps {
   stage?: string
   utm?: string
   hasPhone: boolean
+  needsHumanOnly?: boolean
   initialBotGlobalEnabled?: boolean
   canToggleGlobalBot?: boolean
 }
@@ -34,6 +36,7 @@ export default function LeadsManager({
   stage = "ALL",
   utm = "",
   hasPhone,
+  needsHumanOnly = false,
   initialBotGlobalEnabled = true,
   canToggleGlobalBot = false,
 }: LeadsManagerProps) {
@@ -47,8 +50,29 @@ export default function LeadsManager({
     }
     return map
   })
+  const [pausedUntilById, setPausedUntilById] = useState<Record<string, string | null>>(() => {
+    const map: Record<string, string | null> = {}
+    for (const lead of initialLeads) {
+      map[lead.id] = lead.botPausedUntil ?? null
+    }
+    return map
+  })
+  const [needsHumanById, setNeedsHumanById] = useState<Record<string, boolean>>(() => {
+    const map: Record<string, boolean> = {}
+    for (const lead of initialLeads) {
+      map[lead.id] = Boolean(lead.needsHuman)
+    }
+    return map
+  })
+  const [renderedAtMs] = useState(() => Date.now())
   const [loadingLeadIds, setLoadingLeadIds] = useState<Record<string, boolean>>({})
   const [botError, setBotError] = useState<string | null>(null)
+
+  function isAutoPausedActive(untilIso: string | null | undefined): boolean {
+    if (!untilIso) return false
+    const ms = new Date(untilIso).getTime()
+    return Number.isFinite(ms) && ms > renderedAtMs
+  }
 
   async function handleGlobalBotToggle() {
     if (!canToggleGlobalBot || globalLoading) return
@@ -69,8 +93,9 @@ export default function LeadsManager({
 
   async function handleLeadBotToggle(lead: LeadDTO) {
     if (lead.optedOut || loadingLeadIds[lead.id]) return
-    const currentPaused = Boolean(pausedById[lead.id])
-    const nextPaused = !currentPaused
+    const currentlyOff =
+      Boolean(pausedById[lead.id]) || isAutoPausedActive(pausedUntilById[lead.id])
+    const nextPaused = !currentlyOff
     setLoadingLeadIds((prev) => ({ ...prev, [lead.id]: true }))
     setBotError(null)
     try {
@@ -81,6 +106,27 @@ export default function LeadsManager({
         return
       }
       setPausedById((prev) => ({ ...prev, [lead.id]: res.botPaused ?? nextPaused }))
+      if (!nextPaused) {
+        setPausedUntilById((prev) => ({ ...prev, [lead.id]: null }))
+        setNeedsHumanById((prev) => ({ ...prev, [lead.id]: false }))
+      }
+    } finally {
+      setLoadingLeadIds((prev) => ({ ...prev, [lead.id]: false }))
+    }
+  }
+
+  async function handleResolveHandoff(lead: LeadDTO) {
+    if (loadingLeadIds[lead.id]) return
+    setLoadingLeadIds((prev) => ({ ...prev, [lead.id]: true }))
+    setBotError(null)
+    try {
+      const targetId = lead.leadRecordId ?? lead.id
+      const res = await resolveLeadHandoffAction(targetId)
+      if (!res.success) {
+        setBotError(res.error ?? "No se pudo marcar el caso como atendido.")
+        return
+      }
+      setNeedsHumanById((prev) => ({ ...prev, [lead.id]: false }))
     } finally {
       setLoadingLeadIds((prev) => ({ ...prev, [lead.id]: false }))
     }
@@ -158,11 +204,12 @@ export default function LeadsManager({
     if (stage && stage !== "ALL") params.set("stage", stage)
     if (utm) params.set("utm", utm)
     if (hasPhone) params.set("hasPhone", "true")
+    if (needsHumanOnly) params.set("needsHuman", "true")
     return `/admin/leads?${params.toString()}`
   }
 
   const hasActiveFilters = Boolean(
-    q || source !== "ALL" || (stage && stage !== "ALL") || utm || hasPhone
+    q || source !== "ALL" || (stage && stage !== "ALL") || utm || hasPhone || needsHumanOnly
   )
 
   return (
@@ -182,12 +229,21 @@ export default function LeadsManager({
             </h2>
             {(stats.botPausedCount ?? 0) > 0 && (
               <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-100 text-amber-800 border border-amber-200">
-                {stats.botPausedCount} {stats.botPausedCount === 1 ? "chat apagado" : "chats apagados"}
+                {stats.botPausedCount} {stats.botPausedCount === 1 ? "chat pausado" : "chats pausados"}
               </span>
+            )}
+            {(stats.pendingHandoffCount ?? 0) > 0 && (
+              <Link
+                href="/admin/leads?needsHuman=true"
+                className="px-2 py-0.5 text-xs font-bold rounded-full bg-[#E31C23] text-white hover:bg-red-700 transition-colors"
+              >
+                {stats.pendingHandoffCount}{" "}
+                {stats.pendingHandoffCount === 1 ? "esperando asesora" : "esperando asesora"}
+              </Link>
             )}
           </div>
           <p className="text-xs text-[#4A4A4A]">
-            El algoritmo responde a todos los mensajes mientras esté encendido (no se pausa automáticamente al escribir desde el celular). Usa el suiche global o el de cada contacto para apagarlo y prenderlo a voluntad.
+            Todo chat nuevo responde de inmediato. Si Jesi escribe desde el celular o el cliente pide asesora, ese chat se pausa automáticamente (con alerta en el Dashboard) y puedes reactivarlo o apagarlo aquí en cualquier momento.
           </p>
           {botError && (
             <p className="text-xs font-medium text-red-600" role="alert">
@@ -336,6 +392,17 @@ export default function LeadsManager({
           Solo con WhatsApp / Teléfono
         </label>
 
+        <label className="flex min-h-11 items-center gap-2 text-sm text-[#4A4A4A] cursor-pointer select-none px-2">
+          <input
+            type="checkbox"
+            name="needsHuman"
+            value="true"
+            defaultChecked={needsHumanOnly}
+            className="h-4 w-4 rounded text-[#E31C23] focus:ring-[#E31C23]"
+          />
+          Solo esperando asesora
+        </label>
+
         <button
           type="submit"
           className="min-h-11 bg-[#1C1C1C] text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-[#4A4A4A] transition-colors"
@@ -384,11 +451,16 @@ export default function LeadsManager({
                     <Fragment key={lead.id}>
                       <tr className="hover:bg-gray-50/50 transition-colors">
                         <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <span className="font-medium text-[#1C1C1C]">{lead.name}</span>
                             {lead.optedOut && (
                               <span className="px-1.5 py-0.5 text-[10px] font-bold uppercase rounded bg-red-100 text-red-700 border border-red-200">
                                 Baja
+                              </span>
+                            )}
+                            {needsHumanById[lead.id] && (
+                              <span className="px-1.5 py-0.5 text-[10px] font-bold uppercase rounded bg-[#E31C23] text-white">
+                                Pide asesora
                               </span>
                             )}
                           </div>
@@ -396,6 +468,11 @@ export default function LeadsManager({
                           {(lead.waPhone || lead.phone) && (
                             <div className="text-xs text-emerald-700 font-mono mt-0.5">
                               📞 {lead.waPhone ?? lead.phone}
+                            </div>
+                          )}
+                          {needsHumanById[lead.id] && lead.handoffReason && (
+                            <div className="text-xs text-red-700 mt-1 line-clamp-2">
+                              “{lead.handoffReason}”
                             </div>
                           )}
                         </td>
@@ -453,40 +530,68 @@ export default function LeadsManager({
                               <span className="inline-flex px-2 py-1 text-xs font-semibold rounded bg-red-50 text-red-700 border border-red-200">
                                 Baja
                               </span>
-                            ) : (
-                              <button
-                                type="button"
-                                role="switch"
-                                aria-checked={!pausedById[lead.id]}
-                                aria-label={`Bot de WhatsApp para ${lead.name}`}
-                                disabled={Boolean(loadingLeadIds[lead.id])}
-                                onClick={() => handleLeadBotToggle(lead)}
-                                className={`inline-flex min-h-11 items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors cursor-pointer disabled:opacity-60 ${
-                                  pausedById[lead.id]
-                                    ? "bg-red-50 border-red-200 text-red-800 hover:bg-red-100"
-                                    : "bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100"
-                                }`}
-                              >
-                                <span
-                                  className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${
-                                    pausedById[lead.id] ? "bg-gray-300" : "bg-emerald-600"
-                                  }`}
-                                >
-                                  <span
-                                    className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
-                                      pausedById[lead.id] ? "translate-x-0.5" : "translate-x-3.5"
+                            ) : (() => {
+                              const manualOff = Boolean(pausedById[lead.id])
+                              const autoOff = isAutoPausedActive(pausedUntilById[lead.id])
+                              const isOff = manualOff || autoOff
+                              const untilLabel =
+                                autoOff && pausedUntilById[lead.id]
+                                  ? new Date(pausedUntilById[lead.id]!).toLocaleTimeString("es-CO", {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })
+                                  : null
+                              return (
+                                <div className="inline-flex flex-col items-center gap-1">
+                                  <button
+                                    type="button"
+                                    role="switch"
+                                    aria-checked={!isOff}
+                                    aria-label={`Bot de WhatsApp para ${lead.name}`}
+                                    disabled={Boolean(loadingLeadIds[lead.id])}
+                                    onClick={() => handleLeadBotToggle(lead)}
+                                    className={`inline-flex min-h-11 items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors cursor-pointer disabled:opacity-60 ${
+                                      manualOff
+                                        ? "bg-red-50 border-red-200 text-red-800 hover:bg-red-100"
+                                        : autoOff
+                                          ? "bg-amber-50 border-amber-200 text-amber-900 hover:bg-amber-100"
+                                          : "bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100"
                                     }`}
-                                  />
-                                </span>
-                                <span>
-                                  {loadingLeadIds[lead.id]
-                                    ? "…"
-                                    : pausedById[lead.id]
-                                      ? "Apagado"
-                                      : "Encendido"}
-                                </span>
-                              </button>
-                            )
+                                  >
+                                    <span
+                                      className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${
+                                        isOff ? "bg-gray-300" : "bg-emerald-600"
+                                      }`}
+                                    >
+                                      <span
+                                        className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
+                                          isOff ? "translate-x-0.5" : "translate-x-3.5"
+                                        }`}
+                                      />
+                                    </span>
+                                    <span>
+                                      {loadingLeadIds[lead.id]
+                                        ? "…"
+                                        : manualOff
+                                          ? "Apagado"
+                                          : autoOff
+                                            ? `Pausa ${untilLabel}`
+                                            : "Encendido"}
+                                    </span>
+                                  </button>
+                                  {needsHumanById[lead.id] && (
+                                    <button
+                                      type="button"
+                                      disabled={Boolean(loadingLeadIds[lead.id])}
+                                      onClick={() => handleResolveHandoff(lead)}
+                                      className="text-[11px] font-semibold text-[#E31C23] hover:underline cursor-pointer disabled:opacity-60"
+                                    >
+                                      Marcar atendido
+                                    </button>
+                                  )}
+                                </div>
+                              )
+                            })()
                           ) : (
                             <span className="text-xs text-gray-400">—</span>
                           )}
