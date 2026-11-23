@@ -25,6 +25,7 @@ export interface StoreSettingsPatch {
   newArrivalDays?: number
   chatEnabled?: boolean
   chatWelcome?: string | null
+  whatsappBotEnabled?: boolean
   giftCardMinAmount?: number
   giftCardMaxAmount?: number
   giftCardValidityMonths?: number
@@ -62,6 +63,15 @@ export async function findStoreSettings() {
 /** Lectura sin escritura para páginas públicas: `null` si el registro aún no existe. */
 export async function findStoreSettingsReadOnly() {
   return prisma.storeSettings.findUnique({ where: { id: STORE_SETTINGS_ID } })
+}
+
+/** Estado del suiche global del bot de WhatsApp (activo por defecto si aún no existe fila). */
+export async function getWhatsappBotEnabledRecord(): Promise<boolean> {
+  const row = await prisma.storeSettings.findUnique({
+    where: { id: STORE_SETTINGS_ID },
+    select: { whatsappBotEnabled: true },
+  })
+  return row?.whatsappBotEnabled ?? true
 }
 
 export async function updateStoreSettingsRecord(patch: StoreSettingsPatch) {

@@ -5,7 +5,7 @@ vi.mock("server-only", () => ({}))
 import { GET as getProducts } from "../products/route"
 import { GET as getStock } from "../stock/route"
 import { GET as getOrder } from "../order/route"
-import { POST as postLead } from "../leads/route"
+import { GET as getLead, POST as postLead } from "../leads/route"
 import { POST as postLeadEvent } from "../leads/event/route"
 import { POST as postLeadLink } from "../leads/link/route"
 import * as assistantAuthService from "@/server/services/assistant-auth.service"
@@ -240,7 +240,10 @@ describe("Assistant API Routes", () => {
         ctwaClid: "ctwa_1",
         consentAt: "2026-10-27T15:00:00.000Z",
         optedOut: false,
+        botPaused: false,
+        botPausedAt: null,
       })
+      vi.spyOn(leadService, "getWhatsappBotGlobalEnabled").mockResolvedValueOnce(true)
 
       const req = new Request("https://onestar.com.co/api/assistant/leads", {
         method: "POST",
@@ -259,6 +262,8 @@ describe("Assistant API Routes", () => {
       expect(res.status).toBe(200)
       const data = await res.json()
       expect(data.lead.waPhone).toBe("573001234567")
+      expect(data.botGlobalEnabled).toBe(true)
+      expect(data.shouldRespond).toBe(true)
       expect(upsertSpy).toHaveBeenCalledWith({
         waPhone: "573001234567",
         name: "Valentina",
@@ -266,6 +271,62 @@ describe("Assistant API Routes", () => {
         consent: true,
         optedOut: undefined,
       })
+    })
+
+    it("devuelve shouldRespond=false en POST /api/assistant/leads si el lead está pausado o el bot global está apagado", async () => {
+      vi.spyOn(assistantAuthService, "authenticateAssistantRequest").mockResolvedValueOnce({
+        authorized: true,
+        apiKey: "valid-key",
+      })
+      vi.spyOn(assistantAuthService, "checkLeadPhoneRateLimit").mockResolvedValueOnce({
+        allowed: true,
+      })
+      vi.spyOn(leadService, "upsertLeadByPhone").mockResolvedValueOnce({
+        id: "lead_2",
+        waPhone: "573009998877",
+        name: "Andres",
+        stage: "NUEVO",
+        ctwaClid: null,
+        consentAt: null,
+        optedOut: false,
+        botPaused: true,
+        botPausedAt: "2026-11-23T15:00:00.000Z",
+      })
+      vi.spyOn(leadService, "getWhatsappBotGlobalEnabled").mockResolvedValueOnce(true)
+
+      const req = new Request("https://onestar.com.co/api/assistant/leads", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ waPhone: "573009998877" }),
+      })
+
+      const res = await postLead(req)
+      expect(res.status).toBe(200)
+      const data = await res.json()
+      expect(data.shouldRespond).toBe(false)
+      expect(data.lead.botPaused).toBe(true)
+    })
+
+    it("consulta el estado del suiche en GET /api/assistant/leads?waPhone=...", async () => {
+      vi.spyOn(assistantAuthService, "authenticateAssistantRequest").mockResolvedValueOnce({
+        authorized: true,
+        apiKey: "valid-key",
+      })
+      vi.spyOn(assistantAuthService, "checkLeadPhoneRateLimit").mockResolvedValueOnce({
+        allowed: true,
+      })
+      vi.spyOn(leadService, "getWhatsappBotStatusForPhone").mockResolvedValueOnce({
+        botGlobalEnabled: false,
+        lead: null,
+        shouldRespond: false,
+      })
+
+      const req = new Request("https://onestar.com.co/api/assistant/leads?waPhone=%2B573001112233")
+      const res = await getLead(req)
+      expect(res.status).toBe(200)
+      const data = await res.json()
+      expect(data.botGlobalEnabled).toBe(false)
+      expect(data.shouldRespond).toBe(false)
     })
 
     it("registra un evento en POST /api/assistant/leads/event", async () => {

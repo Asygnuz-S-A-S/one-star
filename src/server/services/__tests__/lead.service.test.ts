@@ -8,6 +8,7 @@ const repoMocks = vi.hoisted(() => ({
   findLeadByPhone: vi.fn(),
   findLeadByShortCode: vi.fn(),
   upsertLeadRecord: vi.fn(),
+  updateLeadBotPausedRecord: vi.fn(),
   updateLeadStageRecord: vi.fn(),
   updateLeadShortLinkRecord: vi.fn(),
   updateLeadUtmRecord: vi.fn(),
@@ -16,7 +17,13 @@ const repoMocks = vi.hoisted(() => ({
   findStaleLeadsForAbandonment: vi.fn(),
 }))
 
+const storeSettingsRepoMocks = vi.hoisted(() => ({
+  getWhatsappBotEnabledRecord: vi.fn(),
+  updateStoreSettingsRecord: vi.fn(),
+}))
+
 vi.mock("@/server/repositories/lead.repository", () => repoMocks)
+vi.mock("@/server/repositories/store-settings.repository", () => storeSettingsRepoMocks)
 
 import {
   advanceStage,
@@ -24,10 +31,13 @@ import {
   createShortLink,
   exportLeadsToCsv,
   getLeadsList,
+  getWhatsappBotStatusForPhone,
   linkOrderToLead,
   markAbandonedLeads,
   recordLeadEvent,
   resolveShortLinkClick,
+  setLeadBotPaused,
+  setWhatsappBotGlobalEnabled,
   upsertLeadByPhone,
 } from "../lead.service"
 import { normalizeWaPhone } from "@/server/validators/lead.validator"
@@ -477,6 +487,79 @@ describe("lead.service", () => {
 
       // Verifica escape de comillas dobles
       expect(lines[2]).toContain(`"Ana ""La Runner"""`)
+    })
+  })
+
+  describe("control manual (suiche) del bot de WhatsApp", () => {
+    it("setLeadBotPaused apaga el bot para un lead, soporta prefijo wa_ y registra evento BOT_PAUSED", async () => {
+      const pausedAt = new Date("2026-11-23T15:30:00.000Z")
+      repoMocks.findLeadById.mockResolvedValueOnce({ id: "lead_99", stage: "NUEVO" })
+      repoMocks.updateLeadBotPausedRecord.mockResolvedValueOnce({
+        id: "lead_99",
+        stage: "NUEVO",
+        botPaused: true,
+        botPausedAt: pausedAt,
+      })
+
+      const res = await setLeadBotPaused("wa_lead_99", true)
+
+      expect(repoMocks.findLeadById).toHaveBeenCalledWith("lead_99")
+      expect(repoMocks.updateLeadBotPausedRecord).toHaveBeenCalledWith("lead_99", true)
+      expect(repoMocks.createLeadEventRecord).toHaveBeenCalledWith(
+        expect.objectContaining({
+          leadId: "lead_99",
+          type: "BOT_PAUSED",
+        })
+      )
+      expect(res).toEqual({
+        id: "lead_99",
+        botPaused: true,
+        botPausedAt: pausedAt.toISOString(),
+      })
+    })
+
+    it("getWhatsappBotStatusForPhone retorna shouldRespond=false si el suiche global está apagado o el lead está pausado", async () => {
+      storeSettingsRepoMocks.getWhatsappBotEnabledRecord.mockResolvedValueOnce(false)
+      repoMocks.findLeadByPhone.mockResolvedValueOnce({
+        id: "lead_1",
+        waPhone: "573001112233",
+        name: "Juan",
+        stage: "NUEVO",
+        optedOut: false,
+        botPaused: false,
+        botPausedAt: null,
+      })
+
+      const globalOff = await getWhatsappBotStatusForPhone("573001112233")
+      expect(globalOff.botGlobalEnabled).toBe(false)
+      expect(globalOff.shouldRespond).toBe(false)
+
+      storeSettingsRepoMocks.getWhatsappBotEnabledRecord.mockResolvedValueOnce(true)
+      repoMocks.findLeadByPhone.mockResolvedValueOnce({
+        id: "lead_1",
+        waPhone: "573001112233",
+        name: "Juan",
+        stage: "NUEVO",
+        optedOut: false,
+        botPaused: true,
+        botPausedAt: new Date("2026-11-23T15:30:00.000Z"),
+      })
+
+      const leadPaused = await getWhatsappBotStatusForPhone("573001112233")
+      expect(leadPaused.botGlobalEnabled).toBe(true)
+      expect(leadPaused.shouldRespond).toBe(false)
+    })
+
+    it("setWhatsappBotGlobalEnabled actualiza StoreSettings.whatsappBotEnabled", async () => {
+      storeSettingsRepoMocks.updateStoreSettingsRecord.mockResolvedValueOnce({
+        whatsappBotEnabled: false,
+      })
+
+      const res = await setWhatsappBotGlobalEnabled(false)
+      expect(storeSettingsRepoMocks.updateStoreSettingsRecord).toHaveBeenCalledWith({
+        whatsappBotEnabled: false,
+      })
+      expect(res).toBe(false)
     })
   })
 })

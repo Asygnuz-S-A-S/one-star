@@ -24,6 +24,7 @@ export interface LeadStats {
   withPhoneCount: number
   convertedCustomersCount: number
   whatsappLeadsCount?: number
+  botPausedCount?: number
 }
 
 export interface LeadEventItem {
@@ -120,6 +121,16 @@ export async function updateLeadStageRecord(leadId: string, stage: LeadStage) {
     data: {
       stage,
       lastInteractionAt: new Date(),
+    },
+  })
+}
+
+export async function updateLeadBotPausedRecord(leadId: string, paused: boolean) {
+  return prisma.lead.update({
+    where: { id: leadId },
+    data: {
+      botPaused: paused,
+      botPausedAt: paused ? new Date() : null,
     },
   })
 }
@@ -335,6 +346,9 @@ export async function getLeadsData(params: LeadFilterParams) {
       utmContent: null as string | null,
       ctwaClid: null as string | null,
       optedOut: false,
+      botPaused: false,
+      botPausedAt: null as string | null,
+      leadRecordId: null as string | null,
       consentAt: null as string | null,
       events: [] as LeadEventItem[],
       createdAt: u.createdAt,
@@ -367,6 +381,9 @@ export async function getLeadsData(params: LeadFilterParams) {
         utmContent: null as string | null,
         ctwaClid: null as string | null,
         optedOut: false,
+        botPaused: false,
+        botPausedAt: null as string | null,
+        leadRecordId: null as string | null,
         consentAt: null as string | null,
         events: [] as LeadEventItem[],
         createdAt: ac.createdAt,
@@ -411,6 +428,9 @@ export async function getLeadsData(params: LeadFilterParams) {
       utmContent: wl.utmContent ?? null,
       ctwaClid: wl.ctwaClid ?? null,
       optedOut: Boolean(wl.optedOut),
+      botPaused: Boolean(wl.botPaused),
+      botPausedAt: wl.botPausedAt ? wl.botPausedAt.toISOString() : null,
+      leadRecordId: wl.id,
       consentAt: wl.consentAt ? wl.consentAt.toISOString() : null,
       events: mappedEvents,
       createdAt: wl.createdAt,
@@ -467,7 +487,7 @@ export async function getLeadsData(params: LeadFilterParams) {
   const paginatedLeads = allLeads.slice(skip, skip + take)
 
   // Métricas globales CRM
-  const [totalCustomersWithOrders, totalClubMembers, totalAbandoned, totalWhatsappLeads] =
+  const [totalCustomersWithOrders, totalClubMembers, totalAbandoned, totalWhatsappLeads, totalBotPaused] =
     await Promise.all([
       prisma.user.count({
         where: {
@@ -477,6 +497,7 @@ export async function getLeadsData(params: LeadFilterParams) {
       prisma.user.count({ where: { clubMember: true } }),
       prisma.abandonedCart.count({ where: { recoveredAt: null } }),
       prisma.lead?.count ? prisma.lead.count() : Promise.resolve(0),
+      prisma.lead?.count ? prisma.lead.count({ where: { botPaused: true } }) : Promise.resolve(0),
     ])
 
   const stats: LeadStats = {
@@ -486,6 +507,7 @@ export async function getLeadsData(params: LeadFilterParams) {
     withPhoneCount: allLeads.filter((l) => Boolean(l.phone || l.waPhone)).length,
     convertedCustomersCount: totalCustomersWithOrders,
     whatsappLeadsCount: totalWhatsappLeads,
+    botPausedCount: totalBotPaused,
   }
 
   return {

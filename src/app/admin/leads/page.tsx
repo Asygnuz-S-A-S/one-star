@@ -1,5 +1,9 @@
 import Link from "next/link"
-import { getLeadsList } from "@/server/services/lead.service"
+import { getAdminSession } from "@/server/auth/require-admin"
+import {
+  getLeadsList,
+  getWhatsappBotGlobalEnabled,
+} from "@/server/services/lead.service"
 import LeadsManager from "@/components/admin/LeadsManager"
 
 export const metadata = {
@@ -29,16 +33,21 @@ export default async function AdminLeadsPage({ searchParams }: Props) {
   const page = Math.max(1, parseInt(params.page ?? "1") || 1)
   const pageSize = 25
 
-  const { leads, total, stats } = await getLeadsList({
-    q,
-    source,
-    stage,
-    utm,
-    hasPhone,
-    page,
-    pageSize,
-  })
+  const [{ leads, total, stats }, botGlobalEnabled, session] = await Promise.all([
+    getLeadsList({
+      q,
+      source,
+      stage,
+      utm,
+      hasPhone,
+      page,
+      pageSize,
+    }),
+    getWhatsappBotGlobalEnabled(),
+    getAdminSession(),
+  ])
 
+  const canToggleGlobalBot = session?.user?.adminRole === "SUPER_ADMIN"
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
 
   return (
@@ -85,6 +94,8 @@ export default async function AdminLeadsPage({ searchParams }: Props) {
         stage={stage ?? "ALL"}
         utm={utm ?? ""}
         hasPhone={hasPhone}
+        initialBotGlobalEnabled={botGlobalEnabled}
+        canToggleGlobalBot={canToggleGlobalBot}
       />
     </div>
   )

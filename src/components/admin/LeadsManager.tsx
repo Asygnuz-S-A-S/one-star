@@ -3,6 +3,10 @@
 import { Fragment, useState } from "react"
 import Link from "next/link"
 import type { LeadDTO, LeadStats } from "@/server/services/lead.service"
+import {
+  toggleLeadBotAction,
+  toggleWhatsappBotGlobalAction,
+} from "@/server/actions/lead-bot.actions"
 
 interface LeadsManagerProps {
   initialLeads: LeadDTO[]
@@ -15,6 +19,8 @@ interface LeadsManagerProps {
   stage?: string
   utm?: string
   hasPhone: boolean
+  initialBotGlobalEnabled?: boolean
+  canToggleGlobalBot?: boolean
 }
 
 export default function LeadsManager({
@@ -28,8 +34,57 @@ export default function LeadsManager({
   stage = "ALL",
   utm = "",
   hasPhone,
+  initialBotGlobalEnabled = true,
+  canToggleGlobalBot = false,
 }: LeadsManagerProps) {
   const [expandedLeadId, setExpandedLeadId] = useState<string | null>(null)
+  const [botGlobalEnabled, setBotGlobalEnabled] = useState<boolean>(initialBotGlobalEnabled)
+  const [globalLoading, setGlobalLoading] = useState(false)
+  const [pausedById, setPausedById] = useState<Record<string, boolean>>(() => {
+    const map: Record<string, boolean> = {}
+    for (const lead of initialLeads) {
+      map[lead.id] = Boolean(lead.botPaused)
+    }
+    return map
+  })
+  const [loadingLeadIds, setLoadingLeadIds] = useState<Record<string, boolean>>({})
+  const [botError, setBotError] = useState<string | null>(null)
+
+  async function handleGlobalBotToggle() {
+    if (!canToggleGlobalBot || globalLoading) return
+    const nextEnabled = !botGlobalEnabled
+    setGlobalLoading(true)
+    setBotError(null)
+    try {
+      const res = await toggleWhatsappBotGlobalAction(nextEnabled)
+      if (!res.success) {
+        setBotError(res.error ?? "No se pudo cambiar el estado global del bot.")
+        return
+      }
+      setBotGlobalEnabled(res.botGlobalEnabled ?? nextEnabled)
+    } finally {
+      setGlobalLoading(false)
+    }
+  }
+
+  async function handleLeadBotToggle(lead: LeadDTO) {
+    if (lead.optedOut || loadingLeadIds[lead.id]) return
+    const currentPaused = Boolean(pausedById[lead.id])
+    const nextPaused = !currentPaused
+    setLoadingLeadIds((prev) => ({ ...prev, [lead.id]: true }))
+    setBotError(null)
+    try {
+      const targetId = lead.leadRecordId ?? lead.id
+      const res = await toggleLeadBotAction(targetId, nextPaused)
+      if (!res.success) {
+        setBotError(res.error ?? "No se pudo actualizar el bot para este chat.")
+        return
+      }
+      setPausedById((prev) => ({ ...prev, [lead.id]: res.botPaused ?? nextPaused }))
+    } finally {
+      setLoadingLeadIds((prev) => ({ ...prev, [lead.id]: false }))
+    }
+  }
 
   function formatCurrency(val: number) {
     return new Intl.NumberFormat("es-CO", {
@@ -112,6 +167,74 @@ export default function LeadsManager({
 
   return (
     <div className="space-y-6">
+      {/* Control Manual (Suiche) del Bot de WhatsApp */}
+      <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2.5">
+            <span
+              className={`inline-block h-2.5 w-2.5 rounded-full ${
+                botGlobalEnabled ? "bg-emerald-500" : "bg-red-500"
+              }`}
+              aria-hidden="true"
+            />
+            <h2 className="text-sm font-bold text-[#1C1C1C]">
+              Bot de WhatsApp: {botGlobalEnabled ? "Encendido" : "Apagado globalmente"}
+            </h2>
+            {(stats.botPausedCount ?? 0) > 0 && (
+              <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                {stats.botPausedCount} {stats.botPausedCount === 1 ? "chat apagado" : "chats apagados"}
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-[#4A4A4A]">
+            El algoritmo responde a todos los mensajes mientras esté encendido (no se pausa automáticamente al escribir desde el celular). Usa el suiche global o el de cada contacto para apagarlo y prenderlo a voluntad.
+          </p>
+          {botError && (
+            <p className="text-xs font-medium text-red-600" role="alert">
+              {botError}
+            </p>
+          )}
+        </div>
+
+        {canToggleGlobalBot ? (
+          <button
+            type="button"
+            role="switch"
+            aria-checked={botGlobalEnabled}
+            disabled={globalLoading}
+            onClick={handleGlobalBotToggle}
+            className={`inline-flex min-h-11 shrink-0 items-center gap-3 px-4 py-2 rounded-lg text-sm font-semibold border transition-colors cursor-pointer disabled:opacity-60 ${
+              botGlobalEnabled
+                ? "bg-emerald-50 border-emerald-200 text-emerald-900 hover:bg-emerald-100"
+                : "bg-red-50 border-red-200 text-red-900 hover:bg-red-100"
+            }`}
+          >
+            <span
+              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                botGlobalEnabled ? "bg-emerald-600" : "bg-gray-300"
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  botGlobalEnabled ? "translate-x-4" : "translate-x-0.5"
+                }`}
+              />
+            </span>
+            <span>
+              {globalLoading
+                ? "Guardando…"
+                : botGlobalEnabled
+                  ? "Apagar bot (todos)"
+                  : "Prender bot (todos)"}
+            </span>
+          </button>
+        ) : (
+          <span className="text-xs text-gray-500 shrink-0">
+            Solo Super Admin cambia el suiche global
+          </span>
+        )}
+      </div>
+
       {/* Tarjetas de Métricas CRM */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs">
@@ -247,6 +370,7 @@ export default function LeadsManager({
                   <th className="text-left px-4 py-3 text-[#4A4A4A] font-semibold">Preferencia</th>
                   <th className="text-left px-4 py-3 text-[#4A4A4A] font-semibold">Intención / Valor</th>
                   <th className="text-left px-4 py-3 text-[#4A4A4A] font-semibold">Fecha</th>
+                  <th className="text-center px-4 py-3 text-[#4A4A4A] font-semibold">Bot WA</th>
                   <th className="text-right px-4 py-3 text-[#4A4A4A] font-semibold">Acciones</th>
                 </tr>
               </thead>
@@ -323,6 +447,50 @@ export default function LeadsManager({
                             year: "numeric",
                           })}
                         </td>
+                        <td className="px-4 py-3 text-center">
+                          {lead.source === "WhatsApp" ? (
+                            lead.optedOut ? (
+                              <span className="inline-flex px-2 py-1 text-xs font-semibold rounded bg-red-50 text-red-700 border border-red-200">
+                                Baja
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                role="switch"
+                                aria-checked={!pausedById[lead.id]}
+                                aria-label={`Bot de WhatsApp para ${lead.name}`}
+                                disabled={Boolean(loadingLeadIds[lead.id])}
+                                onClick={() => handleLeadBotToggle(lead)}
+                                className={`inline-flex min-h-11 items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors cursor-pointer disabled:opacity-60 ${
+                                  pausedById[lead.id]
+                                    ? "bg-red-50 border-red-200 text-red-800 hover:bg-red-100"
+                                    : "bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100"
+                                }`}
+                              >
+                                <span
+                                  className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${
+                                    pausedById[lead.id] ? "bg-gray-300" : "bg-emerald-600"
+                                  }`}
+                                >
+                                  <span
+                                    className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
+                                      pausedById[lead.id] ? "translate-x-0.5" : "translate-x-3.5"
+                                    }`}
+                                  />
+                                </span>
+                                <span>
+                                  {loadingLeadIds[lead.id]
+                                    ? "…"
+                                    : pausedById[lead.id]
+                                      ? "Apagado"
+                                      : "Encendido"}
+                                </span>
+                              </button>
+                            )
+                          ) : (
+                            <span className="text-xs text-gray-400">—</span>
+                          )}
+                        </td>
                         <td className="px-4 py-3 text-right">
                           <div className="inline-flex items-center justify-end gap-2">
                             {(events.length > 0 || lead.source === "WhatsApp") && (
@@ -360,7 +528,7 @@ export default function LeadsManager({
 
                       {isExpanded && (
                         <tr className="bg-gray-50/90">
-                          <td colSpan={7} className="px-4 py-4">
+                          <td colSpan={8} className="px-4 py-4">
                             <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
                               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 pb-2">
                                 <h3 className="text-xs font-bold uppercase tracking-wider text-[#1C1C1C]">

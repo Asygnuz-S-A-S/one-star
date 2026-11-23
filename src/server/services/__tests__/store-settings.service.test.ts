@@ -51,6 +51,7 @@ const rawSettings = {
   newArrivalDays: 30,
   chatEnabled: true,
   chatWelcome: null,
+  whatsappBotEnabled: true,
   giftCardMinAmount: 20_000,
   giftCardMaxAmount: 2_000_000,
   giftCardValidityMonths: 12,

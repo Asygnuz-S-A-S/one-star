@@ -9,6 +9,7 @@ import {
   findLeadByShortCode,
   findStaleLeadsForAbandonment,
   getLeadsData,
+  updateLeadBotPausedRecord,
   updateLeadShortLinkRecord,
   updateLeadStageRecord,
   updateLeadUtmRecord,
@@ -17,6 +18,10 @@ import {
   type LeadFilterParams,
   type LeadStats,
 } from "../repositories/lead.repository"
+import {
+  getWhatsappBotEnabledRecord,
+  updateStoreSettingsRecord,
+} from "../repositories/store-settings.repository"
 import { extractProductSlug, normalizeWaPhone } from "../validators/lead.validator"
 
 export type { LeadStats, LeadEventItem }
@@ -61,6 +66,9 @@ export interface LeadDTO {
   utmContent?: string | null
   ctwaClid?: string | null
   optedOut?: boolean
+  botPaused?: boolean
+  botPausedAt?: string | null
+  leadRecordId?: string | null
   consentAt?: string | null
   events?: LeadEventItem[]
   createdAt: string
@@ -137,6 +145,78 @@ export async function upsertLeadByPhone(input: {
     ctwaClid: lead.ctwaClid,
     consentAt: lead.consentAt ? lead.consentAt.toISOString() : null,
     optedOut: lead.optedOut,
+    botPaused: Boolean(lead.botPaused),
+    botPausedAt: lead.botPausedAt ? lead.botPausedAt.toISOString() : null,
+  }
+}
+
+export async function getWhatsappBotGlobalEnabled(): Promise<boolean> {
+  return getWhatsappBotEnabledRecord()
+}
+
+export async function setWhatsappBotGlobalEnabled(enabled: boolean): Promise<boolean> {
+  const updated = await updateStoreSettingsRecord({ whatsappBotEnabled: enabled })
+  return Boolean(updated.whatsappBotEnabled)
+}
+
+/**
+ * Consulta si el bot de WhatsApp debe responder a un número dado.
+ * Responde solo cuando el suiche global está encendido, el lead no está pausado manualmente
+ * y el cliente no pidió la baja (optedOut).
+ */
+export async function getWhatsappBotStatusForPhone(waPhone: string) {
+  const digits = normalizeWaPhone(waPhone)
+  const [botGlobalEnabled, lead] = await Promise.all([
+    getWhatsappBotEnabledRecord(),
+    digits.length >= 7 ? findLeadByPhone(digits) : Promise.resolve(null),
+  ])
+
+  const botPaused = Boolean(lead?.botPaused)
+  const optedOut = Boolean(lead?.optedOut)
+
+  return {
+    botGlobalEnabled,
+    lead: lead
+      ? {
+          id: lead.id,
+          waPhone: lead.waPhone,
+          name: lead.name,
+          stage: lead.stage,
+          optedOut,
+          botPaused,
+          botPausedAt: lead.botPausedAt ? lead.botPausedAt.toISOString() : null,
+        }
+      : null,
+    shouldRespond: botGlobalEnabled && !botPaused && !optedOut,
+  }
+}
+
+/**
+ * Apaga o prende el bot de WhatsApp manualmente para un lead puntual.
+ */
+export async function setLeadBotPaused(leadId: string, paused: boolean) {
+  const cleanId = leadId.replace(/^wa_/, "").trim()
+  if (!cleanId) {
+    throw new Error("Identificador de lead inválido.")
+  }
+
+  const existing = await findLeadById(cleanId)
+  if (!existing) {
+    throw new Error("Lead de WhatsApp no encontrado.")
+  }
+
+  const updated = await updateLeadBotPausedRecord(cleanId, paused)
+  await createLeadEventRecord({
+    leadId: cleanId,
+    type: paused ? "BOT_PAUSED" : "BOT_RESUMED",
+    stage: updated.stage,
+    metadata: sanitizeEventMetadata({ botPaused: paused }),
+  })
+
+  return {
+    id: updated.id,
+    botPaused: Boolean(updated.botPaused),
+    botPausedAt: updated.botPausedAt ? updated.botPausedAt.toISOString() : null,
   }
 }
 
