@@ -7,7 +7,9 @@ import Script from "next/script";
 import StoreIntro, { STORE_INTRO_SCRIPT } from "@/components/StoreIntro";
 import Providers from "@/app/providers";
 import MetaPixel from "@/components/tracking/MetaPixel";
+import GoogleTagManager from "@/components/tracking/GoogleTagManager";
 import GoogleAnalytics from "@/components/tracking/GoogleAnalytics";
+import MicrosoftClarity from "@/components/tracking/MicrosoftClarity";
 import WebAnalytics from "@/components/tracking/WebAnalytics";
 import CookieBanner from "@/components/legal/CookieBanner";
 
@@ -117,9 +119,12 @@ export default async function RootLayout({
             pickupReadyMaxDays={storefront.pickupReadyMaxDays}
           >
           {metaPixel && <MetaPixel pixelId={metaPixel.pixelId} />}
-          {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (
-            <GoogleAnalytics measurementId={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID} />
-          )}
+          <GoogleTagManager gtmId={process.env.NEXT_PUBLIC_GTM_ID || process.env.GTM_CONTAINER_ID || null} />
+          <GoogleAnalytics
+            measurementId={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || process.env.GA_MEASUREMENT_ID || null}
+            googleAdsId={process.env.NEXT_PUBLIC_GOOGLE_ADS_ID || process.env.GOOGLE_ADS_ID || null}
+          />
+          <MicrosoftClarity projectId={process.env.NEXT_PUBLIC_CLARITY_ID || process.env.CLARITY_PROJECT_ID || null} />
           <WebAnalytics />
           <CookieBanner />
           <PublicSiteFrame

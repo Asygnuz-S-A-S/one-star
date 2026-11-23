@@ -21,6 +21,8 @@ vi.mock("next/script", () => ({
 
 import MetaPixel from "../MetaPixel"
 import GoogleAnalytics from "../GoogleAnalytics"
+import GoogleTagManager from "../GoogleTagManager"
+import MicrosoftClarity from "../MicrosoftClarity"
 import { COOKIE_CONSENT_KEY } from "@/lib/cookies/consent"
 
 describe("Tracking Components Consent Mode", () => {
@@ -83,5 +85,62 @@ describe("Tracking Components Consent Mode", () => {
     const html = renderToStaticMarkup(<GoogleAnalytics measurementId="G-XXXXXX" />)
     expect(html).toContain('id="google-analytics"')
     expect(html).toContain("G-XXXXXX")
+  })
+
+  it("carga Google Ads junto con GA4 cuando ambos están configurados y con consentimiento", () => {
+    mockDocument.cookie = `${COOKIE_CONSENT_KEY}=accepted`
+
+    const html = renderToStaticMarkup(
+      <GoogleAnalytics measurementId="G-XXXXXX" googleAdsId="AW-123456789" />,
+    )
+    expect(html).toContain('id="google-analytics"')
+    expect(html).toContain("G-XXXXXX")
+    expect(html).toContain("AW-123456789")
+  })
+
+  it("NO carga Google Tag Manager si no hay consentimiento", () => {
+    mockDocument.cookie = ""
+
+    const html = renderToStaticMarkup(<GoogleTagManager gtmId="GTM-TEST123" />)
+    expect(html).toBe("")
+  })
+
+  it("NO carga Google Tag Manager si el ID es inválido o no existe", () => {
+    mockDocument.cookie = `${COOKIE_CONSENT_KEY}=accepted`
+
+    expect(renderToStaticMarkup(<GoogleTagManager gtmId={null} />)).toBe("")
+    expect(renderToStaticMarkup(<GoogleTagManager gtmId="" />)).toBe("")
+    expect(renderToStaticMarkup(<GoogleTagManager gtmId="INVALID-ID" />)).toBe("")
+  })
+
+  it("carga Google Tag Manager cuando hay consentimiento y un ID válido", () => {
+    mockDocument.cookie = `${COOKIE_CONSENT_KEY}=accepted`
+
+    const html = renderToStaticMarkup(<GoogleTagManager gtmId="GTM-ABCD123" />)
+    expect(html).toContain('id="google-tag-manager"')
+    expect(html).toContain("GTM-ABCD123")
+    expect(html).toContain("https://www.googletagmanager.com/ns.html?id=GTM-ABCD123")
+  })
+
+  it("NO carga Microsoft Clarity si no hay consentimiento", () => {
+    mockDocument.cookie = ""
+
+    const html = renderToStaticMarkup(<MicrosoftClarity projectId="clarity123" />)
+    expect(html).toBe("")
+  })
+
+  it("NO carga Microsoft Clarity si el ID no existe o está vacío", () => {
+    mockDocument.cookie = `${COOKIE_CONSENT_KEY}=accepted`
+
+    expect(renderToStaticMarkup(<MicrosoftClarity projectId={null} />)).toBe("")
+    expect(renderToStaticMarkup(<MicrosoftClarity projectId="" />)).toBe("")
+  })
+
+  it("carga Microsoft Clarity cuando hay consentimiento y projectId", () => {
+    mockDocument.cookie = `${COOKIE_CONSENT_KEY}=accepted`
+
+    const html = renderToStaticMarkup(<MicrosoftClarity projectId="clarityproj123" />)
+    expect(html).toContain('id="microsoft-clarity"')
+    expect(html).toContain("clarityproj123")
   })
 })

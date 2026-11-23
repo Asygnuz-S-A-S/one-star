@@ -27,8 +27,11 @@ services:
         NEXT_PUBLIC_EPAYCO_PUBLIC_KEY: ${NEXT_PUBLIC_EPAYCO_PUBLIC_KEY:?NEXT_PUBLIC_EPAYCO_PUBLIC_KEY is required}
         NEXT_PUBLIC_EPAYCO_TEST: ${NEXT_PUBLIC_EPAYCO_TEST:?NEXT_PUBLIC_EPAYCO_TEST is required}
         NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:?NEXT_PUBLIC_SENTRY_DSN is required}
-        # Opcional: sin valor no se carga Google Analytics.
+        # Opcional: sin valor no se cargan scripts de analítica de terceros.
         NEXT_PUBLIC_GA_MEASUREMENT_ID: ${NEXT_PUBLIC_GA_MEASUREMENT_ID:-}
+        NEXT_PUBLIC_GTM_ID: ${NEXT_PUBLIC_GTM_ID:-}
+        NEXT_PUBLIC_GOOGLE_ADS_ID: ${NEXT_PUBLIC_GOOGLE_ADS_ID:-}
+        NEXT_PUBLIC_CLARITY_ID: ${NEXT_PUBLIC_CLARITY_ID:-}
     restart: unless-stopped
     init: true
     expose:
@@ -91,6 +94,10 @@ services:
       ENVIA_TRACKING_URL_TEMPLATE: ${ENVIA_TRACKING_URL_TEMPLATE:-}
       LOGGRO_IVA_RATE: ${LOGGRO_IVA_RATE:-}
       WEB_ANALYTICS_RETENTION_DAYS: ${WEB_ANALYTICS_RETENTION_DAYS:-}
+      NEXT_PUBLIC_GA_MEASUREMENT_ID: ${NEXT_PUBLIC_GA_MEASUREMENT_ID:-}
+      NEXT_PUBLIC_GTM_ID: ${NEXT_PUBLIC_GTM_ID:-}
+      NEXT_PUBLIC_GOOGLE_ADS_ID: ${NEXT_PUBLIC_GOOGLE_ADS_ID:-}
+      NEXT_PUBLIC_CLARITY_ID: ${NEXT_PUBLIC_CLARITY_ID:-}
     depends_on:
       db:
         condition: service_healthy

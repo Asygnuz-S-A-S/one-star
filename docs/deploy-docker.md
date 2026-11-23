@@ -52,7 +52,10 @@ del servidor, nunca en el repositorio:
 
 ```bash
 ANTHROPIC_API_KEY, ANTHROPIC_MODEL            # chat de ventas con IA
-NEXT_PUBLIC_GA_MEASUREMENT_ID                 # Google Analytics 4 (va en el build: hay que reconstruir)
+NEXT_PUBLIC_GA_MEASUREMENT_ID                 # Google Analytics 4 (soporta runtime en .env o build)
+NEXT_PUBLIC_GTM_ID                            # Google Tag Manager (soporta runtime en .env o build)
+NEXT_PUBLIC_GOOGLE_ADS_ID                     # Google Ads (conversión y remarketing, soporta runtime o build)
+NEXT_PUBLIC_CLARITY_ID                        # Microsoft Clarity (mapas de calor y sesiones, soporta runtime o build)
 ASSISTANT_API_KEY, ASSISTANT_RATE_LIMIT_PER_MIN  # API del asistente de WhatsApp (n8n)
 META_CATALOG_TOKEN                            # feed de catálogo /api/meta/catalogo: sin ella responde 404 (openssl rand -hex 32)
 SENDGRID_API_KEY
