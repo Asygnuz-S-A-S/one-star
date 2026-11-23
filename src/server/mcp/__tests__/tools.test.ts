@@ -110,6 +110,18 @@ describe("herramientas MCP", () => {
     ])
   })
 
+  it("permite fijar defaultPhysicalStoreStock para tiendas físicas conservando el stock web", () => {
+    const fd = productFormData(product as never, stores, false, {
+      defaultPhysicalStoreStock: 3,
+    })
+    const variants = JSON.parse(fd.get("variants") as string)
+    expect(variants[0].inventory).toEqual([
+      { storeLocationId: null, stock: 3 },
+      { storeLocationId: "s-erp", stock: 3 },
+      { storeLocationId: "s-local", stock: 3 },
+    ])
+  })
+
   it("si la acción del admin falla, la herramienta falla con su mensaje", async () => {
     vi.mocked(updateProduct).mockResolvedValue({ success: false, error: "La categoría es requerida." })
     await expect(byName("editar_producto")({ id: "p1", cambios: {} })).rejects.toThrow("La categoría es requerida.")
