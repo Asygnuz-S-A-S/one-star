@@ -15,7 +15,7 @@ describe("buildContentSecurityPolicy", () => {
       .find((directive) => directive.startsWith("script-src "))
 
     expect(scriptDirective).toBe(
-      "script-src 'self' 'nonce-request-nonce' 'strict-dynamic' https://*.epayco.co https://connect.facebook.net https://www.googletagmanager.com https://s3.amazonaws.com/widgets.addi.com/ https://cdn.addi.com",
+      "script-src 'self' 'nonce-request-nonce' 'strict-dynamic' https://*.epayco.co https://connect.facebook.net https://www.googletagmanager.com https://tagmanager.google.com https://www.clarity.ms https://scripts.clarity.ms https://s3.amazonaws.com/widgets.addi.com/ https://cdn.addi.com",
     )
     expect(scriptDirective).not.toContain("'unsafe-inline'")
     expect(scriptDirective).not.toContain("'unsafe-eval'")
@@ -75,10 +75,10 @@ describe("buildContentSecurityPolicy", () => {
     })
 
     expect(policy).toContain(
-      "connect-src 'self' https://*.epayco.co https://*.epayco.io https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://nominatim.openstreetmap.org https://connect.facebook.net https://www.facebook.com https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://*.addi.com https://*.addi-staging.com https://s3.amazonaws.com/widgets.addi.com/ https://*.split.io",
+      "connect-src 'self' https://*.epayco.co https://*.epayco.io https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://nominatim.openstreetmap.org https://connect.facebook.net https://www.facebook.com https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://*.g.doubleclick.net https://www.googleadservices.com https://googleads.g.doubleclick.net https://stats.g.doubleclick.net https://*.clarity.ms https://c.bing.com https://*.addi.com https://*.addi-staging.com https://s3.amazonaws.com/widgets.addi.com/ https://*.split.io",
     )
     expect(policy).toContain(
-      "frame-src 'self' https://*.epayco.co https://www.google.com https://maps.google.com https://*.addi.com https://*.addi-staging.com https://www.facebook.com",
+      "frame-src 'self' https://*.epayco.co https://www.google.com https://maps.google.com https://*.addi.com https://*.addi-staging.com https://www.facebook.com https://www.googletagmanager.com",
     )
     expect(policy).toContain("form-action 'self' https://*.epayco.co https://www.facebook.com")
     expect(policy).toContain("img-src 'self' blob: data: https:")

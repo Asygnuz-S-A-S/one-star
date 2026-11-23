@@ -20,8 +20,12 @@ export function buildContentSecurityPolicy({
     "https://*.epayco.co",
     // Píxel de Meta: fallback para navegadores sin 'strict-dynamic'.
     "https://connect.facebook.net",
-    // Google Analytics 4
+    // Google Tag Manager, GA4 y Google Ads
     "https://www.googletagmanager.com",
+    "https://tagmanager.google.com",
+    // Microsoft Clarity (mapas de calor y analítica de comportamiento)
+    "https://www.clarity.ms",
+    "https://scripts.clarity.ms",
     // Widget oficial de Addi: solo su CDN y su bucket (no todo S3 ni unpkg).
     "https://s3.amazonaws.com/widgets.addi.com/",
     "https://cdn.addi.com",
@@ -37,10 +41,17 @@ export function buildContentSecurityPolicy({
     // Píxel de Meta: fbevents.js reporta a facebook.com vía fetch/beacon.
     "https://connect.facebook.net",
     "https://www.facebook.com",
-    // Google Analytics 4
+    // Google Tag Manager, Google Analytics 4 y Google Ads
     "https://www.googletagmanager.com",
     "https://*.google-analytics.com",
     "https://*.analytics.google.com",
+    "https://*.g.doubleclick.net",
+    "https://www.googleadservices.com",
+    "https://googleads.g.doubleclick.net",
+    "https://stats.g.doubleclick.net",
+    // Microsoft Clarity (telemetría y analítica de comportamiento)
+    "https://*.clarity.ms",
+    "https://c.bing.com",
     // API y servicios de Addi
     "https://*.addi.com",
     "https://*.addi-staging.com",
@@ -63,7 +74,8 @@ export function buildContentSecurityPolicy({
     "font-src 'self' data: https://s3.amazonaws.com",
     `connect-src ${connectSources.join(" ")}`,
     // `www.facebook.com`: el iframe que fbevents usa para ese form POST.
-    "frame-src 'self' https://*.epayco.co https://www.google.com https://maps.google.com https://*.addi.com https://*.addi-staging.com https://www.facebook.com",
+    // `www.googletagmanager.com`: iframe noscript de GTM.
+    "frame-src 'self' https://*.epayco.co https://www.google.com https://maps.google.com https://*.addi.com https://*.addi-staging.com https://www.facebook.com https://www.googletagmanager.com",
     // `www.facebook.com`: cuando fbevents agrupa eventos (batching) los envía
     // con un form POST dentro de un iframe, no por GET. Sin esto el navegador
     // bloquea todo salvo el PageView simple.
