@@ -555,6 +555,13 @@ model Lead {
   consentAt         DateTime?
   optedOut          Boolean     @default(false)
   optedOutAt        DateTime?
+  botPaused         Boolean     @default(false)
+  botPausedAt       DateTime?
+  botPausedUntil    DateTime?
+  needsHuman        Boolean     @default(false)
+  handoffReason     String?
+  handoffAt         DateTime?
+  tags              String[]    @default([])
   shortCode         String?     @unique
   productSlug       String?
   utmSource         String?
@@ -569,6 +576,8 @@ model Lead {
 
   @@index([stage])
   @@index([optedOut])
+  @@index([botPaused])
+  @@index([needsHuman])
   @@index([createdAt])
 }
 
@@ -754,6 +763,8 @@ model StoreSettings {
   newArrivalDays         Int      @default(30)
   chatEnabled            Boolean  @default(true)
   chatWelcome            String?
+  /// Suiche global del bot de WhatsApp en n8n (true = responde, false = silenciado para todos).
+  whatsappBotEnabled     Boolean  @default(true)
   giftCardMinAmount      Int      @default(20000)
   giftCardMaxAmount      Int      @default(2000000)
   giftCardValidityMonths Int      @default(12)

@@ -9,7 +9,9 @@ export interface LeadFilterParams {
   source?: "ALL" | "WHATSAPP" | "CLUB" | "ABANDONED_CART" | "REGISTERED_NO_ORDER"
   stage?: string
   utm?: string
+  tag?: string
   hasPhone?: boolean
+  needsHumanOnly?: boolean
   excludeOptedOut?: boolean
   startDate?: string
   endDate?: string
@@ -24,6 +26,8 @@ export interface LeadStats {
   withPhoneCount: number
   convertedCustomersCount: number
   whatsappLeadsCount?: number
+  botPausedCount?: number
+  pendingHandoffCount?: number
 }
 
 export interface LeadEventItem {
@@ -81,6 +85,11 @@ export async function upsertLeadRecord(data: {
   consentAt?: Date | null
   optedOut?: boolean
   optedOutAt?: Date | null
+  botPausedUntil?: Date | null
+  needsHuman?: boolean
+  handoffReason?: string | null
+  handoffAt?: Date | null
+  tags?: string[]
   source?: string
 }) {
   const now = new Date()
@@ -95,6 +104,19 @@ export async function upsertLeadRecord(data: {
           optedOutAt: data.optedOut ? (data.optedOutAt ?? now) : null,
         }
       : {}),
+    ...(data.botPausedUntil !== undefined ? { botPausedUntil: data.botPausedUntil } : {}),
+    ...(data.needsHuman !== undefined
+      ? {
+          needsHuman: data.needsHuman,
+          handoffAt: data.needsHuman ? (data.handoffAt ?? now) : null,
+          ...(data.needsHuman && data.handoffReason !== undefined
+            ? { handoffReason: data.handoffReason }
+            : !data.needsHuman
+              ? { handoffReason: null }
+              : {}),
+        }
+      : {}),
+    ...(data.tags !== undefined ? { tags: data.tags } : {}),
   }
 
   return prisma.lead.upsert({
@@ -108,9 +130,21 @@ export async function upsertLeadRecord(data: {
       consentAt: data.consentAt ?? null,
       optedOut: data.optedOut ?? false,
       optedOutAt: data.optedOut ? (data.optedOutAt ?? now) : null,
+      botPausedUntil: data.botPausedUntil ?? null,
+      needsHuman: data.needsHuman ?? false,
+      handoffReason: data.needsHuman ? (data.handoffReason ?? null) : null,
+      handoffAt: data.needsHuman ? (data.handoffAt ?? now) : null,
+      tags: data.tags ?? [],
       lastInteractionAt: now,
     },
     update: updateData,
+  })
+}
+
+export async function updateLeadTagsRecord(leadId: string, tags: string[]) {
+  return prisma.lead.update({
+    where: { id: leadId },
+    data: { tags },
   })
 }
 
@@ -122,6 +156,60 @@ export async function updateLeadStageRecord(leadId: string, stage: LeadStage) {
       lastInteractionAt: new Date(),
     },
   })
+}
+
+export async function updateLeadBotPausedRecord(leadId: string, paused: boolean) {
+  return prisma.lead.update({
+    where: { id: leadId },
+    data: paused
+      ? {
+          botPaused: true,
+          botPausedAt: new Date(),
+        }
+      : {
+          botPaused: false,
+          botPausedAt: null,
+          botPausedUntil: null,
+          needsHuman: false,
+          handoffReason: null,
+          handoffAt: null,
+        },
+  })
+}
+
+export async function resolveLeadHandoffRecord(leadId: string) {
+  return prisma.lead.update({
+    where: { id: leadId },
+    data: {
+      needsHuman: false,
+      handoffReason: null,
+      handoffAt: null,
+    },
+  })
+}
+
+export async function findPendingHandoffLeads(limit = 10) {
+  if (!prisma.lead?.findMany) return []
+  return prisma.lead.findMany({
+    where: { needsHuman: true },
+    orderBy: [{ handoffAt: "desc" }, { updatedAt: "desc" }],
+    take: limit,
+    select: {
+      id: true,
+      waPhone: true,
+      name: true,
+      handoffReason: true,
+      handoffAt: true,
+      botPaused: true,
+      botPausedUntil: true,
+      stage: true,
+    },
+  })
+}
+
+export async function countPendingHandoffLeads(): Promise<number> {
+  if (!prisma.lead?.count) return 0
+  return prisma.lead.count({ where: { needsHuman: true } })
 }
 
 export async function updateLeadShortLinkRecord(
@@ -220,6 +308,7 @@ export async function getLeadsData(params: LeadFilterParams) {
   const skip = params.skip ?? 0
   const q = params.q?.trim().toLowerCase() ?? ""
   const utmFilter = params.utm?.trim().toLowerCase() ?? ""
+  const tagFilter = params.tag?.trim().toLowerCase() ?? ""
 
   // 1. Prospectos registrados en User con 0 pedidos pagados
   const userLeads = await prisma.user.findMany({
@@ -335,6 +424,14 @@ export async function getLeadsData(params: LeadFilterParams) {
       utmContent: null as string | null,
       ctwaClid: null as string | null,
       optedOut: false,
+      botPaused: false,
+      botPausedAt: null as string | null,
+      botPausedUntil: null as string | null,
+      needsHuman: false,
+      handoffReason: null as string | null,
+      handoffAt: null as string | null,
+      tags: [] as string[],
+      leadRecordId: null as string | null,
       consentAt: null as string | null,
       events: [] as LeadEventItem[],
       createdAt: u.createdAt,
@@ -367,6 +464,14 @@ export async function getLeadsData(params: LeadFilterParams) {
         utmContent: null as string | null,
         ctwaClid: null as string | null,
         optedOut: false,
+        botPaused: false,
+        botPausedAt: null as string | null,
+        botPausedUntil: null as string | null,
+        needsHuman: false,
+        handoffReason: null as string | null,
+        handoffAt: null as string | null,
+        tags: [] as string[],
+        leadRecordId: null as string | null,
         consentAt: null as string | null,
         events: [] as LeadEventItem[],
         createdAt: ac.createdAt,
@@ -411,6 +516,16 @@ export async function getLeadsData(params: LeadFilterParams) {
       utmContent: wl.utmContent ?? null,
       ctwaClid: wl.ctwaClid ?? null,
       optedOut: Boolean(wl.optedOut),
+      botPaused: Boolean(wl.botPaused),
+      botPausedAt: wl.botPausedAt ? wl.botPausedAt.toISOString() : null,
+      botPausedUntil: wl.botPausedUntil ? wl.botPausedUntil.toISOString() : null,
+      needsHuman: Boolean(wl.needsHuman),
+      handoffReason: wl.handoffReason ?? null,
+      handoffAt: wl.handoffAt ? wl.handoffAt.toISOString() : null,
+      tags: Array.isArray((wl as { tags?: string[] }).tags)
+        ? ((wl as { tags?: string[] }).tags ?? [])
+        : [],
+      leadRecordId: wl.id,
       consentAt: wl.consentAt ? wl.consentAt.toISOString() : null,
       events: mappedEvents,
       createdAt: wl.createdAt,
@@ -426,6 +541,10 @@ export async function getLeadsData(params: LeadFilterParams) {
 
   if (params.hasPhone) {
     allLeads = allLeads.filter((l) => Boolean(l.phone || l.waPhone))
+  }
+
+  if (params.needsHumanOnly) {
+    allLeads = allLeads.filter((l) => Boolean(l.needsHuman))
   }
 
   // Filtrado por Source si se especificó
@@ -460,6 +579,13 @@ export async function getLeadsData(params: LeadFilterParams) {
     )
   }
 
+  // Filtrado por Etiqueta
+  if (tagFilter && tagFilter !== "all") {
+    allLeads = allLeads.filter((l) =>
+      (l.tags ?? []).some((t) => t.toLowerCase() === tagFilter)
+    )
+  }
+
   // Ordenar por fecha descendente
   allLeads.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
 
@@ -467,17 +593,30 @@ export async function getLeadsData(params: LeadFilterParams) {
   const paginatedLeads = allLeads.slice(skip, skip + take)
 
   // Métricas globales CRM
-  const [totalCustomersWithOrders, totalClubMembers, totalAbandoned, totalWhatsappLeads] =
-    await Promise.all([
-      prisma.user.count({
-        where: {
-          orders: { some: { status: { in: ["PAID", "SHIPPED", "DELIVERED"] } } },
-        },
-      }),
-      prisma.user.count({ where: { clubMember: true } }),
-      prisma.abandonedCart.count({ where: { recoveredAt: null } }),
-      prisma.lead?.count ? prisma.lead.count() : Promise.resolve(0),
-    ])
+  const now = new Date()
+  const [
+    totalCustomersWithOrders,
+    totalClubMembers,
+    totalAbandoned,
+    totalWhatsappLeads,
+    totalBotPaused,
+    totalPendingHandoff,
+  ] = await Promise.all([
+    prisma.user.count({
+      where: {
+        orders: { some: { status: { in: ["PAID", "SHIPPED", "DELIVERED"] } } },
+      },
+    }),
+    prisma.user.count({ where: { clubMember: true } }),
+    prisma.abandonedCart.count({ where: { recoveredAt: null } }),
+    prisma.lead?.count ? prisma.lead.count() : Promise.resolve(0),
+    prisma.lead?.count
+      ? prisma.lead.count({
+          where: { OR: [{ botPaused: true }, { botPausedUntil: { gt: now } }] },
+        })
+      : Promise.resolve(0),
+    prisma.lead?.count ? prisma.lead.count({ where: { needsHuman: true } }) : Promise.resolve(0),
+  ])
 
   const stats: LeadStats = {
     totalLeads: total,
@@ -486,7 +625,17 @@ export async function getLeadsData(params: LeadFilterParams) {
     withPhoneCount: allLeads.filter((l) => Boolean(l.phone || l.waPhone)).length,
     convertedCustomersCount: totalCustomersWithOrders,
     whatsappLeadsCount: totalWhatsappLeads,
+    botPausedCount: totalBotPaused,
+    pendingHandoffCount: totalPendingHandoff,
   }
+
+  const availableTagsSet = new Set<string>()
+  for (const wl of mappedWhatsapp) {
+    for (const t of wl.tags) {
+      if (t) availableTagsSet.add(t)
+    }
+  }
+  const availableTags = Array.from(availableTagsSet).sort((a, b) => a.localeCompare(b, "es"))
 
   return {
     leads: paginatedLeads.map((l) => ({
@@ -496,5 +645,6 @@ export async function getLeadsData(params: LeadFilterParams) {
     })),
     total,
     stats,
+    availableTags,
   }
 }

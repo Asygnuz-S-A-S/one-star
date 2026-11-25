@@ -10,6 +10,7 @@ import { signOut } from "@/lib/auth-client"
 interface AdminSidebarProps {
   userName: string
   userRole: AdminRole | string | null
+  pendingHandoffCount?: number
 }
 
 const navGroups = [
@@ -246,7 +247,11 @@ const roleLabel: Record<string, string> = {
   SALES_OPERATOR: "Operador de Ventas",
 }
 
-export default function AdminSidebar({ userName, userRole }: AdminSidebarProps) {
+export default function AdminSidebar({
+  userName,
+  userRole,
+  pendingHandoffCount = 0,
+}: AdminSidebarProps) {
   const router = useRouter()
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -320,7 +325,19 @@ export default function AdminSidebar({ userName, userRole }: AdminSidebarProps) 
                       }`}
                     >
                       {item.icon}
-                      <span>{item.label}</span>
+                      <span className="flex-1">{item.label}</span>
+                      {item.href === "/admin/leads" && pendingHandoffCount > 0 && (
+                        <span
+                          aria-label={`${pendingHandoffCount} clientes esperando asesora`}
+                          className={`inline-flex min-w-5 h-5 items-center justify-center rounded-full px-1.5 text-[11px] font-bold ${
+                            active
+                              ? "bg-white text-[#E31C23]"
+                              : "bg-[#E31C23] text-white"
+                          }`}
+                        >
+                          {pendingHandoffCount > 99 ? "99+" : pendingHandoffCount}
+                        </span>
+                      )}
                     </Link>
                   )
                 })}

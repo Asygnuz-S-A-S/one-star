@@ -1,22 +1,32 @@
 import "server-only"
 import { randomBytes } from "node:crypto"
 import type { LeadStage, Prisma } from "@prisma/client"
+import { mergeLeadTags, normalizeLeadTags } from "@/lib/lead-tags"
 import {
   attachLeadToOrderRecord,
+  countPendingHandoffLeads,
   createLeadEventRecord,
   findLeadById,
   findLeadByPhone,
   findLeadByShortCode,
+  findPendingHandoffLeads,
   findStaleLeadsForAbandonment,
   getLeadsData,
+  resolveLeadHandoffRecord,
+  updateLeadBotPausedRecord,
   updateLeadShortLinkRecord,
   updateLeadStageRecord,
+  updateLeadTagsRecord,
   updateLeadUtmRecord,
   upsertLeadRecord,
   type LeadEventItem,
   type LeadFilterParams,
   type LeadStats,
 } from "../repositories/lead.repository"
+import {
+  getWhatsappBotEnabledRecord,
+  updateStoreSettingsRecord,
+} from "../repositories/store-settings.repository"
 import { extractProductSlug, normalizeWaPhone } from "../validators/lead.validator"
 
 export type { LeadStats, LeadEventItem }
@@ -61,6 +71,14 @@ export interface LeadDTO {
   utmContent?: string | null
   ctwaClid?: string | null
   optedOut?: boolean
+  botPaused?: boolean
+  botPausedAt?: string | null
+  botPausedUntil?: string | null
+  needsHuman?: boolean
+  handoffReason?: string | null
+  handoffAt?: string | null
+  tags?: string[]
+  leadRecordId?: string | null
   consentAt?: string | null
   events?: LeadEventItem[]
   createdAt: string
@@ -71,6 +89,7 @@ export interface GetLeadsResponse {
   leads: LeadDTO[]
   total: number
   stats: LeadStats
+  availableTags?: string[]
 }
 
 function sanitizeEventMetadata(
@@ -95,12 +114,31 @@ function generateShortCode(): string {
  * Crea o actualiza de forma idempotente un lead de WhatsApp por su teléfono normalizado a dígitos.
  * Nunca crea registros User ni almacena correo o cédula.
  */
+export function isLeadBotPausedNow(
+  lead: { botPaused?: boolean | null; botPausedUntil?: Date | string | null } | null | undefined,
+  now: Date = new Date()
+): boolean {
+  if (!lead) return false
+  if (lead.botPaused) return true
+  if (!lead.botPausedUntil) return false
+  const until =
+    lead.botPausedUntil instanceof Date
+      ? lead.botPausedUntil
+      : new Date(lead.botPausedUntil)
+  return Number.isFinite(until.getTime()) && until.getTime() > now.getTime()
+}
+
 export async function upsertLeadByPhone(input: {
   waPhone: string
   name?: string | null
   ctwaClid?: string | null
   consent?: boolean
   optedOut?: boolean
+  botPausedUntil?: string | null
+  needsHuman?: boolean
+  handoffReason?: string | null
+  addTags?: string[]
+  removeTags?: string[]
 }) {
   const digits = normalizeWaPhone(input.waPhone)
   if (digits.length < 7 || digits.length > 15) {
@@ -108,6 +146,30 @@ export async function upsertLeadByPhone(input: {
   }
 
   const now = new Date()
+  const parsedPausedUntil =
+    input.botPausedUntil === undefined
+      ? undefined
+      : input.botPausedUntil === null
+        ? null
+        : new Date(input.botPausedUntil)
+
+  const autoTags: string[] = []
+  if (input.ctwaClid) autoTags.push("Pauta Meta")
+  if (input.needsHuman === true) autoTags.push("Pidió asesora")
+  if (input.optedOut === true) autoTags.push("Baja")
+
+  const tagsToAdd = normalizeLeadTags([...(input.addTags ?? []), ...autoTags])
+  const tagsToRemove = normalizeLeadTags(input.removeTags)
+
+  let mergedTags: string[] | undefined
+  if (tagsToAdd.length > 0 || tagsToRemove.length > 0) {
+    const existing = await findLeadByPhone(digits)
+    const currentTags = Array.isArray((existing as { tags?: string[] } | null)?.tags)
+      ? ((existing as { tags?: string[] }).tags ?? [])
+      : []
+    mergedTags = mergeLeadTags(currentTags, tagsToAdd, tagsToRemove)
+  }
+
   const lead = await upsertLeadRecord({
     waPhone: digits,
     name: input.name ? input.name.trim() : undefined,
@@ -115,19 +177,41 @@ export async function upsertLeadByPhone(input: {
     consentAt: input.consent === true ? now : undefined,
     optedOut: input.optedOut,
     optedOutAt: input.optedOut === true ? now : input.optedOut === false ? null : undefined,
+    botPausedUntil: parsedPausedUntil,
+    needsHuman: input.needsHuman,
+    handoffReason: input.handoffReason ? input.handoffReason.trim() : undefined,
+    handoffAt: input.needsHuman === true ? now : input.needsHuman === false ? null : undefined,
+    ...(mergedTags !== undefined ? { tags: mergedTags } : {}),
     source: "WHATSAPP",
   })
 
+  const eventType =
+    input.optedOut === true
+      ? "OPT_OUT"
+      : input.needsHuman === true
+        ? "HANDOFF_REQUESTED"
+        : input.botPausedUntil
+          ? "BOT_AUTO_PAUSED"
+          : "LEAD_UPSERTED"
+
   await createLeadEventRecord({
     leadId: lead.id,
-    type: input.optedOut === true ? "OPT_OUT" : "LEAD_UPSERTED",
+    type: eventType,
     stage: lead.stage,
     metadata: sanitizeEventMetadata({
       ...(input.ctwaClid ? { ctwaClid: input.ctwaClid } : {}),
       ...(input.consent !== undefined ? { consent: input.consent } : {}),
       ...(input.optedOut !== undefined ? { optedOut: input.optedOut } : {}),
+      ...(input.botPausedUntil !== undefined ? { botPausedUntil: input.botPausedUntil } : {}),
+      ...(input.needsHuman !== undefined ? { needsHuman: input.needsHuman } : {}),
+      ...(input.handoffReason ? { handoffReason: input.handoffReason.trim() } : {}),
+      ...(tagsToAdd.length > 0 ? { addedTags: tagsToAdd } : {}),
     }),
   })
+
+  const leadTags = Array.isArray((lead as { tags?: string[] }).tags)
+    ? ((lead as { tags?: string[] }).tags ?? [])
+    : mergedTags ?? []
 
   return {
     id: lead.id,
@@ -137,7 +221,181 @@ export async function upsertLeadByPhone(input: {
     ctwaClid: lead.ctwaClid,
     consentAt: lead.consentAt ? lead.consentAt.toISOString() : null,
     optedOut: lead.optedOut,
+    botPaused: Boolean(lead.botPaused),
+    botPausedAt: lead.botPausedAt ? lead.botPausedAt.toISOString() : null,
+    botPausedUntil: lead.botPausedUntil ? lead.botPausedUntil.toISOString() : null,
+    needsHuman: Boolean(lead.needsHuman),
+    handoffReason: lead.handoffReason ?? null,
+    handoffAt: lead.handoffAt ? lead.handoffAt.toISOString() : null,
+    tags: leadTags,
   }
+}
+
+export async function getWhatsappBotGlobalEnabled(): Promise<boolean> {
+  return getWhatsappBotEnabledRecord()
+}
+
+export async function setWhatsappBotGlobalEnabled(enabled: boolean): Promise<boolean> {
+  const updated = await updateStoreSettingsRecord({ whatsappBotEnabled: enabled })
+  return Boolean(updated.whatsappBotEnabled)
+}
+
+/**
+ * Consulta si el bot de WhatsApp debe responder a un número dado.
+ * Responde solo cuando el suiche global está encendido, el lead no está pausado
+ * (ni manualmente ni por pausa automática vigente) y el cliente no pidió la baja (optedOut).
+ */
+export async function getWhatsappBotStatusForPhone(waPhone: string) {
+  const digits = normalizeWaPhone(waPhone)
+  const [botGlobalEnabled, lead] = await Promise.all([
+    getWhatsappBotEnabledRecord(),
+    digits.length >= 7 ? findLeadByPhone(digits) : Promise.resolve(null),
+  ])
+
+  const pausedNow = isLeadBotPausedNow(lead)
+  const optedOut = Boolean(lead?.optedOut)
+
+  return {
+    botGlobalEnabled,
+    lead: lead
+      ? {
+          id: lead.id,
+          waPhone: lead.waPhone,
+          name: lead.name,
+          stage: lead.stage,
+          optedOut,
+          botPaused: Boolean(lead.botPaused),
+          botPausedAt: lead.botPausedAt ? lead.botPausedAt.toISOString() : null,
+          botPausedUntil: lead.botPausedUntil ? lead.botPausedUntil.toISOString() : null,
+          needsHuman: Boolean(lead.needsHuman),
+          handoffReason: lead.handoffReason ?? null,
+          handoffAt: lead.handoffAt ? lead.handoffAt.toISOString() : null,
+          tags: Array.isArray((lead as { tags?: string[] }).tags)
+            ? ((lead as { tags?: string[] }).tags ?? [])
+            : [],
+        }
+      : null,
+    shouldRespond: botGlobalEnabled && !pausedNow && !optedOut,
+  }
+}
+
+/**
+ * Apaga o prende el bot de WhatsApp manualmente para un lead puntual.
+ * Al prenderlo (`paused: false`) limpia también cualquier pausa automática vigente y la alerta de traspaso.
+ */
+export async function setLeadBotPaused(leadId: string, paused: boolean) {
+  const cleanId = leadId.replace(/^wa_/, "").trim()
+  if (!cleanId) {
+    throw new Error("Identificador de lead inválido.")
+  }
+
+  const existing = await findLeadById(cleanId)
+  if (!existing) {
+    throw new Error("Lead de WhatsApp no encontrado.")
+  }
+
+  const updated = await updateLeadBotPausedRecord(cleanId, paused)
+  await createLeadEventRecord({
+    leadId: cleanId,
+    type: paused ? "BOT_PAUSED" : "BOT_RESUMED",
+    stage: updated.stage,
+    metadata: sanitizeEventMetadata({ botPaused: paused }),
+  })
+
+  return {
+    id: updated.id,
+    botPaused: Boolean(updated.botPaused),
+    botPausedAt: updated.botPausedAt ? updated.botPausedAt.toISOString() : null,
+    botPausedUntil: updated.botPausedUntil ? updated.botPausedUntil.toISOString() : null,
+    needsHuman: Boolean(updated.needsHuman),
+  }
+}
+
+/**
+ * Marca como atendida la solicitud de asesora en el dashboard sin modificar la pausa del bot.
+ */
+export async function resolveLeadHandoff(leadId: string) {
+  const cleanId = leadId.replace(/^wa_/, "").trim()
+  if (!cleanId) {
+    throw new Error("Identificador de lead inválido.")
+  }
+
+  const existing = await findLeadById(cleanId)
+  if (!existing) {
+    throw new Error("Lead de WhatsApp no encontrado.")
+  }
+
+  const updated = await resolveLeadHandoffRecord(cleanId)
+  await createLeadEventRecord({
+    leadId: cleanId,
+    type: "HANDOFF_RESOLVED",
+    stage: updated.stage,
+  })
+
+  return {
+    id: updated.id,
+    needsHuman: false,
+  }
+}
+
+/**
+ * Reemplaza las etiquetas de un lead de WhatsApp desde el panel Admin.
+ */
+export async function setLeadTags(leadId: string, rawTags: string[]) {
+  const cleanId = leadId.replace(/^wa_/, "").trim()
+  if (!cleanId) {
+    throw new Error("Identificador de lead inválido.")
+  }
+
+  const existing = await findLeadById(cleanId)
+  if (!existing) {
+    throw new Error("Lead de WhatsApp no encontrado.")
+  }
+
+  const tags = normalizeLeadTags(rawTags)
+  const updated = await updateLeadTagsRecord(cleanId, tags)
+  await createLeadEventRecord({
+    leadId: cleanId,
+    type: "TAGS_UPDATED",
+    stage: updated.stage,
+    metadata: sanitizeEventMetadata({ tags }),
+  })
+
+  return {
+    id: updated.id,
+    tags: Array.isArray((updated as { tags?: string[] }).tags)
+      ? ((updated as { tags?: string[] }).tags ?? tags)
+      : tags,
+  }
+}
+
+export interface PendingHandoffDTO {
+  id: string
+  waPhone: string
+  name: string
+  handoffReason: string | null
+  handoffAt: string | null
+  botPaused: boolean
+  botPausedUntil: string | null
+  stage: string
+}
+
+export async function getPendingWhatsappHandoffs(limit = 10): Promise<PendingHandoffDTO[]> {
+  const rows = await findPendingHandoffLeads(limit)
+  return rows.map((row) => ({
+    id: row.id,
+    waPhone: row.waPhone,
+    name: row.name || "Prospecto WhatsApp",
+    handoffReason: row.handoffReason ?? null,
+    handoffAt: row.handoffAt ? row.handoffAt.toISOString() : null,
+    botPaused: Boolean(row.botPaused),
+    botPausedUntil: row.botPausedUntil ? row.botPausedUntil.toISOString() : null,
+    stage: String(row.stage),
+  }))
+}
+
+export async function getPendingWhatsappHandoffCount(): Promise<number> {
+  return countPendingHandoffLeads()
 }
 
 /**
@@ -159,6 +417,31 @@ export async function advanceStage(
   }
 
   const updated = await updateLeadStageRecord(lead.id, nextStage)
+
+  const stageAdd: string[] = []
+  const stageRemove: string[] = []
+  if (nextStage === "INTERESADO" || nextStage === "CARRITO" || nextStage === "CHECKOUT") {
+    stageAdd.push("Cliente potencial")
+  } else if (nextStage === "ABANDONO") {
+    stageAdd.push("Carrito abandonado")
+  } else if (nextStage === "COMPRO") {
+    stageAdd.push("Compró")
+    stageRemove.push("Cliente potencial", "Carrito abandonado")
+  }
+
+  if (stageAdd.length > 0 && typeof updateLeadTagsRecord === "function") {
+    const currentTags = Array.isArray((lead as { tags?: string[] }).tags)
+      ? ((lead as { tags?: string[] }).tags ?? [])
+      : []
+    const nextTags = mergeLeadTags(currentTags, stageAdd, stageRemove)
+    const changed =
+      nextTags.length !== currentTags.length ||
+      nextTags.some((t, i) => t !== currentTags[i])
+    if (changed) {
+      await updateLeadTagsRecord(lead.id, nextTags)
+    }
+  }
+
   await createLeadEventRecord({
     leadId: lead.id,
     type: "STAGE_CHANGE",
@@ -417,7 +700,9 @@ export async function getLeadsList(params: {
   source?: "ALL" | "WHATSAPP" | "CLUB" | "ABANDONED_CART" | "REGISTERED_NO_ORDER"
   stage?: string
   utm?: string
+  tag?: string
   hasPhone?: boolean
+  needsHumanOnly?: boolean
   page?: number
   pageSize?: number
 }): Promise<GetLeadsResponse> {
@@ -429,8 +714,10 @@ export async function getLeadsList(params: {
     q: params.q,
     source: params.source,
     hasPhone: params.hasPhone,
+    ...(params.needsHumanOnly ? { needsHumanOnly: params.needsHumanOnly } : {}),
     ...(params.stage ? { stage: params.stage } : {}),
     ...(params.utm ? { utm: params.utm } : {}),
+    ...(params.tag ? { tag: params.tag } : {}),
     take: pageSize,
     skip,
   }
@@ -441,6 +728,7 @@ export async function getLeadsList(params: {
     leads: result.leads,
     total: result.total,
     stats: result.stats,
+    availableTags: result.availableTags,
   }
 }
 
@@ -451,12 +739,33 @@ function csvCell(value: string | null | undefined): string {
   return `"${safe.replaceAll('"', '""')}"`
 }
 
+export interface ExportLeadsFilters {
+  q?: string
+  source?: "ALL" | "WHATSAPP" | "CLUB" | "ABANDONED_CART" | "REGISTERED_NO_ORDER"
+  stage?: string
+  utm?: string
+  tag?: string
+  hasPhone?: boolean
+  needsHumanOnly?: boolean
+}
+
 /**
  * Genera contenido en formato CSV para exportar leads hacia campañas de WhatsApp o CRM externo.
- * Incluye waPhone, UTM y etapa, excluyendo siempre los leads dados de baja (optedOut).
+ * Respeta los filtros activos (etiqueta, origen, etapa, UTM, búsqueda, teléfono, esperando asesora)
+ * e incluye waPhone, UTM, etapa y etiquetas, excluyendo siempre los leads dados de baja (optedOut).
  */
-export async function exportLeadsToCsv(): Promise<string> {
-  const result = await getLeadsData({ take: 5000, skip: 0 })
+export async function exportLeadsToCsv(filters?: ExportLeadsFilters): Promise<string> {
+  const result = await getLeadsData({
+    ...(filters?.q ? { q: filters.q } : {}),
+    ...(filters?.source && filters.source !== "ALL" ? { source: filters.source } : {}),
+    ...(filters?.stage && filters.stage !== "ALL" ? { stage: filters.stage } : {}),
+    ...(filters?.utm ? { utm: filters.utm } : {}),
+    ...(filters?.tag && filters.tag !== "ALL" ? { tag: filters.tag } : {}),
+    ...(filters?.hasPhone ? { hasPhone: true } : {}),
+    ...(filters?.needsHumanOnly ? { needsHumanOnly: true } : {}),
+    take: 5000,
+    skip: 0,
+  })
   const activeLeads = result.leads.filter((l) => !l.optedOut)
 
   const headers = [
@@ -476,6 +785,7 @@ export async function exportLeadsToCsv(): Promise<string> {
     "Items en Carrito",
     "Valor Estimado",
     "Fecha Registro",
+    "Etiquetas",
   ]
 
   const rows = activeLeads.map((l) => [
@@ -495,6 +805,7 @@ export async function exportLeadsToCsv(): Promise<string> {
     l.cartItemCount,
     l.estimatedValue,
     csvCell(l.createdAt),
+    csvCell((l.tags ?? []).join(" | ")),
   ])
 
   return [headers.join(","), ...rows.map((r) => r.join(","))].join("\n")
