@@ -105,7 +105,8 @@ const CLOUDINARY_UPLOAD_RE = /^(https:\/\/res\.cloudinary\.com\/[^/]+\/image\/up
 
 /**
  * Optimiza imágenes de Cloudinary para Open Graph (WhatsApp, Facebook, X):
- * recorta bordes blancos sobrantes (`e_trim:10`) y encuadra a 1200x630 JPG liviano
+ * recorta bordes blancos sobrantes (`e_trim:10`), deja el producto en un cuadrado central de ~620x600
+ * (WhatsApp muestra una miniatura cuadrada recortada del centro) y lo encuadra a 1200x630 JPG liviano
  * para que WhatsApp renderice tarjeta grande y nítida en lugar de miniatura borrosa.
  */
 export function buildOpenGraphImage(url: string, alt: string): { url: string; alt: string; width?: number; height?: number } {
@@ -116,7 +117,7 @@ export function buildOpenGraphImage(url: string, alt: string): { url: string; al
     return { url, alt, width: 1200, height: 630 }
   }
   return {
-    url: `${prefix}e_trim:10/c_pad,w_1200,h_630,b_white,q_auto:good,f_jpg/${rest}`,
+    url: `${prefix}e_trim:10/c_fit,w_620,h_600/c_lpad,w_1200,h_630,b_white,q_auto:good,f_jpg/${rest}`,
     alt,
     width: 1200,
     height: 630,
