@@ -1,6 +1,7 @@
 import "server-only"
 import { z } from "zod"
 import { isSafePublicUrl } from "@/lib/safe-url"
+import { TICKER_SECONDS_DEFAULT, TICKER_SECONDS_MAX, TICKER_SECONDS_MIN } from "@/lib/ticker-messages"
 
 export const TopBannerMessageSchema = z.object({
   text: z.string().trim().min(1, "El mensaje no puede estar vacío").max(200),
@@ -16,6 +17,7 @@ export const TopBannerInputSchema = z.object({
   messages: z.array(TopBannerMessageSchema).max(20).default([]),
   bgColor: z.string().trim().min(1).max(32),
   textColor: z.string().trim().min(1).max(32),
+  tickerSeconds: z.number().int().min(TICKER_SECONDS_MIN).max(TICKER_SECONDS_MAX).default(TICKER_SECONDS_DEFAULT),
   isActive: z.boolean(),
 }).refine(
   data => !data.isActive || data.text.length > 0 || data.messages.length > 0,

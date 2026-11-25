@@ -14,6 +14,7 @@ export async function updateTopBanner(data: {
   messages?: { text: string; url?: string }[]
   bgColor: string
   textColor: string
+  tickerSeconds?: number
   isActive: boolean
 }): Promise<TopBanner> {
   const existing = await getTopBanner()

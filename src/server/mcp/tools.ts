@@ -94,6 +94,13 @@ const productChangesSchema = z.object({
     .max(40)
     .optional()
     .describe("Reemplaza TODAS las fotos, en este orden. Usa subir_imagen antes para tener la URL de Cloudinary."),
+  defaultPhysicalStoreStock: z
+    .number()
+    .int()
+    .nonnegative()
+    .max(9999)
+    .optional()
+    .describe("Asigna esta cantidad de stock a todas las tiendas físicas en cada variante del producto (para retiro en tienda)."),
 })
 
 export type ProductChanges = z.infer<typeof productChangesSchema>
@@ -118,10 +125,14 @@ export function productFormData(
     const web = v.inventory.find((inv) => inv.storeLocationId === null)
     const inventory = [
       { storeLocationId: null as string | null, stock: web ? web.stock : v.stock || 0 },
-      ...stores.map((store) => ({
-        storeLocationId: store.id as string | null,
-        stock: v.inventory.find((inv) => inv.storeLocationId === store.id)?.stock ?? 0,
-      })),
+      ...stores.map((store) => {
+        const existingStock = v.inventory.find((inv) => inv.storeLocationId === store.id)?.stock ?? 0
+        const stock = changes.defaultPhysicalStoreStock !== undefined ? changes.defaultPhysicalStoreStock : existingStock
+        return {
+          storeLocationId: store.id as string | null,
+          stock,
+        }
+      }),
     ]
     return {
       id: v.id,
@@ -297,7 +308,7 @@ export const MCP_TOOLS: McpTool[] = [
   tool({
     name: "editar_producto",
     description:
-      "Cambia campos de un producto (solo los que envíes; variantes e inventario no se tocan). Si el producto está publicado, el cambio sale en la tienda al instante.",
+      "Cambia campos de un producto (solo los que envíes; las variantes se conservan). Permite fijar defaultPhysicalStoreStock para habilitar recogida en tienda física. Si el producto está publicado, el cambio sale en la tienda al instante.",
     area: "inventory",
     readOnly: false,
     live: true,
@@ -514,6 +525,7 @@ export const MCP_TOOLS: McpTool[] = [
       btnUrl: z.string().max(500).nullable().optional(),
       bgColor: z.string().max(32).optional(),
       textColor: z.string().max(32).optional(),
+      tickerSeconds: z.number().int().min(3).max(30).optional().describe("Segundos que tarda cada mensaje en cruzar (más alto = más lento). Por defecto 6."),
       isActive: z.boolean().optional(),
     }),
     run: async (changes) => {
@@ -528,6 +540,7 @@ export const MCP_TOOLS: McpTool[] = [
           messages,
           bgColor: changes.bgColor ?? current?.bgColor ?? "#1C1C1C",
           textColor: changes.textColor ?? current?.textColor ?? "#FFFFFF",
+          tickerSeconds: changes.tickerSeconds ?? current?.tickerSeconds ?? 6,
           isActive: changes.isActive ?? current?.isActive ?? false,
         })
       )

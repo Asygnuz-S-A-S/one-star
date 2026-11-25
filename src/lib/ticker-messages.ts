@@ -1,3 +1,14 @@
+/** Segundos que tarda cada mensaje en cruzar la barra superior. Más alto = más lento. */
+export const TICKER_SECONDS_DEFAULT = 6
+export const TICKER_SECONDS_MIN = 3
+export const TICKER_SECONDS_MAX = 30
+
+/** Acota un valor guardado (o ausente) al rango permitido. */
+export function clampTickerSeconds(value: unknown): number {
+  const n = typeof value === "number" && Number.isFinite(value) ? Math.round(value) : TICKER_SECONDS_DEFAULT
+  return Math.min(TICKER_SECONDS_MAX, Math.max(TICKER_SECONDS_MIN, n))
+}
+
 export interface TickerMessage {
   text: string
   url?: string

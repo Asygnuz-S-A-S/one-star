@@ -15,7 +15,9 @@ const pad = (value: number) => String(value).padStart(2, "0")
 export default function ProductGallery({ images, videoUrl }: ProductGalleryProps) {
   const [activeIndex, setActiveIndex] = useState(0)
   const [showVideo, setShowVideo] = useState(false)
-  const [hoverFrame, setHoverFrame] = useState<number | null>(null)
+  // Zoom con un clic: la foto se amplía y sigue al cursor; otro clic (o salir) la devuelve.
+  const [zoomed, setZoomed] = useState(false)
+  const [zoomOrigin, setZoomOrigin] = useState("50% 50%")
   const [direction, setDirection] = useState<1 | -1>(1)
   const touchStart = useRef<number | null>(null)
   const tablistRef = useRef<HTMLDivElement>(null)
@@ -23,7 +25,7 @@ export default function ProductGallery({ images, videoUrl }: ProductGalleryProps
 
   const hasVideo = Boolean(videoUrl)
   const total = images.length
-  const visibleIndex = hoverFrame ?? activeIndex
+  const visibleIndex = activeIndex
 
   useEffect(() => {
     if (!hasMountedRef.current) {
@@ -53,22 +55,30 @@ export default function ProductGallery({ images, videoUrl }: ProductGalleryProps
     if (total === 0) return
     const next = (index + total) % total
     setDirection(next >= activeIndex ? 1 : -1)
-    setHoverFrame(null)
+    setZoomed(false)
     setActiveIndex(next)
     setShowVideo(false)
   }, [activeIndex, total])
 
-  // Con mouse, recorrer la foto de izquierda a derecha la hace "girar" entre ángulos.
-  // Se omiten los controles inferiores para que pulsar flechas no quede congelado en un ángulo de hover.
-  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (showVideo || total <= 1) return
-    if ((e.target as HTMLElement | null)?.closest("[data-gallery-controls]")) return
+  // En la ficha la foto ya no cambia al pasar el mouse (eso queda para las tarjetas del catálogo).
+  // Un clic acerca la foto en el punto señalado; mover el mouse recorre la zona ampliada.
+  const originFrom = useCallback((e: React.MouseEvent<HTMLElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
-    const x = Math.max(0, Math.min(0.9999, (e.clientX - rect.left) / rect.width))
-    const frame = Math.floor(x * total)
-    if (frame !== visibleIndex) setDirection(frame > visibleIndex ? 1 : -1)
-    setHoverFrame(frame)
-  }, [showVideo, total, visibleIndex])
+    const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100))
+    const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100))
+    return `${x}% ${y}%`
+  }, [])
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (zoomed) setZoomOrigin(originFrom(e))
+  }, [zoomed, originFrom])
+
+  const toggleZoom = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (showVideo) return
+    if ((e.target as HTMLElement | null)?.closest("button")) return
+    setZoomOrigin(originFrom(e))
+    setZoomed((value) => !value)
+  }, [showVideo, originFrom])
 
   // Producto sin fotos cargadas: imagen predeterminada de la tienda.
   if (total === 0 && !hasVideo) {
@@ -145,15 +155,18 @@ export default function ProductGallery({ images, videoUrl }: ProductGalleryProps
       {/* Foto principal */}
       <div
         // Caja horizontal: las fotos de tenis son apaisadas y en un cuadrado sobraba espacio arriba y abajo.
-        className="group relative aspect-[5/4] w-full min-w-0 overflow-hidden lg:aspect-[4/3]"
+        className={`group relative aspect-[5/4] w-full min-w-0 overflow-hidden lg:aspect-[4/3] ${showVideo ? "" : zoomed ? "cursor-zoom-out" : "cursor-zoom-in"}`}
+        onClick={toggleZoom}
         onMouseMove={handleMouseMove}
-        onMouseLeave={() => setHoverFrame(null)}
+        onMouseLeave={() => setZoomed(false)}
         onTouchStart={(e) => { touchStart.current = e.changedTouches[0]?.clientX ?? null }}
         onTouchEnd={(e) => {
           const end = e.changedTouches[0]?.clientX
-          if (touchStart.current !== null && end !== undefined && Math.abs(end - touchStart.current) > 40) select(activeIndex + (end < touchStart.current ? 1 : -1))
+          // Con la foto ampliada, deslizar no cambia de foto.
+          if (!zoomed && touchStart.current !== null && end !== undefined && Math.abs(end - touchStart.current) > 40) select(activeIndex + (end < touchStart.current ? 1 : -1))
           touchStart.current = null
         }}
+        data-zoomed={zoomed ? "true" : "false"}
         style={{ "--frame-dir": direction } as React.CSSProperties}
       >
         {showVideo && videoUrl ? (
@@ -161,6 +174,10 @@ export default function ProductGallery({ images, videoUrl }: ProductGalleryProps
         ) : (
           <>
             {/* Contenedor con difuminado radial mask-image para fundir bordes de fotos de estudio no perfectamente blancas */}
+            <div
+              className={`absolute inset-0 transition-transform duration-300 ease-out motion-reduce:transition-none ${zoomed ? "scale-[2.2]" : "scale-100"}`}
+              style={{ transformOrigin: zoomOrigin }}
+            >
             <div className="absolute inset-0 [mask-image:radial-gradient(ellipse_92%_88%_at_50%_50%,black_80%,transparent_100%)] [-webkit-mask-image:radial-gradient(ellipse_92%_88%_at_50%_50%,black_80%,transparent_100%)]">
               {images.map((img, idx) => (
                 <Image
@@ -176,9 +193,10 @@ export default function ProductGallery({ images, videoUrl }: ProductGalleryProps
                 />
               ))}
             </div>
+            </div>
 
             {/* Sombra de contacto: el tenis "apoya" sobre la superficie. */}
-            <div aria-hidden="true" className="pointer-events-none absolute inset-x-[24%] bottom-[16%] h-6 rounded-[50%] bg-black/10 blur-xl" />
+            <div aria-hidden="true" className={`pointer-events-none absolute inset-x-[24%] bottom-[16%] h-6 rounded-[50%] bg-black/10 blur-xl transition-opacity ${zoomed ? "opacity-0" : "opacity-100"}`} />
 
             {/* Flechas de navegación laterales sutiles pero grandecitas */}
             {total > 1 && (

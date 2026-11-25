@@ -75,6 +75,7 @@ const rawSettings = {
   privacyDocumentUrl: null,
   returnsDocumentUrl: null,
   giftCardAmounts: null,
+  whatsappBotEnabled: true,
   updatedAt: new Date("2026-09-04T00:00:00Z"),
 }
 
