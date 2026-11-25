@@ -168,6 +168,7 @@ export default function Header({
           fallbackBtnUrl={banner?.btnUrl || undefined}
           bgColor={banner?.bgColor || "#1C1C1C"}
           textColor={banner?.textColor || "#FFFFFF"}
+          tickerSeconds={banner?.tickerSeconds}
         />
       )}
 

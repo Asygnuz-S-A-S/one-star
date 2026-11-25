@@ -20,7 +20,7 @@ import { LandingSection, LandingSectionType, TopBanner, NavigationItem, StoreLog
 import type { BannerDTO } from "@/server/services/banner.service"
 import type { CategoryDTO } from "@/server/services/category.service"
 import { safePublicUrl } from "@/lib/safe-url"
-import { reorderTickerMessages, type TickerMessage } from "@/lib/ticker-messages"
+import { clampTickerSeconds, reorderTickerMessages, TICKER_SECONDS_DEFAULT, TICKER_SECONDS_MAX, TICKER_SECONDS_MIN, type TickerMessage } from "@/lib/ticker-messages"
 import { searchProductsAction } from "@/server/actions/product.actions"
 import type { LandingBuilderActions } from "@/types/landing-builder-actions"
 
@@ -201,7 +201,7 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
         : []
     return banner
       ? { ...banner, messages }
-      : { text: "", btnText: "", btnUrl: "", messages: [], bgColor: "#000000", textColor: "#FFFFFF", isActive: false }
+      : { text: "", btnText: "", btnUrl: "", messages: [], bgColor: "#000000", textColor: "#FFFFFF", tickerSeconds: TICKER_SECONDS_DEFAULT, isActive: false }
   })
   const tickerMessages = Array.isArray(globalBannerState.messages)
     ? globalBannerState.messages as unknown as TickerMessage[]
@@ -436,6 +436,7 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
         messages: (globalBannerState.messages as { text: string; url?: string }[] | null) ?? [],
         bgColor: globalBannerState.bgColor || "#000000",
         textColor: globalBannerState.textColor || "#FFFFFF",
+        tickerSeconds: clampTickerSeconds(globalBannerState.tickerSeconds),
         isActive: globalBannerState.isActive ?? false
       })
       if (!result.success) {
@@ -873,6 +874,23 @@ export default function LandingBuilderList({ actions, initialSections, initialGl
                 className="w-full h-10 border border-gray-300 rounded cursor-pointer p-1"
               />
             </div>
+          </div>
+
+          <div>
+            <label htmlFor="topBannerSpeed" className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wider">
+              Velocidad: {clampTickerSeconds(globalBannerState.tickerSeconds)} s por mensaje
+            </label>
+            <input
+              id="topBannerSpeed"
+              type="range"
+              min={TICKER_SECONDS_MIN}
+              max={TICKER_SECONDS_MAX}
+              step={1}
+              value={clampTickerSeconds(globalBannerState.tickerSeconds)}
+              onChange={(e) => setGlobalBannerState({ ...globalBannerState, tickerSeconds: Number(e.target.value) })}
+              className="w-full accent-[#E31C23]"
+            />
+            <div className="flex justify-between text-[11px] text-gray-500"><span>Rápida</span><span>Lenta</span></div>
           </div>
 
           <div className="flex items-center gap-2 mt-2 bg-gray-50 p-3 rounded border border-gray-200">
