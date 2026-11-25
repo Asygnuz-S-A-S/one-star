@@ -6,6 +6,7 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }))
 const requireAdminMock = vi.fn()
 const setLeadBotPausedMock = vi.fn()
 const resolveLeadHandoffMock = vi.fn()
+const setLeadTagsMock = vi.fn()
 const setWhatsappBotGlobalEnabledMock = vi.fn()
 
 vi.mock("@/server/auth/require-admin", () => ({
@@ -15,6 +16,7 @@ vi.mock("@/server/auth/require-admin", () => ({
 vi.mock("@/server/services/lead.service", () => ({
   setLeadBotPaused: (...args: unknown[]) => setLeadBotPausedMock(...args),
   resolveLeadHandoff: (...args: unknown[]) => resolveLeadHandoffMock(...args),
+  setLeadTags: (...args: unknown[]) => setLeadTagsMock(...args),
   setWhatsappBotGlobalEnabled: (...args: unknown[]) => setWhatsappBotGlobalEnabledMock(...args),
 }))
 
@@ -22,6 +24,7 @@ import {
   resolveLeadHandoffAction,
   toggleLeadBotAction,
   toggleWhatsappBotGlobalAction,
+  updateLeadTagsAction,
 } from "../lead-bot.actions"
 
 describe("lead-bot.actions (autorización y control manual del bot)", () => {
@@ -91,5 +94,25 @@ describe("lead-bot.actions (autorización y control manual del bot)", () => {
     expect(res.success).toBe(false)
     expect(res.error).toMatch(/Super Admin/i)
     expect(setWhatsappBotGlobalEnabledMock).not.toHaveBeenCalled()
+  })
+
+  it("updateLeadTagsAction exige área 'sales' y guarda etiquetas normalizadas", async () => {
+    requireAdminMock.mockResolvedValueOnce({ user: { adminRole: "SALES_OPERATOR" } })
+    setLeadTagsMock.mockResolvedValueOnce({ id: "lead_1", tags: ["VIP", "Vans"] })
+
+    const res = await updateLeadTagsAction("wa_lead_1", [" VIP ", "Vans", "vip"])
+
+    expect(requireAdminMock).toHaveBeenCalledWith("sales")
+    expect(setLeadTagsMock).toHaveBeenCalledWith("wa_lead_1", ["VIP", "Vans"])
+    expect(res).toEqual({ success: true, tags: ["VIP", "Vans"] })
+  })
+
+  it("updateLeadTagsAction rechaza usuarios sin permiso de ventas", async () => {
+    requireAdminMock.mockRejectedValueOnce(new Error("Tu rol no tiene permiso para esta acción."))
+
+    const res = await updateLeadTagsAction("lead_1", ["VIP"])
+
+    expect(res.success).toBe(false)
+    expect(setLeadTagsMock).not.toHaveBeenCalled()
   })
 })

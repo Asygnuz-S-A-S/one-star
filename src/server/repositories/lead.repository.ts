@@ -9,6 +9,7 @@ export interface LeadFilterParams {
   source?: "ALL" | "WHATSAPP" | "CLUB" | "ABANDONED_CART" | "REGISTERED_NO_ORDER"
   stage?: string
   utm?: string
+  tag?: string
   hasPhone?: boolean
   needsHumanOnly?: boolean
   excludeOptedOut?: boolean
@@ -88,6 +89,7 @@ export async function upsertLeadRecord(data: {
   needsHuman?: boolean
   handoffReason?: string | null
   handoffAt?: Date | null
+  tags?: string[]
   source?: string
 }) {
   const now = new Date()
@@ -114,6 +116,7 @@ export async function upsertLeadRecord(data: {
               : {}),
         }
       : {}),
+    ...(data.tags !== undefined ? { tags: data.tags } : {}),
   }
 
   return prisma.lead.upsert({
@@ -131,9 +134,17 @@ export async function upsertLeadRecord(data: {
       needsHuman: data.needsHuman ?? false,
       handoffReason: data.needsHuman ? (data.handoffReason ?? null) : null,
       handoffAt: data.needsHuman ? (data.handoffAt ?? now) : null,
+      tags: data.tags ?? [],
       lastInteractionAt: now,
     },
     update: updateData,
+  })
+}
+
+export async function updateLeadTagsRecord(leadId: string, tags: string[]) {
+  return prisma.lead.update({
+    where: { id: leadId },
+    data: { tags },
   })
 }
 
@@ -297,6 +308,7 @@ export async function getLeadsData(params: LeadFilterParams) {
   const skip = params.skip ?? 0
   const q = params.q?.trim().toLowerCase() ?? ""
   const utmFilter = params.utm?.trim().toLowerCase() ?? ""
+  const tagFilter = params.tag?.trim().toLowerCase() ?? ""
 
   // 1. Prospectos registrados en User con 0 pedidos pagados
   const userLeads = await prisma.user.findMany({
@@ -418,6 +430,7 @@ export async function getLeadsData(params: LeadFilterParams) {
       needsHuman: false,
       handoffReason: null as string | null,
       handoffAt: null as string | null,
+      tags: [] as string[],
       leadRecordId: null as string | null,
       consentAt: null as string | null,
       events: [] as LeadEventItem[],
@@ -457,6 +470,7 @@ export async function getLeadsData(params: LeadFilterParams) {
         needsHuman: false,
         handoffReason: null as string | null,
         handoffAt: null as string | null,
+        tags: [] as string[],
         leadRecordId: null as string | null,
         consentAt: null as string | null,
         events: [] as LeadEventItem[],
@@ -508,6 +522,9 @@ export async function getLeadsData(params: LeadFilterParams) {
       needsHuman: Boolean(wl.needsHuman),
       handoffReason: wl.handoffReason ?? null,
       handoffAt: wl.handoffAt ? wl.handoffAt.toISOString() : null,
+      tags: Array.isArray((wl as { tags?: string[] }).tags)
+        ? ((wl as { tags?: string[] }).tags ?? [])
+        : [],
       leadRecordId: wl.id,
       consentAt: wl.consentAt ? wl.consentAt.toISOString() : null,
       events: mappedEvents,
@@ -562,6 +579,13 @@ export async function getLeadsData(params: LeadFilterParams) {
     )
   }
 
+  // Filtrado por Etiqueta
+  if (tagFilter && tagFilter !== "all") {
+    allLeads = allLeads.filter((l) =>
+      (l.tags ?? []).some((t) => t.toLowerCase() === tagFilter)
+    )
+  }
+
   // Ordenar por fecha descendente
   allLeads.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
 
@@ -605,6 +629,14 @@ export async function getLeadsData(params: LeadFilterParams) {
     pendingHandoffCount: totalPendingHandoff,
   }
 
+  const availableTagsSet = new Set<string>()
+  for (const wl of mappedWhatsapp) {
+    for (const t of wl.tags) {
+      if (t) availableTagsSet.add(t)
+    }
+  }
+  const availableTags = Array.from(availableTagsSet).sort((a, b) => a.localeCompare(b, "es"))
+
   return {
     leads: paginatedLeads.map((l) => ({
       ...l,
@@ -613,5 +645,6 @@ export async function getLeadsData(params: LeadFilterParams) {
     })),
     total,
     stats,
+    availableTags,
   }
 }

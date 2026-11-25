@@ -2,11 +2,13 @@
 
 import { Fragment, useState } from "react"
 import Link from "next/link"
+import { PRESET_LEAD_TAGS, normalizeLeadTag, normalizeLeadTags } from "@/lib/lead-tags"
 import type { LeadDTO, LeadStats } from "@/server/services/lead.service"
 import {
   resolveLeadHandoffAction,
   toggleLeadBotAction,
   toggleWhatsappBotGlobalAction,
+  updateLeadTagsAction,
 } from "@/server/actions/lead-bot.actions"
 
 interface LeadsManagerProps {
@@ -19,6 +21,8 @@ interface LeadsManagerProps {
   source: string
   stage?: string
   utm?: string
+  tag?: string
+  availableTags?: string[]
   hasPhone: boolean
   needsHumanOnly?: boolean
   initialBotGlobalEnabled?: boolean
@@ -35,6 +39,8 @@ export default function LeadsManager({
   source,
   stage = "ALL",
   utm = "",
+  tag = "ALL",
+  availableTags = [],
   hasPhone,
   needsHumanOnly = false,
   initialBotGlobalEnabled = true,
@@ -64,9 +70,20 @@ export default function LeadsManager({
     }
     return map
   })
+  const [tagsById, setTagsById] = useState<Record<string, string[]>>(() => {
+    const map: Record<string, string[]> = {}
+    for (const lead of initialLeads) {
+      map[lead.id] = lead.tags ?? []
+    }
+    return map
+  })
+  const [tagEditorLeadId, setTagEditorLeadId] = useState<string | null>(null)
+  const [customTagDraft, setCustomTagDraft] = useState("")
   const [renderedAtMs] = useState(() => Date.now())
   const [loadingLeadIds, setLoadingLeadIds] = useState<Record<string, boolean>>({})
   const [botError, setBotError] = useState<string | null>(null)
+
+  const filterTagOptions = normalizeLeadTags([...PRESET_LEAD_TAGS, ...availableTags])
 
   function isAutoPausedActive(untilIso: string | null | undefined): boolean {
     if (!untilIso) return false
@@ -130,6 +147,58 @@ export default function LeadsManager({
     } finally {
       setLoadingLeadIds((prev) => ({ ...prev, [lead.id]: false }))
     }
+  }
+
+  async function saveLeadTags(lead: LeadDTO, nextTags: string[]) {
+    if (loadingLeadIds[lead.id]) return
+    const normalized = normalizeLeadTags(nextTags)
+    setLoadingLeadIds((prev) => ({ ...prev, [lead.id]: true }))
+    setBotError(null)
+    try {
+      const targetId = lead.leadRecordId ?? lead.id
+      const res = await updateLeadTagsAction(targetId, normalized)
+      if (!res.success) {
+        setBotError(res.error ?? "No se pudieron guardar las etiquetas.")
+        return
+      }
+      setTagsById((prev) => ({ ...prev, [lead.id]: res.tags ?? normalized }))
+    } finally {
+      setLoadingLeadIds((prev) => ({ ...prev, [lead.id]: false }))
+    }
+  }
+
+  function handleAddLeadTag(lead: LeadDTO, rawTag: string) {
+    const clean = normalizeLeadTag(rawTag)
+    if (!clean) return
+    const current = tagsById[lead.id] ?? []
+    void saveLeadTags(lead, [...current, clean])
+    setCustomTagDraft("")
+  }
+
+  function handleRemoveLeadTag(lead: LeadDTO, tagToRemove: string) {
+    const current = tagsById[lead.id] ?? []
+    const next = current.filter((t) => t.toLowerCase() !== tagToRemove.toLowerCase())
+    void saveLeadTags(lead, next)
+  }
+
+  function getTagPillClass(label: string): string {
+    const low = label.toLowerCase()
+    if (low === "compró" || low === "compro") {
+      return "bg-emerald-50 text-emerald-800 border-emerald-200"
+    }
+    if (low.includes("reclamo") || low.includes("garant") || low === "baja") {
+      return "bg-red-50 text-red-700 border-red-200"
+    }
+    if (low.includes("asesor") || low.includes("abandonado")) {
+      return "bg-amber-50 text-amber-900 border-amber-200"
+    }
+    if (low.includes("pauta") || low === "vip") {
+      return "bg-purple-50 text-purple-800 border-purple-200"
+    }
+    if (low.includes("potencial") || low.includes("addi")) {
+      return "bg-indigo-50 text-indigo-800 border-indigo-200"
+    }
+    return "bg-gray-100 text-[#1C1C1C] border-gray-200"
   }
 
   function formatCurrency(val: number) {
@@ -203,13 +272,20 @@ export default function LeadsManager({
     if (source && source !== "ALL") params.set("source", source)
     if (stage && stage !== "ALL") params.set("stage", stage)
     if (utm) params.set("utm", utm)
+    if (tag && tag !== "ALL") params.set("tag", tag)
     if (hasPhone) params.set("hasPhone", "true")
     if (needsHumanOnly) params.set("needsHuman", "true")
     return `/admin/leads?${params.toString()}`
   }
 
   const hasActiveFilters = Boolean(
-    q || source !== "ALL" || (stage && stage !== "ALL") || utm || hasPhone || needsHumanOnly
+    q ||
+      source !== "ALL" ||
+      (stage && stage !== "ALL") ||
+      utm ||
+      (tag && tag !== "ALL") ||
+      hasPhone ||
+      needsHumanOnly
   )
 
   return (
@@ -381,6 +457,20 @@ export default function LeadsManager({
           className="min-w-[180px] min-h-11 border border-gray-200 rounded-lg px-3 py-2 text-sm text-[#1C1C1C] focus:outline-none focus:ring-2 focus:ring-[#E31C23]"
         />
 
+        <select
+          name="tag"
+          defaultValue={tag}
+          aria-label="Filtrar por etiqueta"
+          className="min-h-11 border border-gray-200 rounded-lg px-3 py-2 text-sm text-[#1C1C1C] focus:outline-none focus:ring-2 focus:ring-[#E31C23]"
+        >
+          <option value="ALL">Todas las etiquetas</option>
+          {filterTagOptions.map((item) => (
+            <option key={item} value={item}>
+              {item}
+            </option>
+          ))}
+        </select>
+
         <label className="flex min-h-11 items-center gap-2 text-sm text-[#4A4A4A] cursor-pointer select-none px-2">
           <input
             type="checkbox"
@@ -473,6 +563,88 @@ export default function LeadsManager({
                           {needsHumanById[lead.id] && lead.handoffReason && (
                             <div className="text-xs text-red-700 mt-1 line-clamp-2">
                               “{lead.handoffReason}”
+                            </div>
+                          )}
+                          {lead.source === "WhatsApp" && (
+                            <div className="mt-2 space-y-1.5">
+                              <div className="flex flex-wrap items-center gap-1">
+                                {(tagsById[lead.id] ?? []).map((t) => (
+                                  <span
+                                    key={t}
+                                    className={`inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded-full border ${getTagPillClass(t)}`}
+                                  >
+                                    <span>{t}</span>
+                                    <button
+                                      type="button"
+                                      disabled={Boolean(loadingLeadIds[lead.id])}
+                                      aria-label={`Quitar etiqueta ${t} de ${lead.name}`}
+                                      onClick={() => handleRemoveLeadTag(lead, t)}
+                                      className="hover:text-red-700 leading-none cursor-pointer disabled:opacity-50"
+                                    >
+                                      ×
+                                    </button>
+                                  </span>
+                                ))}
+                                <button
+                                  type="button"
+                                  disabled={Boolean(loadingLeadIds[lead.id])}
+                                  onClick={() => {
+                                    setTagEditorLeadId(tagEditorLeadId === lead.id ? null : lead.id)
+                                    setCustomTagDraft("")
+                                  }}
+                                  className="inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-full border border-dashed border-gray-300 text-[#4A4A4A] hover:border-[#1C1C1C] hover:text-[#1C1C1C] cursor-pointer"
+                                >
+                                  {tagEditorLeadId === lead.id ? "Cerrar" : "+ Etiqueta"}
+                                </button>
+                              </div>
+
+                              {tagEditorLeadId === lead.id && (
+                                <div className="p-2.5 rounded-lg border border-gray-200 bg-gray-50 space-y-2 max-w-xs">
+                                  <div className="flex gap-1.5">
+                                    <input
+                                      type="text"
+                                      value={customTagDraft}
+                                      onChange={(e) => setCustomTagDraft(e.target.value)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter") {
+                                          e.preventDefault()
+                                          handleAddLeadTag(lead, customTagDraft)
+                                        }
+                                      }}
+                                      maxLength={40}
+                                      placeholder="Nueva etiqueta…"
+                                      aria-label={`Agregar etiqueta a ${lead.name}`}
+                                      className="flex-1 min-w-0 border border-gray-200 bg-white rounded px-2 py-1 text-xs text-[#1C1C1C] focus:outline-none focus:ring-1 focus:ring-[#E31C23]"
+                                    />
+                                    <button
+                                      type="button"
+                                      disabled={!customTagDraft.trim() || Boolean(loadingLeadIds[lead.id])}
+                                      onClick={() => handleAddLeadTag(lead, customTagDraft)}
+                                      className="px-2.5 py-1 rounded bg-[#1C1C1C] text-white text-xs font-semibold hover:bg-[#4A4A4A] disabled:opacity-50 cursor-pointer"
+                                    >
+                                      Agregar
+                                    </button>
+                                  </div>
+                                  <div className="flex flex-wrap gap-1">
+                                    {PRESET_LEAD_TAGS.filter(
+                                      (preset) =>
+                                        !(tagsById[lead.id] ?? []).some(
+                                          (existing) => existing.toLowerCase() === preset.toLowerCase()
+                                        )
+                                    ).map((preset) => (
+                                      <button
+                                        key={preset}
+                                        type="button"
+                                        disabled={Boolean(loadingLeadIds[lead.id])}
+                                        onClick={() => handleAddLeadTag(lead, preset)}
+                                        className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-white border border-gray-200 text-[#4A4A4A] hover:border-[#E31C23] hover:text-[#1C1C1C] cursor-pointer"
+                                      >
+                                        + {preset}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           )}
                         </td>

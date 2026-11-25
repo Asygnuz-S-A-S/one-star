@@ -15,6 +15,7 @@ interface SearchParams {
   source?: "ALL" | "WHATSAPP" | "CLUB" | "ABANDONED_CART" | "REGISTERED_NO_ORDER"
   stage?: string
   utm?: string
+  tag?: string
   hasPhone?: string
   needsHuman?: string
   page?: string
@@ -30,17 +31,19 @@ export default async function AdminLeadsPage({ searchParams }: Props) {
   const source = params.source ?? "ALL"
   const stage = params.stage?.trim() || undefined
   const utm = params.utm?.trim() || undefined
+  const tag = params.tag?.trim() || undefined
   const hasPhone = params.hasPhone === "true"
   const needsHumanOnly = params.needsHuman === "true"
   const page = Math.max(1, parseInt(params.page ?? "1") || 1)
   const pageSize = 25
 
-  const [{ leads, total, stats }, botGlobalEnabled, session] = await Promise.all([
+  const [{ leads, total, stats, availableTags }, botGlobalEnabled, session] = await Promise.all([
     getLeadsList({
       q,
       source,
       stage,
       utm,
+      tag,
       hasPhone,
       needsHumanOnly,
       page,
@@ -96,6 +99,8 @@ export default async function AdminLeadsPage({ searchParams }: Props) {
         source={source}
         stage={stage ?? "ALL"}
         utm={utm ?? ""}
+        tag={tag ?? "ALL"}
+        availableTags={availableTags ?? []}
         hasPhone={hasPhone}
         needsHumanOnly={needsHumanOnly}
         initialBotGlobalEnabled={botGlobalEnabled}

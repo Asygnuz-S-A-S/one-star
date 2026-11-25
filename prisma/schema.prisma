@@ -561,6 +561,7 @@ model Lead {
   needsHuman        Boolean     @default(false)
   handoffReason     String?
   handoffAt         DateTime?
+  tags              String[]    @default([])
   shortCode         String?     @unique
   productSlug       String?
   utmSource         String?

@@ -10,6 +10,7 @@ const repoMocks = vi.hoisted(() => ({
   upsertLeadRecord: vi.fn(),
   updateLeadBotPausedRecord: vi.fn(),
   updateLeadStageRecord: vi.fn(),
+  updateLeadTagsRecord: vi.fn(),
   updateLeadShortLinkRecord: vi.fn(),
   updateLeadUtmRecord: vi.fn(),
   createLeadEventRecord: vi.fn(),
@@ -40,6 +41,7 @@ import {
   recordLeadEvent,
   resolveShortLinkClick,
   setLeadBotPaused,
+  setLeadTags,
   setWhatsappBotGlobalEnabled,
   upsertLeadByPhone,
 } from "../lead.service"
@@ -586,6 +588,79 @@ describe("lead.service", () => {
         whatsappBotEnabled: false,
       })
       expect(res).toBe(false)
+    })
+  })
+
+  describe("etiquetas automáticas y manuales (tags)", () => {
+    it("upsertLeadByPhone mezcla addTags con etiquetas existentes y agrega Pauta Meta si hay ctwaClid", async () => {
+      repoMocks.findLeadByPhone.mockResolvedValueOnce({
+        id: "lead_tag_1",
+        waPhone: "573001234567",
+        tags: ["Cliente potencial"],
+      })
+      repoMocks.upsertLeadRecord.mockResolvedValueOnce({
+        id: "lead_tag_1",
+        waPhone: "573001234567",
+        name: "Sofía",
+        stage: "NUEVO",
+        ctwaClid: "clid_9",
+        consentAt: null,
+        optedOut: false,
+        tags: ["Cliente potencial", "Vans", "Interés Addi", "Pauta Meta"],
+      })
+
+      const res = await upsertLeadByPhone({
+        waPhone: "573001234567",
+        name: "Sofía",
+        ctwaClid: "clid_9",
+        addTags: ["Vans", "Interés Addi", "vans"],
+      })
+
+      expect(repoMocks.upsertLeadRecord).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tags: ["Cliente potencial", "Vans", "Interés Addi", "Pauta Meta"],
+        })
+      )
+      expect(res.tags).toEqual(["Cliente potencial", "Vans", "Interés Addi", "Pauta Meta"])
+    })
+
+    it("advanceStage a COMPRO asigna Compró y retira Cliente potencial y Carrito abandonado", async () => {
+      repoMocks.findLeadById.mockResolvedValueOnce({
+        id: "lead_buy",
+        waPhone: "573001112233",
+        stage: "CHECKOUT",
+        tags: ["Cliente potencial", "Carrito abandonado", "Vans"],
+      })
+      repoMocks.updateLeadStageRecord.mockResolvedValueOnce({
+        id: "lead_buy",
+        waPhone: "573001112233",
+        stage: "COMPRO",
+      })
+      repoMocks.updateLeadTagsRecord.mockResolvedValueOnce({
+        id: "lead_buy",
+        tags: ["Vans", "Compró"],
+      })
+
+      await advanceStage("lead_buy", "COMPRO", { orderId: "ord_1" })
+
+      expect(repoMocks.updateLeadTagsRecord).toHaveBeenCalledWith("lead_buy", ["Vans", "Compró"])
+    })
+
+    it("setLeadTags normaliza, deduplica y registra evento TAGS_UPDATED", async () => {
+      repoMocks.findLeadById.mockResolvedValueOnce({ id: "lead_m", stage: "INTERESADO", tags: [] })
+      repoMocks.updateLeadTagsRecord.mockResolvedValueOnce({
+        id: "lead_m",
+        stage: "INTERESADO",
+        tags: ["VIP", "Hoka"],
+      })
+
+      const res = await setLeadTags("wa_lead_m", ["  VIP  ", "Hoka", "vip"])
+
+      expect(repoMocks.updateLeadTagsRecord).toHaveBeenCalledWith("lead_m", ["VIP", "Hoka"])
+      expect(repoMocks.createLeadEventRecord).toHaveBeenCalledWith(
+        expect.objectContaining({ leadId: "lead_m", type: "TAGS_UPDATED" })
+      )
+      expect(res.tags).toEqual(["VIP", "Hoka"])
     })
   })
 })

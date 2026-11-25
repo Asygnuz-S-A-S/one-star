@@ -5,8 +5,10 @@ import { requireAdmin } from "@/server/auth/require-admin"
 import {
   resolveLeadHandoff,
   setLeadBotPaused,
+  setLeadTags,
   setWhatsappBotGlobalEnabled,
 } from "@/server/services/lead.service"
+import { leadTagsArraySchema } from "@/server/validators/lead.validator"
 
 export interface LeadBotActionResult {
   success: boolean
@@ -14,6 +16,7 @@ export interface LeadBotActionResult {
   botPausedUntil?: string | null
   needsHuman?: boolean
   botGlobalEnabled?: boolean
+  tags?: string[]
   error?: string
 }
 
@@ -83,6 +86,34 @@ export async function toggleWhatsappBotGlobalAction(
     return {
       success: false,
       error: error instanceof Error ? error.message : "No se pudo actualizar el suiche global del bot.",
+    }
+  }
+}
+
+/**
+ * Actualiza las etiquetas de un lead de WhatsApp (manuales y automáticas).
+ * Permitido para Operador de Ventas (ej. asesora) y Super Admin.
+ */
+export async function updateLeadTagsAction(
+  leadId: string,
+  tags: string[]
+): Promise<LeadBotActionResult> {
+  try {
+    await requireAdmin("sales")
+    const parsed = leadTagsArraySchema.safeParse(tags)
+    if (!parsed.success) {
+      return {
+        success: false,
+        error: "Las etiquetas enviadas no son válidas (máximo 25 etiquetas de hasta 40 caracteres).",
+      }
+    }
+    const updated = await setLeadTags(leadId, parsed.data)
+    revalidatePath("/admin/leads")
+    return { success: true, tags: updated.tags }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "No se pudieron actualizar las etiquetas.",
     }
   }
 }

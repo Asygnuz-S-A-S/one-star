@@ -246,6 +246,7 @@ describe("Assistant API Routes", () => {
         needsHuman: false,
         handoffReason: null,
         handoffAt: null,
+        tags: ["Pauta Meta", "Vans"],
       })
       vi.spyOn(leadService, "getWhatsappBotGlobalEnabled").mockResolvedValueOnce(true)
 
@@ -257,6 +258,7 @@ describe("Assistant API Routes", () => {
           name: "Valentina",
           ctwaClid: "ctwa_1",
           consentimiento: true,
+          addTags: ["Vans"],
           email: "no-guardar@test.com",
           cedula: "10203040",
         }),
@@ -266,6 +268,7 @@ describe("Assistant API Routes", () => {
       expect(res.status).toBe(200)
       const data = await res.json()
       expect(data.lead.waPhone).toBe("573001234567")
+      expect(data.lead.tags).toEqual(["Pauta Meta", "Vans"])
       expect(data.botGlobalEnabled).toBe(true)
       expect(data.shouldRespond).toBe(true)
       expect(upsertSpy).toHaveBeenCalledWith({
@@ -277,6 +280,8 @@ describe("Assistant API Routes", () => {
         botPausedUntil: undefined,
         needsHuman: undefined,
         handoffReason: undefined,
+        addTags: ["Vans"],
+        removeTags: undefined,
       })
     })
 
@@ -302,6 +307,7 @@ describe("Assistant API Routes", () => {
         needsHuman: false,
         handoffReason: null,
         handoffAt: null,
+        tags: [],
       })
       vi.spyOn(leadService, "getWhatsappBotGlobalEnabled").mockResolvedValueOnce(true)
 
