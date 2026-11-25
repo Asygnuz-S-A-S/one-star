@@ -54,6 +54,8 @@ export default async function AdminLeadsPage({ searchParams }: Props) {
   ])
 
   const canToggleGlobalBot = session?.user?.adminRole === "SUPER_ADMIN"
+  // El CSV es una exportación masiva de datos de clientes: solo Super Admin (la ruta también lo exige).
+  const canExportLeads = canToggleGlobalBot
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
 
   const exportParams = new URLSearchParams()
@@ -81,6 +83,7 @@ export default async function AdminLeadsPage({ searchParams }: Props) {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
+          {canExportLeads && (
           <a
             href={exportHref}
             download
@@ -91,6 +94,7 @@ export default async function AdminLeadsPage({ searchParams }: Props) {
             </svg>
             {hasExportFilters ? `Exportar filtrados (${total}) CSV` : "Exportar Leads (CSV)"}
           </a>
+          )}
 
           <Link
             href="/admin/clientes"

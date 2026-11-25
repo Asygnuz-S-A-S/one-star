@@ -20,8 +20,10 @@ function slugifyFilenamePart(raw: string): string {
 }
 
 export async function GET(request?: Request) {
+  // Exportación masiva de datos de clientes: solo Super Admin (ver incidente del 28 oct).
+  // El Operador de Ventas trabaja los leads en pantalla, pero no descarga la base completa.
   try {
-    await requireAdmin("sales")
+    await requireAdmin()
   } catch {
     return new Response("No autorizado", { status: 401 })
   }
