@@ -6,8 +6,11 @@ import {
   searchAssistantProducts,
   checkAssistantStock,
   searchAssistantOrders,
+  createAssistantCheckoutLink,
+  resolvePublishedVariantForCheckout,
 } from "../assistant.service"
 import * as productService from "../product.service"
+import * as leadService from "../lead.service"
 import * as assistantRepo from "../../repositories/assistant.repository"
 import * as trackingModule from "../../shipping/tracking"
 
@@ -355,6 +358,113 @@ describe("assistant.service", () => {
       expect(result?.orders[0].tracking).toBeNull()
       expect(result?.orders[0].carrier).toBe("Envía")
       expect(result?.orders[0].trackingUrl).toBe("https://envia.co/rastreo?guia=0123456789")
+    })
+  })
+
+  describe("createAssistantCheckoutLink y resolvePublishedVariantForCheckout", () => {
+    it("genera enlace de checkout personalizado /r/<code>?checkout=<variantId>&qty=1 con precio vigente", async () => {
+      vi.spyOn(assistantRepo, "findProductForStockCheck").mockResolvedValueOnce({
+        id: "prod-cv",
+        slug: "converse-vino",
+        name: "Tenis Converse Vino",
+        basePrice: 439000,
+        isOnSale: true,
+        salePrice: 395100,
+        isPublished: true,
+        variants: [{ id: "var_cv_5", sku: "CV_5", size: "5", color: "Vino", stock: 3 }],
+      } as never)
+      vi.spyOn(leadService, "createShortLink").mockResolvedValueOnce({
+        url: "https://tiendaonestar.com/r/abc99999",
+        code: "abc99999",
+        leadId: "lead_1",
+      })
+
+      const res = await createAssistantCheckoutLink(
+        { waPhone: "573001112233", product: "converse-vino", size: "5", quantity: 1 },
+        "https://tiendaonestar.com"
+      )
+
+      expect(res).toEqual({
+        available: true,
+        url: "https://tiendaonestar.com/r/abc99999?checkout=var_cv_5&qty=1",
+        code: "abc99999",
+        product: "Tenis Converse Vino",
+        size: "5",
+        color: "Vino",
+        quantity: 1,
+        unitPrice: 395100,
+        total: 395100,
+        currency: "COP",
+      })
+    })
+
+    it("devuelve available: false y sizesAvailable si la talla pedida no tiene stock", async () => {
+      vi.spyOn(assistantRepo, "findProductForStockCheck").mockResolvedValueOnce({
+        id: "prod-cv",
+        slug: "converse-vino",
+        name: "Tenis Converse Vino",
+        basePrice: 439000,
+        isOnSale: false,
+        salePrice: null,
+        isPublished: true,
+        variants: [
+          { id: "var_cv_5", sku: "CV_5", size: "5", color: "Vino", stock: 0 },
+          { id: "var_cv_6", sku: "CV_6", size: "6", color: "Vino", stock: 2 },
+        ],
+      } as never)
+
+      const res = await createAssistantCheckoutLink(
+        { waPhone: "573001112233", product: "converse-vino", size: "5", quantity: 1 },
+        "https://tiendaonestar.com"
+      )
+
+      expect(res).toEqual({
+        available: false,
+        product: "Tenis Converse Vino",
+        size: "5",
+        sizesAvailable: ["6"],
+        productUrl: "https://tiendaonestar.com/productos/converse-vino",
+      })
+    })
+
+    it("resolvePublishedVariantForCheckout calcula precio real desde BD y acota cantidad al stock", async () => {
+      vi.spyOn(assistantRepo, "findPublishedVariantForCheckout").mockResolvedValueOnce({
+        id: "var_cv_5",
+        sku: "CV_5",
+        size: "5",
+        color: "Vino",
+        stock: 2,
+        product: {
+          id: "prod-cv",
+          slug: "converse-vino",
+          name: "Tenis Converse Vino",
+          basePrice: 439000,
+          isOnSale: true,
+          salePrice: 395100,
+          brandRef: { name: "Converse" },
+          images: [{ url: "https://img.test/vino.jpg", color: "Vino" }],
+        },
+      } as never)
+
+      const res = await resolvePublishedVariantForCheckout("var_cv_5", 4)
+      expect(res).toEqual({
+        ok: true,
+        item: {
+          id: "var_cv_5",
+          productId: "prod-cv",
+          slug: "converse-vino",
+          name: "Tenis Converse Vino",
+          brand: "Converse",
+          imageUrl: "https://img.test/vino.jpg",
+          size: "5",
+          color: "Vino",
+          price: 395100,
+          originalPrice: 439000,
+          quantity: 2,
+          sku: "CV_5",
+          maxQuantity: 2,
+        },
+      })
     })
   })
 })

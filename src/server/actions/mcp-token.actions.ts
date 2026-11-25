@@ -2,33 +2,32 @@
 
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
-import { requireAdmin } from "@/server/auth/require-admin"
+import { requireSuperAdmin } from "@/server/auth/require-admin"
 import { getMcpPrincipal } from "@/server/auth/mcp-context"
 import { createMcpToken, revokeMcpToken } from "@/server/services/mcp-token.service"
 import { EntityIdSchema } from "@/server/validators/common.validator"
 
 const CreateMcpTokenSchema = z.object({
   name: z.string().trim().min(1, "Ponle un nombre al token (ej. Claude del Mac).").max(60),
-  role: z.enum(["SUPER_ADMIN", "INVENTORY_OPERATOR"]),
 })
 
 export type CreateMcpTokenState = { token?: string; error?: string } | null
 
-/** Tokens del conector de Claude: solo desde el admin con sesión, nunca desde el propio conector. */
-async function requireBrowserAdmin() {
+/** Tokens del conector MCP: solo Super Admin desde el navegador, nunca desde el propio conector. */
+async function requireBrowserSuperAdmin() {
   if (getMcpPrincipal()) throw new Error("Un token no puede administrar tokens.")
-  return requireAdmin("inventory")
+  return requireSuperAdmin()
 }
 
 export async function createMcpTokenAction(_prev: CreateMcpTokenState, formData: FormData): Promise<CreateMcpTokenState> {
   try {
-    const session = await requireBrowserAdmin()
-    const input = CreateMcpTokenSchema.parse({ name: formData.get("name"), role: formData.get("role") })
+    const session = await requireBrowserSuperAdmin()
+    const input = CreateMcpTokenSchema.parse({ name: formData.get("name") })
     const { token } = await createMcpToken({
       adminUserId: session.user.id,
       adminRole: session.user.adminRole,
       name: input.name,
-      role: input.role,
+      role: "SUPER_ADMIN",
     })
     revalidatePath("/admin/cuenta")
     return { token }
@@ -40,7 +39,7 @@ export async function createMcpTokenAction(_prev: CreateMcpTokenState, formData:
 
 export async function revokeMcpTokenAction(id: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const session = await requireBrowserAdmin()
+    const session = await requireBrowserSuperAdmin()
     await revokeMcpToken(EntityIdSchema.parse(id), { id: session.user.id, role: session.user.adminRole })
     revalidatePath("/admin/cuenta")
     return { success: true }

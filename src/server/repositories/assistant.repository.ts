@@ -43,6 +43,25 @@ export async function findProductForStockCheck(identifier: string) {
 }
 
 /**
+ * Busca una variante publicada por su ID para precargar el checkout personalizado del bot.
+ */
+export async function findPublishedVariantForCheckout(variantId: string) {
+  const trimmed = variantId.trim()
+  if (!trimmed) return null
+  return prisma.variant.findFirst({
+    where: {
+      id: trimmed,
+      product: { isPublished: true },
+    },
+    include: {
+      product: {
+        include: productInclude,
+      },
+    },
+  })
+}
+
+/**
  * Busca pedidos candidatos por cédula para el asistente.
  * Excluye pedidos cancelados hace más de 30 días.
  */

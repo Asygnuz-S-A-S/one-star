@@ -37,20 +37,6 @@ export default function McpTokensSection({ tokens, isSuperAdmin }: { tokens: Mcp
             className="w-full border border-[#E0E0E0] rounded-lg px-4 py-2.5 font-montserrat text-sm text-[#1C1C1C] focus:outline-none focus:border-[#E31C23] focus:ring-1 focus:ring-[#E31C23]"
           />
         </div>
-        <div>
-          <label htmlFor="mcp-role" className="block font-montserrat text-xs font-medium text-[#4A4A4A] mb-1.5 uppercase tracking-wide">
-            Permiso
-          </label>
-          <select
-            id="mcp-role"
-            name="role"
-            defaultValue="INVENTORY_OPERATOR"
-            className="border border-[#E0E0E0] rounded-lg px-3 py-2.5 font-montserrat text-sm text-[#1C1C1C]"
-          >
-            <option value="INVENTORY_OPERATOR">Inventario (productos y catálogo)</option>
-            {isSuperAdmin && <option value="SUPER_ADMIN">Super Admin (también Inicio y banners)</option>}
-          </select>
-        </div>
         <button
           type="submit"
           disabled={pending}
