@@ -95,7 +95,7 @@ describe("metadata", () => {
     const meta = buildProductMetadata(cloudProd, ctx)
     const images = meta.openGraph?.images as { url: string; width?: number; height?: number }[]
     expect(images[0].url).toBe(
-      "https://res.cloudinary.com/ljyyhmry/image/upload/e_trim:10/c_pad,w_1200,h_630,b_white,q_auto:good,f_jpg/v1792462187/one-star/productos/shoe.jpg"
+      "https://res.cloudinary.com/ljyyhmry/image/upload/e_trim:10/c_fit,w_620,h_600/c_lpad,w_1200,h_630,b_white,q_auto:good,f_jpg/v1792462187/one-star/productos/shoe.jpg"
     )
     expect(images[0].width).toBe(1200)
     expect(images[0].height).toBe(630)
