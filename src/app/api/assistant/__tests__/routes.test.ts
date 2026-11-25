@@ -48,6 +48,7 @@ describe("Assistant API Routes", () => {
             gender: "unisex",
             color: "Verde",
             price: 249900,
+            originalPrice: null,
             salePrice: null,
             currency: "COP",
             sizesAvailable: ["7"],

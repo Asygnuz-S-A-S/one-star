@@ -96,6 +96,53 @@ describe("assistant.service", () => {
       expect(p).not.toHaveProperty("stock")
       expect(p).not.toHaveProperty("variants")
     })
+
+    it("devuelve en price el precio vigente con descuento igual que checkAssistantStock", async () => {
+      const saleProduct: productService.ProductDTO = {
+        id: "prod-sale",
+        slug: "tenis-converse-vino",
+        name: "Tenis Converse Chuck Taylor Lo Vino Tinto",
+        erpId: "LOG-2",
+        brandId: "b-2",
+        brandName: "Converse",
+        brand: "Converse",
+        basePrice: 439000,
+        isOnSale: true,
+        salePrice: 395100,
+        description: "Desc",
+        extendedDescription: null,
+        videoUrl: null,
+        metaTitle: null,
+        metaDescription: null,
+        highlights: [],
+        faqs: [],
+        gender: "UNISEX",
+        categoryId: "cat-1",
+        category: { id: "cat-1", name: "Lifestyle", slug: "lifestyle" },
+        availableOnline: true,
+        availableInStores: true,
+        isPublished: true,
+        images: [{ id: "img-1", url: "https://img.test/converse.jpg", alt: "Converse", position: 0, color: "Vino" }],
+        variants: [
+          { id: "v-1", sku: "CV-5", size: "5", color: "Vino", stock: 2, inventory: [], sizeUS: null, sizeCM: null, sizeEUR: null },
+        ],
+        colorSiblings: [],
+        crossSells: [],
+        hasStock: true,
+        isNew: false,
+        createdAt: "2026-10-20T00:00:00.000Z",
+        updatedAt: "2026-10-20T00:00:00.000Z",
+      }
+      vi.spyOn(productService, "getProducts").mockResolvedValueOnce({
+        products: [saleProduct],
+        total: 1,
+      })
+
+      const result = await searchAssistantProducts({ q: "converse", limit: 5 }, "https://tiendaonestar.com")
+      expect(result.products[0].price).toBe(395100)
+      expect(result.products[0].originalPrice).toBe(439000)
+      expect(result.products[0].salePrice).toBe(395100)
+    })
   })
 
   describe("checkAssistantStock", () => {

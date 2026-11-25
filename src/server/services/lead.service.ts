@@ -739,12 +739,33 @@ function csvCell(value: string | null | undefined): string {
   return `"${safe.replaceAll('"', '""')}"`
 }
 
+export interface ExportLeadsFilters {
+  q?: string
+  source?: "ALL" | "WHATSAPP" | "CLUB" | "ABANDONED_CART" | "REGISTERED_NO_ORDER"
+  stage?: string
+  utm?: string
+  tag?: string
+  hasPhone?: boolean
+  needsHumanOnly?: boolean
+}
+
 /**
  * Genera contenido en formato CSV para exportar leads hacia campañas de WhatsApp o CRM externo.
- * Incluye waPhone, UTM y etapa, excluyendo siempre los leads dados de baja (optedOut).
+ * Respeta los filtros activos (etiqueta, origen, etapa, UTM, búsqueda, teléfono, esperando asesora)
+ * e incluye waPhone, UTM, etapa y etiquetas, excluyendo siempre los leads dados de baja (optedOut).
  */
-export async function exportLeadsToCsv(): Promise<string> {
-  const result = await getLeadsData({ take: 5000, skip: 0 })
+export async function exportLeadsToCsv(filters?: ExportLeadsFilters): Promise<string> {
+  const result = await getLeadsData({
+    ...(filters?.q ? { q: filters.q } : {}),
+    ...(filters?.source && filters.source !== "ALL" ? { source: filters.source } : {}),
+    ...(filters?.stage && filters.stage !== "ALL" ? { stage: filters.stage } : {}),
+    ...(filters?.utm ? { utm: filters.utm } : {}),
+    ...(filters?.tag && filters.tag !== "ALL" ? { tag: filters.tag } : {}),
+    ...(filters?.hasPhone ? { hasPhone: true } : {}),
+    ...(filters?.needsHumanOnly ? { needsHumanOnly: true } : {}),
+    take: 5000,
+    skip: 0,
+  })
   const activeLeads = result.leads.filter((l) => !l.optedOut)
 
   const headers = [

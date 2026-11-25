@@ -56,6 +56,18 @@ export default async function AdminLeadsPage({ searchParams }: Props) {
   const canToggleGlobalBot = session?.user?.adminRole === "SUPER_ADMIN"
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
 
+  const exportParams = new URLSearchParams()
+  if (q) exportParams.set("q", q)
+  if (source && source !== "ALL") exportParams.set("source", source)
+  if (stage && stage !== "ALL") exportParams.set("stage", stage)
+  if (utm) exportParams.set("utm", utm)
+  if (tag && tag !== "ALL") exportParams.set("tag", tag)
+  if (hasPhone) exportParams.set("hasPhone", "true")
+  if (needsHumanOnly) exportParams.set("needsHuman", "true")
+  const exportQuery = exportParams.toString()
+  const exportHref = exportQuery ? `/api/admin/leads/export?${exportQuery}` : "/api/admin/leads/export"
+  const hasExportFilters = exportQuery.length > 0
+
   return (
     <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -70,14 +82,14 @@ export default async function AdminLeadsPage({ searchParams }: Props) {
 
         <div className="flex flex-wrap items-center gap-3">
           <a
-            href="/api/admin/leads/export"
+            href={exportHref}
             download
             className="inline-flex min-h-11 items-center gap-2 bg-white border border-gray-200 text-[#1C1C1C] hover:bg-gray-50 text-sm font-semibold px-4 py-2 rounded-lg transition-colors shadow-2xs"
           >
             <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            Exportar Leads (CSV)
+            {hasExportFilters ? `Exportar filtrados (${total}) CSV` : "Exportar Leads (CSV)"}
           </a>
 
           <Link

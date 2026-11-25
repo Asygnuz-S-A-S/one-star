@@ -493,6 +493,36 @@ describe("lead.service", () => {
       // Verifica escape de comillas dobles
       expect(lines[2]).toContain(`"Ana ""La Runner"""`)
     })
+
+    it("exportLeadsToCsv reenvía los filtros activos (etiqueta, origen, etapa) a getLeadsData", async () => {
+      repoMocks.getLeadsData.mockResolvedValueOnce({
+        leads: [],
+        total: 0,
+        stats: {
+          totalLeads: 0,
+          clubMembersCount: 0,
+          abandonedCartsCount: 0,
+          withPhoneCount: 0,
+          convertedCustomersCount: 0,
+        },
+      })
+
+      await exportLeadsToCsv({
+        tag: "Vans",
+        source: "WHATSAPP",
+        stage: "INTERESADO",
+        hasPhone: true,
+      })
+
+      expect(repoMocks.getLeadsData).toHaveBeenCalledWith({
+        tag: "Vans",
+        source: "WHATSAPP",
+        stage: "INTERESADO",
+        hasPhone: true,
+        take: 5000,
+        skip: 0,
+      })
+    })
   })
 
   describe("control manual (suiche) del bot de WhatsApp", () => {
