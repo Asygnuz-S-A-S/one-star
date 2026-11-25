@@ -1,11 +1,14 @@
 import "server-only"
 
 import { getProducts, type AppProductFilter } from "./product.service"
+import { createShortLink } from "./lead.service"
 import {
   findProductForStockCheck,
+  findPublishedVariantForCheckout,
   findOrdersForAssistant,
 } from "../repositories/assistant.repository"
 import {
+  type AssistantCheckoutLinkInput,
   type AssistantProductsQuery,
   type AssistantStockQuery,
   type AssistantOrderQuery,
@@ -318,4 +321,180 @@ export async function searchAssistantOrders(
   )
 
   return { orders: formattedOrders }
+}
+
+export type AssistantCheckoutLinkResponse =
+  | {
+      available: true
+      url: string
+      code: string
+      product: string
+      size: string
+      color: string
+      quantity: number
+      unitPrice: number
+      total: number
+      currency: string
+    }
+  | {
+      available: false
+      product: string
+      size: string
+      sizesAvailable: string[]
+      productUrl: string
+    }
+
+/**
+ * 4. Genera un enlace de checkout personalizado para un producto + talla con stock real.
+ * Usa /r/<code>?checkout=<variantId>&qty=<n> para fijar atribución os_lead + UTM sin exponer PII ni precios en URL.
+ */
+export async function createAssistantCheckoutLink(
+  input: AssistantCheckoutLinkInput,
+  baseUrl: string
+): Promise<AssistantCheckoutLinkResponse | null> {
+  const product = await findProductForStockCheck(input.product)
+  if (!product) return null
+
+  const targetSize = input.size.trim().toLowerCase()
+  const targetColor = input.color?.trim().toLowerCase()
+  const matchingBySize = product.variants.filter(
+    (v) => v.size.trim().toLowerCase() === targetSize
+  )
+  const matchingVariant =
+    (targetColor
+      ? matchingBySize.find((v) => v.color.trim().toLowerCase() === targetColor)
+      : undefined) ??
+    matchingBySize.find((v) => (v.stock ?? 0) >= input.quantity) ??
+    matchingBySize[0]
+
+  const availableVariants = product.variants.filter((v) => (v.stock ?? 0) > 0)
+  const sizesAvailable = Array.from(new Set(availableVariants.map((v) => v.size)))
+  const cleanBase = baseUrl.replace(/\/+$/, "")
+
+  if (!matchingVariant || (matchingVariant.stock ?? 0) < input.quantity) {
+    return {
+      available: false,
+      product: product.name,
+      size: input.size.trim(),
+      sizesAvailable,
+      productUrl: `${cleanBase}/productos/${product.slug}`,
+    }
+  }
+
+  const short = await createShortLink({
+    waPhone: input.waPhone,
+    productSlug: product.slug,
+    utmCampaign: input.utmCampaign ?? "asistente_checkout",
+    name: input.name,
+    baseUrl: cleanBase,
+  })
+
+  const unitPrice =
+    product.isOnSale && product.salePrice
+      ? Number(product.salePrice)
+      : Number(product.basePrice)
+
+  const checkoutUrl = new URL(short.url)
+  checkoutUrl.searchParams.set("checkout", matchingVariant.id)
+  checkoutUrl.searchParams.set("qty", String(input.quantity))
+
+  return {
+    available: true,
+    url: checkoutUrl.toString(),
+    code: short.code,
+    product: product.name,
+    size: matchingVariant.size,
+    color: matchingVariant.color,
+    quantity: input.quantity,
+    unitPrice,
+    total: unitPrice * input.quantity,
+    currency: "COP",
+  }
+}
+
+export type PreloadCheckoutVariantResult =
+  | {
+      ok: true
+      item: {
+        id: string
+        productId: string
+        slug: string
+        name: string
+        brand: string | null
+        imageUrl: string | null
+        size: string
+        color: string
+        price: number
+        originalPrice: number
+        quantity: number
+        sku: string
+        maxQuantity: number
+      }
+    }
+  | {
+      ok: false
+      reason: "NOT_FOUND" | "OUT_OF_STOCK"
+      productSlug?: string
+      productName?: string
+    }
+
+/**
+ * Resuelve en el servidor una variante para precargar /checkout desde un link del bot.
+ * Nunca confía en precios del cliente: calcula precio y stock real desde PostgreSQL.
+ */
+export async function resolvePublishedVariantForCheckout(
+  variantId: string,
+  requestedQty = 1
+): Promise<PreloadCheckoutVariantResult> {
+  const variant = await findPublishedVariantForCheckout(variantId)
+  if (!variant || !variant.product) {
+    return { ok: false, reason: "NOT_FOUND" }
+  }
+
+  const stock = variant.stock ?? 0
+  if (stock <= 0) {
+    return {
+      ok: false,
+      reason: "OUT_OF_STOCK",
+      productSlug: variant.product.slug,
+      productName: variant.product.name,
+    }
+  }
+
+  const qty = Math.min(Math.max(1, Math.min(5, Math.floor(requestedQty))), stock)
+  const basePrice = Number(variant.product.basePrice)
+  const salePrice =
+    variant.product.isOnSale && variant.product.salePrice
+      ? Number(variant.product.salePrice)
+      : null
+  const price = salePrice ?? basePrice
+
+  const colorImage = variant.product.images.find(
+    (img) => img.color && img.color.toLowerCase() === variant.color.toLowerCase()
+  )
+  const imageUrl = colorImage?.url ?? variant.product.images[0]?.url ?? null
+  const brand =
+    (variant.product as { brandRef?: { name?: string | null } | null; brand?: string | null })
+      .brandRef?.name ??
+    (variant.product as { brand?: string | null }).brand ??
+    null
+
+  return {
+    ok: true,
+    item: {
+      id: variant.id,
+      productId: variant.product.id,
+      slug: variant.product.slug,
+      name: variant.product.name,
+      brand,
+      imageUrl,
+      size: variant.size,
+      color: variant.color,
+      price,
+      originalPrice: basePrice,
+      quantity: qty,
+      sku: variant.sku,
+      maxQuantity: stock,
+    },
+  }
 }

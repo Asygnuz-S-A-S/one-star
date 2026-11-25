@@ -4,18 +4,24 @@ vi.mock("server-only", () => ({}))
 vi.mock("@/server/auth/require-admin", () => ({ requireAdmin: vi.fn(async () => ({ user: { id: "adm_1" } })) }))
 vi.mock("@/app/admin/productos/actions")
 vi.mock("@/app/admin/marcas/actions")
+vi.mock("@/app/admin/contenido/actions")
 vi.mock("@/server/actions/category.actions")
 vi.mock("@/server/actions/product-color.actions")
 vi.mock("@/server/actions/banner.actions")
 vi.mock("@/server/actions/top-banner.actions")
 vi.mock("@/server/actions/media-asset.actions")
+vi.mock("@/server/actions/store-settings.actions")
+vi.mock("@/server/actions/navigation.actions")
+vi.mock("@/server/actions/store.actions")
 vi.mock("@/server/actions/landing.actions")
 vi.mock("@/server/services/product.service")
 vi.mock("@/server/services/category.service")
 vi.mock("@/server/services/brand.service")
 vi.mock("@/server/services/product-color.service")
 vi.mock("@/server/services/store.service")
-vi.mock("@/server/services/catalog-source.service")
+vi.mock("@/server/services/store-settings.service")
+vi.mock("@/server/services/site-content.service")
+vi.mock("@/server/services/navigation.service")
 vi.mock("@/server/services/banner.service")
 vi.mock("@/server/services/top-banner.service")
 vi.mock("@/server/services/landing-section.service")
@@ -26,13 +32,16 @@ vi.mock("@/server/validators/landing-section.validator", async () => {
   return { LandingSectionTypeSchema: z.enum(["HERO", "CATEGORY_GRID"]), LandingPageSchema: z.string() }
 })
 
-import { MCP_TOOLS, productFormData } from "../tools"
-import { updateProduct } from "@/app/admin/productos/actions"
+import { MCP_TOOLS } from "../tools"
 import { createBanner, toggleBannerActive } from "@/server/actions/banner.actions"
 import { createLandingSectionAction, toggleLandingSectionActiveAction, updateLandingSectionConfigAction, publishLandingPageAction } from "@/server/actions/landing.actions"
-import { getProductByIdForAdmin } from "@/server/services/product.service"
+import { updateStoreInfoAction } from "@/server/actions/store-settings.actions"
+import { updateSiteContentAction, updateStorefrontLabelsAction } from "@/app/admin/contenido/actions"
+import { createNavigationItemAction, updateNavigationPositionsAction } from "@/server/actions/navigation.actions"
+import { updateStoreAction } from "@/server/actions/store.actions"
+import { getStoreSettings } from "@/server/services/store-settings.service"
+import { getSiteContentForAdmin, getStorefrontSettings } from "@/server/services/site-content.service"
 import { getStoreLocations } from "@/server/services/store.service"
-import { isErpCatalogOwner } from "@/server/services/catalog-source.service"
 import { getStorageAdapter } from "@/server/storage/storage.container"
 
 const byName = (name: string) => {
@@ -41,35 +50,20 @@ const byName = (name: string) => {
   return async (args: unknown) => found.run(found.input.parse(args) as never)
 }
 
-const product = {
-  id: "p1", name: "Hoka Clifton", slug: "hoka-clifton", brandId: "b1", gender: "unisex", categoryId: "c1",
-  description: "Viejo", extendedDescription: null, videoUrl: null, basePrice: 500000, isOnSale: false, salePrice: null,
-  metaTitle: null, metaDescription: null, availableOnline: true, availableInStores: true, isPublished: true,
-  highlights: ["Ligero"], faqs: [{ q: "¿Talla?", a: "Normal" }],
-  images: [{ id: "i1", url: "https://res.cloudinary.com/x/a.jpg", alt: "a", position: 0, color: null }],
-  variants: [{
-    id: "v1", sku: "SKU-1", size: "40", color: "Negro", stock: 3, sizeUS: null, sizeCM: null, sizeEUR: null,
-    inventory: [{ storeLocationId: null, stock: 3 }, { storeLocationId: "s-erp", stock: 7 }, { storeLocationId: "s-local", stock: 2 }],
-  }],
-  crossSells: [{ id: "p9" }],
-  colorFamily: { id: "f1", products: [{ id: "p1" }, { id: "p2" }] },
-}
-const stores = [{ id: "s-erp", erpId: "E1" }, { id: "s-local", erpId: null }]
-
-describe("herramientas MCP", () => {
+describe("herramientas MCP (solo Super Admin, sin edición de productos/stock)", () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(updateProduct).mockResolvedValue({ success: true, id: "p1" })
-    vi.mocked(getProductByIdForAdmin).mockResolvedValue(product as never)
-    vi.mocked(getStoreLocations).mockResolvedValue(stores as never)
-    vi.mocked(isErpCatalogOwner).mockResolvedValue(true)
   })
 
-  it("es una lista blanca sin datos de clientes", () => {
-    const forbidden = /pedido|\border|cliente|customer|lead|pqrs|newsletter|usuario|cupon|regalo|borrar|eliminar|delete/i
-    for (const t of MCP_TOOLS) expect(t.name).not.toMatch(forbidden)
+  it("es una lista blanca solo Super Admin, sin datos de clientes ni edición de productos/stock", () => {
+    const forbidden = /pedido|\border|cliente|customer|lead|pqrs|newsletter|usuario|cupon|regalo|borrar|eliminar|delete|editar_producto|publicar_productos/i
+    for (const t of MCP_TOOLS) {
+      expect(t.name).not.toMatch(forbidden)
+      expect(t.area).toBe("superadmin")
+    }
     expect(new Set(MCP_TOOLS.map((t) => t.name)).size).toBe(MCP_TOOLS.length)
-    expect(MCP_TOOLS.every((t) => t.area === "inventory" || t.area === "superadmin")).toBe(true)
+    expect(MCP_TOOLS.find((t) => t.name === "buscar_productos")?.readOnly).toBe(true)
+    expect(MCP_TOOLS.find((t) => t.name === "ver_producto")?.readOnly).toBe(true)
   })
 
   it("publicar y guardar borrador son pasos separados", () => {
@@ -79,61 +73,12 @@ describe("herramientas MCP", () => {
     expect(tool("ver_pagina").area).toBe("superadmin")
   })
 
-  it("editar_producto cambia solo lo pedido y conserva variantes, inventario y relaciones", async () => {
-    await byName("editar_producto")({ id: "p1", cambios: { description: "Nuevo", basePrice: 450000 } })
-    const fd = vi.mocked(updateProduct).mock.calls[0][1]
-    expect(fd.get("description")).toBe("Nuevo")
-    expect(fd.get("basePrice")).toBe("450000")
-    expect(fd.get("name")).toBe("Hoka Clifton")
-    expect(fd.get("isPublished")).toBe("true")
-    expect(fd.get("highlights")).toBe("Ligero")
-    expect(fd.get("faqs")).toContain("¿Talla?")
-    expect(JSON.parse(fd.get("crossSellIds") as string)).toEqual(["p9"])
-    expect(JSON.parse(fd.get("colorFamilyProductIds") as string)).toEqual(["p2"])
-    expect(JSON.parse(fd.get("colorFamilyBaselineProductIds") as string)).toEqual(["p2"])
-    expect(JSON.parse(fd.get("images") as string)).toEqual([{ id: "i1", url: "https://res.cloudinary.com/x/a.jpg", alt: "a", position: 0, color: null }])
-    // Igual que ProductForm: con el ERP como dueño, su sede no se envía (la escribe la sincronización).
-    expect(JSON.parse(fd.get("variants") as string)).toEqual([expect.objectContaining({
-      sku: "SKU-1", size: "40", color: "Negro", stock: 3,
-      inventory: [{ storeLocationId: null, stock: 3 }, { storeLocationId: "s-local", stock: 2 }],
-    })])
-  })
-
-  it("sin ERP dueño envía todas las sedes, y las fotos nuevas reemplazan en orden", () => {
-    const fd = productFormData(product as never, stores, false, {
-      images: [{ url: "https://res.cloudinary.com/x/b.jpg" }, { url: "https://res.cloudinary.com/x/c.jpg", color: "Negro" }],
-    })
-    expect(JSON.parse(fd.get("variants") as string)[0].inventory).toHaveLength(3)
-    expect(JSON.parse(fd.get("images") as string)).toEqual([
-      { url: "https://res.cloudinary.com/x/b.jpg", alt: "Hoka Clifton", position: 0, color: null },
-      { url: "https://res.cloudinary.com/x/c.jpg", alt: "Hoka Clifton", position: 1, color: "Negro" },
-    ])
-  })
-
-  it("permite fijar defaultPhysicalStoreStock para tiendas físicas conservando el stock web", () => {
-    const fd = productFormData(product as never, stores, false, {
-      defaultPhysicalStoreStock: 3,
-    })
-    const variants = JSON.parse(fd.get("variants") as string)
-    expect(variants[0].inventory).toEqual([
-      { storeLocationId: null, stock: 3 },
-      { storeLocationId: "s-erp", stock: 3 },
-      { storeLocationId: "s-local", stock: 3 },
-    ])
-  })
-
-  it("si la acción del admin falla, la herramienta falla con su mensaje", async () => {
-    vi.mocked(updateProduct).mockResolvedValue({ success: false, error: "La categoría es requerida." })
-    await expect(byName("editar_producto")({ id: "p1", cambios: {} })).rejects.toThrow("La categoría es requerida.")
-  })
-
   it("los banners nuevos nacen inactivos y activar_banner llega al estado pedido", async () => {
     vi.mocked(createBanner).mockResolvedValue({ success: true })
     vi.mocked(toggleBannerActive).mockResolvedValue({ success: true })
     await byName("guardar_banner")({ campos: { title: "Black Friday", imageUrl: "https://res.cloudinary.com/x/bf.jpg" } })
     expect(vi.mocked(createBanner).mock.calls[0][0].get("isActive")).toBe("false")
     await byName("activar_banner")({ id: "bn1", activo: true })
-    // El servicio invierte el valor recibido: para activar se le pasa false.
     expect(toggleBannerActive).toHaveBeenCalledWith("bn1", false)
   })
 
@@ -157,5 +102,106 @@ describe("herramientas MCP", () => {
     await expect(upload({ url: "https://169.254.169.254/latest/meta-data" })).rejects.toThrow()
     await upload({ url: "https://ejemplo.com/fotos/tenis.webp" })
     expect(uploadImage).toHaveBeenCalledWith("https://ejemplo.com/fotos/tenis.webp", { folder: "one-star/productos" })
+  })
+
+  it("ver_configuracion oculta secretos/píxel y editar_configuracion conserva campos no enviados", async () => {
+    vi.mocked(getStoreSettings).mockResolvedValue({
+      storeName: "One Star",
+      contactEmail: "hola@onestar.com",
+      whatsapp: "+573137620554",
+      metaPixelId: "123",
+      metaPixelEnabled: true,
+      metaTestEventCode: "TEST",
+      hasMetaAccessToken: true,
+      metaAccessTokenHint: "9876",
+      catalogSource: "ARCHIVO",
+      freeShippingThreshold: 299900,
+      standardShippingCost: 14900,
+      expressShippingCost: 25000,
+      legalName: "One Star SAS",
+      taxId: "900",
+      legalAddress: "Cra 1",
+      contactPhone: "313",
+      hideImagelessProducts: true,
+      hideEmptySale: false,
+      newArrivalDays: 30,
+      chatEnabled: true,
+      chatWelcome: "Hola",
+      giftCardMinAmount: 50000,
+      giftCardMaxAmount: 500000,
+      giftCardValidityMonths: 12,
+      clubHeadline: "Club",
+      clubIntro: "Intro",
+      clubBenefits: "",
+      clubWelcomeSubject: "",
+      clubWelcomeBody: "",
+      footerLinks: "",
+      bottomNav: "",
+      deliveryMinDays: 3,
+      deliveryMaxDays: 5,
+      expressDeliveryMinDays: 1,
+      expressDeliveryMaxDays: 2,
+      pickupReadyMinDays: 1,
+      pickupReadyMaxDays: 2,
+      legalCity: "Manizales",
+      commercialRegistry: null,
+      dataProtectionEmail: null,
+      termsDocumentUrl: null,
+      privacyDocumentUrl: null,
+      returnsDocumentUrl: null,
+      giftCardAmounts: "100000,200000",
+      groupColorsInCatalog: true,
+    })
+    vi.mocked(updateStoreInfoAction).mockResolvedValue({ success: true })
+
+    const view = (await byName("ver_configuracion")({})) as Record<string, unknown>
+    expect(view.storeName).toBe("One Star")
+    expect(view).not.toHaveProperty("metaAccessTokenHint")
+    expect(view).not.toHaveProperty("hasMetaAccessToken")
+
+    await byName("editar_configuracion")({ cambios: { standardShippingCost: 15900 } })
+    const fd = vi.mocked(updateStoreInfoAction).mock.calls[0][0]
+    expect(fd.get("standardShippingCost")).toBe("15900")
+    expect(fd.get("freeShippingThreshold")).toBe("299900")
+    expect(fd.get("whatsapp")).toBe("+573137620554")
+    expect(fd.get("chatEnabled")).toBe("on")
+  })
+
+  it("editar_contenido_global, guardar_menu y guardar_tienda delegan a las acciones de Super Admin", async () => {
+    vi.mocked(getSiteContentForAdmin).mockResolvedValue({
+      id: "default",
+      highlights: ["Envío rápido"],
+      faqs: [{ q: "¿Cambios?", a: "30 días" }],
+      promises: [],
+      returnWindowDays: 30,
+    })
+    vi.mocked(getStorefrontSettings).mockResolvedValue({
+      addToCartLabel: "Agregar",
+      buyNowLabel: "Comprar",
+      storeStockText: "Disponible",
+      autoPublishReviews: false,
+    })
+    vi.mocked(updateSiteContentAction).mockResolvedValue({ success: true })
+    vi.mocked(updateStorefrontLabelsAction).mockResolvedValue({ success: true })
+    await byName("editar_contenido_global")({ returnWindowDays: 15, addToCartLabel: "Añadir al carrito" })
+    expect(updateSiteContentAction).toHaveBeenCalled()
+    expect(updateStorefrontLabelsAction).toHaveBeenCalled()
+
+    vi.mocked(createNavigationItemAction).mockResolvedValue({ success: true } as never)
+    vi.mocked(updateNavigationPositionsAction).mockResolvedValue({ success: true })
+    await byName("guardar_menu")({ label: "Black Week", href: "/productos?oferta=1", isSale: true })
+    expect(createNavigationItemAction).toHaveBeenCalledWith("Black Week", "/productos?oferta=1", true)
+    await byName("guardar_menu")({ orden: [{ id: "n1", position: 0 }] })
+    expect(updateNavigationPositionsAction).toHaveBeenCalledWith([{ id: "n1", position: 0 }])
+
+    vi.mocked(getStoreLocations).mockResolvedValue([
+      { id: "st1", name: "Centro", address: "Cra 23", city: "Manizales", department: "Caldas", phone: "111", schedule: "9-7", googleMapsUrl: null, latitude: null, longitude: null, isActive: true, photos: [], erpId: "erp-1" } as never,
+    ])
+    vi.mocked(updateStoreAction).mockResolvedValue({ success: true })
+    await byName("guardar_tienda")({ id: "st1", campos: { schedule: "L-S 9am a 8pm" } })
+    expect(updateStoreAction).toHaveBeenCalledWith(
+      "st1",
+      expect.objectContaining({ name: "Centro", schedule: "L-S 9am a 8pm", erpId: "erp-1" })
+    )
   })
 })

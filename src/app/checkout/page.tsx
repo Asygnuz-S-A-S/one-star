@@ -28,7 +28,7 @@ import { captureAbandonedCartAction } from "@/server/actions/abandoned-cart.acti
 import { trackLeadCheckoutStageAction } from "@/server/actions/lead-stage.actions"
 import { validateCouponAction } from "@/server/actions/coupon.actions"
 import { getAddiWidgetEvaluationAction, startAddiPaymentAction } from "@/server/actions/addi.actions"
-import { abandonCheckoutOrder, createOrder, getCustomerCheckoutProfile, getPickupStoresAction } from "./actions"
+import { abandonCheckoutOrder, createOrder, getCustomerCheckoutProfile, getPickupStoresAction, resolveCheckoutVariantAction } from "./actions"
 
 const sectionVariants = {
   hidden: { opacity: 0, y: 18 },
@@ -190,8 +190,70 @@ function CheckoutForm({
   const router = useRouter()
   const { items, subtotal } = useCart()
   const [cartReady, setCartReady] = useState(false)
+  const [preloadDone, setPreloadDone] = useState(false)
+  const [preloadNotice, setPreloadNotice] = useState<{
+    kind: "ready" | "error"
+    message: string
+    productSlug?: string
+  } | null>(null)
+  const hasPreloadedRef = useRef(false)
   // eslint-disable-next-line react-hooks/set-state-in-effect -- marca el montaje: la bolsa persistida ya está hidratada
   useEffect(() => setCartReady(true), [])
+
+  const preloadingVariant =
+    cartReady &&
+    !preloadDone &&
+    Boolean(new URLSearchParams(window.location.search).get("variant")?.trim())
+
+  // Checkout personalizado desde WhatsApp: ?variant=<id>&qty=<n> precarga el producto con precio y stock del servidor.
+  useEffect(() => {
+    if (!cartReady || hasPreloadedRef.current) return
+    const params = new URLSearchParams(window.location.search)
+    const variantParam = params.get("variant")?.trim()
+    if (!variantParam) return
+    hasPreloadedRef.current = true
+    const qtyParam = Math.min(5, Math.max(1, parseInt(params.get("qty") ?? "1", 10) || 1))
+    let cancelled = false
+
+    void resolveCheckoutVariantAction(variantParam, qtyParam)
+      .then((res) => {
+        if (cancelled) return
+        if (res.ok) {
+          const store = useCartStore.getState()
+          const existing = store.items.find((i) => i.id === res.item.id)
+          if (existing) {
+            store.updateQuantity(res.item.id, Math.max(existing.quantity, res.item.quantity))
+          } else {
+            store.addItem(res.item)
+          }
+          setPreloadNotice({
+            kind: "ready",
+            message: `Listo: agregamos ${res.item.name} (talla ${res.item.size}) a tu pedido.`,
+          })
+        } else {
+          setPreloadNotice({
+            kind: "error",
+            message:
+              res.reason === "OUT_OF_STOCK"
+                ? `La talla elegida de ${res.productName ?? "este producto"} se acaba de agotar. Puedes ver otras tallas disponibles.`
+                : "No encontramos el producto del enlace. Puedes buscarlo en el catálogo.",
+            productSlug: res.productSlug,
+          })
+        }
+        // Limpia variant/qty de la barra para que recargar no vuelva a disparar el precargado (conservando UTM).
+        params.delete("variant")
+        params.delete("qty")
+        const qs = params.toString()
+        window.history.replaceState(null, "", qs ? `/checkout?${qs}` : "/checkout")
+      })
+      .finally(() => {
+        if (!cancelled) setPreloadDone(true)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [cartReady])
   const shippingRates = useShippingRates()
   const deliveryDays = useDeliveryDays()
   const hasEditedForm = useRef(false)
@@ -518,11 +580,33 @@ function CheckoutForm({
     )
   }
 
+  // Mientras se precarga un producto desde un enlace de WhatsApp, no mostramos "carrito vacío".
+  if (preloadingVariant) {
+    return (
+      <div className="min-h-screen bg-[var(--store-canvas)] flex items-center justify-center px-4 py-24">
+        <p className="font-montserrat text-sm text-[#4A4A4A]">Preparando tu pedido…</p>
+      </div>
+    )
+  }
+
   // La bolsa se lee de localStorage al montar: antes de eso siempre está vacía.
   if (cartReady && items.length === 0) {
     return (
       <div className="min-h-screen bg-[var(--store-canvas)]">
         <div className="mx-auto flex max-w-md flex-col items-center px-4 py-24 text-center">
+          {preloadNotice?.kind === "error" && (
+            <div className="mb-6 w-full rounded-lg border border-amber-200 bg-amber-50 p-4 text-left text-xs text-amber-900 font-montserrat space-y-2">
+              <p>{preloadNotice.message}</p>
+              {preloadNotice.productSlug && (
+                <Link
+                  href={`/productos/${preloadNotice.productSlug}`}
+                  className="inline-block font-semibold underline"
+                >
+                  Ver tallas disponibles →
+                </Link>
+              )}
+            </div>
+          )}
           <h1 className="font-barlow text-3xl font-extrabold uppercase tracking-[-0.02em] text-[#1C1C1C]">Tu carrito está vacío</h1>
           <p className="mt-2 font-montserrat text-sm text-[#4A4A4A]">Agrega productos para finalizar tu compra.</p>
           <Link href="/productos" className="mt-6 inline-flex min-h-12 items-center rounded-[var(--store-radius-md)] bg-[#1C1C1C] px-6 font-barlow text-sm font-bold uppercase tracking-wide text-white hover:bg-[#E31C23]">
@@ -544,6 +628,27 @@ function CheckoutForm({
           </div>
           <CheckoutStepper currentStep={Object.keys(validateForm(values)).length === 0 ? 2 : 1} />
         </div>
+
+        {preloadNotice && (
+          <div
+            role={preloadNotice.kind === "error" ? "alert" : "status"}
+            className={
+              preloadNotice.kind === "ready"
+                ? "mb-6 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 font-montserrat text-sm text-emerald-900"
+                : "mb-6 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 font-montserrat text-sm text-amber-900"
+            }
+          >
+            <span>{preloadNotice.message}</span>
+            {preloadNotice.productSlug && preloadNotice.kind === "error" && (
+              <Link
+                href={`/productos/${preloadNotice.productSlug}`}
+                className="font-semibold underline"
+              >
+                Ver tallas disponibles →
+              </Link>
+            )}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} onBlur={handleFieldBlur} noValidate>
           {/* minmax(0, …) evita que las columnas desborden; en móvil el resumen va primero y plegable. */}
