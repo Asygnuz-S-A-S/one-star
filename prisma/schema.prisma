@@ -688,6 +688,8 @@ model TopBanner {
   messages  Json?
   bgColor   String   @default("#1C1C1C")
   textColor String   @default("#FFFFFF")
+  /// Segundos que tarda cada mensaje en cruzar la barra (más alto = más lento).
+  tickerSeconds Int  @default(6)
   isActive  Boolean  @default(true)
   updatedAt DateTime @updatedAt
 }

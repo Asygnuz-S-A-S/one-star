@@ -18,6 +18,7 @@ export async function updateTopBannerAction(data: {
   messages?: TopBannerMessageInput[]
   bgColor: string
   textColor: string
+  tickerSeconds?: number
   isActive: boolean
 }) {
   "use server"
