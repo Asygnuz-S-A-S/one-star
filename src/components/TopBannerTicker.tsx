@@ -4,7 +4,7 @@ import type { CSSProperties } from "react";
 import Link from "next/link";
 import { useReducedMotion } from "motion/react";
 import { safePublicUrl } from "@/lib/safe-url";
-import { normalizeTickerMessages } from "@/lib/ticker-messages";
+import { clampTickerSeconds, normalizeTickerMessages } from "@/lib/ticker-messages";
 
 interface BannerMessage {
   text: string;
@@ -18,9 +18,10 @@ interface TopBannerTickerProps {
   fallbackBtnUrl?: string;
   bgColor?: string;
   textColor?: string;
+  /** Segundos por mensaje (más alto = más lento). */
+  tickerSeconds?: number;
 }
 
-const TICKER_SECONDS_PER_MESSAGE = 6;
 const TICKER_REPEATS = 4;
 
 export default function TopBannerTicker({
@@ -30,6 +31,7 @@ export default function TopBannerTicker({
   fallbackBtnUrl,
   bgColor = "#1C1C1C",
   textColor = "#FFFFFF",
+  tickerSeconds,
 }: TopBannerTickerProps) {
   const prefersReducedMotion = useReducedMotion();
 
@@ -70,7 +72,7 @@ export default function TopBannerTicker({
   }
 
   const repeatedMessages = Array.from({ length: TICKER_REPEATS }, () => displayMessages).flat();
-  const durationSeconds = displayMessages.length * TICKER_SECONDS_PER_MESSAGE;
+  const durationSeconds = displayMessages.length * clampTickerSeconds(tickerSeconds);
 
   return (
     <div

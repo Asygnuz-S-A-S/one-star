@@ -525,6 +525,7 @@ export const MCP_TOOLS: McpTool[] = [
       btnUrl: z.string().max(500).nullable().optional(),
       bgColor: z.string().max(32).optional(),
       textColor: z.string().max(32).optional(),
+      tickerSeconds: z.number().int().min(3).max(30).optional().describe("Segundos que tarda cada mensaje en cruzar (más alto = más lento). Por defecto 6."),
       isActive: z.boolean().optional(),
     }),
     run: async (changes) => {
@@ -539,6 +540,7 @@ export const MCP_TOOLS: McpTool[] = [
           messages,
           bgColor: changes.bgColor ?? current?.bgColor ?? "#1C1C1C",
           textColor: changes.textColor ?? current?.textColor ?? "#FFFFFF",
+          tickerSeconds: changes.tickerSeconds ?? current?.tickerSeconds ?? 6,
           isActive: changes.isActive ?? current?.isActive ?? false,
         })
       )

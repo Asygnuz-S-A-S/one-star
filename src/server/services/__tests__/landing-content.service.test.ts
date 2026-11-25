@@ -102,6 +102,7 @@ describe("top-banner.service", () => {
       messages: [{ text: "Envío gratis", url: "/envios" }],
       bgColor: "#000000",
       textColor: "#FFFFFF",
+      tickerSeconds: 6,
       isActive: true,
     })
   })

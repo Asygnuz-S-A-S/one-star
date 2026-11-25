@@ -1,8 +1,10 @@
 import { auth } from "@/lib/auth"
 import { headers } from "next/headers"
+import { roleCanAccessArea } from "@/lib/admin-access"
 import AdminSidebar from "@/components/admin/AdminSidebar"
 import AdminHotkeys from "@/components/admin/AdminHotkeys"
 import { resolveActiveAdminRole } from "@/server/services/admin-role.service"
+import { getPendingWhatsappHandoffCount } from "@/server/services/lead.service"
 
 // El panel admin depende de la base de datos y de la sesión: nunca debe
 // pre-generarse en build (cuando no hay DB). Forzamos render dinámico.
@@ -35,11 +37,16 @@ export default async function AdminLayout({
     return <main className="flex-1">{children}</main>
   }
 
+  const pendingHandoffCount = roleCanAccessArea(activeRole, "sales")
+    ? await getPendingWhatsappHandoffCount()
+    : 0
+
   return (
     <div className="admin-shell fixed inset-0 z-50 flex bg-[#F5F5F5]">
       <AdminSidebar
         userName={session.user.name ?? "Admin"}
         userRole={activeRole}
+        pendingHandoffCount={pendingHandoffCount}
       />
       <main className="min-w-0 flex-1 overflow-y-auto pt-16 md:pt-0">{children}</main>
       <AdminHotkeys />

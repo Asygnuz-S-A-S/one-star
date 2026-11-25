@@ -23,6 +23,7 @@ export interface AssistantProductDTO {
   gender: string
   color: string
   price: number
+  originalPrice: number | null
   salePrice: number | null
   currency: string
   sizesAvailable: string[]
@@ -115,14 +116,18 @@ export async function searchAssistantProducts(
       prod.variants[0]?.color ||
       ""
 
+    const hasSale = Boolean(prod.isOnSale && prod.salePrice && prod.salePrice > 0)
+    const effectivePrice = hasSale ? Number(prod.salePrice) : prod.basePrice
+
     return {
       name: prod.name,
       brand: prod.brandName || prod.brand || "",
       category: prod.category?.name || "",
       gender: (prod.gender || "unisex").toLowerCase(),
       color,
-      price: prod.basePrice,
-      salePrice: prod.isOnSale ? prod.salePrice : null,
+      price: effectivePrice,
+      originalPrice: hasSale ? prod.basePrice : null,
+      salePrice: hasSale ? Number(prod.salePrice) : null,
       currency: "COP",
       sizesAvailable: sizes,
       inStock: true,

@@ -101,15 +101,36 @@ export function buildProductUrl(slug: string, siteUrl: string): string {
   return `${siteUrl}/productos/${slug}`
 }
 
+const CLOUDINARY_UPLOAD_RE = /^(https:\/\/res\.cloudinary\.com\/[^/]+\/image\/upload\/)(.*)$/i
+
+/**
+ * Optimiza imágenes de Cloudinary para Open Graph (WhatsApp, Facebook, X):
+ * recorta bordes blancos sobrantes (`e_trim:10`) y encuadra a 1200x630 JPG liviano
+ * para que WhatsApp renderice tarjeta grande y nítida en lugar de miniatura borrosa.
+ */
+export function buildOpenGraphImage(url: string, alt: string): { url: string; alt: string; width?: number; height?: number } {
+  const match = url.match(CLOUDINARY_UPLOAD_RE)
+  if (!match) return { url, alt }
+  const [, prefix, rest] = match
+  if (rest.startsWith("e_trim:") || rest.includes("w_1200,h_630")) {
+    return { url, alt, width: 1200, height: 630 }
+  }
+  return {
+    url: `${prefix}e_trim:10/c_pad,w_1200,h_630,b_white,q_auto:good,f_jpg/${rest}`,
+    alt,
+    width: 1200,
+    height: 630,
+  }
+}
+
 export function buildProductMetadata(product: SeoProduct, ctx: SeoContext): Metadata {
   const returnDays = ctx.returnWindowDays ?? RETURN_WINDOW_DAYS
   const title = buildProductTitle(product, ctx.storeName)
   const description = buildProductDescription(product, ctx.storeName, returnDays)
   const url = buildProductUrl(product.slug, ctx.siteUrl)
-  const images = product.images.slice(0, 4).map((image) => ({
-    url: absoluteUrl(image.url, ctx.siteUrl),
-    alt: image.alt || product.name,
-  }))
+  const images = product.images.slice(0, 4).map((image) =>
+    buildOpenGraphImage(absoluteUrl(image.url, ctx.siteUrl), image.alt || product.name)
+  )
   const price = getDisplayPrice(product)
   const brand = seoBrand(product.brand)
 

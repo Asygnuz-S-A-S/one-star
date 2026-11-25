@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation"
 
 import Header from "@/components/Header"
 import ChatWidget from "@/components/chat/ChatWidget"
+import WhatsAppFloatButton from "@/components/chat/WhatsAppFloatButton"
 import StoreFooter from "@/components/storefront/StoreFooter"
 import MobileBottomNav, { shouldShowMobileBottomNav } from "@/components/MobileBottomNav"
 import { isAdminPathname } from "@/lib/public-site-route"
@@ -85,6 +86,8 @@ export default function PublicSiteFrame({
       <div className="contents print:hidden">
         {/* En el checkout el botón flotante tapaba los campos en celular. */}
         {chatEnabled && !pathname.startsWith("/checkout") && <ChatWidget welcome={chatWelcome} />}
+        {/* WhatsApp de la tienda: encima de la burbuja del chat; el número se cambia en Admin → Configuración. */}
+        {!pathname.startsWith("/checkout") && <WhatsAppFloatButton number={whatsapp} aboveChat={chatEnabled} />}
         <div className="contents" data-site-bottom-nav>
           <MobileBottomNav items={bottomNav} />
         </div>

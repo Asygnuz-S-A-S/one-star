@@ -1,5 +1,6 @@
 import "server-only"
 import { z } from "zod"
+import { MAX_LEAD_TAG_LENGTH, MAX_LEAD_TAGS, normalizeLeadTags } from "@/lib/lead-tags"
 
 /**
  * Normaliza un número de teléfono de WhatsApp extrayendo únicamente los dígitos.
@@ -47,6 +48,13 @@ export const leadStageSchema = z.enum([
   "ABANDONO",
 ])
 
+export const leadTagSchema = z.string().trim().min(1).max(MAX_LEAD_TAG_LENGTH)
+
+export const leadTagsArraySchema = z
+  .array(leadTagSchema)
+  .max(MAX_LEAD_TAGS)
+  .transform((items) => normalizeLeadTags(items))
+
 /**
  * Esquema para POST /api/assistant/leads
  * Nunca acepta ni persiste correo ni cédula desde el bot.
@@ -60,14 +68,29 @@ export const assistantLeadUpsertSchema = z
     consentimiento: z.boolean().optional(),
     optedOut: z.boolean().optional(),
     baja: z.boolean().optional(),
+    botPausedUntil: z.string().datetime().nullable().optional(),
+    needsHuman: z.boolean().optional(),
+    handoffReason: z.string().trim().min(1).max(300).nullable().optional(),
+    tags: z.array(z.string().max(200)).max(MAX_LEAD_TAGS).optional(),
+    addTags: z.array(z.string().max(200)).max(MAX_LEAD_TAGS).optional(),
+    removeTags: z.array(z.string().max(200)).max(MAX_LEAD_TAGS).optional(),
   })
-  .transform((data) => ({
-    waPhone: data.waPhone,
-    name: data.name ?? undefined,
-    ctwaClid: data.ctwaClid ?? undefined,
-    consent: data.consent ?? data.consentimiento,
-    optedOut: data.optedOut ?? data.baja,
-  }))
+  .transform((data) => {
+    const mergedAdd = normalizeLeadTags([...(data.tags ?? []), ...(data.addTags ?? [])])
+    const mergedRemove = normalizeLeadTags(data.removeTags)
+    return {
+      waPhone: data.waPhone,
+      name: data.name ?? undefined,
+      ctwaClid: data.ctwaClid ?? undefined,
+      consent: data.consent ?? data.consentimiento,
+      optedOut: data.optedOut ?? data.baja,
+      botPausedUntil: data.botPausedUntil,
+      needsHuman: data.needsHuman,
+      handoffReason: data.handoffReason ?? undefined,
+      addTags: mergedAdd.length > 0 ? mergedAdd : undefined,
+      removeTags: mergedRemove.length > 0 ? mergedRemove : undefined,
+    }
+  })
 
 export type AssistantLeadUpsertInput = z.infer<typeof assistantLeadUpsertSchema>
 

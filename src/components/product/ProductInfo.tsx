@@ -30,6 +30,7 @@ import { useDeliveryDays, useShippingRates } from "@/components/storefront/Shipp
 import { getProductAvailability } from "@/lib/product-availability"
 import AddiWidget from "@/components/product/AddiWidget"
 import { trackLeadCartStageAction } from "@/server/actions/lead-stage.actions"
+import { getDisplaySku } from "@/lib/sku"
 
 interface ProductInfoProps {
   product: ProductWithRelations
@@ -248,6 +249,7 @@ export default function ProductInfo({
   const selectedVariant = selectedSize
     ? product.variants.find((v) => v.color === selectedColor && v.size === selectedSize)
     : undefined
+  const displaySku = getDisplaySku(product.variants, selectedColor, selectedSize)
   // Lo que ya está en el carrito de esta talla cuenta contra el stock: el selector no deja pasarse.
   const inCart = selectedVariant ? cartItems.find((item) => item.id === selectedVariant.id)?.quantity ?? 0 : 0
   const available = selectedVariant ? Math.max(0, selectedVariant.stock - inCart) : 0
@@ -294,6 +296,13 @@ export default function ProductInfo({
               {product.brand}
             </Link>
           </motion.div>
+        )}
+
+        {/* SKU: el de la talla elegida o, sin talla, la referencia del color. */}
+        {displaySku && (
+          <motion.p variants={itemVariants} className="-mb-3 font-montserrat text-xs uppercase tracking-widest text-[#4A4A4A] dark:text-white/60" data-testid="product-sku">
+            SKU: <span className="select-all font-semibold">{displaySku}</span>
+          </motion.p>
         )}
 
         {/* Name + badge */}

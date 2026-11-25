@@ -1,10 +1,14 @@
 import { auth } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import { headers } from "next/headers"
+import { roleCanAccessArea } from "@/lib/admin-access"
 import DashboardStats from "@/components/admin/DashboardStats"
 import TopProducts from "@/components/admin/TopProducts"
 import LowStockAlerts from "@/components/admin/LowStockAlerts"
+import WhatsappHandoffAlerts from "@/components/admin/WhatsappHandoffAlerts"
+import { resolveActiveAdminRole } from "@/server/services/admin-role.service"
 import { getAdminDashboardStats } from "@/server/services/dashboard.service"
+import { getPendingWhatsappHandoffs } from "@/server/services/lead.service"
 import RevenueChart from "@/components/admin/charts/RevenueChart"
 import OrdersChart from "@/components/admin/charts/OrdersChart"
 import TopProductsChart from "@/components/admin/charts/TopProductsChart"
@@ -13,7 +17,16 @@ export default async function AdminDashboardPage() {
   const session = await auth.api.getSession({ headers: await headers() })
   if (!session) redirect("/admin/login")
 
-  const stats = await getAdminDashboardStats()
+  const activeRole = await resolveActiveAdminRole(
+    session.user.id,
+    (session.user as { email?: string } | undefined)?.email
+  )
+  const canSeeSales = roleCanAccessArea(activeRole, "sales")
+
+  const [stats, pendingHandoffs] = await Promise.all([
+    getAdminDashboardStats(),
+    canSeeSales ? getPendingWhatsappHandoffs(10) : Promise.resolve([]),
+  ])
 
   return (
     <div className="p-6 space-y-6">
@@ -25,6 +38,8 @@ export default async function AdminDashboardPage() {
           Bienvenido, {session.user?.name}
         </p>
       </div>
+
+      {canSeeSales && <WhatsappHandoffAlerts initialHandoffs={pendingHandoffs} />}
 
       <DashboardStats
         gmv={stats.gmv}

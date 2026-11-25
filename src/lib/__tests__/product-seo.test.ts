@@ -77,9 +77,28 @@ describe("metadata", () => {
   it("fija canonical limpio, absolutiza imágenes y expone el precio", () => {
     const meta = buildProductMetadata(product, ctx)
     expect(meta.alternates?.canonical).toBe("https://onestar.test/productos/air-zoom-pegasus-41")
-    const images = meta.openGraph?.images as { url: string }[]
+    const images = meta.openGraph?.images as { url: string; width?: number; height?: number }[]
     expect(images[1].url).toBe("https://onestar.test/local.jpg")
     expect(meta.other?.["product:price:amount"]).toBe("399000")
+  })
+
+  it("optimiza imágenes de Cloudinary para Open Graph (1200x630 con recorte de margen)", () => {
+    const cloudProd: SeoProduct = {
+      ...product,
+      images: [
+        {
+          url: "https://res.cloudinary.com/ljyyhmry/image/upload/v1792462187/one-star/productos/shoe.jpg",
+          alt: "Tenis Converse",
+        },
+      ],
+    }
+    const meta = buildProductMetadata(cloudProd, ctx)
+    const images = meta.openGraph?.images as { url: string; width?: number; height?: number }[]
+    expect(images[0].url).toBe(
+      "https://res.cloudinary.com/ljyyhmry/image/upload/e_trim:10/c_pad,w_1200,h_630,b_white,q_auto:good,f_jpg/v1792462187/one-star/productos/shoe.jpg"
+    )
+    expect(images[0].width).toBe(1200)
+    expect(images[0].height).toBe(630)
   })
 })
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { normalizeTickerMessages, reorderTickerMessages } from "@/lib/ticker-messages"
+import { clampTickerSeconds, normalizeTickerMessages, reorderTickerMessages } from "@/lib/ticker-messages"
 
 describe("ticker message ordering", () => {
   it("mueve mensajes sin modificar el arreglo original", () => {
@@ -27,5 +27,19 @@ describe("ticker message normalization", () => {
     expect(normalizeTickerMessages({ text: "no es un arreglo" })).toEqual([])
     expect(normalizeTickerMessages([null, { text: "" }, { text: "Oferta", url: "/sale" }]))
       .toEqual([{ text: "Oferta", url: "/sale" }])
+  })
+})
+
+describe("clampTickerSeconds", () => {
+  it("usa 6 segundos cuando no hay valor guardado", () => {
+    expect(clampTickerSeconds(undefined)).toBe(6)
+    expect(clampTickerSeconds(null)).toBe(6)
+    expect(clampTickerSeconds(Number.NaN)).toBe(6)
+  })
+
+  it("acota la velocidad al rango permitido y redondea", () => {
+    expect(clampTickerSeconds(1)).toBe(3)
+    expect(clampTickerSeconds(99)).toBe(30)
+    expect(clampTickerSeconds(11.6)).toBe(12)
   })
 })
