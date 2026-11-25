@@ -71,9 +71,9 @@ export const assistantLeadUpsertSchema = z
     botPausedUntil: z.string().datetime().nullable().optional(),
     needsHuman: z.boolean().optional(),
     handoffReason: z.string().trim().min(1).max(300).nullable().optional(),
-    tags: z.array(leadTagSchema).max(MAX_LEAD_TAGS).optional(),
-    addTags: z.array(leadTagSchema).max(MAX_LEAD_TAGS).optional(),
-    removeTags: z.array(leadTagSchema).max(MAX_LEAD_TAGS).optional(),
+    tags: z.array(z.string().max(200)).max(MAX_LEAD_TAGS).optional(),
+    addTags: z.array(z.string().max(200)).max(MAX_LEAD_TAGS).optional(),
+    removeTags: z.array(z.string().max(200)).max(MAX_LEAD_TAGS).optional(),
   })
   .transform((data) => {
     const mergedAdd = normalizeLeadTags([...(data.tags ?? []), ...(data.addTags ?? [])])
