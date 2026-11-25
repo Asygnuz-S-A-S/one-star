@@ -11,6 +11,8 @@ import { linkOrderToLead } from "@/server/services/lead.service"
 import { markCartsRecoveredForEmail } from "@/server/services/abandoned-cart.service"
 import { getUserById } from "@/server/services/user.service"
 import { checkoutSchema } from "@/server/validators/checkout.validator"
+import { checkoutPreloadSchema } from "@/server/validators/assistant.validator"
+import { resolvePublishedVariantForCheckout, type PreloadCheckoutVariantResult } from "@/server/services/assistant.service"
 import { getPickupStores } from "@/server/services/store.service"
 import { consumePublicRateLimit } from "@/server/services/public-rate-limit.service"
 import { signGuestOrderSuccessToken, verifyGuestOrderSuccessToken } from "@/server/services/guest-order.service"
@@ -305,5 +307,34 @@ export async function getPickupStoresAction(): Promise<{ id: string; name: strin
   } catch (error) {
     console.error("[getPickupStoresAction]", error)
     return []
+  }
+}
+
+/**
+ * Precarga una variante específica en el checkout cuando el cliente llega desde
+ * un enlace personalizado del asistente de WhatsApp (?variant=<id>&qty=<n>).
+ * Valida stock y precio real en el servidor.
+ */
+export async function resolveCheckoutVariantAction(
+  variantId: string,
+  quantity = 1
+): Promise<PreloadCheckoutVariantResult> {
+  try {
+    const reqHeaders = await headers()
+    const limit = await consumePublicRateLimit("checkout_preload", reqHeaders, {
+      max: 30,
+      windowMs: 60 * 1000,
+    })
+    if (!limit.allowed) {
+      return { ok: false, reason: "NOT_FOUND" }
+    }
+    const parsed = checkoutPreloadSchema.safeParse({ variantId, quantity })
+    if (!parsed.success) {
+      return { ok: false, reason: "NOT_FOUND" }
+    }
+    return await resolvePublishedVariantForCheckout(parsed.data.variantId, parsed.data.quantity)
+  } catch (error) {
+    console.error("[resolveCheckoutVariantAction]", error)
+    return { ok: false, reason: "NOT_FOUND" }
   }
 }

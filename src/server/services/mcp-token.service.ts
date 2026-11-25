@@ -18,22 +18,22 @@ export const MCP_TOKEN_TTL_DAYS = 90
 export const MCP_MAX_ACTIVE_TOKENS = 5
 const TOUCH_INTERVAL_MS = 60 * 1000
 
-/** Roles que pueden tener token: Ventas no, porque el conector no toca datos de clientes. */
-export type McpTokenRole = Extract<AdminRole, "SUPER_ADMIN" | "INVENTORY_OPERATOR">
+/** Solo Super Admin puede crear y usar tokens MCP. */
+export type McpTokenRole = Extract<AdminRole, "SUPER_ADMIN">
 
 export function hashMcpToken(token: string): string {
   return createHash("sha256").update(token).digest("hex")
 }
 
 /**
- * Rol efectivo = el menor entre el rol actual del admin y el tope del token.
- * Ventas (o un rol desconocido) nunca entra.
+ * Solo se autoriza cuando el admin activo y el token son ambos SUPER_ADMIN.
+ * Cualquier otro rol (Inventario, Ventas o desconocido) es rechazado (fail-closed).
  */
 export function effectiveMcpRole(adminRole: string | null | undefined, tokenRole: string): McpTokenRole | null {
   const admin = normalizeAdminRole(adminRole)
   const cap = normalizeAdminRole(tokenRole)
-  if (!admin || !cap || admin === "SALES_OPERATOR" || cap === "SALES_OPERATOR") return null
-  return admin === "SUPER_ADMIN" && cap === "SUPER_ADMIN" ? "SUPER_ADMIN" : "INVENTORY_OPERATOR"
+  if (admin !== "SUPER_ADMIN" || cap !== "SUPER_ADMIN") return null
+  return "SUPER_ADMIN"
 }
 
 /** Crea un token y devuelve el valor en claro UNA sola vez; en la BD queda solo el hash. */
@@ -41,13 +41,11 @@ export async function createMcpToken(input: {
   adminUserId: string
   adminRole: AdminRole
   name: string
-  role: McpTokenRole
+  role?: McpTokenRole
 }): Promise<{ token: string; id: string; expiresAt: Date }> {
-  if (!effectiveMcpRole(input.adminRole, input.role)) {
-    throw new Error("Tu rol no puede crear tokens para Claude.")
-  }
-  if (input.role === "SUPER_ADMIN" && input.adminRole !== "SUPER_ADMIN") {
-    throw new Error("Solo un Super Admin puede crear un token de Super Admin.")
+  const tokenRole: McpTokenRole = input.role ?? "SUPER_ADMIN"
+  if (input.adminRole !== "SUPER_ADMIN" || !effectiveMcpRole(input.adminRole, tokenRole)) {
+    throw new Error("Solo un Super Admin puede crear tokens para el conector MCP.")
   }
   if ((await countActiveMcpTokens(input.adminUserId)) >= MCP_MAX_ACTIVE_TOKENS) {
     throw new Error(`Máximo ${MCP_MAX_ACTIVE_TOKENS} tokens activos. Revoca uno antes de crear otro.`)
@@ -60,7 +58,7 @@ export async function createMcpToken(input: {
     name: input.name,
     tokenHash: hashMcpToken(token),
     prefix: token.slice(0, MCP_TOKEN_PREFIX.length + 6),
-    role: input.role,
+    role: tokenRole,
     expiresAt,
   })
   return { token, id: record.id, expiresAt }

@@ -1,6 +1,7 @@
 import "server-only"
 
 import { z } from "zod"
+import { waPhoneSchema } from "./lead.validator"
 
 export const assistantProductsQuerySchema = z.object({
   q: z.string().trim().optional(),
@@ -29,6 +30,26 @@ export const assistantOrderQuerySchema = z.object({
 })
 
 export type AssistantOrderQuery = z.infer<typeof assistantOrderQuerySchema>
+
+export const assistantCheckoutLinkSchema = z.object({
+  waPhone: waPhoneSchema,
+  product: z.string().trim().min(1, "El campo 'product' es requerido").max(200),
+  size: z.string().trim().min(1, "El campo 'size' es requerido").max(20),
+  color: z.string().trim().max(60).optional(),
+  quantity: z.coerce.number().int().min(1).max(5).default(1),
+  utmCampaign: z.string().trim().min(1).max(120).optional(),
+  name: z.string().trim().min(1).max(120).optional(),
+})
+
+export type AssistantCheckoutLinkInput = z.infer<typeof assistantCheckoutLinkSchema>
+
+export const checkoutPreloadSchema = z.object({
+  variantId: z
+    .string()
+    .trim()
+    .regex(/^[a-zA-Z0-9_-]{4,64}$/, "Variante inválida"),
+  quantity: z.coerce.number().int().min(1).max(5).default(1),
+})
 
 /**
  * Normaliza una cadena extrayendo únicamente los dígitos.

@@ -1,6 +1,5 @@
 import { getAdminSession } from "@/server/auth/require-admin"
 import { findAdminById } from "@/server/repositories/admin.repository"
-import { roleCanAccessArea } from "@/lib/admin-access"
 import { listMcpTokensFor } from "@/server/services/mcp-token.service"
 import { listMcpAuditLogs } from "@/server/repositories/mcp.repository"
 import ChangePasswordForm from "./ChangePasswordForm"
@@ -16,8 +15,8 @@ export default async function AdminCuentaPage() {
   }
   const admin = await findAdminById(session.user.id)
   const actor = { id: session.user.id, role: session.user.adminRole }
-  const canUseMcp = roleCanAccessArea(actor.role, "inventory")
   const isSuperAdmin = actor.role === "SUPER_ADMIN"
+  const canUseMcp = isSuperAdmin
   const [mcpTokens, mcpAudit] = await Promise.all([
     canUseMcp ? listMcpTokensFor(actor) : Promise.resolve([]),
     isSuperAdmin ? listMcpAuditLogs(50) : Promise.resolve([]),
@@ -87,8 +86,7 @@ export default async function AdminCuentaPage() {
               Conectar con Claude
             </h2>
             <p className="mt-1 text-xs text-[#4A4A4A] leading-relaxed">
-              Crea un token para que Claude edite el catálogo y el contenido por ti. Nunca tiene acceso a pedidos ni a datos de clientes.
-              Trátalo como una contraseña: si se pierde, revócalo.
+              Exclusivo para Super Admin. Permite editar contenido, Inicio, banners, barra superior, configuración, menú, tiendas, marcas, categorías y archivos. Nunca modifica productos ni stock, ni accede a pedidos o datos de clientes. URL del conector: <code className="font-mono">https://tiendaonestar.com/api/mcp</code>.
             </p>
           </div>
           <McpTokensSection

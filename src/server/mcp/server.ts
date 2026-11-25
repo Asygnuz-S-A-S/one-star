@@ -14,16 +14,17 @@ import { MCP_TOOLS, type McpTool } from "./tools"
  * Solo implementa lo que usa un cliente de herramientas: initialize, ping,
  * tools/list y tools/call. Sin sesiones ni SSE.
  */
-const SUPPORTED_VERSIONS = ["2025-06-18", "2025-03-26", "2024-11-05"]
+const SUPPORTED_VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"]
 export const MCP_READ_LIMIT_PER_MIN = 60
 export const MCP_WRITE_LIMIT_PER_MIN = 20
 const MAX_AUDIT_ARGS_CHARS = 4000
 
-const INSTRUCTIONS = `Admin de la tienda One Star (tiendaonestar.com). Responde en español.
+const INSTRUCTIONS = `Admin de la tienda One Star (tiendaonestar.com). Exclusivo para Super Admin. Responde en español.
 - El constructor de páginas funciona con borrador: guardar_borrador_seccion no cambia la tienda; publicar_pagina sí. Antes de publicar, resume los cambios y pide confirmación.
 - Herramientas marcadas como destructivas cambian lo que ven los clientes al instante: confirma antes.
 - Para editar una sección, primero ver_pagina y envía la configuración completa modificada.
-- Este conector no tiene acceso a pedidos, clientes, leads ni PQRS.`
+- Productos y stock son de SOLO LECTURA en este conector (sirven para consultar referencias y enlaces, nunca para modificar productos, precios ni inventario).
+- Este conector no tiene acceso a pedidos, clientes, leads, PQRS, usuarios, cupones ni secretos/credenciales.`
 
 interface JsonRpcRequest {
   jsonrpc: "2.0"

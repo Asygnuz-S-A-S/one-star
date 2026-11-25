@@ -49,6 +49,10 @@ export async function GET(
     url.searchParams.get("p") ||
     url.searchParams.get("product") ||
     url.searchParams.get("slug")
+  const rawCheckoutVariant = url.searchParams.get("checkout")?.trim() ?? ""
+  const checkoutVariant = /^[a-zA-Z0-9_-]{4,64}$/.test(rawCheckoutVariant) ? rawCheckoutVariant : null
+  const rawQty = parseInt(url.searchParams.get("qty") ?? "1", 10)
+  const checkoutQty = Number.isFinite(rawQty) ? Math.min(5, Math.max(1, rawQty)) : 1
   const baseUrl = getBaseUrl(request)
 
   try {
@@ -58,7 +62,19 @@ export async function GET(
       baseUrl,
     })
 
-    const response = NextResponse.redirect(result.redirectUrl, { status: 302 })
+    let targetUrl = result.redirectUrl
+    if (checkoutVariant) {
+      const parsedRedirect = new URL(result.redirectUrl)
+      const checkoutDest = new URL(`${baseUrl.replace(/\/+$/, "")}/checkout`)
+      checkoutDest.searchParams.set("variant", checkoutVariant)
+      checkoutDest.searchParams.set("qty", String(checkoutQty))
+      for (const [k, v] of parsedRedirect.searchParams.entries()) {
+        if (k.startsWith("utm_")) checkoutDest.searchParams.set(k, v)
+      }
+      targetUrl = checkoutDest.toString()
+    }
+
+    const response = NextResponse.redirect(targetUrl, { status: 302 })
 
     if (result.found && result.leadId) {
       const signedValue = signLeadCookieValue(result.leadId)

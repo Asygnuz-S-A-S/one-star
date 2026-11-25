@@ -80,4 +80,24 @@ describe("GET /r/[code]", () => {
     expect(res.status).toBe(429)
     expect(res.headers.get("Retry-After")).toBe("30")
   })
+
+  it("redirige a /checkout con variant y qty cuando llega ?checkout=<variantId> y mantiene cookie os_lead", async () => {
+    mocks.resolveShortLinkClick.mockResolvedValueOnce({
+      found: true,
+      leadId: "lead_co",
+      redirectUrl:
+        "https://onestar.com.co/productos/converse-vino?utm_source=whatsapp&utm_medium=asistente&utm_campaign=asistente_checkout&utm_content=chk12345",
+    })
+
+    const req = new Request("https://onestar.com.co/r/chk12345?checkout=var_abc123&qty=2")
+    const res = await GET(req, { params: Promise.resolve({ code: "chk12345" }) })
+
+    expect(res.status).toBe(302)
+    const loc = res.headers.get("location") ?? ""
+    expect(loc).toContain("/checkout?")
+    expect(loc).toContain("variant=var_abc123")
+    expect(loc).toContain("qty=2")
+    expect(loc).toContain("utm_source=whatsapp")
+    expect(res.headers.get("set-cookie") ?? "").toContain(`${LEAD_COOKIE_NAME}=`)
+  })
 })

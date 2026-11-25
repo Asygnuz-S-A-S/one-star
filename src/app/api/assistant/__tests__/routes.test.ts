@@ -8,6 +8,7 @@ import { GET as getOrder } from "../order/route"
 import { GET as getLead, POST as postLead } from "../leads/route"
 import { POST as postLeadEvent } from "../leads/event/route"
 import { POST as postLeadLink } from "../leads/link/route"
+import { POST as postCheckoutLink } from "../checkout-link/route"
 import * as assistantAuthService from "@/server/services/assistant-auth.service"
 import * as assistantService from "@/server/services/assistant.service"
 import * as leadService from "@/server/services/lead.service"
@@ -410,6 +411,126 @@ describe("Assistant API Routes", () => {
       const data = await res.json()
       expect(data.url).toBe("https://onestar.com.co/r/abc12345")
       expect(data.code).toBe("abc12345")
+    })
+  })
+
+  describe("POST /api/assistant/checkout-link", () => {
+    it("retorna 401 si la llave del asistente no es válida", async () => {
+      vi.spyOn(assistantAuthService, "authenticateAssistantRequest").mockResolvedValueOnce({
+        authorized: false,
+        response: new Response(JSON.stringify({ error: "No autorizado" }), { status: 401 }) as never,
+      })
+
+      const req = new Request("https://tiendaonestar.com/api/assistant/checkout-link", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ waPhone: "573001234567", product: "vans-knu-skool", size: "8" }),
+      })
+
+      const res = await postCheckoutLink(req)
+      expect(res.status).toBe(401)
+    })
+
+    it("retorna 400 si el cuerpo es inválido", async () => {
+      vi.spyOn(assistantAuthService, "authenticateAssistantRequest").mockResolvedValueOnce({
+        authorized: true,
+        apiKey: "valid-key",
+      })
+
+      const req = new Request("https://tiendaonestar.com/api/assistant/checkout-link", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ waPhone: "12", product: "" }),
+      })
+
+      const res = await postCheckoutLink(req)
+      expect(res.status).toBe(400)
+    })
+
+    it("retorna 429 si excede el límite por teléfono", async () => {
+      vi.spyOn(assistantAuthService, "authenticateAssistantRequest").mockResolvedValueOnce({
+        authorized: true,
+        apiKey: "valid-key",
+      })
+      vi.spyOn(assistantAuthService, "checkLeadPhoneRateLimit").mockResolvedValueOnce({
+        allowed: false,
+        retryAfterSeconds: 45,
+      })
+
+      const req = new Request("https://tiendaonestar.com/api/assistant/checkout-link", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ waPhone: "+57 300 123 4567", product: "vans-knu-skool", size: "8" }),
+      })
+
+      const res = await postCheckoutLink(req)
+      expect(res.status).toBe(429)
+      expect(res.headers.get("Retry-After")).toBe("45")
+    })
+
+    it("retorna 404 si el producto no existe", async () => {
+      vi.spyOn(assistantAuthService, "authenticateAssistantRequest").mockResolvedValueOnce({
+        authorized: true,
+        apiKey: "valid-key",
+      })
+      vi.spyOn(assistantAuthService, "checkLeadPhoneRateLimit").mockResolvedValueOnce({
+        allowed: true,
+      })
+      vi.spyOn(assistantService, "createAssistantCheckoutLink").mockResolvedValueOnce(null)
+
+      const req = new Request("https://tiendaonestar.com/api/assistant/checkout-link", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ waPhone: "573001234567", product: "no-existe", size: "8" }),
+      })
+
+      const res = await postCheckoutLink(req)
+      expect(res.status).toBe(404)
+    })
+
+    it("retorna 200 con url de checkout personalizado cuando hay stock", async () => {
+      vi.spyOn(assistantAuthService, "authenticateAssistantRequest").mockResolvedValueOnce({
+        authorized: true,
+        apiKey: "valid-key",
+      })
+      vi.spyOn(assistantAuthService, "checkLeadPhoneRateLimit").mockResolvedValueOnce({
+        allowed: true,
+      })
+      const createSpy = vi
+        .spyOn(assistantService, "createAssistantCheckoutLink")
+        .mockResolvedValueOnce({
+          available: true,
+          url: "https://tiendaonestar.com/r/abc12345?checkout=var_8&qty=1",
+          code: "abc12345",
+          product: "Vans Knu Skool",
+          size: "8",
+          color: "Negro",
+          quantity: 1,
+          unitPrice: 429000,
+          total: 429000,
+          currency: "COP",
+        })
+
+      const req = new Request("https://tiendaonestar.com/api/assistant/checkout-link", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          waPhone: "+57 (300) 123-4567",
+          product: "vans-knu-skool",
+          size: "8",
+          quantity: "1",
+        }),
+      })
+
+      const res = await postCheckoutLink(req)
+      expect(res.status).toBe(200)
+      const data = await res.json()
+      expect(data.available).toBe(true)
+      expect(data.url).toBe("https://tiendaonestar.com/r/abc12345?checkout=var_8&qty=1")
+      expect(createSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ waPhone: "573001234567", product: "vans-knu-skool", size: "8", quantity: 1 }),
+        expect.any(String)
+      )
     })
   })
 })

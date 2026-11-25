@@ -1,27 +1,28 @@
 # Conector de Claude para el admin (MCP)
 
-Permite pedirle a Claude cambios del admin de One Star: editar productos, subir imágenes a Cloudinary, editar banners, la barra superior y las secciones de Inicio (incluidas las tarjetas de colección), categorías, marcas y colores.
+Exclusivo para **Super Admin**. Permite pedirle a Claude cambios de contenido y operación de la tienda: banners, barra superior, secciones de Inicio y campañas (con borrador), configuración general (envíos, tiempos, WhatsApp, contacto, footer), contenido global, menú de navegación, tiendas físicas, marcas, categorías, colores y subida de imágenes a Cloudinary.
 
-**Nunca** tiene acceso a pedidos, clientes, leads, PQRS, newsletter, usuarios ni cupones. Tampoco borra nada: eso se hace en el admin.
+**Qué NO puede tocar nunca:**
+- **Productos, precios ni stock** (solo consulta productos en lectura para obtener enlaces y referencias).
+- **Pedidos, clientes, leads, PQRS, newsletter, usuarios, cupones ni secretos/credenciales.**
+- Tampoco borra registros: eso se hace manualmente en el admin.
 
-## 1. Crear tu token
+## 1. Crear tu token (solo Super Admin)
 
-1. Entra a `https://new.tiendaonestar.com/admin/cuenta` (Mi cuenta).
-2. En **Conectar con Claude**, ponle un nombre (ej. "Claude del Mac") y elige el permiso:
-   - **Inventario**: productos, categorías, marcas, colores e imágenes.
-   - **Super Admin**: lo anterior, más Inicio, campañas y banners. Solo aparece si eres Super Admin.
+1. Entra a `https://tiendaonestar.com/admin/cuenta` (Mi cuenta) con una cuenta **Super Admin**.
+2. En **Conectar con Claude**, ponle un nombre (ej. "Claude del Mac") y dale **Crear token**.
 3. Copia el token (`osmcp_…`). **Se muestra una sola vez.** Guárdalo como una contraseña: no lo pegues en chats, documentos ni en el repositorio.
 
 El token vence a los 90 días. Si se pierde o ya no lo usas, dale **Revocar** y deja de funcionar al instante.
 
 ## 2. Conectarlo en Claude
 
+> **Importante:** usa siempre **`https://tiendaonestar.com/api/mcp`** (NO `new.tiendaonestar.com`, porque el redireccionamiento entre dominios elimina el encabezado `Authorization` y responde `401`).
+
 ### Claude Code (terminal o pestaña Code de la app de escritorio)
 
-Pega esto en la terminal, cambiando `osmcp_TU_TOKEN` por tu token:
-
 ```bash
-claude mcp add --transport http --scope user onestar https://new.tiendaonestar.com/api/mcp --header "Authorization: Bearer osmcp_TU_TOKEN"
+claude mcp add --transport http --scope user onestar https://tiendaonestar.com/api/mcp --header "Authorization: Bearer osmcp_TU_TOKEN"
 ```
 
 Verifica con `claude mcp list`: debe salir `onestar` conectado. Para quitarlo: `claude mcp remove onestar`.
@@ -35,63 +36,59 @@ En *Configuración → Desarrollador → Editar configuración* (`claude_desktop
   "mcpServers": {
     "onestar": {
       "command": "npx",
-      "args": ["-y", "mcp-remote", "https://new.tiendaonestar.com/api/mcp", "--header", "Authorization:Bearer osmcp_TU_TOKEN"]
+      "args": ["-y", "mcp-remote", "https://tiendaonestar.com/api/mcp", "--header", "Authorization:Bearer osmcp_TU_TOKEN"]
     }
   }
 }
 ```
 
-Reinicia la app. claude.ai en el navegador todavía no sirve: exige OAuth y este conector usa token.
+Reinicia la app. `claude.ai` en navegador exige OAuth y este conector usa token Bearer.
 
-## 3. Cómo pedir cambios
+### Codex (Windows y Mac)
 
-Ejemplos:
+Abre el archivo de configuración global de Codex:
+- **Windows:** `%USERPROFILE%\.codex\config.toml`
+- **Mac / Linux:** `~/.codex/config.toml`
 
-- "Busca las Hoka Clifton y cámbiale la descripción a…"
-- "Sube esta imagen https://…/banner.jpg y crea un banner 'Black Friday' que lleve a /productos?oferta=1."
-- "En Inicio, cambia el texto de la segunda tarjeta de colección a 'RUNNING' y guárdalo como borrador."
-- "Publica Inicio." (Claude te muestra un resumen y pide confirmación.)
+Agrega este bloque (reemplazando `osmcp_TU_TOKEN` por tu token real):
 
-**Borrador y publicación son pasos aparte.** `guardar_borrador_seccion` no cambia la tienda; solo `publicar_pagina` lo publica. Los banners y las secciones nuevas nacen ocultos.
+```toml
+[mcp_servers.onestar]
+url = "https://tiendaonestar.com/api/mcp"
+startup_timeout_sec = 30
 
-**Lo que sale en vivo al instante** (igual que en el admin): editar un producto publicado, publicar o retirar productos, categorías, marcas, colores, activar u ordenar secciones, editar o activar un banner y la barra superior. Claude marca esas herramientas como destructivas y te pide permiso antes de cada una. No actives "permitir siempre" para ellas.
+[mcp_servers.onestar.http_headers]
+Authorization = "Bearer osmcp_TU_TOKEN"
+```
+
+Guarda el archivo, **cierra por completo Codex y abre una nueva sesión** (las sesiones ya abiertas no recargan el `config.toml`). Si prefieres usar variable de entorno en Windows en vez de poner el token en el archivo, ejecuta `setx ONESTAR_MCP_TOKEN "osmcp_TU_TOKEN"`, reinicia Codex y usa `bearer_token_env_var = "ONESTAR_MCP_TOKEN"` en lugar de `[mcp_servers.onestar.http_headers]`.
 
 ### Fotos desde tu computador
 
-Claude Code puede subirlas con el mismo token:
-
 ```bash
-curl -F file=@foto.jpg -H "Authorization: Bearer osmcp_TU_TOKEN" https://new.tiendaonestar.com/api/mcp/upload
+curl -F file=@foto.jpg -H "Authorization: Bearer osmcp_TU_TOKEN" https://tiendaonestar.com/api/mcp/upload
 ```
 
 Responde con la URL de Cloudinary (carpeta `one-star/productos`) y queda en **Archivos**. Máximo 30 MB, solo imagen o video.
 
-## Herramientas
+## 3. Herramientas disponibles (solo Super Admin)
 
-| Herramienta | Permiso | ¿Cambia la tienda? |
+| Herramienta | Tipo | ¿Cambia la tienda? |
 |---|---|---|
-| buscar_productos, ver_producto, listar_catalogo | Inventario | No |
-| editar_producto, publicar_productos | Inventario | Sí, al instante |
-| guardar_categoria, guardar_marca, guardar_color | Inventario | Sí, al instante |
-| subir_imagen | Inventario | No (solo sube) |
-| ver_pagina, listar_banners, listar_archivos | Super Admin | No |
-| guardar_borrador_seccion, crear_seccion | Super Admin | No (borrador / oculta) |
-| publicar_pagina | Super Admin | **Sí: publica los borradores** |
-| activar_seccion, ordenar_secciones | Super Admin | Sí, al instante |
-| guardar_banner, activar_banner, editar_barra_superior | Super Admin | Sí (un banner nuevo nace oculto) |
+| `buscar_productos`, `ver_producto`, `listar_catalogo` | Solo lectura | No |
+| `guardar_categoria`, `guardar_marca`, `guardar_color` | Escritura | Sí, al instante |
+| `subir_imagen`, `listar_archivos` | Archivos | No |
+| `ver_pagina`, `guardar_borrador_seccion`, `crear_seccion` | Constructor | No (borrador / oculta) |
+| `publicar_pagina`, `activar_seccion`, `ordenar_secciones` | Constructor | **Sí, al instante** |
+| `listar_banners`, `guardar_banner`, `activar_banner`, `editar_barra_superior` | Banners | Sí (banner nuevo nace oculto) |
+| `ver_configuracion`, `editar_configuracion` | Configuración | Sí (sin secretos ni integraciones) |
+| `ver_contenido_global`, `editar_contenido_global` | Contenido global | Sí, al instante |
+| `listar_menu`, `guardar_menu` | Navegación | Sí, al instante |
+| `listar_tiendas`, `guardar_tienda` | Tiendas físicas | Sí, al instante |
 
-`editar_producto` cambia solo los campos que envías. Variantes, tallas e inventario no se tocan desde Claude.
+## 4. Seguridad
 
-## Seguridad
-
-- Token propio por admin; en la base de datos solo queda su hash (`McpToken`). No usa la sesión del navegador.
-- En cada llamada se vuelve a leer el rol del admin: si lo desactivan o lo bajan a Inventario, el token pierde permisos de inmediato. Ventas nunca entra.
-- Cada herramienta llama a la misma acción del admin, con `requireAdmin(área)` y la misma validación zod.
-- Bitácora (`McpAuditLog`): quién, qué herramienta, con qué datos, resultado y fecha. Super Admin la ve en Mi cuenta → **Bitácora de Claude**.
+- Solo cuentas activas con rol **Super Admin** pueden crear o usar tokens (`INVENTORY_OPERATOR` y `SALES_OPERATOR` son rechazados).
+- En cada llamada se revalida el rol activo del admin en la base de datos: si lo degradan o desactivan, el token deja de funcionar de inmediato.
+- Bitácora (`McpAuditLog`): cada llamada queda registrada y visible en Mi cuenta → **Bitácora de Claude**.
 - Límites: 60 lecturas y 20 escrituras por minuto por token; 120 peticiones por minuto por IP.
-
-## Para el despliegue (Sebas)
-
-- Incluye la migración `20261105000000_mcp_tokens` (solo crea dos tablas; no toca datos).
-- No hay variables de entorno nuevas. El proxy debe seguir fijando `X-Real-IP`, como ya lo hace para el resto de límites.
-- Para apagar el conector: revocar todos los tokens en Mi cuenta.

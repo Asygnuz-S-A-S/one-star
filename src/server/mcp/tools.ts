@@ -4,13 +4,26 @@ import { z } from "zod"
 import type { LandingSectionType, Prisma } from "@prisma/client"
 import { requireAdmin } from "@/server/auth/require-admin"
 import { faqsToText, parseProductFaqs } from "@/lib/product-faq"
-import { searchProducts, updateProduct, bulkToggleProductsPublishStatus } from "@/app/admin/productos/actions"
+import { searchProducts } from "@/app/admin/productos/actions"
 import { createBrandAction, updateBrandAction } from "@/app/admin/marcas/actions"
+import { updateSiteContentAction, updateStorefrontLabelsAction } from "@/app/admin/contenido/actions"
 import { createCategoryAction, updateCategoryAction } from "@/server/actions/category.actions"
 import { createColorAction, updateColorAction } from "@/server/actions/product-color.actions"
 import { createBanner, toggleBannerActive, updateBanner } from "@/server/actions/banner.actions"
 import { updateTopBannerAction } from "@/server/actions/top-banner.actions"
 import { getMediaAssetsAction } from "@/server/actions/media-asset.actions"
+import { updateStoreInfoAction } from "@/server/actions/store-settings.actions"
+import {
+  createNavigationItemAction,
+  toggleNavigationItemActiveAction,
+  updateNavigationItemAction,
+  updateNavigationPositionsAction,
+} from "@/server/actions/navigation.actions"
+import {
+  createStoreAction,
+  toggleStoreActiveAction,
+  updateStoreAction,
+} from "@/server/actions/store.actions"
 import {
   createLandingSectionAction,
   publishLandingPageAction,
@@ -18,12 +31,14 @@ import {
   updateLandingSectionConfigAction,
   updateLandingSectionPositionsAction,
 } from "@/server/actions/landing.actions"
-import { getProductByIdForAdmin, type AdminProductDetail } from "@/server/services/product.service"
+import { getProductByIdForAdmin } from "@/server/services/product.service"
 import { getCategories } from "@/server/services/category.service"
 import { getAllBrands, getBrandDetailById, type BrandDetailDTO } from "@/server/services/brand.service"
 import { getProductColorsForAdmin } from "@/server/services/product-color.service"
 import { getStoreLocations } from "@/server/services/store.service"
-import { isErpCatalogOwner } from "@/server/services/catalog-source.service"
+import { getStoreSettings, type StoreSettingsDTO } from "@/server/services/store-settings.service"
+import { getSiteContentForAdmin, getStorefrontSettings } from "@/server/services/site-content.service"
+import { getAllNavigationItems } from "@/server/services/navigation.service"
 import { getAllBanners } from "@/server/services/banner.service"
 import { getTopBanner } from "@/server/services/top-banner.service"
 import { getAllLandingSections, getLandingPages } from "@/server/services/landing-section.service"
@@ -32,15 +47,17 @@ import { createMediaAsset } from "@/server/services/media-asset.service"
 import { LandingSectionTypeSchema } from "@/server/validators/landing-section.validator"
 
 /**
- * Herramientas del conector MCP. Es una LISTA BLANCA: nada de pedidos, clientes,
- * leads, PQRS, newsletter, usuarios ni cupones (regla de empresa). Cada herramienta
- * llama a la misma acción o servicio del admin, que vuelve a exigir requireAdmin(área).
+ * Herramientas del conector MCP (exclusivo para Super Admin).
+ * LISTA BLANCA:
+ * - Productos y stock son SOLO LECTURA (no modifica productos, precios ni inventario).
+ * - Nada de pedidos, clientes, leads, PQRS, newsletter, usuarios, cupones ni secretos/credenciales.
+ * - Cada herramienta llama a la misma acción o servicio del admin, que vuelve a exigir requireAdmin("superadmin").
  */
 export interface McpTool {
   name: string
   description: string
-  /** Área mínima para ver y usar la herramienta. */
-  area: "inventory" | "superadmin"
+  /** Área mínima para ver y usar la herramienta (solo superadmin). */
+  area: "superadmin"
   /** true = solo lee. */
   readOnly: boolean
   /** true = cambia lo que ven los clientes en la tienda (Claude pide confirmación). */
@@ -71,123 +88,6 @@ function toFormData(values: Record<string, string>): FormData {
 const id = z.string().trim().min(1).max(64)
 const page = z.string().trim().min(1).max(60).default("home").describe('"home" = Inicio; otro slug = /<slug>')
 const mediaExtension = /\.(jpe?g|png|webp|gif|avif|mp4|mov|webm)$/i
-
-// ---------------------------------------------------------------- productos
-
-const productChangesSchema = z.object({
-  name: z.string().trim().min(1).max(200).optional(),
-  description: z.string().max(5000).nullable().optional(),
-  extendedDescription: z.string().max(20000).nullable().optional(),
-  videoUrl: z.string().url().nullable().optional(),
-  basePrice: z.number().nonnegative().optional(),
-  isOnSale: z.boolean().optional(),
-  salePrice: z.number().nonnegative().nullable().optional(),
-  metaTitle: z.string().max(200).nullable().optional(),
-  metaDescription: z.string().max(500).nullable().optional(),
-  categoryId: id.optional(),
-  brandId: id.nullable().optional(),
-  gender: z.string().max(40).nullable().optional(),
-  highlights: z.array(z.string().max(200)).max(8).optional(),
-  faqs: z.array(z.object({ q: z.string().max(300), a: z.string().max(1500) })).max(12).optional(),
-  images: z
-    .array(z.object({ url: z.string().url(), alt: z.string().max(200).optional(), color: z.string().max(60).nullable().optional() }))
-    .max(40)
-    .optional()
-    .describe("Reemplaza TODAS las fotos, en este orden. Usa subir_imagen antes para tener la URL de Cloudinary."),
-  defaultPhysicalStoreStock: z
-    .number()
-    .int()
-    .nonnegative()
-    .max(9999)
-    .optional()
-    .describe("Asigna esta cantidad de stock a todas las tiendas físicas en cada variante del producto (para retiro en tienda)."),
-})
-
-export type ProductChanges = z.infer<typeof productChangesSchema>
-
-type StoreRef = { id: string; erpId: string | null }
-
-/**
- * Arma el mismo FormData que envía ProductForm.tsx al guardar, con el producto
- * actual y solo los `changes` pedidos. Variantes, inventario por sede, familia de
- * color y cross-sells pasan intactos (si faltaran, el guardado los borraría).
- */
-export function productFormData(
-  product: NonNullable<AdminProductDetail>,
-  stores: StoreRef[],
-  erpOwner: boolean,
-  changes: ProductChanges
-): FormData {
-  const merged = { ...product, ...changes }
-  const erpStoreIds = new Set(erpOwner ? stores.filter((store) => store.erpId).map((store) => store.id) : [])
-
-  const variants = product.variants.map((v) => {
-    const web = v.inventory.find((inv) => inv.storeLocationId === null)
-    const inventory = [
-      { storeLocationId: null as string | null, stock: web ? web.stock : v.stock || 0 },
-      ...stores.map((store) => {
-        const existingStock = v.inventory.find((inv) => inv.storeLocationId === store.id)?.stock ?? 0
-        const stock = changes.defaultPhysicalStoreStock !== undefined ? changes.defaultPhysicalStoreStock : existingStock
-        return {
-          storeLocationId: store.id as string | null,
-          stock,
-        }
-      }),
-    ]
-    return {
-      id: v.id,
-      sku: v.sku,
-      size: v.size,
-      color: v.color,
-      stock: inventory[0].stock,
-      inventory: inventory.filter((inv) => inv.storeLocationId === null || !erpStoreIds.has(inv.storeLocationId)),
-      sizeUS: v.sizeUS ?? "",
-      sizeCM: v.sizeCM ?? "",
-      sizeEUR: v.sizeEUR ?? "",
-    }
-  })
-
-  const images = changes.images
-    ? changes.images.map((img, idx) => ({ url: img.url, alt: img.alt ?? merged.name, position: idx, color: img.color ?? null }))
-    : product.images.map((img, idx) => ({ id: img.id, url: img.url, alt: img.alt, position: img.position ?? idx, color: img.color ?? null }))
-
-  const familyIds = product.colorFamily?.products.filter((item) => item.id !== product.id).map((item) => item.id) ?? []
-  const salePrice = merged.salePrice
-  const faqs = changes.faqs ?? parseProductFaqs(product.faqs)
-
-  return toFormData({
-    name: merged.name,
-    slug: product.slug,
-    brandId: merged.brandId ?? "",
-    gender: merged.gender ?? "",
-    categoryId: merged.categoryId,
-    description: merged.description ?? "",
-    extendedDescription: merged.extendedDescription ?? "",
-    videoUrl: merged.videoUrl ?? "",
-    basePrice: String(Number(merged.basePrice)),
-    isOnSale: String(merged.isOnSale),
-    salePrice: salePrice != null ? String(Number(salePrice)) : "",
-    metaTitle: merged.metaTitle ?? "",
-    metaDescription: merged.metaDescription ?? "",
-    availableOnline: String(product.availableOnline),
-    availableInStores: String(product.availableInStores),
-    isPublished: String(product.isPublished),
-    highlights: (changes.highlights ?? product.highlights ?? []).join("\n"),
-    faqs: faqsToText(faqs),
-    variants: JSON.stringify(variants),
-    images: JSON.stringify(images),
-    colorFamilyProductIds: JSON.stringify(familyIds),
-    colorFamilyBaselineProductIds: JSON.stringify(familyIds),
-    crossSellIds: JSON.stringify(product.crossSells.map((cs) => cs.id)),
-  })
-}
-
-async function loadProduct(productId: string) {
-  await requireAdmin("inventory")
-  const product = await getProductByIdForAdmin(productId)
-  if (!product) throw new Error("Producto no encontrado.")
-  return product
-}
 
 // ---------------------------------------------------------------- marcas
 
@@ -259,27 +159,170 @@ function bannerFormData(fields: z.infer<typeof bannerFieldsSchema>, isActive: bo
   })
 }
 
-// ---------------------------------------------------------------- lista
+// ---------------------------------------------------------------- configuración de tienda
+
+const storeSettingsChangesSchema = z.object({
+  storeName: z.string().trim().min(1).max(120).optional(),
+  contactEmail: z.string().trim().max(160).nullable().optional(),
+  whatsapp: z.string().trim().max(40).nullable().optional(),
+  contactPhone: z.string().trim().max(40).nullable().optional(),
+  freeShippingThreshold: z.number().nonnegative().optional(),
+  standardShippingCost: z.number().nonnegative().optional(),
+  expressShippingCost: z.number().nonnegative().optional(),
+  deliveryMinDays: z.number().int().positive().max(30).optional(),
+  deliveryMaxDays: z.number().int().positive().max(60).optional(),
+  expressDeliveryMinDays: z.number().int().positive().max(15).optional(),
+  expressDeliveryMaxDays: z.number().int().positive().max(30).optional(),
+  pickupReadyMinDays: z.number().int().nonnegative().max(15).nullable().optional(),
+  pickupReadyMaxDays: z.number().int().nonnegative().max(30).nullable().optional(),
+  legalName: z.string().trim().max(160).nullable().optional(),
+  taxId: z.string().trim().max(60).nullable().optional(),
+  legalAddress: z.string().trim().max(240).nullable().optional(),
+  legalCity: z.string().trim().max(120).nullable().optional(),
+  commercialRegistry: z.string().trim().max(120).nullable().optional(),
+  dataProtectionEmail: z.string().trim().max(160).nullable().optional(),
+  hideImagelessProducts: z.boolean().optional(),
+  hideEmptySale: z.boolean().optional(),
+  groupColorsInCatalog: z.boolean().optional(),
+  newArrivalDays: z.number().int().nonnegative().max(365).optional(),
+  chatEnabled: z.boolean().optional(),
+  chatWelcome: z.string().max(600).optional(),
+  clubHeadline: z.string().max(200).optional(),
+  clubIntro: z.string().max(1000).optional(),
+  clubBenefits: z.string().max(3000).optional(),
+  clubWelcomeSubject: z.string().max(200).optional(),
+  clubWelcomeBody: z.string().max(4000).optional(),
+  footerLinks: z.string().max(4000).optional(),
+  bottomNav: z.string().max(2000).optional(),
+})
+
+function safeStoreSettingsView(s: StoreSettingsDTO) {
+  return {
+    storeName: s.storeName,
+    contactEmail: s.contactEmail,
+    whatsapp: s.whatsapp,
+    contactPhone: s.contactPhone,
+    freeShippingThreshold: s.freeShippingThreshold,
+    standardShippingCost: s.standardShippingCost,
+    expressShippingCost: s.expressShippingCost,
+    deliveryMinDays: s.deliveryMinDays,
+    deliveryMaxDays: s.deliveryMaxDays,
+    expressDeliveryMinDays: s.expressDeliveryMinDays,
+    expressDeliveryMaxDays: s.expressDeliveryMaxDays,
+    pickupReadyMinDays: s.pickupReadyMinDays,
+    pickupReadyMaxDays: s.pickupReadyMaxDays,
+    legalName: s.legalName,
+    taxId: s.taxId,
+    legalAddress: s.legalAddress,
+    legalCity: s.legalCity,
+    commercialRegistry: s.commercialRegistry,
+    dataProtectionEmail: s.dataProtectionEmail,
+    hideImagelessProducts: s.hideImagelessProducts,
+    hideEmptySale: s.hideEmptySale,
+    groupColorsInCatalog: s.groupColorsInCatalog,
+    newArrivalDays: s.newArrivalDays,
+    chatEnabled: s.chatEnabled,
+    chatWelcome: s.chatWelcome,
+    clubHeadline: s.clubHeadline,
+    clubIntro: s.clubIntro,
+    clubBenefits: s.clubBenefits,
+    clubWelcomeSubject: s.clubWelcomeSubject,
+    clubWelcomeBody: s.clubWelcomeBody,
+    footerLinks: s.footerLinks,
+    bottomNav: s.bottomNav,
+  }
+}
+
+function storeSettingsFormData(
+  current: StoreSettingsDTO,
+  changes: z.infer<typeof storeSettingsChangesSchema>
+): FormData {
+  const m = { ...current, ...changes }
+  const str = (v: string | number | null | undefined) => (v == null ? "" : String(v))
+  const fd = toFormData({
+    storeName: m.storeName,
+    contactEmail: str(m.contactEmail),
+    whatsapp: str(m.whatsapp),
+    contactPhone: str(m.contactPhone),
+    freeShippingThreshold: str(m.freeShippingThreshold),
+    standardShippingCost: str(m.standardShippingCost),
+    expressShippingCost: str(m.expressShippingCost),
+    legalName: str(m.legalName),
+    taxId: str(m.taxId),
+    legalAddress: str(m.legalAddress),
+    newArrivalDays: str(m.newArrivalDays),
+    chatWelcome: str(m.chatWelcome),
+    giftCardMinAmount: str(current.giftCardMinAmount),
+    giftCardMaxAmount: str(current.giftCardMaxAmount),
+    giftCardValidityMonths: str(current.giftCardValidityMonths),
+    giftCardAmounts: str(current.giftCardAmounts),
+    clubHeadline: str(m.clubHeadline),
+    clubIntro: str(m.clubIntro),
+    clubBenefits: str(m.clubBenefits),
+    clubWelcomeSubject: str(m.clubWelcomeSubject),
+    clubWelcomeBody: str(m.clubWelcomeBody),
+    footerLinks: str(m.footerLinks),
+    bottomNav: str(m.bottomNav),
+    deliveryMinDays: str(m.deliveryMinDays),
+    deliveryMaxDays: str(m.deliveryMaxDays),
+    expressDeliveryMinDays: str(m.expressDeliveryMinDays),
+    expressDeliveryMaxDays: str(m.expressDeliveryMaxDays),
+    pickupReadyMinDays: str(m.pickupReadyMinDays),
+    pickupReadyMaxDays: str(m.pickupReadyMaxDays),
+    legalCity: str(m.legalCity),
+    commercialRegistry: str(m.commercialRegistry),
+    dataProtectionEmail: str(m.dataProtectionEmail),
+  })
+  if (m.hideImagelessProducts) fd.set("hideImagelessProducts", "on")
+  if (m.hideEmptySale) fd.set("hideEmptySale", "on")
+  if (m.groupColorsInCatalog) fd.set("groupColorsInCatalog", "on")
+  if (m.chatEnabled) fd.set("chatEnabled", "on")
+  return fd
+}
+
+// ---------------------------------------------------------------- tiendas físicas
+
+const storeFieldsSchema = z.object({
+  name: z.string().trim().min(1).max(120).optional(),
+  address: z.string().trim().min(1).max(200).optional(),
+  city: z.string().trim().min(1).max(120).optional(),
+  department: z.string().trim().max(120).nullable().optional(),
+  phone: z.string().trim().max(40).nullable().optional(),
+  schedule: z.string().trim().max(200).nullable().optional(),
+  googleMapsUrl: z.string().trim().max(500).nullable().optional(),
+  latitude: z.number().finite().min(-90).max(90).nullable().optional(),
+  longitude: z.number().finite().min(-180).max(180).nullable().optional(),
+  isActive: z.boolean().optional(),
+  photos: z.array(z.string().trim().min(1)).max(12).optional(),
+})
+
+// ---------------------------------------------------------------- lista blanca
 
 export const MCP_TOOLS: McpTool[] = [
+  // ---- Lectura de catálogo (SOLO LECTURA: sin editar productos ni stock)
   tool({
     name: "buscar_productos",
-    description: "Busca productos del catálogo por nombre. Devuelve id, nombre, marca e imagen.",
-    area: "inventory",
+    description: "Solo lectura: busca productos del catálogo por nombre para obtener id, slug, marca e imagen.",
+    area: "superadmin",
     readOnly: true,
     live: false,
     input: z.object({ q: z.string().trim().min(1).max(100) }),
-    run: ({ q }) => searchProducts(q),
+    run: async ({ q }) => {
+      await requireAdmin("superadmin")
+      return searchProducts(q)
+    },
   }),
   tool({
     name: "ver_producto",
-    description: "Detalle editable de un producto: textos, precios, fotos, variantes y estado de publicación.",
-    area: "inventory",
+    description: "Solo lectura: consulta textos, precios, fotos y variantes de un producto (no permite modificar productos ni stock).",
+    area: "superadmin",
     readOnly: true,
     live: false,
     input: z.object({ id }),
     run: async ({ id: productId }) => {
-      const p = await loadProduct(productId)
+      await requireAdmin("superadmin")
+      const p = await getProductByIdForAdmin(productId)
+      if (!p) throw new Error("Producto no encontrado.")
       return {
         id: p.id, name: p.name, slug: p.slug, isPublished: p.isPublished,
         categoryId: p.categoryId, brandId: p.brandId, gender: p.gender,
@@ -294,59 +337,40 @@ export const MCP_TOOLS: McpTool[] = [
   }),
   tool({
     name: "listar_catalogo",
-    description: "Categorías, marcas y colores con sus id (para usar en editar_producto y en las tarjetas).",
-    area: "inventory",
+    description: "Solo lectura: categorías, marcas y colores con sus id.",
+    area: "superadmin",
     readOnly: true,
     live: false,
     input: z.object({}),
     run: async () => {
-      await requireAdmin("inventory")
+      await requireAdmin("superadmin")
       const [categorias, marcas, colores] = await Promise.all([getCategories(), getAllBrands(), getProductColorsForAdmin()])
       return { categorias, marcas, colores }
     },
   }),
-  tool({
-    name: "editar_producto",
-    description:
-      "Cambia campos de un producto (solo los que envíes; las variantes se conservan). Permite fijar defaultPhysicalStoreStock para habilitar recogida en tienda física. Si el producto está publicado, el cambio sale en la tienda al instante.",
-    area: "inventory",
-    readOnly: false,
-    live: true,
-    input: z.object({ id, cambios: productChangesSchema }),
-    run: async ({ id: productId, cambios }) => {
-      const product = await loadProduct(productId)
-      const [stores, erpOwner] = await Promise.all([getStoreLocations(), isErpCatalogOwner()])
-      return ok(await updateProduct(productId, productFormData(product, stores, erpOwner, cambios)))
-    },
-  }),
-  tool({
-    name: "publicar_productos",
-    description: "Publica (publicar: true) o retira de la tienda (false) uno o varios productos.",
-    area: "inventory",
-    readOnly: false,
-    live: true,
-    input: z.object({ ids: z.array(id).min(1).max(100), publicar: z.boolean() }),
-    run: async ({ ids, publicar }) => ok(await bulkToggleProductsPublishStatus(ids, publicar)),
-  }),
+
+  // ---- Taxonomía y archivos (sin tocar productos ni inventario)
   tool({
     name: "guardar_categoria",
     description: "Crea una categoría (sin id) o renombra una existente (con id).",
-    area: "inventory",
+    area: "superadmin",
     readOnly: false,
     live: true,
     input: z.object({ id: id.optional(), name: z.string().trim().min(1).max(120), slug: z.string().trim().min(1).max(120) }),
-    run: async ({ id: categoryId, name, slug }) =>
-      ok(categoryId ? await updateCategoryAction(categoryId, name, slug) : await createCategoryAction(name, slug)),
+    run: async ({ id: categoryId, name, slug }) => {
+      await requireAdmin("superadmin")
+      return ok(categoryId ? await updateCategoryAction(categoryId, name, slug) : await createCategoryAction(name, slug))
+    },
   }),
   tool({
     name: "guardar_marca",
-    description: "Crea una marca (sin id) o cambia campos de una existente (con id; lo no enviado se conserva).",
-    area: "inventory",
+    description: "Crea una marca (sin id) o cambia textos/guías/imágenes de una existente (con id; lo no enviado se conserva).",
+    area: "superadmin",
     readOnly: false,
     live: true,
     input: z.object({ id: id.optional(), campos: brandFieldsSchema }),
     run: async ({ id: brandId, campos }) => {
-      await requireAdmin("inventory")
+      await requireAdmin("superadmin")
       if (!brandId) return ok(await createBrandAction(brandFormData({}, campos)))
       const current = await getBrandDetailById(brandId)
       if (!current) throw new Error("Marca no encontrada.")
@@ -356,7 +380,7 @@ export const MCP_TOOLS: McpTool[] = [
   tool({
     name: "guardar_color",
     description: "Crea un color (sin id) o edita uno existente (con id).",
-    area: "inventory",
+    area: "superadmin",
     readOnly: false,
     live: true,
     input: z.object({
@@ -366,6 +390,7 @@ export const MCP_TOOLS: McpTool[] = [
       isActive: z.boolean().default(true),
     }),
     run: async ({ id: colorId, name, hex, isActive }) => {
+      await requireAdmin("superadmin")
       const fd = toFormData({ name, hex, isActive: String(isActive) })
       return ok(colorId ? await updateColorAction(colorId, fd) : await createColorAction(fd))
     },
@@ -373,8 +398,8 @@ export const MCP_TOOLS: McpTool[] = [
   tool({
     name: "subir_imagen",
     description:
-      "Sube a Cloudinary (carpeta one-star/productos) una imagen o video desde una URL https pública y la registra en Archivos. Devuelve la URL para usar en productos, banners o secciones. Para fotos del computador usa POST /api/mcp/upload.",
-    area: "inventory",
+      "Sube a Cloudinary (carpeta one-star/productos) una imagen o video desde una URL https pública y la registra en Archivos. Para fotos del computador usa POST /api/mcp/upload.",
+    area: "superadmin",
     readOnly: false,
     live: false,
     input: z.object({
@@ -382,13 +407,11 @@ export const MCP_TOOLS: McpTool[] = [
         .string()
         .url()
         .refine((value) => value.startsWith("https://"), "La URL debe ser https.")
-        // shortcut: se valida por extensión, no por contenido; si hace falta subir URLs sin extensión, revisar el resource_type que devuelve Cloudinary.
         .refine((value) => mediaExtension.test(new URL(value).pathname), "La URL debe terminar en .jpg, .png, .webp, .gif, .avif, .mp4, .mov o .webm."),
       nombre: z.string().trim().max(120).optional(),
     }),
     run: async ({ url, nombre }) => {
-      await requireAdmin("inventory")
-      // Cloudinary descarga la URL desde su infraestructura: este servidor no hace fetch (sin SSRF).
+      await requireAdmin("superadmin")
       const result = await getStorageAdapter().uploadImage(url, { folder: "one-star/productos" })
       const fileType = /\.(mp4|mov|webm)$/i.test(new URL(url).pathname) ? "video" : "image"
       await createMediaAsset({
@@ -401,12 +424,28 @@ export const MCP_TOOLS: McpTool[] = [
       return result
     },
   }),
+  tool({
+    name: "listar_archivos",
+    description: "Imágenes y videos ya subidos a la biblioteca (Archivos), con su URL.",
+    area: "superadmin",
+    readOnly: true,
+    live: false,
+    input: z.object({
+      tipo: z.enum(["image", "video"]).optional(),
+      buscar: z.string().max(100).optional(),
+      limite: z.number().int().min(1).max(100).default(30),
+    }),
+    run: async ({ tipo, buscar, limite }) => {
+      await requireAdmin("superadmin")
+      return ok(await getMediaAssetsAction({ fileType: tipo, search: buscar, limit: limite })).data
+    },
+  }),
 
-  // ---- Contenido de la tienda: solo Super Admin, igual que en el admin.
+  // ---- Constructor de páginas (Inicio y campañas)
   tool({
     name: "ver_pagina",
     description:
-      "Secciones del constructor de una página (Inicio u otra campaña) con lo publicado (config) y el borrador pendiente (draftConfig). Incluye las tarjetas de colección (CATEGORY_GRID).",
+      "Secciones del constructor de una página (Inicio u otra campaña) con lo publicado (config) y el borrador pendiente (draftConfig).",
     area: "superadmin",
     readOnly: true,
     live: false,
@@ -426,7 +465,7 @@ export const MCP_TOOLS: McpTool[] = [
   tool({
     name: "guardar_borrador_seccion",
     description:
-      "Guarda la configuración COMPLETA de una sección como borrador (parte de draftConfig, o de config si no hay borrador). NO publica: la tienda no cambia hasta usar publicar_pagina.",
+      "Guarda la configuración COMPLETA de una sección como borrador. NO publica hasta usar publicar_pagina.",
     area: "superadmin",
     readOnly: false,
     live: false,
@@ -436,7 +475,7 @@ export const MCP_TOOLS: McpTool[] = [
   }),
   tool({
     name: "crear_seccion",
-    description: "Crea una sección nueva al final de la página, INACTIVA y con contenido de ejemplo. Edítala con guardar_borrador_seccion y actívala con activar_seccion.",
+    description: "Crea una sección nueva al final de la página, INACTIVA y con contenido de ejemplo.",
     area: "superadmin",
     readOnly: false,
     live: false,
@@ -475,6 +514,8 @@ export const MCP_TOOLS: McpTool[] = [
     input: z.object({ orden: z.array(z.object({ id, position: z.number().int().nonnegative() })).min(1).max(100) }),
     run: async ({ orden }) => ok(await updateLandingSectionPositionsAction(orden)),
   }),
+
+  // ---- Banners y barra superior
   tool({
     name: "listar_banners",
     description: "Banners del carrusel y la barra superior de mensajes.",
@@ -509,7 +550,6 @@ export const MCP_TOOLS: McpTool[] = [
     area: "superadmin",
     readOnly: false,
     live: true,
-    // toggleBannerActive invierte el estado que recibe, por eso se le pasa el contrario.
     input: z.object({ id, activo: z.boolean() }),
     run: async ({ id: bannerId, activo }) => ok(await toggleBannerActive(bannerId, !activo)),
   }),
@@ -546,18 +586,235 @@ export const MCP_TOOLS: McpTool[] = [
       )
     },
   }),
+
+  // ---- Configuración general de la tienda (sin secretos ni integraciones)
   tool({
-    name: "listar_archivos",
-    description: "Imágenes y videos ya subidos a la biblioteca (Archivos), con su URL.",
+    name: "ver_configuracion",
+    description: "Lee la configuración pública y operativa de la tienda: envíos, tiempos de entrega, WhatsApp, contacto, chat, One Star Club, enlaces de pie de página y barra móvil (sin secretos).",
     area: "superadmin",
     readOnly: true,
     live: false,
+    input: z.object({}),
+    run: async () => {
+      await requireAdmin("superadmin")
+      return safeStoreSettingsView(await getStoreSettings())
+    },
+  }),
+  tool({
+    name: "editar_configuracion",
+    description: "Modifica campos de la configuración general de la tienda (solo los enviados; el resto se conserva). No toca tokens ni integraciones. Sale en vivo al instante.",
+    area: "superadmin",
+    readOnly: false,
+    live: true,
+    input: z.object({ cambios: storeSettingsChangesSchema }),
+    run: async ({ cambios }) => {
+      await requireAdmin("superadmin")
+      const current = await getStoreSettings()
+      return ok(await updateStoreInfoAction(storeSettingsFormData(current, cambios)))
+    },
+  }),
+
+  // ---- Contenido global de ficha y políticas (/admin/contenido)
+  tool({
+    name: "ver_contenido_global",
+    description: "Lee el contenido global compartido de la tienda: destacados, preguntas frecuentes, promesas, días de cambio y textos de botones de ficha.",
+    area: "superadmin",
+    readOnly: true,
+    live: false,
+    input: z.object({}),
+    run: async () => {
+      await requireAdmin("superadmin")
+      const [contenido, textosFicha] = await Promise.all([getSiteContentForAdmin(), getStorefrontSettings()])
+      return { contenido, textosFicha }
+    },
+  }),
+  tool({
+    name: "editar_contenido_global",
+    description: "Actualiza destacados, preguntas frecuentes, promesas, días de cambio o textos de botones de ficha (lo no enviado se conserva). Sale en vivo al instante.",
+    area: "superadmin",
+    readOnly: false,
+    live: true,
     input: z.object({
-      tipo: z.enum(["image", "video"]).optional(),
-      buscar: z.string().max(100).optional(),
-      limite: z.number().int().min(1).max(100).default(30),
+      highlights: z.array(z.string().max(200)).max(8).optional(),
+      faqs: z.array(z.object({ q: z.string().max(300), a: z.string().max(1500) })).max(12).optional(),
+      returnWindowDays: z.number().int().min(1).max(365).optional(),
+      returnsTitle: z.string().max(120).optional(),
+      returnsText: z.string().max(500).optional(),
+      paymentTitle: z.string().max(120).optional(),
+      paymentText: z.string().max(500).optional(),
+      supportTitle: z.string().max(120).optional(),
+      supportText: z.string().max(500).optional(),
+      addToCartLabel: z.string().max(60).optional(),
+      buyNowLabel: z.string().max(60).optional(),
+      storeStockText: z.string().max(160).optional(),
     }),
-    run: async ({ tipo, buscar, limite }) =>
-      ok(await getMediaAssetsAction({ fileType: tipo, search: buscar, limit: limite })).data,
+    run: async (changes) => {
+      await requireAdmin("superadmin")
+      const hasContentChange =
+        changes.highlights !== undefined ||
+        changes.faqs !== undefined ||
+        changes.returnWindowDays !== undefined ||
+        changes.returnsTitle !== undefined ||
+        changes.returnsText !== undefined ||
+        changes.paymentTitle !== undefined ||
+        changes.paymentText !== undefined ||
+        changes.supportTitle !== undefined ||
+        changes.supportText !== undefined
+
+      if (hasContentChange) {
+        const current = await getSiteContentForAdmin()
+        const byId = (pid: string) => current.promises?.find((p) => p.id === pid)
+        const fd = toFormData({
+          highlights: (changes.highlights ?? current.highlights).join("\n"),
+          faqs: faqsToText(changes.faqs ?? current.faqs),
+          returnWindowDays: String(changes.returnWindowDays ?? current.returnWindowDays),
+          returnsTitle: changes.returnsTitle ?? byId("returns")?.title ?? "",
+          returnsText: changes.returnsText ?? byId("returns")?.text ?? "",
+          paymentTitle: changes.paymentTitle ?? byId("payment")?.title ?? "",
+          paymentText: changes.paymentText ?? byId("payment")?.text ?? "",
+          supportTitle: changes.supportTitle ?? byId("support")?.title ?? "",
+          supportText: changes.supportText ?? byId("support")?.text ?? "",
+        })
+        ok(await updateSiteContentAction(fd))
+      }
+
+      if (
+        changes.addToCartLabel !== undefined ||
+        changes.buyNowLabel !== undefined ||
+        changes.storeStockText !== undefined
+      ) {
+        const labels = await getStorefrontSettings()
+        const fd = toFormData({
+          addToCartLabel: changes.addToCartLabel ?? labels.addToCartLabel,
+          buyNowLabel: changes.buyNowLabel ?? labels.buyNowLabel,
+          storeStockText: changes.storeStockText ?? labels.storeStockText,
+        })
+        ok(await updateStorefrontLabelsAction(fd))
+      }
+
+      return { success: true }
+    },
+  }),
+
+  // ---- Menú de navegación superior
+  tool({
+    name: "listar_menu",
+    description: "Lista los enlaces del menú superior de navegación con su orden y estado.",
+    area: "superadmin",
+    readOnly: true,
+    live: false,
+    input: z.object({}),
+    run: async () => {
+      await requireAdmin("superadmin")
+      return getAllNavigationItems()
+    },
+  }),
+  tool({
+    name: "guardar_menu",
+    description: "Crea un enlace de menú (sin id), edita uno existente (con id), cambia su estado activo o reordena posiciones (con orden). Sale en vivo al instante.",
+    area: "superadmin",
+    readOnly: false,
+    live: true,
+    input: z.object({
+      id: id.optional(),
+      label: z.string().trim().min(1).max(60).optional(),
+      href: z.string().trim().min(1).max(300).optional(),
+      isSale: z.boolean().optional(),
+      isActive: z.boolean().optional(),
+      orden: z.array(z.object({ id, position: z.number().int().nonnegative() })).min(1).max(50).optional(),
+    }),
+    run: async ({ id: itemId, label, href, isSale, isActive, orden }) => {
+      await requireAdmin("superadmin")
+      if (orden) return ok(await updateNavigationPositionsAction(orden))
+      if (!itemId) {
+        if (!label || !href) throw new Error("Para crear un enlace indica label y href.")
+        return ok(await createNavigationItemAction(label, href, isSale ?? false))
+      }
+      if (label !== undefined || href !== undefined || isSale !== undefined) {
+        const current = (await getAllNavigationItems()).find((item) => item.id === itemId)
+        if (!current) throw new Error("Enlace de menú no encontrado.")
+        ok(
+          await updateNavigationItemAction(
+            itemId,
+            label ?? current.label,
+            href ?? current.href,
+            isSale ?? current.isSale
+          )
+        )
+      }
+      if (isActive !== undefined) {
+        ok(await toggleNavigationItemActiveAction(itemId, isActive))
+      }
+      return { success: true }
+    },
+  }),
+
+  // ---- Tiendas físicas (horarios, direcciones, teléfonos)
+  tool({
+    name: "listar_tiendas",
+    description: "Lista todas las tiendas físicas (dirección, ciudad, teléfono, horario, estado).",
+    area: "superadmin",
+    readOnly: true,
+    live: false,
+    input: z.object({}),
+    run: async () => {
+      await requireAdmin("superadmin")
+      return getStoreLocations()
+    },
+  }),
+  tool({
+    name: "guardar_tienda",
+    description: "Crea una tienda física (sin id) o actualiza campos de una existente (con id; lo no enviado se conserva, sin tocar vínculo ERP). Sale en vivo al instante.",
+    area: "superadmin",
+    readOnly: false,
+    live: true,
+    input: z.object({
+      id: id.optional(),
+      campos: storeFieldsSchema,
+    }),
+    run: async ({ id: storeId, campos }) => {
+      await requireAdmin("superadmin")
+      if (!storeId) {
+        if (!campos.name || !campos.address || !campos.city) {
+          throw new Error("Para crear una tienda indica name, address y city.")
+        }
+        return ok(
+          await createStoreAction({
+            name: campos.name,
+            address: campos.address,
+            city: campos.city,
+            department: campos.department ?? null,
+            phone: campos.phone ?? null,
+            schedule: campos.schedule ?? null,
+            googleMapsUrl: campos.googleMapsUrl ?? null,
+            latitude: campos.latitude ?? null,
+            longitude: campos.longitude ?? null,
+            isActive: campos.isActive ?? false,
+            photos: campos.photos ?? [],
+          })
+        )
+      }
+      const current = (await getStoreLocations()).find((s) => s.id === storeId)
+      if (!current) throw new Error("Tienda no encontrada.")
+      if (Object.keys(campos).length === 1 && campos.isActive !== undefined) {
+        return ok(await toggleStoreActiveAction(storeId, campos.isActive))
+      }
+      return ok(
+        await updateStoreAction(storeId, {
+          name: campos.name ?? current.name,
+          address: campos.address ?? current.address,
+          city: campos.city ?? current.city,
+          department: campos.department !== undefined ? campos.department : current.department,
+          phone: campos.phone !== undefined ? campos.phone : current.phone,
+          schedule: campos.schedule !== undefined ? campos.schedule : current.schedule,
+          googleMapsUrl: campos.googleMapsUrl !== undefined ? campos.googleMapsUrl : current.googleMapsUrl,
+          latitude: campos.latitude !== undefined ? campos.latitude : current.latitude,
+          longitude: campos.longitude !== undefined ? campos.longitude : current.longitude,
+          isActive: campos.isActive ?? current.isActive,
+          photos: campos.photos ?? current.photos ?? [],
+          erpId: current.erpId ?? null,
+        })
+      )
+    },
   }),
 ]

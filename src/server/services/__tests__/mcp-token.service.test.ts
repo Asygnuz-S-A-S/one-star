@@ -35,7 +35,7 @@ function record(overrides: Record<string, unknown> = {}) {
   }
 }
 
-describe("mcp-token.service", () => {
+describe("mcp-token.service (solo Super Admin)", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     repo.countActiveMcpTokens.mockResolvedValue(0)
@@ -43,38 +43,40 @@ describe("mcp-token.service", () => {
     repo.touchMcpToken.mockResolvedValue({})
   })
 
-  it("rol efectivo = el menor entre admin y token; Ventas nunca", () => {
+  it("solo autoriza cuando admin y token son ambos SUPER_ADMIN", () => {
     expect(effectiveMcpRole("SUPER_ADMIN", "SUPER_ADMIN")).toBe("SUPER_ADMIN")
-    expect(effectiveMcpRole("SUPER_ADMIN", "INVENTORY_OPERATOR")).toBe("INVENTORY_OPERATOR")
-    expect(effectiveMcpRole("INVENTORY_OPERATOR", "SUPER_ADMIN")).toBe("INVENTORY_OPERATOR")
-    expect(effectiveMcpRole("SALES_OPERATOR", "INVENTORY_OPERATOR")).toBeNull()
+    expect(effectiveMcpRole("SUPER_ADMIN", "INVENTORY_OPERATOR")).toBeNull()
+    expect(effectiveMcpRole("INVENTORY_OPERATOR", "SUPER_ADMIN")).toBeNull()
+    expect(effectiveMcpRole("INVENTORY_OPERATOR", "INVENTORY_OPERATOR")).toBeNull()
+    expect(effectiveMcpRole("SALES_OPERATOR", "SUPER_ADMIN")).toBeNull()
     expect(effectiveMcpRole("SUPER_ADMIN", "SALES_OPERATOR")).toBeNull()
     expect(effectiveMcpRole(null, "SUPER_ADMIN")).toBeNull()
     expect(effectiveMcpRole("super_admin", "SUPER_ADMIN")).toBeNull()
   })
 
-  it("crea el token y guarda solo su hash", async () => {
-    const { token } = await createMcpToken({ adminUserId: "adm_1", adminRole: "SUPER_ADMIN", name: "Mac", role: "SUPER_ADMIN" })
+  it("crea el token para Super Admin y guarda solo su hash", async () => {
+    const { token } = await createMcpToken({ adminUserId: "adm_1", adminRole: "SUPER_ADMIN", name: "Mac" })
     expect(token).toMatch(/^osmcp_[A-Za-z0-9_-]{43}$/)
     const saved = repo.createMcpTokenRecord.mock.calls[0][0]
+    expect(saved.role).toBe("SUPER_ADMIN")
     expect(saved.tokenHash).toBe(hashMcpToken(token))
     expect(JSON.stringify(saved)).not.toContain(token)
     expect(saved.prefix).toBe(token.slice(0, 12))
   })
 
-  it("no deja escalar ni crear tokens a Ventas, y limita los activos", async () => {
-    await expect(createMcpToken({ adminUserId: "a", adminRole: "INVENTORY_OPERATOR", name: "x", role: "SUPER_ADMIN" })).rejects.toThrow("Super Admin")
-    await expect(createMcpToken({ adminUserId: "a", adminRole: "SALES_OPERATOR", name: "x", role: "INVENTORY_OPERATOR" })).rejects.toThrow()
+  it("rechaza crear tokens a Inventario y Ventas, y limita los activos", async () => {
+    await expect(createMcpToken({ adminUserId: "a", adminRole: "INVENTORY_OPERATOR", name: "x" })).rejects.toThrow("Super Admin")
+    await expect(createMcpToken({ adminUserId: "a", adminRole: "SALES_OPERATOR", name: "x" })).rejects.toThrow("Super Admin")
     repo.countActiveMcpTokens.mockResolvedValue(5)
-    await expect(createMcpToken({ adminUserId: "a", adminRole: "SUPER_ADMIN", name: "x", role: "INVENTORY_OPERATOR" })).rejects.toThrow("Máximo 5")
+    await expect(createMcpToken({ adminUserId: "a", adminRole: "SUPER_ADMIN", name: "x" })).rejects.toThrow("Máximo 5")
     expect(repo.createMcpTokenRecord).not.toHaveBeenCalled()
   })
 
-  it("autentica un token vigente con el rol actual del admin", async () => {
-    repo.findMcpTokenByHash.mockResolvedValue(record({ adminUser: { ...record().adminUser, role: "INVENTORY_OPERATOR" } }))
+  it("autentica un token vigente de Super Admin", async () => {
+    repo.findMcpTokenByHash.mockResolvedValue(record())
     const principal = await authenticateMcpToken("Bearer osmcp_abc")
     expect(repo.findMcpTokenByHash).toHaveBeenCalledWith(hashMcpToken("osmcp_abc"))
-    expect(principal).toEqual({ tokenId: "tok_1", adminUserId: "adm_1", email: "jm@onestar.com.co", name: "JM", role: "INVENTORY_OPERATOR" })
+    expect(principal).toEqual({ tokenId: "tok_1", adminUserId: "adm_1", email: "jm@onestar.com.co", name: "JM", role: "SUPER_ADMIN" })
   })
 
   it.each([
@@ -85,6 +87,8 @@ describe("mcp-token.service", () => {
     ["revocado", "Bearer osmcp_abc", record({ revokedAt: new Date() })],
     ["vencido", "Bearer osmcp_abc", record({ expiresAt: new Date(Date.now() - 1) })],
     ["admin inactivo", "Bearer osmcp_abc", record({ adminUser: { ...record().adminUser, isActive: false } })],
+    ["admin degradado a Inventario", "Bearer osmcp_abc", record({ adminUser: { ...record().adminUser, role: "INVENTORY_OPERATOR" } })],
+    ["token viejo de Inventario", "Bearer osmcp_abc", record({ role: "INVENTORY_OPERATOR" })],
     ["admin de Ventas", "Bearer osmcp_abc", record({ adminUser: { ...record().adminUser, role: "SALES_OPERATOR" } })],
   ])("rechaza: %s", async (_label, header, found) => {
     repo.findMcpTokenByHash.mockResolvedValue(found)
