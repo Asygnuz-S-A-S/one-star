@@ -47,3 +47,22 @@ export function parseSku(sku: string): ParsedSku {
   // 3. Producto sin variantes declaradas.
   return { baseSku: trimmed, size: DEFAULT_SIZE }
 }
+
+/**
+ * SKU que se muestra en la ficha: el de la talla elegida o, sin talla,
+ * la referencia (SKU base) del color seleccionado.
+ */
+export function getDisplaySku(
+  variants: ReadonlyArray<{ sku: string; color?: string | null; size?: string | null }>,
+  selectedColor?: string | null,
+  selectedSize?: string | null,
+): string | null {
+  const ofColor = variants.filter((v) => v.color === selectedColor)
+  const pool = ofColor.length > 0 ? ofColor : variants
+  if (selectedSize) {
+    const exact = pool.find((v) => v.size === selectedSize)
+    if (exact?.sku) return exact.sku
+  }
+  const reference = pool.find((v) => v.sku)
+  return reference ? parseSku(reference.sku).baseSku : null
+}

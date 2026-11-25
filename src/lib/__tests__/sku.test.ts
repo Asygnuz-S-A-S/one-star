@@ -1,5 +1,5 @@
-import { describe, test, expect } from "vitest"
-import { parseSku, DEFAULT_SIZE } from "../sku"
+import { describe, test, it, expect } from "vitest"
+import { parseSku, DEFAULT_SIZE, getDisplaySku } from "../sku"
 
 describe("parseSku", () => {
   describe("formato MODELO-COLOR_TALLA (catálogo de calzado)", () => {
@@ -49,5 +49,27 @@ describe("parseSku", () => {
     test("ignora los espacios alrededor del código", () => {
       expect(parseSku("  NB574AZ-38  ")).toEqual({ baseSku: "NB574AZ", size: "38" })
     })
+  })
+})
+
+describe("getDisplaySku", () => {
+  const variants = [
+    { sku: "VN000E89YS5_4", color: "Negro", size: "4" },
+    { sku: "VN000E89YS5_4.5", color: "Negro", size: "4.5" },
+    { sku: "VN000BEIGE_5", color: "Beige", size: "5" },
+  ]
+
+  it("muestra la referencia del color cuando no hay talla elegida", () => {
+    expect(getDisplaySku(variants, "Negro", null)).toBe("VN000E89YS5")
+    expect(getDisplaySku(variants, "Beige", undefined)).toBe("VN000BEIGE")
+  })
+
+  it("muestra el SKU completo de la talla elegida", () => {
+    expect(getDisplaySku(variants, "Negro", "4.5")).toBe("VN000E89YS5_4.5")
+  })
+
+  it("usa la primera variante si el color no coincide y devuelve null sin variantes", () => {
+    expect(getDisplaySku(variants, "Rojo", null)).toBe("VN000E89YS5")
+    expect(getDisplaySku([], "Negro", null)).toBeNull()
   })
 })
