@@ -147,6 +147,77 @@ export default async function AdminAnaliticaPage({ searchParams }: PageProps) {
         </div>
       </Panel>
 
+      <Panel
+        titulo="Campañas (UTM)"
+        descripcion="Rendimiento por utm_campaign dentro de la ventana: personas que entraron por cada campaña y cuántas llegaron a ver producto, checkout y compra."
+      >
+        {datos.utmCampaigns.length === 0 ? (
+          <Vacio>
+            Todavía no hay visitas con utm_campaign en esta ventana. Agrega{" "}
+            <code className="rounded bg-black/5 px-1.5 py-0.5 text-xs dark:bg-white/10">
+              ?utm_source=...&amp;utm_medium=...&amp;utm_campaign=...
+            </code>{" "}
+            en los enlaces de tus campañas.
+          </Vacio>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[600px] text-left">
+              <thead>
+                <tr className="border-b border-black/10 font-montserrat text-[11px] uppercase tracking-wider text-[#4A4A4A] dark:border-white/10 dark:text-white/60">
+                  <th className="py-2 pr-4 font-semibold">Campaña</th>
+                  <th className="px-3 py-2 text-right font-semibold">Visitantes</th>
+                  <th className="px-3 py-2 text-right font-semibold">Vieron producto</th>
+                  <th className="px-3 py-2 text-right font-semibold">Checkout</th>
+                  <th className="px-3 py-2 text-right font-semibold">Compras</th>
+                  <th className="py-2 pl-3 text-right font-semibold">Conversión</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-black/5 font-montserrat text-sm dark:divide-white/10">
+                {datos.utmCampaigns.map((fila) => {
+                  const origen = [fila.source, fila.medium].filter(Boolean).join(" · ")
+                  return (
+                    <tr key={`${fila.campaign}:${fila.source ?? ""}:${fila.medium ?? ""}`}>
+                      <td className="py-2.5 pr-4">
+                        <p className="font-semibold text-[#1C1C1C] dark:text-white">{fila.campaign}</p>
+                        {origen && (
+                          <p className="text-xs text-[#4A4A4A] dark:text-white/60">{origen}</p>
+                        )}
+                      </td>
+                      <td className="px-3 py-2.5 text-right font-barlow font-bold text-[#1C1C1C] dark:text-white">
+                        {numero.format(fila.visitors)}
+                      </td>
+                      <td className="px-3 py-2.5 text-right text-[#4A4A4A] dark:text-white/80">
+                        {numero.format(fila.productViewers)}
+                      </td>
+                      <td className="px-3 py-2.5 text-right text-[#4A4A4A] dark:text-white/80">
+                        {numero.format(fila.checkoutStarters)}
+                        <span className="ml-1 text-xs text-[#4A4A4A]/70 dark:text-white/50">
+                          ({fila.visitToCheckout}%)
+                        </span>
+                      </td>
+                      <td className="px-3 py-2.5 text-right font-barlow font-bold text-[#1C1C1C] dark:text-white">
+                        {numero.format(fila.buyers)}
+                      </td>
+                      <td className="py-2.5 pl-3 text-right">
+                        <span
+                          className={`inline-block rounded-full px-2 py-0.5 font-barlow text-xs font-bold ${
+                            fila.buyers > 0
+                              ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                              : "bg-black/5 text-[#4A4A4A] dark:bg-white/10 dark:text-white/60"
+                          }`}
+                        >
+                          {fila.visitToPurchase}%
+                        </span>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
+
       <div className="grid gap-4 lg:grid-cols-2">
         <Panel titulo="Productos más vistos">
           {datos.topProducts.length === 0 ? (

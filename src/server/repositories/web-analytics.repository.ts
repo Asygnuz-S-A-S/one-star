@@ -19,10 +19,11 @@ export interface UpsertWebVisitorInput {
 /**
  * Crea el visitante en su primera visita o solo refresca `lastSeenAt` en las
  * siguientes. Los datos de primer toque (landing, referrer, UTMs) NO se
- * sobrescriben: sirven para saber por dónde entró originalmente.
+ * sobrescriben si ya existen; si el visitante llegó antes sin UTMs y luego entra
+ * desde una campaña con UTM, se completan una sola vez de forma atómica.
  */
 export async function upsertWebVisitor(input: UpsertWebVisitorInput) {
-  return prisma.webVisitor.upsert({
+  const visitor = await prisma.webVisitor.upsert({
     where: { anonId: input.anonId },
     create: {
       anonId: input.anonId,
@@ -38,6 +39,21 @@ export async function upsertWebVisitor(input: UpsertWebVisitorInput) {
     update: { lastSeenAt: new Date() },
     select: { id: true },
   })
+
+  if (input.utm.campaign || input.utm.source) {
+    await prisma.webVisitor.updateMany({
+      where: { id: visitor.id, utmCampaign: null, utmSource: null },
+      data: {
+        utmSource: input.utm.source,
+        utmMedium: input.utm.medium,
+        utmCampaign: input.utm.campaign,
+        utmContent: input.utm.content,
+        utmTerm: input.utm.term,
+      },
+    })
+  }
+
+  return visitor
 }
 
 export interface CreateWebEventInput {
@@ -281,5 +297,63 @@ export async function findTrafficSources(days: number, limit: number): Promise<T
     source: row.source,
     medium: row.medium,
     visitors: Number(row.visitors),
+  }))
+}
+
+export interface UtmCampaignRow {
+  campaign: string
+  source: string | null
+  medium: string | null
+  visitors: number
+  productViewers: number
+  checkoutStarters: number
+  buyers: number
+}
+
+/**
+ * Rendimiento por campaña UTM dentro de la ventana: personas activas que
+ * tienen `utmCampaign`, con su embudo (vieron producto -> checkout -> compra).
+ */
+export async function findUtmCampaignPerformance(
+  days: number,
+  limit: number,
+): Promise<UtmCampaignRow[]> {
+  const since = sinceDate(days)
+  const rows = await prisma.$queryRaw<
+    {
+      campaign: string
+      source: string | null
+      medium: string | null
+      visitors: bigint
+      product_viewers: bigint
+      checkout_starters: bigint
+      buyers: bigint
+    }[]
+  >`
+    SELECT
+      trim(v."utmCampaign") AS campaign,
+      NULLIF(trim(v."utmSource"), '') AS source,
+      NULLIF(trim(v."utmMedium"), '') AS medium,
+      count(DISTINCT e."visitorId") AS visitors,
+      count(DISTINCT e."visitorId") FILTER (WHERE e."type" = 'PRODUCT_VIEW') AS product_viewers,
+      count(DISTINCT e."visitorId") FILTER (WHERE e."type" = 'CHECKOUT_START') AS checkout_starters,
+      count(DISTINCT e."visitorId") FILTER (WHERE e."type" = 'PURCHASE') AS buyers
+    FROM "WebEvent" e
+    INNER JOIN "WebVisitor" v ON v."id" = e."visitorId"
+    WHERE e."occurredAt" >= ${since}
+      AND NULLIF(trim(v."utmCampaign"), '') IS NOT NULL
+    GROUP BY 1, 2, 3
+    ORDER BY buyers DESC, checkout_starters DESC, visitors DESC
+    LIMIT ${limit}
+  `
+
+  return rows.map((row) => ({
+    campaign: row.campaign,
+    source: row.source,
+    medium: row.medium,
+    visitors: Number(row.visitors),
+    productViewers: Number(row.product_viewers),
+    checkoutStarters: Number(row.checkout_starters),
+    buyers: Number(row.buyers),
   }))
 }
