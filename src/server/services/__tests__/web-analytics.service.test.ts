@@ -13,6 +13,7 @@ const findTopProducts = vi.fn()
 const findProductsViewedNotPurchased = vi.fn()
 const findTopSearches = vi.fn()
 const findTrafficSources = vi.fn()
+const findUtmCampaignPerformance = vi.fn()
 
 vi.mock("@/server/repositories/web-analytics.repository", () => ({
   upsertWebVisitor: (...args: unknown[]) => upsertWebVisitor(...args),
@@ -26,6 +27,7 @@ vi.mock("@/server/repositories/web-analytics.repository", () => ({
   findProductsViewedNotPurchased: (...args: unknown[]) => findProductsViewedNotPurchased(...args),
   findTopSearches: (...args: unknown[]) => findTopSearches(...args),
   findTrafficSources: (...args: unknown[]) => findTrafficSources(...args),
+  findUtmCampaignPerformance: (...args: unknown[]) => findUtmCampaignPerformance(...args),
 }))
 
 const {
@@ -56,6 +58,7 @@ beforeEach(() => {
   findProductsViewedNotPurchased.mockReset().mockResolvedValue([])
   findTopSearches.mockReset().mockResolvedValue([])
   findTrafficSources.mockReset().mockResolvedValue([])
+  findUtmCampaignPerformance.mockReset().mockResolvedValue([])
 })
 
 afterEach(() => {
@@ -271,6 +274,57 @@ describe("getAnalyticsDashboard", () => {
     expect(findTopCategories).toHaveBeenCalledWith(30, 10)
     expect(findTopSearches).toHaveBeenCalledWith(30, 10)
     expect(findTrafficSources).toHaveBeenCalledWith(30, 10)
+    expect(findUtmCampaignPerformance).toHaveBeenCalledWith(30, 25)
+  })
+
+  it("calcula las tasas de conversión por campaña UTM sin dividir por cero", async () => {
+    findUtmCampaignPerformance.mockResolvedValue([
+      {
+        campaign: "black_week_vans",
+        source: "meta",
+        medium: "cpc",
+        visitors: 100,
+        productViewers: 70,
+        checkoutStarters: 15,
+        buyers: 4,
+      },
+      {
+        campaign: "sin_visitas",
+        source: null,
+        medium: null,
+        visitors: 0,
+        productViewers: 0,
+        checkoutStarters: 0,
+        buyers: 0,
+      },
+    ])
+
+    const panel = await getAnalyticsDashboard(7)
+
+    expect(panel.utmCampaigns).toEqual([
+      {
+        campaign: "black_week_vans",
+        source: "meta",
+        medium: "cpc",
+        visitors: 100,
+        productViewers: 70,
+        checkoutStarters: 15,
+        buyers: 4,
+        visitToCheckout: 15,
+        visitToPurchase: 4,
+      },
+      {
+        campaign: "sin_visitas",
+        source: null,
+        medium: null,
+        visitors: 0,
+        productViewers: 0,
+        checkoutStarters: 0,
+        buyers: 0,
+        visitToCheckout: 0,
+        visitToPurchase: 0,
+      },
+    ])
   })
 
   it("usa la ventana por defecto si no se pasa ninguna", async () => {

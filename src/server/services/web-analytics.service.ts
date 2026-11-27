@@ -18,6 +18,7 @@ import {
   findTopProducts,
   findTopSearches,
   findTrafficSources,
+  findUtmCampaignPerformance,
   upsertWebVisitor,
   type AnalyticsSummaryRow,
   type FunnelRow,
@@ -25,6 +26,7 @@ import {
   type TopProductRow,
   type TopSlugRow,
   type TrafficSourceRow,
+  type UtmCampaignRow,
 } from "../repositories/web-analytics.repository"
 
 /**
@@ -213,10 +215,18 @@ export interface AnalyticsFunnel extends FunnelRow {
   viewToPurchase: number
 }
 
+export interface UtmCampaignPerformance extends UtmCampaignRow {
+  /** % de visitantes de la campaña que iniciaron checkout. */
+  visitToCheckout: number
+  /** % de visitantes de la campaña que terminaron comprando. */
+  visitToPurchase: number
+}
+
 export interface AnalyticsDashboard {
   days: AnalyticsWindow
   summary: AnalyticsSummaryRow
   funnel: AnalyticsFunnel
+  utmCampaigns: UtmCampaignPerformance[]
   topProducts: TopProductRow[]
   viewedNotPurchased: TopSlugRow[]
   topCategories: TopSlugRow[]
@@ -240,6 +250,7 @@ export async function getAnalyticsDashboard(
   const [
     summary,
     funnelRow,
+    utmCampaignRows,
     topProducts,
     viewedNotPurchased,
     topCategories,
@@ -249,6 +260,7 @@ export async function getAnalyticsDashboard(
   ] = await Promise.all([
     findAnalyticsSummary(days),
     findFunnel(days),
+    findUtmCampaignPerformance(days, 25),
     findTopProducts(days, 10),
     findProductsViewedNotPurchased(days, 10),
     findTopCategories(days, 10),
@@ -266,6 +278,11 @@ export async function getAnalyticsDashboard(
       checkoutToPurchase: percentage(funnelRow.buyers, funnelRow.checkoutStarters),
       viewToPurchase: percentage(funnelRow.buyers, funnelRow.productViewers),
     },
+    utmCampaigns: utmCampaignRows.map((row) => ({
+      ...row,
+      visitToCheckout: percentage(row.checkoutStarters, row.visitors),
+      visitToPurchase: percentage(row.buyers, row.visitors),
+    })),
     topProducts,
     viewedNotPurchased,
     topCategories,
